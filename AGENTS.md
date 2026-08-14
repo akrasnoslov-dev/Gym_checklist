@@ -38,14 +38,16 @@ For every task:
 3. Inspect dependencies and confirm they are `DONE`.
 4. Read required agent instructions from `agents/routing.toml`.
 5. Mark the task `IN PROGRESS` before implementation.
-6. Implement the smallest complete solution that satisfies the task.
-7. Add/update the tests required by the task.
-8. Run the strongest available verification.
-9. Compare the result against every listed acceptance criterion.
-10. Fix failures before marking the task `DONE`.
-11. Mark the task `DONE` in `docs/implementation_plan.md`.
-12. Update `docs/progress.md` with verification, agent reviews, blockers, and exact next task.
-13. Continue automatically to the next eligible task unless a genuine blocker exists.
+6. Update `docs/progress.md` with the active task before substantial edits.
+7. Implement the smallest complete solution that satisfies the task.
+8. Add/update the tests required by the task.
+9. Run the strongest available verification.
+10. Compare the result against every listed acceptance criterion.
+11. Fix failures before marking the task `DONE`.
+12. Mark the task `DONE` in `docs/implementation_plan.md`.
+13. Update `docs/progress.md` with exact verification, branch/commit/CI state, agent reviews, blockers, and exact next task.
+14. Make a focused checkpoint commit for the completed task or tightly coupled task set before carrying significant new work forward.
+15. Continue automatically to the next eligible task unless a genuine blocker exists.
 
 Do not mark a task `DONE` merely because code was written. `DONE` means the acceptance criteria are satisfied and required verification has passed.
 
@@ -55,7 +57,7 @@ If implementation behavior conflicts with the Product Spec, do not silently rein
 
 ## Default Codex workflow
 1. Start from `dev` or a focused `feature/*` branch based on `dev`; never develop directly on `main`.
-2. Read `docs/progress.md` and `docs/implementation_plan.md` and select the first `TODO` task whose dependencies are `DONE`.
+2. Read `docs/progress.md` and `docs/implementation_plan.md` and resume an existing `IN PROGRESS` task first; otherwise select the first `TODO` task whose dependencies are `DONE`.
 3. Follow the Autonomous implementation contract above.
 4. Apply required subagents from `agents/routing.toml` when delegation is available; otherwise apply their instructions manually and record this.
 5. Keep changes focused on the active task and strictly necessary supporting changes.
@@ -69,6 +71,20 @@ If implementation behavior conflicts with the Product Spec, do not silently rein
 Only stop for a genuine blocker that requires user input, unavailable credentials/signing, external configuration, a destructive/irreversible product choice not covered by the specification, unavailable required tools, or exhausted tool/model limits.
 
 When external configuration is required, batch related user actions into one checkpoint instead of interrupting repeatedly.
+
+## Session continuity
+The repository, not the chat transcript, is the durable project memory.
+
+- Keep `docs/progress.md` current enough that a brand-new Codex session with no previous chat can resume safely.
+- Record at least: current branch, active task, last completed task, last known good commit, verification/CI status, blockers, and exact next action.
+- Prefer small, reviewable commits and clean task boundaries.
+- At the start of a fresh session, trust Git state, committed files, CI, `docs/implementation_plan.md`, and `docs/progress.md` over remembered conversation context.
+- If a session stopped mid-task, reconcile and finish that `IN PROGRESS` task before taking another one.
+- If context has been compacted/lost or the conversation becomes inconsistent, re-read repository state instead of guessing.
+- The user is not expected to monitor context-window usage manually.
+- If the current Codex task becomes very long and reasoning quality starts degrading, finish the smallest safe atomic unit, update progress, commit, and recommend starting a fresh Codex task/session. Do not wait until work becomes unreliable.
+- Usage-limit exhaustion does not automatically mean a new task is required. After the limit resets, `continue` in the same task is acceptable if state remains coherent.
+- A fresh task/session is always safe because the repository checkpoint files are designed to reconstruct state without prior chat history.
 
 ## Product rules
 - Language: English only for MVP.

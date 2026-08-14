@@ -387,7 +387,7 @@ Allow one workout to be created for a concrete date.
 
 ---
 
-### M2.5 `IN PROGRESS` Build Exercise Picker and search
+### M2.5 `DONE` Build Exercise Picker and search
 **Goal**
 Add exercises quickly while planning.
 
@@ -407,7 +407,7 @@ Add exercises quickly while planning.
 
 ---
 
-### M2.6 `TODO` Build workout exercise editing
+### M2.6 `IN PROGRESS` Build workout exercise editing
 **Goal**
 Manage the ordered exercise list for a date.
 

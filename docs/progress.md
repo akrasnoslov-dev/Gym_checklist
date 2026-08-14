@@ -4,16 +4,17 @@
 Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
 
 ## Active task
-`M2.5` — Add a short searchable exercise-picker flow using bundled and user-created local exercises.
+`M2.6` — Add persistent delete and reorder controls for each selected-date workout's ordered exercise list.
 
 ## Published state
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
 - M0.1–M0.6 are `DONE`; the Milestone 0 bootstrap checkpoint is complete.
 - M1.1–M1.6 are `DONE`; the Milestone 1 domain checkpoint is complete.
-- Current branch: `dev`; local HEAD and `origin/dev` are `045f8ae` before M2.5 edits.
+- Current branch: `dev`; local HEAD and `origin/dev` are `f13e385` before M2.6 edits.
 - M2.2 is published as commit `0d3471d` on `dev`.
 - M2.3 is published as commit `d0e9fc1` on `dev`.
 - M2.4 is published as commit `045f8ae` on `dev`.
+- M2.5 is published as commit `f13e385` on `dev`.
 
 ## Milestone 1 implementation
 - Foundation-only domain entities cover UserSettings, Exercise, Workout, WorkoutExercise, and WorkoutSet with typed identifiers, explicit ordering, skip state, and Codable support.
@@ -54,6 +55,12 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - The secondary custom flow prefills a missing search, validates the required name, reuses normalized exact matches, retains genuinely new custom exercises, adds the result, and dismisses without an extra confirmation screen.
 - The returned editor state resolves system/custom names without adding set editing, reorder/delete controls, media, category filters, or Today changes.
 
+## M2.6 implementation
+- Program now uses a native sectioned list for the selected-date editor, with Edit-mode drag reordering, swipe deletion, and accessible per-row move/delete actions keyed by stable workout-exercise identity.
+- View-model mutations are scoped to a concrete `LocalDate`, validate exact ID permutations, preserve full exercise/set payloads, normalize contiguous order, save through the repository, and refresh only after success.
+- Deleting removes only the selected workout-exercise aggregate; re-adding uses the existing picker and produces a fresh entry at the end without changing the exercise library or neighboring dates.
+- Focused tests cover persisted reorder from legacy order gaps, payload preservation, invalid-order rollback, deletion compaction, typed missing-entry errors, independent re-add identity, and cross-date isolation.
+
 ## Verification status
 - Authoritative Milestone 0 macOS CI: PASS for published commit `7fe85bd` on `dev` (user-confirmed).
 - Milestone 1 macOS CI: PASS for commit `56c8e28`, run `31803547147` attempt 2. All 11 unit tests and the UI smoke test passed. Attempt 1 had a transient simulator app-launch timeout after all unit tests passed; rerunning the failed job succeeded without code changes.
@@ -70,7 +77,9 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.4 Windows static checks: PASS for repository ownership/date-key assertions, deterministic test and UI flow presence, explicit Xcode membership for all three new sources, shared scheme XML, and `git diff --check`.
 - M2.4 macOS CI: PASS for commit `045f8ae`, run `31809202522` attempt 1; the full build, unit-test, and simulator UI-test job passed.
 - M2.5 Windows static checks: PASS for combined search/custom integration assertions, ordered repository-add mapping, typed missing-workout handling, picker PBX membership, shared scheme XML, focused UI-flow presence, and `git diff --check`.
-- `swiftc` and `xcodebuild` are unavailable on this Windows host. M2.5 authoritative macOS build/tests are pending publication.
+- M2.5 macOS CI: PASS for commit `f13e385`, run `31810779194` attempt 1; the full build, unit-test, and simulator picker/custom flow passed.
+- M2.6 Windows static checks: PASS for stable-ID mutation APIs, reorder/delete persistence assertions, cross-date and re-add coverage, native List edit-control presence, shared scheme XML, and `git diff --check`.
+- `swiftc` and `xcodebuild` are unavailable on this Windows host. M2.6 authoritative macOS build/tests are pending publication.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -83,12 +92,13 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.3 `architecture_guardian`, `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS; navigation has one date source of truth, reuses domain status rules, remains calendar-centric, and includes deterministic accessibility/UI coverage.
 - M2.4 `architecture_guardian`, `firebase_data_guardian`, `security_privacy_agent`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on the owner-scoped, idempotent local repository and immediate Program state-flow design; no Firebase or later editor scope was added.
 - M2.5 `architecture_guardian`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on the long-lived exercise-library ownership, one-tap result return, custom fallback/reuse flow, storage-agnostic picker UI, and later-editor scope boundary.
+- M2.6 `architecture_guardian`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on concrete-date stable-ID mutations, contiguous order normalization, native list controls, per-date isolation, and the M2.7+ scope boundary.
 
 ## Blockers
-None for M2.5.
+None for M2.6.
 
 ## Exact next action
-Complete M2.5 code review, commit and push, verify macOS CI, mark M2.5 `DONE`, and continue automatically with M2.6.
+Complete M2.6 code review, commit and push, verify macOS CI, mark M2.6 `DONE`, and continue automatically with M2.7.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

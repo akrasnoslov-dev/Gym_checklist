@@ -50,6 +50,26 @@ final class GymChecklistUITests: XCTestCase {
         app.buttons["customExerciseSave"].tap()
         XCTAssertTrue(app.staticTexts["programExercise-Nordic Hop"].waitForExistence(timeout: 2))
 
+        let benchName = app.staticTexts["programExercise-Bench Press"]
+        let nordicName = app.staticTexts["programExercise-Nordic Hop"]
+        XCTAssertLessThan(benchName.frame.minY, nordicName.frame.minY)
+        app.buttons["Actions for Nordic Hop, exercise 2 of 2"].tap()
+        app.buttons["Move up"].tap()
+        let reordered = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in nordicName.frame.minY < benchName.frame.minY },
+            object: nil
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [reordered], timeout: 2), .completed)
+
+        app.buttons["Actions for Bench Press, exercise 2 of 2"].tap()
+        app.buttons["Delete"].tap()
+        XCTAssertFalse(benchName.waitForExistence(timeout: 1))
+        app.buttons["programDate-2026-08-13"].tap()
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+        app.buttons["programDate-2026-08-14"].tap()
+        XCTAssertTrue(nordicName.waitForExistence(timeout: 2))
+        XCTAssertFalse(benchName.exists)
+
         app.buttons["programNextWeek"].tap()
         XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
         app.buttons["programPreviousWeek"].tap()

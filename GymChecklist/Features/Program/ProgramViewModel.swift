@@ -4,6 +4,8 @@ import Foundation
 enum ProgramPlanningError: Error, Equatable {
     case workoutNotFound(LocalDate)
     case exerciseUnavailable(ExerciseID)
+    case workoutExerciseNotFound(WorkoutExerciseID)
+    case invalidExerciseOrder
 }
 
 @MainActor
@@ -85,15 +87,59 @@ final class ProgramViewModel: ObservableObject {
             throw ProgramPlanningError.exerciseUnavailable(exercise.id)
         }
 
-        let nextOrder = (workout.exercises.map(\.order).max() ?? -1) + 1
+        workout.exercises = normalizedExercises(workout.exercises)
         workout.exercises.append(WorkoutExercise(
             id: makeWorkoutExerciseID(),
             exerciseID: availableExercise.id,
             customName: availableExercise.isSystem ? nil : availableExercise.name,
-            order: nextOrder,
+            order: workout.exercises.count,
             isSkipped: false,
             sets: []
         ))
+        workout.updatedAt = now()
+        try repository.save(workout)
+        workouts = repository.workouts
+    }
+
+    func orderedExercises(on workoutDate: LocalDate) -> [WorkoutExercise] {
+        repository.workout(on: workoutDate).map { normalizedExercises($0.exercises) } ?? []
+    }
+
+    func deleteExercise(_ id: WorkoutExerciseID, from workoutDate: LocalDate) throws {
+        guard var workout = repository.workout(on: workoutDate) else {
+            throw ProgramPlanningError.workoutNotFound(workoutDate)
+        }
+        guard workout.exercises.contains(where: { $0.id == id }) else {
+            throw ProgramPlanningError.workoutExerciseNotFound(id)
+        }
+
+        workout.exercises.removeAll { $0.id == id }
+        workout.exercises = normalizedExercises(workout.exercises)
+        workout.updatedAt = now()
+        try repository.save(workout)
+        workouts = repository.workouts
+    }
+
+    func reorderExercises(_ orderedIDs: [WorkoutExerciseID], on workoutDate: LocalDate) throws {
+        guard var workout = repository.workout(on: workoutDate) else {
+            throw ProgramPlanningError.workoutNotFound(workoutDate)
+        }
+        let current = normalizedExercises(workout.exercises)
+        guard
+            orderedIDs.count == current.count,
+            Set(orderedIDs).count == orderedIDs.count,
+            Set(orderedIDs) == Set(current.map(\.id))
+        else { throw ProgramPlanningError.invalidExerciseOrder }
+        guard orderedIDs != current.map(\.id) else { return }
+
+        let exercisesByID = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
+        workout.exercises = orderedIDs.enumerated().compactMap { index, id in
+            exercisesByID[id].map { exercise in
+                var reordered = exercise
+                reordered.order = index
+                return reordered
+            }
+        }
         workout.updatedAt = now()
         try repository.save(workout)
         workouts = repository.workouts
@@ -103,5 +149,16 @@ final class ProgramViewModel: ObservableObject {
         exerciseLibrary.allExercises.first { $0.id == workoutExercise.exerciseID }?.name
             ?? workoutExercise.customName
             ?? "Exercise"
+    }
+
+    private func normalizedExercises(_ exercises: [WorkoutExercise]) -> [WorkoutExercise] {
+        exercises.sorted {
+            if $0.order != $1.order { return $0.order < $1.order }
+            return $0.id.rawValue.uuidString < $1.id.rawValue.uuidString
+        }.enumerated().map { index, exercise in
+            var normalized = exercise
+            normalized.order = index
+            return normalized
+        }
     }
 }

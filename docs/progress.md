@@ -21,6 +21,7 @@ Milestone 1 — Core domain model and business rules.
 
 ## Verification status
 - Authoritative Milestone 0 macOS CI: PASS for published commit `7fe85bd` on `dev` (user-confirmed).
+- Milestone 1 macOS CI run `31802308423` for commit `03c6ead` failed because the app Debug configuration omitted `ENABLE_TESTABILITY`, so `@testable import GymChecklist` could not import the emitted module. The focused project-setting fix is in progress and requires a new authoritative run.
 - Milestone 1 temporary Swift Package test execution on Linux: PASS, 11 tests, 0 failures.
 - `swiftc -typecheck GymChecklist/Core/Models/*.swift GymChecklist/Core/Utilities/*.swift`: PASS.
 - Test source type-check against an emitted `GymChecklist` module: PASS.
@@ -33,10 +34,10 @@ Milestone 1 — Core domain model and business rules.
 - `test_ci_agent`: PASS for available checks and coverage; external macOS CI remains the only checkpoint gate.
 
 ## Blockers
-The Cloud snapshot has no configured writable Git remote or PR integration, so it cannot publish the Milestone 1 checkpoint or trigger authoritative macOS CI. This is the consolidated M1.6 external verification boundary, not an implementation defect.
+Milestone 1 remains gated on publishing the `ENABLE_TESTABILITY` fix and obtaining a green replacement macOS CI run.
 
 ## Exact next action
-Publish the Milestone 1 checkpoint to `dev` (or a feature PR targeting `dev`) and obtain one green `iOS CI / build-and-test` run. Then mark M1.1–M1.6 `DONE` and begin M2.1.
+Commit and push the focused project-setting fix, verify the replacement `iOS CI / build-and-test` run, then mark M1.1–M1.6 `DONE` and begin M2.1.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

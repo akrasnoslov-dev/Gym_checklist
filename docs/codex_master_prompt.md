@@ -7,6 +7,8 @@ You are the primary autonomous implementation agent for Gym Checklist.
 
 Your job is to execute the approved MVP backlog in this repository sequentially with minimal user interaction.
 
+The repository is durable project memory. Chat history is not. A completely fresh Codex task/session must be able to resume safely from Git state plus the checkpoint documents.
+
 Before doing anything, read in full:
 - AGENTS.md
 - docs/codex_instructions.md
@@ -19,30 +21,38 @@ Before doing anything, read in full:
 
 Then inspect:
 - current branch and worktree status;
-- the source/tests relevant to the next task;
+- recent commits and any active diff;
+- CI status when relevant;
+- the source/tests relevant to the active/next task;
 - all agent TOML files required by routing or by the task checkpoint.
 
 Execution algorithm:
-1. Find the first task in docs/implementation_plan.md with status TODO whose dependencies are DONE.
-2. Read the entire task body. Never implement from the task title alone.
-3. Read every Product Spec / UX Spec / Architecture section referenced by that task.
-4. Confirm the planned implementation does not expand MVP scope or violate the Today UX invariant.
-5. Mark the task IN PROGRESS in docs/implementation_plan.md.
-6. Apply required agents from agents/routing.toml. Use Codex subagents/delegation when available; otherwise manually apply their TOML instructions and record that in docs/progress.md.
-7. Implement the smallest complete solution that satisfies the task.
-8. Add/update every test required by the task.
-9. Run the strongest verification available.
-10. Compare implementation against every acceptance criterion in the task.
-11. Fix failures before marking the task DONE.
-12. Mark the task DONE in docs/implementation_plan.md only after acceptance/verification passes.
-13. Update docs/progress.md with:
+1. If any task is IN PROGRESS, reconcile/resume that task first. Do not start another task until its state is resolved.
+2. Otherwise find the first task in docs/implementation_plan.md with status TODO whose dependencies are DONE.
+3. Read the entire task body. Never implement from the task title alone.
+4. Read every Product Spec / UX Spec / Architecture section referenced by that task.
+5. Confirm the planned implementation does not expand MVP scope or violate the Today UX invariant.
+6. Mark the task IN PROGRESS in docs/implementation_plan.md.
+7. Immediately update docs/progress.md with active task, branch, intended scope, and last known good commit/CI state before substantial edits.
+8. Apply required agents from agents/routing.toml. Use Codex subagents/delegation when available; otherwise manually apply their TOML instructions and record that in docs/progress.md.
+9. Implement the smallest complete solution that satisfies the task.
+10. Add/update every test required by the task.
+11. Run the strongest verification available.
+12. Compare implementation against every acceptance criterion in the task.
+13. Fix failures before marking the task DONE.
+14. Mark the task DONE in docs/implementation_plan.md only after acceptance/verification passes.
+15. Update docs/progress.md with:
+   - active/current milestone;
    - task completed;
+   - current branch;
+   - last known good commit;
    - exact verification performed/results;
+   - CI status where applicable;
    - agents used or manually applied;
    - blockers/known limitations;
-   - exact next eligible task.
-14. Commit/push/open PR to dev when supported by the environment and repository workflow.
-15. Continue immediately to the next eligible task without asking me for routine approval.
+   - exact next eligible task/action.
+16. Create a focused checkpoint commit for the completed task or smallest tightly coupled task set. Push/open PR to dev when supported by the repository workflow.
+17. Continue immediately to the next eligible task without asking me for routine approval.
 
 Mandatory milestone checkpoint tasks are gates. Do not proceed to the next milestone while a checkpoint has unresolved blocking findings.
 
@@ -59,6 +69,15 @@ The user's primary machine is Windows and has no Xcode. Do not claim local Xcode
 
 Batch external user-action blockers. Firebase console setup, Google auth configuration, Apple Developer signing, App Store Connect, GitHub secrets, or similar external steps should be accumulated into one clear checkpoint checklist whenever possible rather than interrupting the user repeatedly.
 
+Session/context rules:
+- Do not rely on me to monitor your context-window usage.
+- Keep repository checkpoints current continuously, not only when you expect to stop.
+- If chat context is compacted, reset, unavailable, or inconsistent, reconstruct state from Git, CI, docs/implementation_plan.md, and docs/progress.md instead of guessing.
+- If the current task/session has become very long and you notice repeated reasoning, lost precision, inconsistent assumptions, or difficulty keeping task state straight, finish the smallest safe atomic unit, checkpoint/commit it, update progress, and tell me that starting a fresh Codex task is recommended.
+- Do not wait until the session is unusable before recommending a fresh task when these signs are visible.
+- A usage-limit stop does not by itself require a fresh task. After the usage limit resets, `continue` in the same task is fine if the session remains coherent.
+- A fresh task is always acceptable: re-read the repository and continue without requiring previous chat history.
+
 Stop only for:
 - a genuine user-action blocker that cannot be completed from the repository;
 - missing external credentials/configuration required for the active task;
@@ -72,12 +91,13 @@ Protected product invariant:
 Open app -> Today -> one tap per completed set -> close app.
 Today must remain visually quiet and must not gain charts, statistics, timers, coaching, social content, PR dashboards, calories, recommendations, or other unapproved secondary content.
 
-Start now by reading docs/progress.md and docs/implementation_plan.md and executing the next eligible task.
+Start now by reconstructing repository state and executing the active/next eligible task.
 ```
 
 ## Later sessions
 
-For future Codex sessions, the user should normally only need to say:
+### Same Codex task/session
+If the task stopped only because of a temporary usage limit and the conversation still looks coherent, the user should normally only need to say:
 
 ```text
 continue
@@ -86,7 +106,8 @@ continue
 Interpret `continue` as:
 
 ```text
-Re-read AGENTS.md, docs/implementation_plan.md, docs/progress.md, and any context required by the next task. Resume from repository state. Find the first eligible TODO task, execute it according to the full autonomous workflow, update task/progress state, and continue sequentially until a genuine blocker or usage limit occurs. Do not ask me to restate context or approve routine decisions.
+Re-read AGENTS.md, docs/codex_instructions.md, docs/implementation_plan.md, docs/progress.md, and any context required by the active task. Inspect Git state. Resume an existing IN PROGRESS task first; otherwise take the next eligible TODO. Execute it according to the full autonomous workflow, checkpoint progress, commit, and continue sequentially until a genuine blocker or usage limit occurs. Do not ask me to restate context or approve routine decisions.
 ```
 
-If the prior session stopped mid-task because of a usage/tool limit, continue that existing IN PROGRESS task first rather than selecting a new one.
+### Fresh Codex task/session
+If the prior task is very long, context appears degraded, or the user simply starts a new Codex task, use this full master prompt again. The new session must recover entirely from repository state; previous chat history is optional and must not be required.

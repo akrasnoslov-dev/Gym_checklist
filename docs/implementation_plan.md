@@ -324,7 +324,7 @@ Provide a searchable offline exercise list.
 
 ---
 
-### M2.2 `IN PROGRESS` Implement custom exercise support locally
+### M2.2 `DONE` Implement custom exercise support locally
 **Goal**
 Allow users to add exercises not present in the bundled catalog.
 
@@ -343,7 +343,7 @@ Allow users to add exercises not present in the bundled catalog.
 
 ---
 
-### M2.3 `TODO` Build Program week/date navigation
+### M2.3 `IN PROGRESS` Build Program week/date navigation
 **Goal**
 Implement the calendar-centric Program screen.
 

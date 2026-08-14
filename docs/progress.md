@@ -4,13 +4,14 @@
 Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
 
 ## Active task
-`M2.2` — Implement local custom exercise creation and combined search without adding picker UI.
+`M2.3` — Build Program week navigation with seven concrete selectable dates and a clear empty-date planning state.
 
 ## Published state
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
 - M0.1–M0.6 are `DONE`; the Milestone 0 bootstrap checkpoint is complete.
 - M1.1–M1.6 are `DONE`; the Milestone 1 domain checkpoint is complete.
-- Current branch: `dev`; local HEAD and `origin/dev` are `765c237` before M2.2 edits.
+- Current branch: `dev`; local HEAD and `origin/dev` are `0d3471d` before M2.3 edits.
+- M2.2 is published as commit `0d3471d` on `dev`.
 
 ## Milestone 1 implementation
 - Foundation-only domain entities cover UserSettings, Exercise, Workout, WorkoutExercise, and WorkoutSet with typed identifiers, explicit ordering, skip state, and Codable support.
@@ -33,6 +34,12 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - Combined local search preserves bundled order followed by custom insertion order and cannot expose another library owner's custom entries.
 - Focused tests cover validation, ownership, category normalization, reuse, similar names, combined search, deterministic ordering, empty/no-match queries, and user isolation.
 
+## M2.3 implementation
+- Program now opens a locale-aware seven-date week centered on the selected concrete local date, with unbounded previous/next week navigation that preserves the weekday.
+- Quiet, shape-distinct status markers derive from the existing workout calendar rules; absence of a workout remains a feature-only empty state.
+- The selected date is repeated in full and drives the content below. Empty dates expose an enabled `Create workout` intent without adding the persistence owned by M2.4.
+- Accessibility labels expose full dates, selection, and textual status; deterministic UI launch state covers week navigation and date selection.
+
 ## Verification status
 - Authoritative Milestone 0 macOS CI: PASS for published commit `7fe85bd` on `dev` (user-confirmed).
 - Milestone 1 macOS CI: PASS for commit `56c8e28`, run `31803547147` attempt 2. All 11 unit tests and the UI smoke test passed. Attempt 1 had a transient simulator app-launch timeout after all unit tests passed; rerunning the failed job succeeded without code changes.
@@ -43,7 +50,9 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.1 Windows static checks: PASS for catalog/category/scope assertions, explicit Xcode app-target membership, catalog test presence, shared scheme XML, and `git diff --check`.
 - M2.1 macOS CI: PASS for commit `765c237`, run `31805329059` attempt 1; all unit tests and the UI smoke test passed.
 - M2.2 Windows static checks: PASS for local API/ownership/duplicate/search assertions, explicit Xcode app-target membership, focused test presence, shared scheme XML, and `git diff --check`.
-- `swiftc` and `xcodebuild` are unavailable on this Windows host. M2.2 authoritative macOS build/tests are pending publication.
+- M2.2 macOS CI: PASS for commit `0d3471d`, run `31806340413` attempt 1; all unit tests and the UI smoke test passed.
+- M2.3 Windows static checks: PASS for deterministic calendar/status test presence, explicit Xcode app-target membership, updated UI smoke coverage, shared scheme XML, and `git diff --check`.
+- `swiftc` and `xcodebuild` are unavailable on this Windows host. M2.3 authoritative macOS build/tests are pending publication.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -53,12 +62,13 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.1 completion code review: no critical findings; checkpoint accuracy and complete stable-ID coverage were fixed before publication.
 - M2.2 `architecture_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS; the implementation remains local/user-scoped and defers picker UI and persistence protocols to their scheduled tasks.
 - M2.2 completion review ownership finding fixed: an explicit `init(userID:)` prevents synthesized seeding of arbitrary or cross-owner custom entries.
+- M2.3 `architecture_guardian`, `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS; navigation has one date source of truth, reuses domain status rules, remains calendar-centric, and includes deterministic accessibility/UI coverage.
 
 ## Blockers
-None for M2.2.
+None for M2.3.
 
 ## Exact next action
-Complete code review, commit and push M2.2, verify macOS CI, mark M2.2 `DONE`, and continue automatically.
+Complete M2.3 code review, commit and push, verify macOS CI, mark M2.3 `DONE`, and continue automatically with M2.4.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

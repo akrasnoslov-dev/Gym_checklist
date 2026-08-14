@@ -255,3 +255,100 @@ final class LocalExerciseLibraryTests: XCTestCase {
         XCTAssertEqual(secondLibrary.customExercises.first?.createdByUserID, UserID(rawValue: "user-b"))
     }
 }
+
+final class ProgramCalendarStateTests: XCTestCase {
+    func testWeekContainsSevenConcreteConsecutiveDatesAcrossMonthBoundary() {
+        let state = ProgramCalendarState(
+            selectedDate: LocalDate(year: 2026, month: 8, day: 14),
+            calendar: mondayCalendar("Europe/Copenhagen")
+        )
+
+        XCTAssertEqual(state.weekDates, (10...16).map { LocalDate(year: 2026, month: 8, day: $0) })
+        XCTAssertEqual(Set(state.weekDates).count, 7)
+
+        let boundary = ProgramCalendarState(
+            selectedDate: LocalDate(year: 2027, month: 1, day: 1),
+            calendar: mondayCalendar("America/Los_Angeles")
+        )
+        XCTAssertEqual(boundary.weekDates.first, LocalDate(year: 2026, month: 12, day: 28))
+        XCTAssertEqual(boundary.weekDates.last, LocalDate(year: 2027, month: 1, day: 3))
+    }
+
+    func testWeekNavigationPreservesSelectedWeekdayWithoutRangeLimit() {
+        var state = ProgramCalendarState(
+            selectedDate: LocalDate(year: 2026, month: 8, day: 14),
+            calendar: mondayCalendar("Europe/Copenhagen")
+        )
+
+        state.moveWeek(by: 12)
+        XCTAssertEqual(state.selectedDate, LocalDate(year: 2026, month: 11, day: 6))
+        XCTAssertTrue(state.weekDates.contains(state.selectedDate))
+
+        state.moveWeek(by: -20)
+        XCTAssertEqual(state.selectedDate, LocalDate(year: 2026, month: 6, day: 19))
+        XCTAssertTrue(state.weekDates.contains(state.selectedDate))
+    }
+
+    func testSelectionDrivesWorkoutAndEmptyContent() throws {
+        let workoutDate = LocalDate(year: 2026, month: 8, day: 12)
+        let workout = makeWorkout(date: workoutDate, completed: [false])
+        var state = ProgramCalendarState(
+            selectedDate: LocalDate(year: 2026, month: 8, day: 14),
+            currentDate: LocalDate(year: 2026, month: 8, day: 14),
+            calendar: mondayCalendar("Europe/Copenhagen"),
+            workouts: [workout]
+        )
+
+        XCTAssertEqual(state.selectedDayState, .empty)
+        XCTAssertNil(state.selectedWorkout)
+        state.select(workoutDate)
+        XCTAssertEqual(state.selectedWorkout?.id, workout.id)
+        XCTAssertEqual(state.selectedDayState, .workout(.incomplete))
+    }
+
+    func testAllWorkoutCalendarStatesUseDomainRules() {
+        let current = LocalDate(year: 2026, month: 8, day: 14)
+        let workouts = [
+            makeWorkout(date: LocalDate(year: 2026, month: 8, day: 10), completed: [false]),
+            makeWorkout(date: LocalDate(year: 2026, month: 8, day: 11), completed: [true, false]),
+            makeWorkout(date: LocalDate(year: 2026, month: 8, day: 12), completed: [true]),
+            makeWorkout(date: current, completed: [false])
+        ]
+        let state = ProgramCalendarState(
+            selectedDate: current,
+            currentDate: current,
+            calendar: mondayCalendar("Europe/Copenhagen"),
+            workouts: workouts
+        )
+
+        XCTAssertEqual(state.dayState(for: LocalDate(year: 2026, month: 8, day: 9)), .empty)
+        XCTAssertEqual(state.dayState(for: LocalDate(year: 2026, month: 8, day: 10)), .workout(.incomplete))
+        XCTAssertEqual(state.dayState(for: LocalDate(year: 2026, month: 8, day: 11)), .workout(.partial))
+        XCTAssertEqual(state.dayState(for: LocalDate(year: 2026, month: 8, day: 12)), .workout(.completed))
+        XCTAssertEqual(state.dayState(for: current), .workout(.planned))
+        XCTAssertEqual(ProgramDayState.empty.label, "Empty")
+        XCTAssertEqual(ProgramDayState.workout(.partial).systemImage, "circle.lefthalf.filled")
+    }
+
+    private func mondayCalendar(_ timeZone: String) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "en_US_POSIX")
+        calendar.timeZone = TimeZone(identifier: timeZone)!
+        calendar.firstWeekday = 2
+        calendar.minimumDaysInFirstWeek = 4
+        return calendar
+    }
+
+    private func makeWorkout(date: LocalDate, completed: [Bool]) -> Workout {
+        var sets = completed.enumerated().map { WorkoutSet(order: $0.offset, reps: 8) }
+        for index in sets.indices where completed[index] { sets[index].complete(at: .distantPast) }
+        let exercise = WorkoutExercise(
+            id: WorkoutExerciseID(), exerciseID: ExerciseID(), customName: nil,
+            order: 0, isSkipped: false, sets: sets
+        )
+        return Workout(
+            id: WorkoutID(), userID: UserID(rawValue: "user"), localDate: date,
+            exercises: [exercise], createdAt: .distantPast, updatedAt: .distantPast
+        )
+    }
+}

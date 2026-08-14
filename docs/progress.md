@@ -10,7 +10,9 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
 - M0.1–M0.6 are `DONE`; the Milestone 0 bootstrap checkpoint is complete.
 - M1.1–M1.6 are `DONE`; the Milestone 1 domain checkpoint is complete.
-- Current branch: `dev`; local HEAD and `origin/dev` are `f13e385` before M2.6 edits.
+- Current branch: `dev`.
+- Latest M2.6 implementation/test commit: `cf089b9` (`Assert week navigation through persistent header`). The handoff documentation commit containing this checkpoint is the repository HEAD after the final checkpoint commit; confirm it with `git rev-parse HEAD`.
+- Before the final checkpoint push, `origin/dev` was `b0f2601`. The checkpoint is intended to be pushed to `origin/dev`; a fresh session must confirm the remote head and resulting Actions run rather than assuming CI passed.
 - M2.2 is published as commit `0d3471d` on `dev`.
 - M2.3 is published as commit `d0e9fc1` on `dev`.
 - M2.4 is published as commit `045f8ae` on `dev`.
@@ -60,6 +62,8 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - View-model mutations are scoped to a concrete `LocalDate`, validate exact ID permutations, preserve full exercise/set payloads, normalize contiguous order, save through the repository, and refresh only after success.
 - Deleting removes only the selected workout-exercise aggregate; re-adding uses the existing picker and produces a fresh entry at the end without changing the exercise library or neighboring dates.
 - Focused tests cover persisted reorder from legacy order gaps, payload preservation, invalid-order rollback, deletion compaction, typed missing-entry errors, independent re-add identity, and cross-date isolation.
+- Materially changed files for M2.6: `GymChecklist/Features/Program/ProgramView.swift`, `GymChecklist/Features/Program/ProgramViewModel.swift`, `GymChecklistTests/DomainRulesTests.swift`, `GymChecklistUITests/GymChecklistUITests.swift`, `docs/implementation_plan.md`, and `docs/progress.md`.
+- The final small unverified correction in `cf089b9` keeps the week-navigation UI assertion on the persistent `programWeekHeader` row (`Aug 17 - Aug 23`, then `Aug 10 - Aug 16`) instead of querying replaced/virtualized date or selected-date rows.
 
 ## Verification status
 - Authoritative Milestone 0 macOS CI: PASS for published commit `7fe85bd` on `dev` (user-confirmed).
@@ -79,11 +83,15 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.5 Windows static checks: PASS for combined search/custom integration assertions, ordered repository-add mapping, typed missing-workout handling, picker PBX membership, shared scheme XML, focused UI-flow presence, and `git diff --check`.
 - M2.5 macOS CI: PASS for commit `f13e385`, run `31810779194` attempt 1; the full build, unit-test, and simulator picker/custom flow passed.
 - M2.6 Windows static checks: PASS for stable-ID mutation APIs, reorder/delete persistence assertions, cross-date and re-add coverage, native List edit-control presence, shared scheme XML, and `git diff --check`.
-- `swiftc` and `xcodebuild` are unavailable on this Windows host. M2.6 authoritative macOS build/tests are pending publication.
+- `swiftc` and `xcodebuild` are unavailable on this Windows host. M2.6 authoritative macOS verification is incomplete; M2.6 remains `IN PROGRESS`.
 - M2.6 initial macOS CI run `31812569305`: FAILURE in the UI regression because the stable row accessibility identifier masked its child exercise-name identifier; build/unit execution reached the UI flow, and the row now explicitly contains child accessibility elements before republishing.
 - M2.6 replacement run `31813267131`: UI flow passed custom add, reorder, delete, and per-date persistence, then failed because the converted List had virtualized the offscreen seven-date row before the next-week assertion; the test now scrolls back to the week selector before checking Aug 21.
 - M2.6 run `31814068288`: one scroll still left the next-week date row virtualized after all exercise-edit flows passed; next/previous week UI verification now asserts the always-rendered selected-date heading, while current-week date buttons remain directly exercised and unit tests cover every derived next-week date.
 - M2.6 run `31815123053`: attempt 1 hit transient simulator accessibility latency after all 33 unit tests passed; attempt 2 reached week navigation and proved that the selected-date section is also virtualized after the long editor flow. Week navigation now runs while the calendar is initially visible and directly asserts the concrete Aug 21/Aug 14 date buttons before exercising the editor.
+- M2.6 run `31816172230`: all 33 unit tests passed, but SwiftUI replaced the date-selector List row after Next Week and the new Aug 21 button was not exposed to UI automation. The test now waits on the week-range label in the same persistent row as the navigation controls (`Aug 17 - Aug 23`, then `Aug 10 - Aug 16`); concrete date derivation remains exhaustively covered by unit tests.
+- Latest completed macOS CI is run `31816172230` for commit `b0f2601`: **FAILURE**. Concrete failure: `GymChecklistUITests.testAppLaunchesOnTodayAndNavigatesAllTabs()` at `GymChecklistUITests.swift:22`, where `programDate-2026-08-21` did not become exposed within two seconds after tapping `programNextWeek`; all 33 unit tests passed. Diagnosis: SwiftUI replaced/virtualized the date-selector `List` row, while the navigation control itself remained tappable. Commit `cf089b9` contains the small pending verification fix described above.
+- Fixes already attempted: preserve row accessibility children (`179657e`); scroll toward the calendar before late assertions (`409ce19`); assert the selected-date heading (`45c2af5`); move navigation before the editor flow (`b0f2601`); finally assert the persistent week header (`cf089b9`). Runs `31812569305`, `31813267131`, `31814068288`, `31815123053`, and `31816172230` document those iterations.
+- Final Windows handoff checks: `git diff --check` passed; shared scheme XML parsed; M2.6 source/test identifiers and plan status were found by deterministic `rg` checks. `git status` showed only `docs/progress.md` pending before the documentation checkpoint; no intentional working changes should remain after that commit.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -99,10 +107,10 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.6 `architecture_guardian`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on concrete-date stable-ID mutations, contiguous order normalization, native list controls, per-date isolation, and the M2.7+ scope boundary.
 
 ## Blockers
-None for M2.6.
+M2.6 is blocked from `DONE` only by authoritative macOS CI: the latest completed run is red, and the `cf089b9` correction has not yet been verified. Do not treat the 33 passing unit tests as a green full workflow.
 
 ## Exact next action
-Complete M2.6 code review, commit and push, verify macOS CI, mark M2.6 `DONE`, and continue automatically with M2.7.
+Resume M2.6 before selecting any new task. Confirm `dev`, local/remote HEAD, and the Actions run triggered by the pushed checkpoint. Inspect that run's exact macOS build/unit/UI result. If it fails, diagnose and fix only M2.6; if and only if the full workflow is green, mark M2.6 `DONE` and update this checkpoint. Do not start M2.7 until M2.6 verification is green.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

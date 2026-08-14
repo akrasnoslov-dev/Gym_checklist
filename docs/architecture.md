@@ -1,0 +1,190 @@
+# Gym Checklist — Architecture
+
+## 1. Goals
+- Native iOS MVP.
+- Fast Today startup and one-tap local responsiveness.
+- Offline-first workout execution.
+- Simple codebase suitable for AI-assisted development.
+- Minimal backend/ops burden.
+
+## 2. Proposed stack
+- Swift
+- SwiftUI
+- Feature-oriented MVVM
+- Firebase Authentication
+- Cloud Firestore
+- Firestore offline persistence
+- Firebase Analytics
+- Firebase Crashlytics
+- GitHub Actions macOS runners
+
+## 3. Module layout
+Recommended source structure once the Xcode project is created:
+
+```text
+GymChecklist/
+  App/
+  Features/
+    Auth/
+    Today/
+    Program/
+    Exercises/
+    Settings/
+  Core/
+    Models/
+    UI/
+    Utilities/
+  Data/
+    Repositories/
+    Firebase/
+    Local/
+  Services/
+```
+
+Tests:
+
+```text
+GymChecklistTests/
+GymChecklistUITests/
+```
+
+## 4. Boundaries
+Views render state and emit user intent.
+ViewModels coordinate feature state and use repositories/services.
+Repositories own persistence/query contracts.
+Firebase-specific types should not leak deeply into feature UI code.
+
+Avoid introducing extra layers unless a real testing or separation problem appears.
+
+## 5. Core logical entities
+### UserSettings
+- userId
+- theme: system/light/dark
+- weightUnit: kg/lb
+
+### Exercise
+- id
+- name
+- category optional
+- isSystem
+- createdByUserId optional
+
+### Workout
+- id
+- userId
+- localDate
+- status: planned/partial/completed/incomplete
+
+### WorkoutExercise
+- id
+- workoutId
+- exerciseId/customName
+- order
+- isSkipped
+
+### WorkoutSet
+- id
+- workoutExerciseId
+- order
+- reps
+- weight
+- timeSeconds
+- isCompleted
+- actualReps optional
+- actualWeight optional
+- actualTimeSeconds optional
+- completedAt optional
+
+## 6. Date handling
+Workout identity is based on local calendar date, not UTC day.
+Operation timestamps use absolute timestamps.
+Date conversion must be isolated and tested around timezone/day-boundary cases.
+
+## 7. Planned/actual behavior
+Before completion, base set values are the current plan.
+Completing a set initializes actual fields from those values.
+Completed actual fields may be edited.
+Program edits affect non-completed set values immediately.
+Do not preserve an immutable original-plan snapshot for MVP analytics.
+Do not silently overwrite completed actual values.
+
+## 8. Offline strategy
+Firestore client persistence is the primary offline mechanism for cloud-backed user data.
+The app must use optimistic/local writes so Today responds without waiting for network acknowledgement.
+
+System exercise catalog should be bundled with the application for instant offline search.
+Custom exercises are user-owned cloud data and should remain locally cached after use.
+
+## 9. Firestore shape
+A practical starting point:
+
+```text
+users/{userId}
+users/{userId}/settings/default
+users/{userId}/workouts/{workoutId}
+users/{userId}/workouts/{workoutId}/exercises/{workoutExerciseId}
+users/{userId}/workouts/{workoutId}/exercises/{workoutExerciseId}/sets/{setId}
+users/{userId}/customExercises/{exerciseId}
+```
+
+Codex may refine nesting if query constraints justify it, but changes must preserve owner isolation, offline behavior, and simple per-date reads.
+
+## 10. Security
+- Firebase Auth UID is the user ownership boundary.
+- Firestore rules must enforce owner-only access.
+- Do not store raw passwords.
+- Do not commit signing materials, service-account keys, or secret configuration.
+- Use environment/repository secrets for CI release credentials.
+
+## 11. Authentication
+MVP implementation target:
+- email/password
+- Google Sign-In
+- reset password
+
+Before App Store release, verify current Apple requirements and implement Sign in with Apple if required.
+
+## 12. Analytics
+Keep event set intentionally small:
+- sign_up
+- login
+- workout_created
+- workout_copied
+- workout_repeat_created
+- exercise_added
+- custom_exercise_created
+- set_completed
+- set_uncompleted
+- set_actual_edited
+- exercise_skipped
+- workout_completed
+
+Do not log detailed workout content as analytics parameters unless explicitly approved.
+
+## 13. CI
+GitHub Actions on macOS is authoritative for build/test because primary development may occur on Windows.
+
+CI should eventually run:
+- project resolution
+- simulator build
+- unit tests
+- UI smoke tests where stable
+
+The initial workflow must tolerate the repository before the Xcode project is generated, then become strict once bootstrap is complete.
+
+## 14. Distribution
+Development stages:
+1. CI-only simulator build/tests.
+2. Apple Developer account/configuration.
+3. Code signing/provisioning setup.
+4. TestFlight beta upload from macOS CI or another Apple-supported release path.
+5. App Store submission only after explicit release approval.
+
+## 15. Architecture guardrails
+Do not add:
+- custom server/API without demonstrated need,
+- separate sync engine when Firestore behavior is sufficient,
+- complex recurrence engine,
+- immutable plan-version history,
+- reactive/event frameworks beyond what Swift/SwiftUI provides unless justified,
+- third-party UI frameworks for basic screens.

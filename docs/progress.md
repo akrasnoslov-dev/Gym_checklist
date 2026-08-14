@@ -81,6 +81,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.6 Windows static checks: PASS for stable-ID mutation APIs, reorder/delete persistence assertions, cross-date and re-add coverage, native List edit-control presence, shared scheme XML, and `git diff --check`.
 - `swiftc` and `xcodebuild` are unavailable on this Windows host. M2.6 authoritative macOS build/tests are pending publication.
 - M2.6 initial macOS CI run `31812569305`: FAILURE in the UI regression because the stable row accessibility identifier masked its child exercise-name identifier; build/unit execution reached the UI flow, and the row now explicitly contains child accessibility elements before republishing.
+- M2.6 replacement run `31813267131`: UI flow passed custom add, reorder, delete, and per-date persistence, then failed because the converted List had virtualized the offscreen seven-date row before the next-week assertion; the test now scrolls back to the week selector before checking Aug 21.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.

@@ -71,6 +71,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertFalse(benchName.exists)
 
         app.buttons["programNextWeek"].tap()
+        app.swipeDown()
         XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
         app.buttons["programPreviousWeek"].tap()
         app.buttons["programDate-2026-08-12"].tap()

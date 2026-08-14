@@ -206,6 +206,7 @@ struct ProgramView: View {
             }
             .accessibilityLabel("Actions for \(name), exercise \(index + 1) of \(orderedExercises.count)")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
         .accessibilityHint("Exercise \(index + 1) of \(orderedExercises.count)")
     }

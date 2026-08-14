@@ -14,7 +14,7 @@ Continuity rule: after each completed task, update `docs/progress.md` with the c
 
 ## Milestone 0 — Repository and iOS bootstrap
 
-### M0.1 `IN PROGRESS` Create the native iOS project
+### M0.1 `DONE` Create the native iOS project
 **Goal**
 Create an Xcode project named `GymChecklist` using Swift and SwiftUI, with unit test and UI test targets.
 
@@ -42,7 +42,7 @@ Create an Xcode project named `GymChecklist` using Swift and SwiftUI, with unit 
 
 ---
 
-### M0.2 `IN PROGRESS (PENDING CI)` Establish feature-oriented MVVM structure
+### M0.2 `DONE` Establish feature-oriented MVVM structure
 **Goal**
 Create the project structure required for autonomous implementation without over-engineering.
 
@@ -66,7 +66,7 @@ Create the project structure required for autonomous implementation without over
 
 ---
 
-### M0.3 `IN PROGRESS (PENDING CI)` Build the application shell
+### M0.3 `DONE` Build the application shell
 **Goal**
 Create the base app navigation with the three approved top-level tabs.
 
@@ -92,7 +92,7 @@ Create the base app navigation with the three approved top-level tabs.
 
 ---
 
-### M0.4 `IN PROGRESS (PENDING CI)` Make GitHub Actions authoritative for iOS build/test
+### M0.4 `DONE` Make GitHub Actions authoritative for iOS build/test
 **Goal**
 Turn the macOS CI workflow into the authoritative build/test path for a Windows-based developer.
 
@@ -117,7 +117,7 @@ Turn the macOS CI workflow into the authoritative build/test path for a Windows-
 
 ---
 
-### M0.5 `IN PROGRESS (PENDING CI)` Add lightweight code quality conventions
+### M0.5 `DONE` Add lightweight code quality conventions
 **Goal**
 Define low-friction Swift quality rules without creating maintenance overhead.
 
@@ -136,7 +136,7 @@ Define low-friction Swift quality rules without creating maintenance overhead.
 
 ---
 
-### M0.6 `IN PROGRESS (PENDING CI)` Bootstrap checkpoint
+### M0.6 `DONE` Bootstrap checkpoint
 **Goal**
 Review the repository foundation before product implementation.
 
@@ -153,7 +153,7 @@ Review the repository foundation before product implementation.
 
 ## Milestone 1 — Core domain model and business rules
 
-### M1.1 `TODO` Implement core domain entities
+### M1.1 `IN PROGRESS (PENDING CI)` Implement core domain entities
 **Goal**
 Implement model types needed by the approved MVP.
 
@@ -187,7 +187,7 @@ Implement model types needed by the approved MVP.
 
 ---
 
-### M1.2 `TODO` Implement local calendar date semantics
+### M1.2 `IN PROGRESS (PENDING CI)` Implement local calendar date semantics
 **Goal**
 Prevent UTC/day-boundary bugs in Today and Program.
 
@@ -209,7 +209,7 @@ Prevent UTC/day-boundary bugs in Today and Program.
 
 ---
 
-### M1.3 `TODO` Implement set display rules
+### M1.3 `IN PROGRESS (PENDING CI)` Implement set display rules
 **Goal**
 Generate the exact compact set text used by Today and history.
 
@@ -233,7 +233,7 @@ Generate the exact compact set text used by Today and history.
 
 ---
 
-### M1.4 `TODO` Implement completion and actual-value semantics
+### M1.4 `IN PROGRESS (PENDING CI)` Implement completion and actual-value semantics
 **Goal**
 Implement the agreed simplified planned/current vs actual behavior.
 
@@ -263,7 +263,7 @@ Implement the agreed simplified planned/current vs actual behavior.
 
 ---
 
-### M1.5 `TODO` Implement workout completion state rules
+### M1.5 `IN PROGRESS (PENDING CI)` Implement workout completion state rules
 **Goal**
 Provide a single tested source of truth for workout status.
 
@@ -286,7 +286,7 @@ Provide a single tested source of truth for workout status.
 
 ---
 
-### M1.6 `TODO` Domain checkpoint
+### M1.6 `IN PROGRESS (PENDING CI)` Domain checkpoint
 **Goal**
 Validate business rules before UI work.
 

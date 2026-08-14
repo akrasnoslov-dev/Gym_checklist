@@ -28,6 +28,28 @@ final class GymChecklistUITests: XCTestCase {
         app.buttons["programDate-2026-08-14"].tap()
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
 
+        app.buttons["programAddExercise"].tap()
+        let search = app.searchFields["Search exercises"]
+        XCTAssertTrue(search.waitForExistence(timeout: 2))
+        search.tap()
+        search.typeText("bench")
+        let bench = app.buttons["exercisePickerResult-00000000-0000-4000-8000-000000000001"]
+        XCTAssertTrue(bench.waitForExistence(timeout: 2))
+        bench.tap()
+        XCTAssertTrue(app.staticTexts["programExercise-Bench Press"].waitForExistence(timeout: 2))
+
+        app.buttons["programAddExercise"].tap()
+        let customSearch = app.searchFields["Search exercises"]
+        XCTAssertTrue(customSearch.waitForExistence(timeout: 2))
+        customSearch.tap()
+        customSearch.typeText("Nordic Hop")
+        XCTAssertTrue(app.buttons["exercisePickerAddCustom"].waitForExistence(timeout: 2))
+        app.buttons["exercisePickerAddCustom"].tap()
+        XCTAssertTrue(app.textFields["customExerciseName"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.textFields["customExerciseName"].value as? String, "Nordic Hop")
+        app.buttons["customExerciseSave"].tap()
+        XCTAssertTrue(app.staticTexts["programExercise-Nordic Hop"].waitForExistence(timeout: 2))
+
         app.buttons["programNextWeek"].tap()
         XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
         app.buttons["programPreviousWeek"].tap()

@@ -474,6 +474,106 @@ final class ProgramViewModelTests: XCTestCase {
         XCTAssertEqual(repository.workouts.count, 1)
     }
 
+    func testSearchCreateAndReuseCustomExercisesFromLongLivedLibrary() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        let viewModel = ProgramViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar()
+        )
+
+        let custom = try viewModel.createCustomExercise(name: "  Nordic   Hop  ")
+        XCTAssertEqual(custom.name, "Nordic Hop")
+        XCTAssertEqual(custom.createdByUserID, repository.userID)
+        XCTAssertEqual(viewModel.searchExercises("nOrDiC").map(\.id), [custom.id])
+        XCTAssertEqual(viewModel.searchExercises("").prefix(SystemExerciseCatalog.all.count), SystemExerciseCatalog.all.prefix(SystemExerciseCatalog.all.count))
+
+        let reusedCustom = try viewModel.createCustomExercise(name: " NORDIC hop ")
+        XCTAssertEqual(reusedCustom.id, custom.id)
+        XCTAssertEqual(viewModel.exerciseLibrary.customExercises.count, 1)
+
+        let reusedSystem = try viewModel.createCustomExercise(name: " bench   PRESS ")
+        XCTAssertTrue(reusedSystem.isSystem)
+        XCTAssertTrue(viewModel.exerciseLibrary.customExercises.count == 1)
+    }
+
+    func testAddingSystemAndCustomExercisesPersistsOrderedWorkoutEntries() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let timestamp = Date(timeIntervalSince1970: 4567)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        _ = repository.createEmptyWorkout(on: date, at: .distantPast)
+        let firstID = WorkoutExerciseID(rawValue: UUID(uuidString: "20000000-0000-4000-8000-000000000001")!)
+        let secondID = WorkoutExerciseID(rawValue: UUID(uuidString: "20000000-0000-4000-8000-000000000002")!)
+        var entryIDs = [firstID, secondID]
+        let viewModel = ProgramViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar(),
+            now: { timestamp },
+            makeWorkoutExerciseID: { entryIDs.removeFirst() }
+        )
+        let system = SystemExerciseCatalog.all[0]
+        let custom = try viewModel.createCustomExercise(name: "Nordic Hop")
+
+        try viewModel.addExercise(system, to: date)
+        try viewModel.addExercise(custom, to: date)
+
+        let exercises = try XCTUnwrap(repository.workout(on: date)?.exercises)
+        XCTAssertEqual(exercises.map(\.id), [firstID, secondID])
+        XCTAssertEqual(exercises.map(\.order), [0, 1])
+        XCTAssertEqual(exercises[0].exerciseID, system.id)
+        XCTAssertNil(exercises[0].customName)
+        XCTAssertEqual(exercises[1].exerciseID, custom.id)
+        XCTAssertEqual(exercises[1].customName, "Nordic Hop")
+        XCTAssertTrue(exercises.allSatisfy { !$0.isSkipped && $0.sets.isEmpty })
+        XCTAssertEqual(repository.workout(on: date)?.updatedAt, timestamp)
+        XCTAssertEqual(viewModel.exerciseName(for: exercises[0]), system.name)
+        XCTAssertEqual(viewModel.exerciseName(for: exercises[1]), custom.name)
+    }
+
+    func testAddingWithoutWorkoutReturnsTypedErrorAndDoesNotMutateRepository() {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        let viewModel = ProgramViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar()
+        )
+
+        XCTAssertThrowsError(try viewModel.addExercise(SystemExerciseCatalog.all[0], to: date)) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .workoutNotFound(date))
+        }
+        XCTAssertTrue(repository.workouts.isEmpty)
+    }
+
+    func testAddingUnknownOrForeignExerciseIsRejectedWithoutWorkoutMutation() {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        _ = repository.createEmptyWorkout(on: date, at: .distantPast)
+        let viewModel = ProgramViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar()
+        )
+        let foreign = Exercise(
+            id: ExerciseID(),
+            name: "Private Exercise",
+            category: nil,
+            isSystem: false,
+            createdByUserID: UserID(rawValue: "another-user")
+        )
+
+        XCTAssertThrowsError(try viewModel.addExercise(foreign, to: date)) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .exerciseUnavailable(foreign.id))
+        }
+        XCTAssertTrue(repository.workout(on: date)?.exercises.isEmpty == true)
+    }
+
     private func mondayCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Copenhagen")!

@@ -368,7 +368,7 @@ Implement the calendar-centric Program screen.
 
 ---
 
-### M2.4 `IN PROGRESS` Implement create workout for selected date
+### M2.4 `DONE` Implement create workout for selected date
 **Goal**
 Allow one workout to be created for a concrete date.
 
@@ -387,7 +387,7 @@ Allow one workout to be created for a concrete date.
 
 ---
 
-### M2.5 `TODO` Build Exercise Picker and search
+### M2.5 `IN PROGRESS` Build Exercise Picker and search
 **Goal**
 Add exercises quickly while planning.
 

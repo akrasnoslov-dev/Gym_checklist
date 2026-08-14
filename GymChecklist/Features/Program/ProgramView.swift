@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ProgramView: View {
     @ObservedObject var viewModel: ProgramViewModel
+    @State private var exercisePickerRoute: ExercisePickerRoute?
 
     var body: some View {
         NavigationStack {
@@ -16,6 +17,15 @@ struct ProgramView: View {
             }
             .navigationTitle("Program")
             .accessibilityIdentifier("programScreen")
+            .sheet(item: $exercisePickerRoute) { route in
+                ExercisePickerView(
+                    search: viewModel.searchExercises,
+                    createCustom: viewModel.createCustomExercise,
+                    onSelect: { exercise in
+                        try viewModel.addExercise(exercise, to: route.workoutDate)
+                    }
+                )
+            }
         }
     }
 
@@ -118,11 +128,24 @@ struct ProgramView: View {
                     Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("programWorkoutState")
-                    if calendarState.selectedWorkout?.exercises.isEmpty == true {
+                    if let workout = calendarState.selectedWorkout, workout.exercises.isEmpty {
                         Text("No exercises added yet.")
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("programEmptyWorkout")
+                    } else if let workout = calendarState.selectedWorkout {
+                        ForEach(workout.exercises.sorted { $0.order < $1.order }) { exercise in
+                            let name = viewModel.exerciseName(for: exercise)
+                            Text(name)
+                                .accessibilityIdentifier("programExercise-\(name)")
+                        }
                     }
+                    Button {
+                        exercisePickerRoute = ExercisePickerRoute(workoutDate: calendarState.selectedDate)
+                    } label: {
+                        Label("Add exercise", systemImage: "plus")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("programAddExercise")
                 }
             }
         }
@@ -154,4 +177,9 @@ struct ProgramView: View {
     }
 
     private var calendarState: ProgramCalendarState { viewModel.calendarState }
+}
+
+private struct ExercisePickerRoute: Identifiable {
+    let workoutDate: LocalDate
+    var id: LocalDate { workoutDate }
 }

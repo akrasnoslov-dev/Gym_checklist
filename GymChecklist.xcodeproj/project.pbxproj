@@ -26,6 +26,7 @@
 		H10000000000000000000001 /* WorkoutRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = H20000000000000000000001 /* WorkoutRepository.swift */; };
 		I10000000000000000000001 /* InMemoryWorkoutRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = I20000000000000000000001 /* InMemoryWorkoutRepository.swift */; };
 		J10000000000000000000001 /* ProgramViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = J20000000000000000000001 /* ProgramViewModel.swift */; };
+		K10000000000000000000001 /* ExercisePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = K20000000000000000000001 /* ExercisePickerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 		H20000000000000000000001 /* WorkoutRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutRepository.swift; sourceTree = "<group>"; };
 		I20000000000000000000001 /* InMemoryWorkoutRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryWorkoutRepository.swift; sourceTree = "<group>"; };
 		J20000000000000000000001 /* ProgramViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramViewModel.swift; sourceTree = "<group>"; };
+		K20000000000000000000001 /* ExercisePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExercisePickerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,7 +77,7 @@
 		A7000000000000000000000C /* Auth */ = {isa = PBXGroup; children = (); path = Auth; sourceTree = "<group>"; };
 		A7000000000000000000000D /* Today */ = {isa = PBXGroup; children = (A20000000000000000000021 /* TodayView.swift */,); path = Today; sourceTree = "<group>"; };
 		A7000000000000000000000E /* Program */ = {isa = PBXGroup; children = (A20000000000000000000022 /* ProgramView.swift */, G20000000000000000000001 /* ProgramCalendarState.swift */, J20000000000000000000001 /* ProgramViewModel.swift */,); path = Program; sourceTree = "<group>"; };
-		A7000000000000000000000F /* Exercises */ = {isa = PBXGroup; children = (); path = Exercises; sourceTree = "<group>"; };
+		A7000000000000000000000F /* Exercises */ = {isa = PBXGroup; children = (K20000000000000000000001 /* ExercisePickerView.swift */,); path = Exercises; sourceTree = "<group>"; };
 		A70000000000000000000010 /* Settings */ = {isa = PBXGroup; children = (A20000000000000000000023 /* SettingsView.swift */,); path = Settings; sourceTree = "<group>"; };
 		A70000000000000000000011 /* Models */ = {isa = PBXGroup; children = (D20000000000000000000001 /* DomainModels.swift */, D20000000000000000000002 /* WorkoutRules.swift */,); path = Models; sourceTree = "<group>"; };
 		A70000000000000000000012 /* UI */ = {isa = PBXGroup; children = (); path = UI; sourceTree = "<group>"; };
@@ -106,7 +108,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A90000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* GymChecklistApp.swift in Sources */, A10000000000000000000002 /* ContentView.swift in Sources */, A10000000000000000000007 /* TodayView.swift in Sources */, A10000000000000000000008 /* ProgramView.swift in Sources */, A10000000000000000000009 /* SettingsView.swift in Sources */, D10000000000000000000001 /* DomainModels.swift in Sources */, D10000000000000000000002 /* WorkoutRules.swift in Sources */, D10000000000000000000003 /* LocalDate.swift in Sources */, D10000000000000000000004 /* SetDisplayFormatter.swift in Sources */, E10000000000000000000001 /* SystemExerciseCatalog.swift in Sources */, F10000000000000000000001 /* LocalExerciseLibrary.swift in Sources */, G10000000000000000000001 /* ProgramCalendarState.swift in Sources */, H10000000000000000000001 /* WorkoutRepository.swift in Sources */, I10000000000000000000001 /* InMemoryWorkoutRepository.swift in Sources */, J10000000000000000000001 /* ProgramViewModel.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A90000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* GymChecklistApp.swift in Sources */, A10000000000000000000002 /* ContentView.swift in Sources */, A10000000000000000000007 /* TodayView.swift in Sources */, A10000000000000000000008 /* ProgramView.swift in Sources */, A10000000000000000000009 /* SettingsView.swift in Sources */, D10000000000000000000001 /* DomainModels.swift in Sources */, D10000000000000000000002 /* WorkoutRules.swift in Sources */, D10000000000000000000003 /* LocalDate.swift in Sources */, D10000000000000000000004 /* SetDisplayFormatter.swift in Sources */, E10000000000000000000001 /* SystemExerciseCatalog.swift in Sources */, F10000000000000000000001 /* LocalExerciseLibrary.swift in Sources */, G10000000000000000000001 /* ProgramCalendarState.swift in Sources */, H10000000000000000000001 /* WorkoutRepository.swift in Sources */, I10000000000000000000001 /* InMemoryWorkoutRepository.swift in Sources */, J10000000000000000000001 /* ProgramViewModel.swift in Sources */, K10000000000000000000001 /* ExercisePickerView.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 		A90000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* DomainRulesTests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 		A90000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000005 /* GymChecklistUITests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */

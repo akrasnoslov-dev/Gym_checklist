@@ -38,7 +38,23 @@
 
 /* Begin PBXGroup section */
 		A70000000000000000000001 = {isa = PBXGroup; children = (A70000000000000000000002 /* GymChecklist */, A70000000000000000000003 /* GymChecklistTests */, A70000000000000000000004 /* GymChecklistUITests */, A70000000000000000000005 /* Frameworks */, A70000000000000000000006 /* Products */,); sourceTree = "<group>"; };
-		A70000000000000000000002 /* GymChecklist */ = {isa = PBXGroup; children = (A20000000000000000000001 /* GymChecklistApp.swift */, A20000000000000000000002 /* ContentView.swift */,); path = GymChecklist; sourceTree = "<group>"; };
+		A70000000000000000000002 /* GymChecklist */ = {isa = PBXGroup; children = (A70000000000000000000007 /* App */, A70000000000000000000008 /* Features */, A70000000000000000000009 /* Core */, A7000000000000000000000A /* Data */, A7000000000000000000000B /* Services */,); path = GymChecklist; sourceTree = "<group>"; };
+		A70000000000000000000007 /* App */ = {isa = PBXGroup; children = (A20000000000000000000001 /* GymChecklistApp.swift */, A20000000000000000000002 /* ContentView.swift */,); path = App; sourceTree = "<group>"; };
+		A70000000000000000000008 /* Features */ = {isa = PBXGroup; children = (A7000000000000000000000C /* Auth */, A7000000000000000000000D /* Today */, A7000000000000000000000E /* Program */, A7000000000000000000000F /* Exercises */, A70000000000000000000010 /* Settings */,); path = Features; sourceTree = "<group>"; };
+		A70000000000000000000009 /* Core */ = {isa = PBXGroup; children = (A70000000000000000000011 /* Models */, A70000000000000000000012 /* UI */, A70000000000000000000013 /* Utilities */,); path = Core; sourceTree = "<group>"; };
+		A7000000000000000000000A /* Data */ = {isa = PBXGroup; children = (A70000000000000000000014 /* Repositories */, A70000000000000000000015 /* Firebase */, A70000000000000000000016 /* Local */,); path = Data; sourceTree = "<group>"; };
+		A7000000000000000000000B /* Services */ = {isa = PBXGroup; children = (); path = Services; sourceTree = "<group>"; };
+		A7000000000000000000000C /* Auth */ = {isa = PBXGroup; children = (); path = Auth; sourceTree = "<group>"; };
+		A7000000000000000000000D /* Today */ = {isa = PBXGroup; children = (); path = Today; sourceTree = "<group>"; };
+		A7000000000000000000000E /* Program */ = {isa = PBXGroup; children = (); path = Program; sourceTree = "<group>"; };
+		A7000000000000000000000F /* Exercises */ = {isa = PBXGroup; children = (); path = Exercises; sourceTree = "<group>"; };
+		A70000000000000000000010 /* Settings */ = {isa = PBXGroup; children = (); path = Settings; sourceTree = "<group>"; };
+		A70000000000000000000011 /* Models */ = {isa = PBXGroup; children = (); path = Models; sourceTree = "<group>"; };
+		A70000000000000000000012 /* UI */ = {isa = PBXGroup; children = (); path = UI; sourceTree = "<group>"; };
+		A70000000000000000000013 /* Utilities */ = {isa = PBXGroup; children = (); path = Utilities; sourceTree = "<group>"; };
+		A70000000000000000000014 /* Repositories */ = {isa = PBXGroup; children = (); path = Repositories; sourceTree = "<group>"; };
+		A70000000000000000000015 /* Firebase */ = {isa = PBXGroup; children = (); path = Firebase; sourceTree = "<group>"; };
+		A70000000000000000000016 /* Local */ = {isa = PBXGroup; children = (); path = Local; sourceTree = "<group>"; };
 		A70000000000000000000003 /* GymChecklistTests */ = {isa = PBXGroup; children = (A20000000000000000000003 /* GymChecklistTests.swift */,); path = GymChecklistTests; sourceTree = "<group>"; };
 		A70000000000000000000004 /* GymChecklistUITests */ = {isa = PBXGroup; children = (A20000000000000000000004 /* GymChecklistUITests.swift */,); path = GymChecklistUITests; sourceTree = "<group>"; };
 		A70000000000000000000005 /* Frameworks */ = {isa = PBXGroup; children = (A20000000000000000000006 /* XCTest.framework */,); name = Frameworks; sourceTree = "<group>"; };

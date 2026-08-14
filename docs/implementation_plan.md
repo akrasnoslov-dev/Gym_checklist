@@ -42,7 +42,7 @@ Create an Xcode project named `GymChecklist` using Swift and SwiftUI, with unit 
 
 ---
 
-### M0.2 `TODO` Establish feature-oriented MVVM structure
+### M0.2 `IN PROGRESS (PENDING CI)` Establish feature-oriented MVVM structure
 **Goal**
 Create the project structure required for autonomous implementation without over-engineering.
 

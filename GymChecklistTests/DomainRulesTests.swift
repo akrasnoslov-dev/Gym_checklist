@@ -186,3 +186,72 @@ final class SystemExerciseCatalogTests: XCTestCase {
         XCTAssertTrue(SystemExerciseCatalog.search("not a bundled exercise").isEmpty)
     }
 }
+
+final class LocalExerciseLibraryTests: XCTestCase {
+    func testCreatesOwnedCustomExerciseWithNormalizedInput() throws {
+        let userID = UserID(rawValue: "user-a")
+        var library = LocalExerciseLibrary(userID: userID)
+
+        let result = try library.createCustomExercise(
+            name: "  Single   Arm   Cable Row  ",
+            category: "  Back   Accessory  "
+        )
+
+        XCTAssertTrue(result.wasCreated)
+        XCTAssertEqual(result.exercise.name, "Single Arm Cable Row")
+        XCTAssertEqual(result.exercise.category, "Back Accessory")
+        XCTAssertFalse(result.exercise.isSystem)
+        XCTAssertEqual(result.exercise.createdByUserID, userID)
+        XCTAssertEqual(library.customExercises, [result.exercise])
+        XCTAssertEqual(library.search("single ARM").map(\.id), [result.exercise.id])
+    }
+
+    func testRejectsEmptyNameAndNormalizesBlankCategory() throws {
+        var library = LocalExerciseLibrary(userID: UserID(rawValue: "user"))
+
+        XCTAssertThrowsError(try library.createCustomExercise(name: "  \n  ")) { error in
+            XCTAssertEqual(error as? LocalExerciseLibraryError, .emptyName)
+        }
+        XCTAssertTrue(library.customExercises.isEmpty)
+
+        let created = try library.createCustomExercise(name: "Sled Push", category: "   ")
+        XCTAssertNil(created.exercise.category)
+    }
+
+    func testExactDuplicatesReuseVisibleExerciseWhileSimilarNamesRemainAllowed() throws {
+        var library = LocalExerciseLibrary(userID: UserID(rawValue: "user"))
+
+        let systemResult = try library.createCustomExercise(name: "  BENCH   press ")
+        XCTAssertFalse(systemResult.wasCreated)
+        XCTAssertTrue(systemResult.exercise.isSystem)
+        XCTAssertTrue(library.customExercises.isEmpty)
+
+        let first = try library.createCustomExercise(name: "Café Raise")
+        let duplicate = try library.createCustomExercise(name: " cafe   RAISE ", category: "Other")
+        XCTAssertTrue(first.wasCreated)
+        XCTAssertFalse(duplicate.wasCreated)
+        XCTAssertEqual(duplicate.exercise.id, first.exercise.id)
+        XCTAssertEqual(library.customExercises.count, 1)
+
+        let similar = try library.createCustomExercise(name: "Café Raise Machine")
+        XCTAssertTrue(similar.wasCreated)
+        XCTAssertEqual(library.customExercises.count, 2)
+    }
+
+    func testCombinedSearchIsDeterministicAndLibrariesAreOwnerScoped() throws {
+        var firstLibrary = LocalExerciseLibrary(userID: UserID(rawValue: "user-a"))
+        var secondLibrary = LocalExerciseLibrary(userID: UserID(rawValue: "user-b"))
+        let custom = try firstLibrary.createCustomExercise(name: "Bench Press Machine")
+        _ = try secondLibrary.createCustomExercise(name: "Private Bench Variation")
+
+        XCTAssertEqual(
+            firstLibrary.search("  BENCH ").map(\.name),
+            ["Bench Press", "Close-Grip Bench Press", "Bench Press Machine"]
+        )
+        XCTAssertEqual(firstLibrary.search("").last?.id, custom.exercise.id)
+        XCTAssertEqual(firstLibrary.search("   \n"), firstLibrary.allExercises)
+        XCTAssertTrue(firstLibrary.search("private bench").isEmpty)
+        XCTAssertTrue(firstLibrary.search("not an exercise").isEmpty)
+        XCTAssertEqual(secondLibrary.customExercises.first?.createdByUserID, UserID(rawValue: "user-b"))
+    }
+}

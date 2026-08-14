@@ -304,7 +304,7 @@ Validate business rules before UI work.
 
 ## Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first)
 
-### M2.1 `IN PROGRESS` Add bundled system exercise catalog
+### M2.1 `DONE` Add bundled system exercise catalog
 **Goal**
 Provide a searchable offline exercise list.
 
@@ -324,7 +324,7 @@ Provide a searchable offline exercise list.
 
 ---
 
-### M2.2 `TODO` Implement custom exercise support locally
+### M2.2 `IN PROGRESS` Implement custom exercise support locally
 **Goal**
 Allow users to add exercises not present in the bundled catalog.
 

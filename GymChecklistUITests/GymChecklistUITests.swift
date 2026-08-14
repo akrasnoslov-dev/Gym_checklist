@@ -71,11 +71,18 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertFalse(benchName.exists)
 
         app.buttons["programNextWeek"].tap()
-        app.swipeDown()
-        XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
+        let selectedDate = app.staticTexts["programSelectedDate"]
+        let nextWeekSelected = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label CONTAINS 'August 21, 2026'"),
+            object: selectedDate
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [nextWeekSelected], timeout: 2), .completed)
         app.buttons["programPreviousWeek"].tap()
-        app.buttons["programDate-2026-08-12"].tap()
-        XCTAssertTrue(app.staticTexts["programSelectedDate"].label.contains("August 12, 2026"))
+        let previousWeekSelected = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label CONTAINS 'August 14, 2026'"),
+            object: selectedDate
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [previousWeekSelected], timeout: 2), .completed)
 
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(app.staticTexts["settingsPlaceholder"].waitForExistence(timeout: 2))

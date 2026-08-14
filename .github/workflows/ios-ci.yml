@@ -45,28 +45,35 @@ jobs:
         if: steps.detect.outputs.project_found == 'true'
         shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
           PROJECT="${{ steps.detect.outputs.project }}"
           SCHEME="GymChecklist"
-          DESTINATION=$(python3 - <<'PY'
-          import json, subprocess
+          DESTINATION_UDID=$(python3 - <<'PY'
+          import json
+          import re
+          import subprocess
+
           data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
           candidates = []
           for runtime, devices in data.get("devices", {}).items():
-              if "iOS" not in runtime:
+              match = re.search(r"iOS[- ](\d+)[-.](\d+)(?:[-.](\d+))?", runtime)
+              if not match:
                   continue
+              version = tuple(int(part or 0) for part in match.groups())
               for device in devices:
-                  name = device.get("name", "")
-                  if name.startswith("iPhone"):
-                      candidates.append(name)
-          print(candidates[0] if candidates else "iPhone 16")
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      candidates.append((version, device["name"], device["udid"]))
+          if not candidates:
+              raise SystemExit("No available iPhone simulator was found")
+          candidates.sort(reverse=True)
+          print(candidates[0][2])
           PY
           )
-          echo "Using simulator: $DESTINATION"
+          echo "Using simulator UDID: $DESTINATION_UDID"
           xcodebuild \
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=$DESTINATION" \
+            -destination "platform=iOS Simulator,id=$DESTINATION_UDID" \
             CODE_SIGNING_ALLOWED=NO \
             test

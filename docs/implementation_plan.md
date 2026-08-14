@@ -66,7 +66,7 @@ Create the project structure required for autonomous implementation without over
 
 ---
 
-### M0.3 `TODO` Build the application shell
+### M0.3 `IN PROGRESS (PENDING CI)` Build the application shell
 **Goal**
 Create the base app navigation with the three approved top-level tabs.
 
@@ -92,7 +92,7 @@ Create the base app navigation with the three approved top-level tabs.
 
 ---
 
-### M0.4 `TODO` Make GitHub Actions authoritative for iOS build/test
+### M0.4 `IN PROGRESS (PENDING CI)` Make GitHub Actions authoritative for iOS build/test
 **Goal**
 Turn the macOS CI workflow into the authoritative build/test path for a Windows-based developer.
 
@@ -117,7 +117,7 @@ Turn the macOS CI workflow into the authoritative build/test path for a Windows-
 
 ---
 
-### M0.5 `TODO` Add lightweight code quality conventions
+### M0.5 `IN PROGRESS (PENDING CI)` Add lightweight code quality conventions
 **Goal**
 Define low-friction Swift quality rules without creating maintenance overhead.
 
@@ -136,7 +136,7 @@ Define low-friction Swift quality rules without creating maintenance overhead.
 
 ---
 
-### M0.6 `TODO` Bootstrap checkpoint
+### M0.6 `IN PROGRESS (PENDING CI)` Bootstrap checkpoint
 **Goal**
 Review the repository foundation before product implementation.
 

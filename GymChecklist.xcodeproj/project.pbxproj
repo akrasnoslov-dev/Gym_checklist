@@ -12,6 +12,9 @@
 		A10000000000000000000004 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* XCTest.framework */; };
 		A10000000000000000000005 /* GymChecklistUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* GymChecklistUITests.swift */; };
 		A10000000000000000000006 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* XCTest.framework */; };
+		A10000000000000000000007 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* TodayView.swift */; };
+		A10000000000000000000008 /* ProgramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* ProgramView.swift */; };
+		A10000000000000000000009 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +31,9 @@
 		A20000000000000000000006 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		A20000000000000000000007 /* GymChecklistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GymChecklistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000008 /* GymChecklistUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GymChecklistUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000021 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		A20000000000000000000022 /* ProgramView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramView.swift; sourceTree = "<group>"; };
+		A20000000000000000000023 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,10 +51,10 @@
 		A7000000000000000000000A /* Data */ = {isa = PBXGroup; children = (A70000000000000000000014 /* Repositories */, A70000000000000000000015 /* Firebase */, A70000000000000000000016 /* Local */,); path = Data; sourceTree = "<group>"; };
 		A7000000000000000000000B /* Services */ = {isa = PBXGroup; children = (); path = Services; sourceTree = "<group>"; };
 		A7000000000000000000000C /* Auth */ = {isa = PBXGroup; children = (); path = Auth; sourceTree = "<group>"; };
-		A7000000000000000000000D /* Today */ = {isa = PBXGroup; children = (); path = Today; sourceTree = "<group>"; };
-		A7000000000000000000000E /* Program */ = {isa = PBXGroup; children = (); path = Program; sourceTree = "<group>"; };
+		A7000000000000000000000D /* Today */ = {isa = PBXGroup; children = (A20000000000000000000021 /* TodayView.swift */,); path = Today; sourceTree = "<group>"; };
+		A7000000000000000000000E /* Program */ = {isa = PBXGroup; children = (A20000000000000000000022 /* ProgramView.swift */,); path = Program; sourceTree = "<group>"; };
 		A7000000000000000000000F /* Exercises */ = {isa = PBXGroup; children = (); path = Exercises; sourceTree = "<group>"; };
-		A70000000000000000000010 /* Settings */ = {isa = PBXGroup; children = (); path = Settings; sourceTree = "<group>"; };
+		A70000000000000000000010 /* Settings */ = {isa = PBXGroup; children = (A20000000000000000000023 /* SettingsView.swift */,); path = Settings; sourceTree = "<group>"; };
 		A70000000000000000000011 /* Models */ = {isa = PBXGroup; children = (); path = Models; sourceTree = "<group>"; };
 		A70000000000000000000012 /* UI */ = {isa = PBXGroup; children = (); path = UI; sourceTree = "<group>"; };
 		A70000000000000000000013 /* Utilities */ = {isa = PBXGroup; children = (); path = Utilities; sourceTree = "<group>"; };
@@ -78,7 +84,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A90000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* GymChecklistApp.swift in Sources */, A10000000000000000000002 /* ContentView.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A90000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* GymChecklistApp.swift in Sources */, A10000000000000000000002 /* ContentView.swift in Sources */, A10000000000000000000007 /* TodayView.swift in Sources */, A10000000000000000000008 /* ProgramView.swift in Sources */, A10000000000000000000009 /* SettingsView.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 		A90000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* GymChecklistTests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 		A90000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000005 /* GymChecklistUITests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */

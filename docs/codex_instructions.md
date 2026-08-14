@@ -104,6 +104,28 @@ The user's primary machine is Windows and does not have Xcode.
 - Keep CI output actionable.
 - Once TestFlight automation exists, treat successful upload as distribution verification, not proof of UX correctness.
 
+## Verification commands
+Use native Xcode/compiler diagnostics as the code-quality baseline. Do not add a formatter or linter unless it is demonstrably stable across the supported development and CI environments.
+
+Authoritative build and test verification runs on macOS with an available iPhone simulator UDID:
+
+```bash
+DESTINATION_UDID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; data=json.load(sys.stdin); devices=[device for runtime, entries in data["devices"].items() if "iOS" in runtime for device in entries if device.get("isAvailable") and device.get("name", "").startswith("iPhone")]; print(devices[0]["udid"] if devices else "")')"
+test -n "$DESTINATION_UDID"
+xcodebuild -project GymChecklist.xcodeproj -scheme GymChecklist -sdk iphonesimulator -destination "platform=iOS Simulator,id=$DESTINATION_UDID" CODE_SIGNING_ALLOWED=NO test
+```
+
+GitHub Actions uses the same `xcodebuild test` path and selects a device from the newest installed iOS runtime deterministically. Its green macOS run is authoritative.
+
+Linux/Windows environments that lack Xcode may run only non-authoritative repository checks:
+
+```bash
+python3 -c 'import xml.etree.ElementTree as ET; ET.parse("GymChecklist.xcodeproj/xcshareddata/xcschemes/GymChecklist.xcscheme")'
+git diff --check
+```
+
+These static checks do not prove that Swift compiles or that tests pass.
+
 ## External configuration checkpoints
 When an external action is required, write exact steps into `docs/progress.md` under `USER ACTION REQUIRED`, including:
 - where to click,

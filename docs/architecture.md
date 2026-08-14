@@ -8,6 +8,8 @@
 - Minimal backend/ops burden.
 
 ## 2. Proposed stack
+The MVP targets iPhone on iOS 17.0 or later. This baseline is supported by current GitHub Actions macOS/Xcode runners and keeps the bootstrap project focused on modern SwiftUI APIs.
+
 - Swift
 - SwiftUI
 - Feature-oriented MVVM

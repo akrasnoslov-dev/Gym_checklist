@@ -14,7 +14,7 @@ Continuity rule: after each completed task, update `docs/progress.md` with the c
 
 ## Milestone 0 — Repository and iOS bootstrap
 
-### M0.1 `TODO` Create the native iOS project
+### M0.1 `IN PROGRESS` Create the native iOS project
 **Goal**
 Create an Xcode project named `GymChecklist` using Swift and SwiftUI, with unit test and UI test targets.
 

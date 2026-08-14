@@ -18,6 +18,11 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["programEmptyState"].exists)
         XCTAssertTrue(app.buttons["programCreateWorkout"].exists)
 
+        app.buttons["programNextWeek"].tap()
+        XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
+        app.buttons["programPreviousWeek"].tap()
+        XCTAssertTrue(app.buttons["programDate-2026-08-14"].waitForExistence(timeout: 2))
+
         app.buttons["programCreateWorkout"].tap()
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
@@ -69,20 +74,6 @@ final class GymChecklistUITests: XCTestCase {
         app.buttons["programDate-2026-08-14"].tap()
         XCTAssertTrue(nordicName.waitForExistence(timeout: 2))
         XCTAssertFalse(benchName.exists)
-
-        app.buttons["programNextWeek"].tap()
-        let selectedDate = app.staticTexts["programSelectedDate"]
-        let nextWeekSelected = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "label CONTAINS 'August 21, 2026'"),
-            object: selectedDate
-        )
-        XCTAssertEqual(XCTWaiter.wait(for: [nextWeekSelected], timeout: 2), .completed)
-        app.buttons["programPreviousWeek"].tap()
-        let previousWeekSelected = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "label CONTAINS 'August 14, 2026'"),
-            object: selectedDate
-        )
-        XCTAssertEqual(XCTWaiter.wait(for: [previousWeekSelected], timeout: 2), .completed)
 
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(app.staticTexts["settingsPlaceholder"].waitForExistence(timeout: 2))

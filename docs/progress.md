@@ -83,6 +83,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.6 initial macOS CI run `31812569305`: FAILURE in the UI regression because the stable row accessibility identifier masked its child exercise-name identifier; build/unit execution reached the UI flow, and the row now explicitly contains child accessibility elements before republishing.
 - M2.6 replacement run `31813267131`: UI flow passed custom add, reorder, delete, and per-date persistence, then failed because the converted List had virtualized the offscreen seven-date row before the next-week assertion; the test now scrolls back to the week selector before checking Aug 21.
 - M2.6 run `31814068288`: one scroll still left the next-week date row virtualized after all exercise-edit flows passed; next/previous week UI verification now asserts the always-rendered selected-date heading, while current-week date buttons remain directly exercised and unit tests cover every derived next-week date.
+- M2.6 run `31815123053`: attempt 1 hit transient simulator accessibility latency after all 33 unit tests passed; attempt 2 reached week navigation and proved that the selected-date section is also virtualized after the long editor flow. Week navigation now runs while the calendar is initially visible and directly asserts the concrete Aug 21/Aug 14 date buttons before exercising the editor.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.

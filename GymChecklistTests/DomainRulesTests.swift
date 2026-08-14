@@ -144,3 +144,45 @@ final class WorkoutStatusTests: XCTestCase {
         return WorkoutExercise(id: WorkoutExerciseID(), exerciseID: ExerciseID(), customName: nil, order: 0, isSkipped: skipped, sets: sets)
     }
 }
+
+final class SystemExerciseCatalogTests: XCTestCase {
+    func testCatalogCoversApprovedCategoriesWithStableSystemExercises() throws {
+        let exercises = SystemExerciseCatalog.all
+        let expectedCategories: Set<String> = [
+            "Chest", "Back", "Legs", "Shoulders", "Biceps", "Triceps", "Core", "Cardio/Other"
+        ]
+
+        XCTAssertFalse(exercises.isEmpty)
+        XCTAssertEqual(exercises.count, 34)
+        XCTAssertEqual(Set(exercises.compactMap(\.category)), expectedCategories)
+        XCTAssertTrue(exercises.allSatisfy(\.isSystem))
+        XCTAssertTrue(exercises.allSatisfy { $0.createdByUserID == nil })
+        XCTAssertTrue(exercises.allSatisfy { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+        XCTAssertEqual(Set(exercises.map(\.id)).count, exercises.count)
+        XCTAssertEqual(Set(exercises.map { $0.name.lowercased() }).count, exercises.count)
+
+        let expectedIDs = Set((1...34).map { ordinal in
+            let suffix = String(format: "%012d", ordinal)
+            return ExerciseID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-\(suffix)")!)
+        })
+        XCTAssertEqual(Set(exercises.map(\.id)), expectedIDs)
+
+        let benchPress = try XCTUnwrap(exercises.first { $0.name == "Bench Press" })
+        XCTAssertEqual(benchPress.id, ExerciseID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!))
+    }
+
+    func testSearchIsTrimmedCaseInsensitiveAndDeterministic() {
+        let lowercaseIDs = SystemExerciseCatalog.search("bench").map(\.id)
+        let mixedCaseIDs = SystemExerciseCatalog.search("  bEnCh  ").map(\.id)
+
+        XCTAssertEqual(mixedCaseIDs, lowercaseIDs)
+        XCTAssertEqual(SystemExerciseCatalog.search("BENCH").map(\.name), ["Bench Press", "Close-Grip Bench Press"])
+        XCTAssertEqual(SystemExerciseCatalog.search("cable row").map(\.name), ["Seated Cable Row"])
+    }
+
+    func testEmptyQueryReturnsAllAndUnknownQueryReturnsNothing() {
+        XCTAssertEqual(SystemExerciseCatalog.search(""), SystemExerciseCatalog.all)
+        XCTAssertEqual(SystemExerciseCatalog.search("   \n"), SystemExerciseCatalog.all)
+        XCTAssertTrue(SystemExerciseCatalog.search("not a bundled exercise").isEmpty)
+    }
+}

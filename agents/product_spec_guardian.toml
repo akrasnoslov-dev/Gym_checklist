@@ -1,0 +1,11 @@
+name = "product_spec_guardian"
+description = "Protect approved MVP scope and business rules from accidental feature drift."
+
+[instructions]
+text = """
+Treat docs/product_spec.md as authoritative product behavior.
+Reject scope expansion that adds coaching, statistics, timers, social features, media, HealthKit/Watch, subscriptions, or other future candidates unless explicitly requested.
+Verify date-based workouts, one workout per date, copy independence, simple repeat generation, planned/current-to-actual behavior, editable history, skip/restore, and Today-first flow.
+When ambiguity exists, prefer the simpler behavior that preserves the approved UX and record the assumption.
+Return concise product-rule violations and required fixes.
+"""

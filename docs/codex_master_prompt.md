@@ -22,12 +22,23 @@ Before doing anything, read in full:
 Then inspect current branch/worktree state, recent commits/diff, relevant source/tests, CI status when available, and required agent TOML files.
 
 Important Codex Cloud rule:
-Codex Cloud may provide the repository without a writable `origin`, authenticated `gh`, or direct PR creation inside the Linux sandbox. This is expected. Do NOT stop merely because `origin` is absent, `git push` is unavailable, `gh` is unauthenticated, or a PR cannot be created from the sandbox. Do NOT ask me to configure a PAT or `GH_TOKEN` just for this. Keep implementing and checkpointing inside the Cloud task. Record authoritative macOS/GitHub CI as `PENDING EXTERNAL CI` until the changes are exported/published. Do not falsely claim CI passed, but do not require me to Apply locally after every task.
+Codex Cloud may provide the repository without a writable `origin`, authenticated `gh`, or direct PR creation inside the Linux sandbox. This is expected. Do NOT stop merely because `origin` is absent, `git push` is unavailable, `gh` is unauthenticated, or a PR cannot be created from the sandbox. Do NOT ask me to configure a PAT or `GH_TOKEN` just for this.
+
+In Cloud, work in milestone batches. For any implementation task whose only missing acceptance item is external macOS/GitHub CI:
+- record it as `IN PROGRESS (PENDING CI)`;
+- treat it as provisionally satisfied for technically safe dependent implementation tasks in the same Cloud run;
+- create a checkpoint commit when possible;
+- immediately start the next safe task in the same milestone.
+
+Do not end the response after completing one task. Do not return control to me merely because CI is pending. Continue until you reach the milestone checkpoint, a genuine user/configuration blocker, an unsafe dependency, or a usage/tool limit.
+
+At the milestone checkpoint, consolidate pending external CI into one export/publish checkpoint. The intended rhythm is:
+`implement task -> available verification -> checkpoint -> next task -> ... -> milestone checkpoint -> one Apply locally/publish/CI cycle`.
 
 Execution algorithm:
 1. If any task is IN PROGRESS, reconcile/resume that task first.
 2. Otherwise find the first TODO task whose dependencies are DONE.
-3. In Cloud mode, if a dependency is incomplete only because external CI is pending due to the Cloud sandbox publishing limitation, you may continue to the next technically safe dependent implementation task while keeping the pending verification explicit.
+3. In Cloud mode, a dependency that is incomplete only because external CI is pending may be treated as provisionally satisfied if continuation is technically safe.
 4. Read the entire task body and every referenced Product/UX/Architecture section.
 5. Confirm the implementation does not expand MVP scope or violate the Today UX invariant.
 6. Mark the active task IN PROGRESS and update docs/progress.md before substantial edits.
@@ -35,12 +46,13 @@ Execution algorithm:
 8. Implement the smallest complete solution and add/update required tests.
 9. Run the strongest verification available in the current environment.
 10. Compare against every acceptance criterion and fix failures that can be fixed now.
-11. Mark a task DONE only when its required acceptance/verification actually passes. If only external CI is unavailable in Cloud, keep it explicitly pending rather than pretending it passed.
-12. Update docs/progress.md with current milestone/task, branch/checkpoint, exact verification, CI state, agent reviews, blockers/limitations, and exact next action.
+11. Mark a task DONE only when its required acceptance/verification actually passes. If only external CI is unavailable in Cloud, leave it explicitly pending without pretending it passed.
+12. Update docs/progress.md with current milestone/task, branch/checkpoint, exact verification, CI state, agent reviews, blockers/limitations, and exact next task.
 13. Create focused checkpoint commits where possible.
-14. Continue immediately to the next safe eligible implementation task without asking me for routine approval.
+14. Before writing any final summary, check whether another safe implementation task exists in the current milestone. If yes, do not summarize or stop; start that task immediately.
+15. Stop at the milestone checkpoint only when its required external verification cannot be completed inside Cloud. Request one consolidated export/publish/CI action, not one action per task.
 
-Mandatory milestone checkpoints remain gates for final milestone completion. Missing green CI must be resolved before a checkpoint that explicitly requires it is marked DONE, but Cloud sandbox inability to publish is not itself a reason to stop development work.
+Mandatory milestone checkpoints remain gates for final milestone completion. Missing green CI must be resolved before a checkpoint that explicitly requires it is marked DONE, but Cloud sandbox inability to publish is not itself a reason to stop earlier in the milestone.
 
 Source-of-truth priority:
 1. Explicit current user instruction.
@@ -51,7 +63,7 @@ Source-of-truth priority:
 
 Do not silently change product behavior to make implementation easier. If a real conflict exists and cannot be resolved from the documents, record it as a blocker and ask one focused question.
 
-The user's primary machine is Windows and has no Xcode. Do not claim local Xcode verification on Windows or Linux. Authoritative iOS build/test verification must run on macOS GitHub Actions or another real macOS/Xcode environment after changes are published.
+The user's primary machine is Windows and has no Xcode. Do not claim local Xcode verification on Windows or Linux. Authoritative iOS build/test verification must run on macOS GitHub Actions or another real macOS/Xcode environment after the milestone batch is published.
 
 Batch genuine external user-action blockers. Firebase console setup, Google auth configuration, Apple Developer signing, App Store Connect, GitHub secrets, or similar external steps should be accumulated into one clear checkpoint checklist whenever possible rather than interrupting the user repeatedly.
 
@@ -66,16 +78,18 @@ Stop only for:
 - a genuine user-action blocker that cannot be completed from the repository;
 - missing external credentials/configuration required for the active implementation;
 - a destructive/irreversible choice not already approved by the specification;
-- a genuinely required implementation tool being unavailable;
-- usage/model/tool limits.
+- a genuinely required implementation tool being unavailable with no safe remaining work in the current milestone;
+- an unsafe dependency that cannot be validated without the missing tool/result;
+- usage/model/tool limits;
+- the current milestone checkpoint when consolidated external CI/publishing is required.
 
-Never stop merely because one task is complete or because the Cloud sandbox lacks `origin`, push, or `gh` authentication.
+Never stop merely because one task is complete, one task is `PENDING CI`, or because the Cloud sandbox lacks `origin`, push, or `gh` authentication.
 
 Protected product invariant:
 Open app -> Today -> one tap per completed set -> close app.
 Today must remain visually quiet and must not gain charts, statistics, timers, coaching, social content, PR dashboards, calories, recommendations, or other unapproved secondary content.
 
-Start now by reconstructing repository state and executing the active/next safe task continuously.
+Start now by reconstructing repository state and execute continuously through the current milestone until one of the explicit stop conditions above occurs.
 ```
 
 ## Later sessions

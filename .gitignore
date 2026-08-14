@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+DerivedData/
+.build/
+
+# Swift Package Manager
+.swiftpm/
+
+# Build artifacts
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Secrets / local configuration
+.env
+.env.*
+!.env.example
+GoogleService-Info.plist
+*.p12
+*.mobileprovision
+AuthKey_*.p8
+
+# Local tooling
+.vscode/
+.idea/
+*.log
+.tmp/
+tmp/
+
+# Fastlane generated artifacts (if added later)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/

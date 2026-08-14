@@ -1,0 +1,72 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Detect Xcode project
+        id: detect
+        shell: bash
+        run: |
+          PROJECT=$(find . -maxdepth 2 -name '*.xcodeproj' -print -quit)
+          if [ -z "$PROJECT" ]; then
+            echo "project_found=false" >> "$GITHUB_OUTPUT"
+            echo "No Xcode project exists yet. Bootstrap milestone has not completed."
+          else
+            echo "project_found=true" >> "$GITHUB_OUTPUT"
+            echo "project=$PROJECT" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate bootstrap repository
+        if: steps.detect.outputs.project_found == 'false'
+        run: |
+          test -f AGENTS.md
+          test -f docs/product_spec.md
+          test -f docs/implementation_plan.md
+          test -f agents/routing.toml
+          echo "Bootstrap repository validation passed."
+
+      - name: Build and test GymChecklist
+        if: steps.detect.outputs.project_found == 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          PROJECT="${{ steps.detect.outputs.project }}"
+          SCHEME="GymChecklist"
+          DESTINATION=$(python3 - <<'PY'
+          import json, subprocess
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          candidates = []
+          for runtime, devices in data.get("devices", {}).items():
+              if "iOS" not in runtime:
+                  continue
+              for device in devices:
+                  name = device.get("name", "")
+                  if name.startswith("iPhone"):
+                      candidates.append(name)
+          print(candidates[0] if candidates else "iPhone 16")
+          PY
+          )
+          echo "Using simulator: $DESTINATION"
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=$DESTINATION" \
+            CODE_SIGNING_ALLOWED=NO \
+            test

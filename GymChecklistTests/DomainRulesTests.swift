@@ -352,3 +352,132 @@ final class ProgramCalendarStateTests: XCTestCase {
         )
     }
 }
+
+final class InMemoryWorkoutRepositoryTests: XCTestCase {
+    func testCreateIsOwnerScopedEmptyAndImmediatelyReadable() {
+        let userID = UserID(rawValue: "user-a")
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let timestamp = Date(timeIntervalSince1970: 1234)
+        let fixedID = WorkoutID(rawValue: UUID(uuidString: "10000000-0000-4000-8000-000000000001")!)
+        let repository = InMemoryWorkoutRepository(userID: userID, makeWorkoutID: { fixedID })
+
+        let result = repository.createEmptyWorkout(on: date, at: timestamp)
+
+        XCTAssertTrue(result.wasCreated)
+        XCTAssertEqual(result.workout.id, fixedID)
+        XCTAssertEqual(result.workout.userID, userID)
+        XCTAssertEqual(result.workout.localDate, date)
+        XCTAssertTrue(result.workout.exercises.isEmpty)
+        XCTAssertEqual(result.workout.createdAt, timestamp)
+        XCTAssertEqual(result.workout.updatedAt, timestamp)
+        XCTAssertEqual(repository.workout(on: date), result.workout)
+        XCTAssertNil(repository.workout(on: LocalDate(year: 2026, month: 8, day: 13)))
+        XCTAssertNil(repository.workout(on: LocalDate(year: 2026, month: 8, day: 15)))
+    }
+
+    func testDuplicateCreateReturnsExistingWithoutConsumingAnotherIdentity() {
+        let firstID = WorkoutID(rawValue: UUID(uuidString: "10000000-0000-4000-8000-000000000001")!)
+        let secondID = WorkoutID(rawValue: UUID(uuidString: "10000000-0000-4000-8000-000000000002")!)
+        var ids = [firstID, secondID]
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"), makeWorkoutID: { ids.removeFirst() })
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+
+        let created = repository.createEmptyWorkout(on: date, at: Date(timeIntervalSince1970: 1))
+        let existing = repository.createEmptyWorkout(on: date, at: Date(timeIntervalSince1970: 2))
+
+        XCTAssertTrue(created.wasCreated)
+        XCTAssertFalse(existing.wasCreated)
+        XCTAssertEqual(existing.workout, created.workout)
+        XCTAssertEqual(repository.workouts.count, 1)
+        XCTAssertEqual(ids, [secondID])
+    }
+
+    func testDifferentDatesAndOwnersRemainIndependent() {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let first = InMemoryWorkoutRepository(userID: UserID(rawValue: "user-a"))
+        let second = InMemoryWorkoutRepository(userID: UserID(rawValue: "user-b"))
+
+        let firstWorkout = first.createEmptyWorkout(on: date, at: .distantPast).workout
+        let nextWorkout = first.createEmptyWorkout(
+            on: LocalDate(year: 2026, month: 8, day: 15), at: .distantPast
+        ).workout
+        let secondWorkout = second.createEmptyWorkout(on: date, at: .distantPast).workout
+
+        XCTAssertNotEqual(firstWorkout.id, nextWorkout.id)
+        XCTAssertEqual(first.workouts.count, 2)
+        XCTAssertEqual(second.workouts, [secondWorkout])
+        XCTAssertEqual(secondWorkout.userID, UserID(rawValue: "user-b"))
+        XCTAssertEqual(first.workout(on: date)?.userID, UserID(rawValue: "user-a"))
+    }
+
+    func testSaveUpdatesSameIdentityAndRejectsOwnerOrDateCollisions() throws {
+        let userID = UserID(rawValue: "user")
+        let repository = InMemoryWorkoutRepository(userID: userID)
+        let firstDate = LocalDate(year: 2026, month: 8, day: 14)
+        let secondDate = LocalDate(year: 2026, month: 8, day: 15)
+        let original = repository.createEmptyWorkout(on: firstDate, at: Date(timeIntervalSince1970: 1)).workout
+        let occupied = repository.createEmptyWorkout(on: secondDate, at: Date(timeIntervalSince1970: 2)).workout
+
+        var updated = original
+        updated.updatedAt = Date(timeIntervalSince1970: 3)
+        try repository.save(updated)
+        XCTAssertEqual(repository.workout(on: firstDate)?.createdAt, original.createdAt)
+        XCTAssertEqual(repository.workout(on: firstDate)?.updatedAt, updated.updatedAt)
+
+        var intruder = occupied
+        intruder.userID = UserID(rawValue: "another-user")
+        XCTAssertThrowsError(try repository.save(intruder)) { error in
+            XCTAssertEqual(error as? WorkoutRepositoryError, .ownerMismatch)
+        }
+
+        var collision = occupied
+        collision.id = WorkoutID()
+        XCTAssertThrowsError(try repository.save(collision)) { error in
+            XCTAssertEqual(error as? WorkoutRepositoryError, .duplicateDate(collision.dateKey))
+        }
+
+        var moved = original
+        moved.localDate = LocalDate(year: 2026, month: 8, day: 16)
+        XCTAssertThrowsError(try repository.save(moved)) { error in
+            XCTAssertEqual(error as? WorkoutRepositoryError, .identityConflict)
+        }
+    }
+}
+
+@MainActor
+final class ProgramViewModelTests: XCTestCase {
+    func testCreateSelectedWorkoutRefreshesProgramWithoutChangingSelection() {
+        let calendar = mondayCalendar()
+        let selected = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        let viewModel = ProgramViewModel(
+            repository: repository,
+            initialDate: selected,
+            currentDate: selected,
+            calendar: calendar,
+            now: { Date(timeIntervalSince1970: 1234) }
+        )
+
+        XCTAssertEqual(viewModel.calendarState.selectedDayState, .empty)
+        viewModel.createSelectedWorkout()
+
+        XCTAssertEqual(viewModel.selectedDate, selected)
+        XCTAssertEqual(viewModel.calendarState.selectedDayState, .workout(.planned))
+        XCTAssertTrue(viewModel.calendarState.selectedWorkout?.exercises.isEmpty == true)
+        XCTAssertEqual(repository.workouts.count, 1)
+        XCTAssertEqual(
+            viewModel.calendarState.dayState(for: LocalDate(year: 2026, month: 8, day: 13)),
+            .empty
+        )
+
+        viewModel.createSelectedWorkout()
+        XCTAssertEqual(repository.workouts.count, 1)
+    }
+
+    private func mondayCalendar() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Copenhagen")!
+        calendar.firstWeekday = 2
+        return calendar
+    }
+}

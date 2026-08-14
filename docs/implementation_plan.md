@@ -343,7 +343,7 @@ Allow users to add exercises not present in the bundled catalog.
 
 ---
 
-### M2.3 `IN PROGRESS` Build Program week/date navigation
+### M2.3 `DONE` Build Program week/date navigation
 **Goal**
 Implement the calendar-centric Program screen.
 
@@ -368,7 +368,7 @@ Implement the calendar-centric Program screen.
 
 ---
 
-### M2.4 `TODO` Implement create workout for selected date
+### M2.4 `IN PROGRESS` Implement create workout for selected date
 **Goal**
 Allow one workout to be created for a concrete date.
 

@@ -2,26 +2,7 @@ import Foundation
 import SwiftUI
 
 struct ProgramView: View {
-    @State private var selectedDate: LocalDate
-    private let currentDate: LocalDate
-    private let calendar: Calendar
-    private let workouts: [Workout]
-    private let onCreateWorkout: (LocalDate) -> Void
-
-    init(
-        initialDate: LocalDate? = nil,
-        currentDate: LocalDate? = nil,
-        calendar: Calendar = .autoupdatingCurrent,
-        workouts: [Workout] = [],
-        onCreateWorkout: @escaping (LocalDate) -> Void = { _ in }
-    ) {
-        let today = currentDate ?? Self.testReferenceDate ?? LocalDate(date: Date(), calendar: calendar)
-        _selectedDate = State(initialValue: initialDate ?? today)
-        self.currentDate = today
-        self.calendar = calendar
-        self.workouts = workouts
-        self.onCreateWorkout = onCreateWorkout
-    }
+    @ObservedObject var viewModel: ProgramViewModel
 
     var body: some View {
         NavigationStack {
@@ -41,7 +22,7 @@ struct ProgramView: View {
     private var weekHeader: some View {
         HStack {
             Button {
-                moveWeek(by: -1)
+                viewModel.moveWeek(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
                     .frame(width: 44, height: 44)
@@ -56,7 +37,7 @@ struct ProgramView: View {
             Spacer()
 
             Button {
-                moveWeek(by: 1)
+                viewModel.moveWeek(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
                     .frame(width: 44, height: 44)
@@ -81,7 +62,7 @@ struct ProgramView: View {
         let isSelected = date == calendarState.selectedDate
 
         return Button {
-            selectedDate = date
+            viewModel.select(date)
         } label: {
             VStack(spacing: 5) {
                 Text(shortWeekday(for: date))
@@ -128,14 +109,21 @@ struct ProgramView: View {
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("programEmptyState")
                 Button("Create workout") {
-                    onCreateWorkout(selectedDate)
+                    viewModel.createSelectedWorkout()
                 }
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("programCreateWorkout")
             case let .workout(status):
-                Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("programWorkoutState")
+                VStack(alignment: .leading, spacing: 12) {
+                    Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("programWorkoutState")
+                    if calendarState.selectedWorkout?.exercises.isEmpty == true {
+                        Text("No exercises added yet.")
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("programEmptyWorkout")
+                    }
+                }
             }
         }
         .padding(.horizontal)
@@ -165,24 +153,5 @@ struct ProgramView: View {
         ProgramDayState.workout(status).label
     }
 
-    private var calendarState: ProgramCalendarState {
-        ProgramCalendarState(
-            selectedDate: selectedDate,
-            currentDate: currentDate,
-            calendar: calendar,
-            workouts: workouts
-        )
-    }
-
-    private func moveWeek(by offset: Int) {
-        guard let date = selectedDate.adding(weeks: offset, calendar: calendar) else { return }
-        selectedDate = date
-    }
-
-    private static var testReferenceDate: LocalDate? {
-        guard let raw = ProcessInfo.processInfo.environment["UITEST_REFERENCE_DATE"] else { return nil }
-        let values = raw.split(separator: "-").compactMap { Int($0) }
-        guard values.count == 3 else { return nil }
-        return LocalDate(year: values[0], month: values[1], day: values[2])
-    }
+    private var calendarState: ProgramCalendarState { viewModel.calendarState }
 }

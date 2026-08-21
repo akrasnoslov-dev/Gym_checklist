@@ -280,7 +280,11 @@ final class ProgramCalendarStateTests: XCTestCase {
             calendar: mondayCalendar("Europe/Copenhagen")
         )
 
-        state.moveWeek(by: 12)
+        state.moveWeek(by: 1)
+        XCTAssertEqual(state.selectedDate, LocalDate(year: 2026, month: 8, day: 21))
+        XCTAssertTrue(state.weekDates.contains(state.selectedDate))
+
+        state.moveWeek(by: 11)
         XCTAssertEqual(state.selectedDate, LocalDate(year: 2026, month: 11, day: 6))
         XCTAssertTrue(state.weekDates.contains(state.selectedDate))
 

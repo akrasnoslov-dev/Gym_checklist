@@ -116,6 +116,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.8 CI rerun `32523974413` for `6ed1a83`: the confirmation selector passed; build and all 37 unit tests passed. The UI test then timed out on a separate renderer-dependent row-coordinate assertion following reorder. The focused repair replaces it with the existing semantic action identifier for Bench Press after it moves to exercise 2 of 2; rerun CI is pending.
 - M2.8 macOS CI: PASS for `ff2377a`, run `32528720383`; the authoritative build, 37 unit tests, and UI test passed.
 - M2.9 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, copy-flow/source-test/accessibility contract assertions, and changed-file review. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS CI is pending.
+- M2.9 macOS CI run `32530423499` for `baeff27`: attempt 1 and manual attempt 2 both failed before executing any workflow step (each runner job ended in roughly three seconds with no steps or log). This is a GitHub runner failure, not an observed build/test failure; the next published Milestone 2 checkpoint should consolidate the rerun.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -136,10 +137,10 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.9 `architecture_guardian`, `firebase_data_guardian`, `security_privacy_agent`, `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS. Copy preserves owner-scoped plan data while resetting history, does not overwrite occupied dates, uses semantic UI coverage, and defers atomic Firestore create-if-absent behavior to M4 persistence.
 
 ## Blockers
-None. M2.9 awaits authoritative macOS CI because this Windows host has no Swift/Xcode toolchain.
+No project blocker. Work is paused at the user's request; M2.9 still awaits authoritative macOS CI because this Windows host has no Swift/Xcode toolchain and the two available GitHub runner attempts failed before executing a workflow step.
 
 ## Exact next action
-Obtain authoritative macOS CI for the M2.9 checkpoint. If it passes, mark M2.9 `DONE` and continue with M2.10.
+On `continue`, begin M2.10 provisionally, then consolidate M2.9/M2.10 authoritative macOS CI at the Milestone 2 checkpoint.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

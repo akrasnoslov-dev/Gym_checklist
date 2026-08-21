@@ -407,7 +407,7 @@ Add exercises quickly while planning.
 
 ---
 
-### M2.6 `IN PROGRESS` Build workout exercise editing
+### M2.6 `DONE` Build workout exercise editing
 **Goal**
 Manage the ordered exercise list for a date.
 

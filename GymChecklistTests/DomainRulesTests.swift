@@ -805,6 +805,27 @@ final class ProgramViewModelTests: XCTestCase {
         }
     }
 
+    func testDeleteWorkoutRefreshesSelectedDateAndPreservesOtherDates() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let otherDate = LocalDate(year: 2026, month: 8, day: 15)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        let workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let otherWorkout = repository.createEmptyWorkout(on: otherDate, at: .distantPast).workout
+        let viewModel = ProgramViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
+
+        try viewModel.deleteWorkout(on: date)
+
+        XCTAssertNil(repository.workout(on: date))
+        XCTAssertEqual(repository.workout(on: otherDate), otherWorkout)
+        XCTAssertEqual(viewModel.calendarState.selectedDayState, .empty)
+
+        XCTAssertThrowsError(try viewModel.deleteWorkout(on: date)) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .workoutNotFound(date))
+        }
+        XCTAssertNil(repository.workout(on: date))
+        XCTAssertEqual(workout.localDate, date)
+    }
+
     private func mondayCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Copenhagen")!

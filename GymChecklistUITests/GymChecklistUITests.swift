@@ -107,6 +107,11 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(nordicName.waitForExistence(timeout: 2))
         XCTAssertFalse(benchName.exists)
 
+        app.buttons["programDeleteWorkout"].tap()
+        XCTAssertTrue(app.buttons["programConfirmDeleteWorkout"].waitForExistence(timeout: 2))
+        app.buttons["programConfirmDeleteWorkout"].tap()
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(app.staticTexts["settingsPlaceholder"].waitForExistence(timeout: 2))
 

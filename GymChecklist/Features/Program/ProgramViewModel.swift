@@ -74,6 +74,14 @@ final class ProgramViewModel: ObservableObject {
         workouts = repository.workouts
     }
 
+    func deleteWorkout(on workoutDate: LocalDate) throws {
+        guard repository.workout(on: workoutDate) != nil else {
+            throw ProgramPlanningError.workoutNotFound(workoutDate)
+        }
+        try repository.deleteWorkout(on: workoutDate)
+        workouts = repository.workouts
+    }
+
     func searchExercises(_ query: String) -> [Exercise] {
         exerciseLibrary.search(query)
     }

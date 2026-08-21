@@ -56,4 +56,13 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
         if let existing = storage[key] { persisted.createdAt = existing.createdAt }
         storage[key] = persisted
     }
+
+    func deleteWorkout(on date: LocalDate) throws {
+        let key = WorkoutDateKey(userID: userID, localDate: date)
+        guard storage.removeValue(forKey: key) != nil else { throw InMemoryWorkoutRepositoryError.workoutNotFound(key) }
+    }
+}
+
+enum InMemoryWorkoutRepositoryError: Error, Equatable {
+    case workoutNotFound(WorkoutDateKey)
 }

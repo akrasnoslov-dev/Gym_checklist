@@ -6,6 +6,7 @@ struct ProgramView: View {
     @State private var exercisePickerRoute: ExercisePickerRoute?
     @State private var setEditorRoute: SetEditorRoute?
     @State private var pendingDeletion: PendingExerciseDeletion?
+    @State private var pendingWorkoutDeletion: LocalDate?
     @State private var showsMutationError = false
 
     var body: some View {
@@ -24,6 +25,12 @@ struct ProgramView: View {
                 if !orderedExercises.isEmpty {
                     EditButton()
                         .accessibilityIdentifier("programEditExercises")
+                }
+                if calendarState.selectedWorkout != nil {
+                    Button("Delete workout", role: .destructive) {
+                        pendingWorkoutDeletion = calendarState.selectedDate
+                    }
+                    .accessibilityIdentifier("programDeleteWorkout")
                 }
             }
             .sheet(item: $exercisePickerRoute) { route in
@@ -77,6 +84,20 @@ struct ProgramView: View {
                 Button("Cancel", role: .cancel) { pendingDeletion = nil }
             } message: {
                 Text("Its configured sets will be removed. You can re-add the exercise later.")
+            }
+            .confirmationDialog(
+                "Delete this workout?",
+                isPresented: deleteWorkoutConfirmationBinding,
+                titleVisibility: .visible
+            ) {
+                Button("Delete workout", role: .destructive) {
+                    if let pendingWorkoutDeletion { deleteWorkout(on: pendingWorkoutDeletion) }
+                    pendingWorkoutDeletion = nil
+                }
+                .accessibilityIdentifier("programConfirmDeleteWorkout")
+                Button("Cancel", role: .cancel) { pendingWorkoutDeletion = nil }
+            } message: {
+                Text("All exercises, sets, and recorded results for this date will be removed.")
             }
         }
     }
@@ -370,6 +391,14 @@ struct ProgramView: View {
         }
     }
 
+    private func deleteWorkout(on date: LocalDate) {
+        do {
+            try viewModel.deleteWorkout(on: date)
+        } catch {
+            showsMutationError = true
+        }
+    }
+
     private func moveSet(_ id: WorkoutSetID, in exerciseID: WorkoutExerciseID, by offset: Int) {
         var reordered = viewModel.orderedSets(for: exerciseID, on: calendarState.selectedDate)
         guard let source = reordered.firstIndex(where: { $0.id == id }) else { return }
@@ -398,6 +427,13 @@ struct ProgramView: View {
         Binding(
             get: { pendingDeletion != nil },
             set: { if !$0 { pendingDeletion = nil } }
+        )
+    }
+
+    private var deleteWorkoutConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { pendingWorkoutDeletion != nil },
+            set: { if !$0 { pendingWorkoutDeletion = nil } }
         )
     }
 }

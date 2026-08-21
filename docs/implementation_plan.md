@@ -454,7 +454,7 @@ Let every set have independent reps/weight/time values.
 
 ---
 
-### M2.8 `TODO` Implement workout edit/delete behavior
+### M2.8 `IN PROGRESS (PENDING CI)` Implement workout edit/delete behavior
 **Goal**
 Make planned workouts fully maintainable.
 

@@ -4,7 +4,7 @@
 Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
 
 ## Active task
-`M2.7` — Implementation complete; pending authoritative macOS CI for the Program set editor.
+`M2.8` — Implementation complete; M2.7 and M2.8 await authoritative macOS CI.
 
 ## Published state
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
@@ -72,6 +72,11 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - Program supports destructive set deletion and accessible per-set Move up/down actions. All mutations are scoped to the selected concrete date/exercise/set and persist through the existing repository after contiguous-order normalization.
 - Focused deterministic tests cover zero/default and copied sets, independent time/weight values, completed-actual preservation, invalid negative/non-finite rejection without mutation, reorder/delete normalization, missing sets, and cross-date isolation. The stable UI regression covers add, edit-sheet fields, move, and delete alongside existing Program persistence coverage.
 
+## M2.8 implementation
+- The existing owner-scoped repository now deletes only its selected local-date workout. Program refreshes its snapshot only after a successful deletion, so the selected date immediately returns to the existing empty state without altering adjacent dates or the exercise library.
+- Program exposes a destructive `Delete workout` toolbar action only when the selected date has a workout, including an empty one. A native confirmation dialog captures that concrete date and clearly warns that exercises, sets, and recorded results will be removed.
+- Focused unit/UI coverage exercises selected-date deletion, missing-delete safety, adjacent-date preservation, confirmation, and the empty-state return.
+
 ## Verification status
 - Authoritative Milestone 0 macOS CI: PASS for published commit `7fe85bd` on `dev` (user-confirmed).
 - Milestone 1 macOS CI: PASS for commit `56c8e28`, run `31803547147` attempt 2. All 11 unit tests and the UI smoke test passed. Attempt 1 had a transient simulator app-launch timeout after all unit tests passed; rerunning the failed job succeeded without code changes.
@@ -101,6 +106,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - Revised M2.6 Windows static checks: `git diff --check` passed; the shared scheme XML parsed; deterministic `rg` checks confirmed the absence of exact week/date accessibility-refresh expectations, stable Program next/previous controls, the direct one-week unit assertion, and existing reorder/delete persistence coverage. `swiftc` and `xcodebuild` remain unavailable on this Windows host.
 - M2.6 macOS CI: PASS for commit `4c956ac`, run `32503808413`; the authoritative `Build and test GymChecklist` step completed successfully after the revised UI smoke-test boundary.
 - M2.7 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and source/test contract assertions for add/edit/delete/reorder, completed-plan wording, deterministic unit coverage, and stable UI controls. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS build/unit/UI verification is pending CI.
+- M2.8 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and contract assertions for repository/view-model deletion, confirmation UI, and focused unit/UI coverage. `swiftc` and `xcodebuild` remain unavailable; authoritative macOS build/unit/UI verification is pending CI.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -116,12 +122,13 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.6 `architecture_guardian`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on concrete-date stable-ID mutations, contiguous order normalization, native list controls, per-date isolation, and the M2.7+ scope boundary.
 - M2.6 revised test-boundary review: `test_ci_agent`, `ios_ux_guardian`, and `product_spec_guardian` PASS. Exact post-navigation `List` refresh checks were removed; direct week/date calculation coverage remains deterministic in unit tests, while UI coverage remains on Program-control interaction plus M2.6 add/reorder/delete/persistence behavior.
 - M2.7 `architecture_guardian`, `ios_ux_guardian`, `product_spec_guardian`, `code_quality_agent`, and `test_ci_agent`: PASS after post-change review. The initial missing set-reorder UI was corrected with accessible per-set move actions; completed-set editing is explicitly plan-only and preserves actual results.
+- M2.8 `firebase_data_guardian` and `ios_ux_guardian`: PASS for owner/date-scoped deletion, native date-captured confirmation, and no Today/Firebase scope expansion. Future Firestore deletion must atomically remove nested descendants; that implementation is deferred to M4.3.
 
 ## Blockers
-None. M2.7 is `IN PROGRESS (PENDING CI)` solely because this Windows host has no Swift/Xcode toolchain.
+None. M2.7 and M2.8 are `IN PROGRESS (PENDING CI)` solely because this Windows host has no Swift/Xcode toolchain.
 
 ## Exact next action
-Publish the M2.7 checkpoint and obtain authoritative macOS CI. If it passes, mark M2.7 `DONE` and continue with M2.8; if publishing remains unavailable, continue only with safe M2 dependencies under the Cloud pending-CI rule.
+Obtain authoritative macOS CI for `000f798` and the forthcoming M2.8 checkpoint. If it passes, mark M2.7/M2.8 `DONE` and continue with M2.9.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

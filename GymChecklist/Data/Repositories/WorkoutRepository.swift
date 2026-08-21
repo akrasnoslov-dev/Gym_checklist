@@ -29,4 +29,5 @@ protocol WorkoutRepository: AnyObject {
     func workout(on date: LocalDate) -> Workout?
     @discardableResult func createEmptyWorkout(on date: LocalDate, at timestamp: Date) -> WorkoutCreationResult
     func save(_ workout: Workout) throws
+    func deleteWorkout(on date: LocalDate) throws
 }

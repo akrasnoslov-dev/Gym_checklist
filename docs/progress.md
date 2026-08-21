@@ -4,7 +4,7 @@
 Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
 
 ## Active task
-None — M2.6 is complete; M2.7 is the next eligible task.
+`M2.7` — Build an arbitrary Program set editor with independent reps, weight, time, add/edit/delete, and ordered-set behavior.
 
 ## Published state
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
@@ -109,10 +109,10 @@ None — M2.6 is complete; M2.7 is the next eligible task.
 - M2.6 revised test-boundary review: `test_ci_agent`, `ios_ux_guardian`, and `product_spec_guardian` PASS. Exact post-navigation `List` refresh checks were removed; direct week/date calculation coverage remains deterministic in unit tests, while UI coverage remains on Program-control interaction plus M2.6 add/reorder/delete/persistence behavior.
 
 ## Blockers
-None for M2.6. M2.7 has not yet started.
+None. M2.7 is active; its implementation has not begun.
 
 ## Exact next action
-Read M2.7 in full with its referenced Product/UX/Architecture sections and required routing instructions, then mark it `IN PROGRESS` before substantial edits.
+Implement M2.7's smallest complete Program set editor, add deterministic model tests and stable UI coverage, then run available checks and publish for authoritative macOS CI.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

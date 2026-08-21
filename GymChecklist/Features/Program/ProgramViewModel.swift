@@ -3,6 +3,8 @@ import Foundation
 
 enum ProgramPlanningError: Error, Equatable {
     case workoutNotFound(LocalDate)
+    case copyDestinationMatchesSource(LocalDate)
+    case copyDestinationOccupied(LocalDate)
     case exerciseUnavailable(ExerciseID)
     case workoutExerciseNotFound(WorkoutExerciseID)
     case workoutSetNotFound(WorkoutSetID)
@@ -80,6 +82,56 @@ final class ProgramViewModel: ObservableObject {
         }
         try repository.deleteWorkout(on: workoutDate)
         workouts = repository.workouts
+    }
+
+    func hasWorkout(on date: LocalDate) -> Bool {
+        repository.workout(on: date) != nil
+    }
+
+    func copyWorkout(from sourceDate: LocalDate, to destinationDate: LocalDate) throws {
+        guard let source = repository.workout(on: sourceDate) else {
+            throw ProgramPlanningError.workoutNotFound(sourceDate)
+        }
+        guard sourceDate != destinationDate else {
+            throw ProgramPlanningError.copyDestinationMatchesSource(destinationDate)
+        }
+        guard repository.workout(on: destinationDate) == nil else {
+            throw ProgramPlanningError.copyDestinationOccupied(destinationDate)
+        }
+
+        let result = repository.createEmptyWorkout(on: destinationDate, at: now())
+        guard result.wasCreated else {
+            throw ProgramPlanningError.copyDestinationOccupied(destinationDate)
+        }
+
+        var copied = result.workout
+        copied.exercises = normalizedExercises(source.exercises).enumerated().map { exerciseIndex, sourceExercise in
+            WorkoutExercise(
+                id: makeWorkoutExerciseID(),
+                exerciseID: sourceExercise.exerciseID,
+                customName: sourceExercise.customName,
+                order: exerciseIndex,
+                isSkipped: false,
+                sets: normalizedSets(sourceExercise.sets).enumerated().map { setIndex, sourceSet in
+                    WorkoutSet(
+                        id: makeWorkoutSetID(),
+                        order: setIndex,
+                        reps: sourceSet.reps,
+                        weight: sourceSet.weight,
+                        timeSeconds: sourceSet.timeSeconds
+                    )
+                }
+            )
+        }
+        copied.updatedAt = now()
+        do {
+            try repository.save(copied)
+        } catch {
+            try? repository.deleteWorkout(on: destinationDate)
+            throw error
+        }
+        workouts = repository.workouts
+        selectedDate = destinationDate
     }
 
     func searchExercises(_ query: String) -> [Exercise] {

@@ -5,6 +5,7 @@ struct ProgramView: View {
     @ObservedObject var viewModel: ProgramViewModel
     @State private var exercisePickerRoute: ExercisePickerRoute?
     @State private var setEditorRoute: SetEditorRoute?
+    @State private var copyWorkoutRoute: CopyWorkoutRoute?
     @State private var pendingDeletion: PendingExerciseDeletion?
     @State private var pendingWorkoutDeletion: LocalDate?
     @State private var showsMutationError = false
@@ -25,6 +26,18 @@ struct ProgramView: View {
                 if !orderedExercises.isEmpty {
                     EditButton()
                         .accessibilityIdentifier("programEditExercises")
+                }
+                if let workout = calendarState.selectedWorkout {
+                    Button {
+                        copyWorkoutRoute = CopyWorkoutRoute(
+                            sourceDate: workout.localDate,
+                            exerciseCount: workout.exercises.count,
+                            setCount: workout.exercises.flatMap(\.sets).count
+                        )
+                    } label: {
+                        Label("Copy workout", systemImage: "doc.on.doc")
+                    }
+                    .accessibilityIdentifier("programCopyWorkout")
                 }
                 if calendarState.selectedWorkout != nil {
                     Button("Delete workout", role: .destructive) {
@@ -64,6 +77,18 @@ struct ProgramView: View {
                             from: route.exercise.id,
                             on: route.workoutDate
                         )
+                    }
+                )
+            }
+            .sheet(item: $copyWorkoutRoute) { route in
+                CopyWorkoutSheet(
+                    sourceDate: route.sourceDate,
+                    exerciseCount: route.exerciseCount,
+                    setCount: route.setCount,
+                    calendar: calendarState.calendar,
+                    isDestinationOccupied: { viewModel.hasWorkout(on: $0) },
+                    onCopy: { destinationDate in
+                        try viewModel.copyWorkout(from: route.sourceDate, to: destinationDate)
                     }
                 )
             }
@@ -455,6 +480,112 @@ private struct SetEditorRoute: Identifiable {
 
     var id: String {
         "\(workoutDate.description)-\(exercise.id.rawValue.uuidString)-\(set?.id.rawValue.uuidString ?? "new")"
+    }
+}
+
+private struct CopyWorkoutRoute: Identifiable {
+    let sourceDate: LocalDate
+    let exerciseCount: Int
+    let setCount: Int
+
+    var id: LocalDate { sourceDate }
+}
+
+private struct CopyWorkoutSheet: View {
+    let sourceDate: LocalDate
+    let exerciseCount: Int
+    let setCount: Int
+    let calendar: Calendar
+    let isDestinationOccupied: (LocalDate) -> Bool
+    let onCopy: (LocalDate) throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var destination: Date
+    @State private var showsCopyError = false
+
+    init(
+        sourceDate: LocalDate,
+        exerciseCount: Int,
+        setCount: Int,
+        calendar: Calendar,
+        isDestinationOccupied: @escaping (LocalDate) -> Bool,
+        onCopy: @escaping (LocalDate) throws -> Void
+    ) {
+        self.sourceDate = sourceDate
+        self.exerciseCount = exerciseCount
+        self.setCount = setCount
+        self.calendar = calendar
+        self.isDestinationOccupied = isDestinationOccupied
+        self.onCopy = onCopy
+        _destination = State(initialValue: sourceDate.date(in: calendar) ?? Date())
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Source") {
+                    Text(fullDateLabel(for: sourceDate))
+                        .accessibilityIdentifier("copyWorkoutSourceDate")
+                    Text("\(exerciseCount) \(exerciseCount == 1 ? "exercise" : "exercises") · \(setCount) \(setCount == 1 ? "set" : "sets")")
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("copyWorkoutSummary")
+                }
+
+                Section("Destination") {
+                    DatePicker("Destination date", selection: $destination, displayedComponents: .date)
+                        .accessibilityIdentifier("copyWorkoutDestination")
+                    if let destinationMessage {
+                        Text(destinationMessage)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("copyWorkoutDestinationMessage")
+                    }
+                }
+            }
+            .navigationTitle("Copy workout")
+            .accessibilityIdentifier("copyWorkoutSheet")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .accessibilityIdentifier("copyWorkoutCancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Copy") {
+                        do {
+                            try onCopy(destinationDate)
+                            dismiss()
+                        } catch {
+                            showsCopyError = true
+                        }
+                    }
+                    .disabled(destinationMessage != nil)
+                    .accessibilityIdentifier("copyWorkoutAction")
+                }
+            }
+            .alert("Workout could not be copied", isPresented: $showsCopyError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Choose another date and try again.")
+            }
+        }
+    }
+
+    private var destinationDate: LocalDate {
+        LocalDate(date: destination, calendar: calendar)
+    }
+
+    private var destinationMessage: String? {
+        if destinationDate == sourceDate {
+            return "Choose a different date."
+        }
+        if isDestinationOccupied(destinationDate) {
+            return "A workout already exists on this date. Choose another date."
+        }
+        return nil
+    }
+
+    private func fullDateLabel(for date: LocalDate) -> String {
+        guard let value = date.date(in: calendar) else { return date.description }
+        return value.formatted(.dateTime.weekday(.wide).month(.wide).day().year().locale(Locale(identifier: "en")))
     }
 }
 

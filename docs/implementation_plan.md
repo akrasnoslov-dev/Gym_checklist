@@ -473,7 +473,7 @@ Make planned workouts fully maintainable.
 
 ---
 
-### M2.9 `IN PROGRESS` Implement Copy Workout
+### M2.9 `IN PROGRESS (PENDING CI)` Implement Copy Workout
 **Goal**
 Copy one date's plan to another date with minimal effort.
 

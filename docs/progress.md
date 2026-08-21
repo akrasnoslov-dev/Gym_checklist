@@ -4,7 +4,7 @@
 Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
 
 ## Active task
-`M2.9` — Implement Copy Workout with independent plans and explicit occupied-date handling.
+`M2.9` — Implementation complete; authoritative macOS CI is pending.
 
 ## Published state
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
@@ -77,6 +77,11 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - Program exposes a destructive `Delete workout` toolbar action only when the selected date has a workout, including an empty one. A native confirmation dialog captures that concrete date and clearly warns that exercises, sets, and recorded results will be removed.
 - Focused unit/UI coverage exercises selected-date deletion, missing-delete safety, adjacent-date preservation, confirmation, and the empty-state return.
 
+## M2.9 implementation
+- Program exposes a compact Copy workout sheet with source date/plan summary, a native destination-date picker, and explicit disabled-state guidance for source or occupied destinations; the flow never overwrites an existing workout and selects the new date after success.
+- The owner-scoped view model creates a repository-owned destination workout then maps ordered exercises/sets to fresh IDs, copying only exercise references/custom names and planned reps/weight/time. Copied exercises are unskipped and copied sets are incomplete with no actual values or completion timestamp.
+- Focused deterministic tests cover fresh aggregate IDs, plan/order/custom-name preservation, completed/actual/skipped reset, source/destination mutation independence, deterministic timestamps, and missing/same/occupied no-mutation failures. The UI smoke test covers the compact sheet and its source, destination, disabled-copy, and cancel controls without automating the native DatePicker.
+
 ## Verification status
 - Authoritative Milestone 0 macOS CI: PASS for published commit `7fe85bd` on `dev` (user-confirmed).
 - Milestone 1 macOS CI: PASS for commit `56c8e28`, run `31803547147` attempt 2. All 11 unit tests and the UI smoke test passed. Attempt 1 had a transient simulator app-launch timeout after all unit tests passed; rerunning the failed job succeeded without code changes.
@@ -110,6 +115,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.8 macOS CI run `32507128111` for `43ada4f`: FAILURE only in `GymChecklistUITests.testAppLaunchesOnTodayAndNavigatesAllTabs()`. The destructive confirmation button is represented by both a parent and nested accessibility node with the same identifier, so the test selector matched multiple buttons. The focused repair selects the first matching button; rerun CI is pending.
 - M2.8 CI rerun `32523974413` for `6ed1a83`: the confirmation selector passed; build and all 37 unit tests passed. The UI test then timed out on a separate renderer-dependent row-coordinate assertion following reorder. The focused repair replaces it with the existing semantic action identifier for Bench Press after it moves to exercise 2 of 2; rerun CI is pending.
 - M2.8 macOS CI: PASS for `ff2377a`, run `32528720383`; the authoritative build, 37 unit tests, and UI test passed.
+- M2.9 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, copy-flow/source-test/accessibility contract assertions, and changed-file review. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS CI is pending.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -127,12 +133,13 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.7 `architecture_guardian`, `ios_ux_guardian`, `product_spec_guardian`, `code_quality_agent`, and `test_ci_agent`: PASS after post-change review. The initial missing set-reorder UI was corrected with accessible per-set move actions; completed-set editing is explicitly plan-only and preserves actual results.
 - M2.8 `firebase_data_guardian` and `ios_ux_guardian`: PASS for owner/date-scoped deletion, native date-captured confirmation, and no Today/Firebase scope expansion. Future Firestore deletion must atomically remove nested descendants; that implementation is deferred to M4.3.
 - M2.8 CI-rerun `test_ci_agent`: PASS. The reordered action label is a semantic, rendered-order assertion and is more deterministic than comparing SwiftUI `List` row coordinates.
+- M2.9 `architecture_guardian`, `firebase_data_guardian`, `security_privacy_agent`, `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS. Copy preserves owner-scoped plan data while resetting history, does not overwrite occupied dates, uses semantic UI coverage, and defers atomic Firestore create-if-absent behavior to M4 persistence.
 
 ## Blockers
-None.
+None. M2.9 awaits authoritative macOS CI because this Windows host has no Swift/Xcode toolchain.
 
 ## Exact next action
-Implement M2.9 Copy Workout; then run available checks and authoritative macOS CI.
+Obtain authoritative macOS CI for the M2.9 checkpoint. If it passes, mark M2.9 `DONE` and continue with M2.10.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

@@ -4,7 +4,7 @@
 Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
 
 ## Active task
-`M2.8` — Implementation complete; M2.7 and M2.8 await authoritative macOS CI.
+`M2.8` — Repair the authoritative macOS UI-test selector failure, then rerun CI.
 
 ## Published state
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
@@ -12,7 +12,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M1.1–M1.6 are `DONE`; the Milestone 1 domain checkpoint is complete.
 - Current branch: `dev`.
 - M2.6 implementation/test boundary commit: `4c956ac` (`Stabilize M2.6 Program UI smoke test`), published on `dev`.
-- M2.7 local checkpoint is on `dev`; it is intentionally pending publication and authoritative macOS CI.
+- M2.7 macOS CI: PASS for `000f798`, run `32506833516`; the authoritative build, unit-test, and UI-test job completed successfully.
 - M2.6 authoritative macOS CI: run `32503808413` passed for `4c956ac`; the `Build and test GymChecklist` job completed successfully in 5m17s.
 - M2.2 is published as commit `0d3471d` on `dev`.
 - M2.3 is published as commit `d0e9fc1` on `dev`.
@@ -105,8 +105,9 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - Six M2.6 CI failures (`31812569305`, `31813267131`, `31814068288`, `31815123053`, `31816172230`, and `31816956152`) were investigated. The first five attempted different SwiftUI `List` accessibility targets; the sixth showed that replacing the date-button assertion with a header-label assertion did not remove the timing dependency. The revised correction removes exact week-header/date-refresh assertions from UI automation, retains deterministic calendar calculations in unit tests, and keeps UI automation focused on stable Program navigation controls and M2.6 exercise editing/persistence behavior.
 - Revised M2.6 Windows static checks: `git diff --check` passed; the shared scheme XML parsed; deterministic `rg` checks confirmed the absence of exact week/date accessibility-refresh expectations, stable Program next/previous controls, the direct one-week unit assertion, and existing reorder/delete persistence coverage. `swiftc` and `xcodebuild` remain unavailable on this Windows host.
 - M2.6 macOS CI: PASS for commit `4c956ac`, run `32503808413`; the authoritative `Build and test GymChecklist` step completed successfully after the revised UI smoke-test boundary.
-- M2.7 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and source/test contract assertions for add/edit/delete/reorder, completed-plan wording, deterministic unit coverage, and stable UI controls. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS build/unit/UI verification is pending CI.
-- M2.8 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and contract assertions for repository/view-model deletion, confirmation UI, and focused unit/UI coverage. `swiftc` and `xcodebuild` remain unavailable; authoritative macOS build/unit/UI verification is pending CI.
+- M2.7 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and source/test contract assertions for add/edit/delete/reorder, completed-plan wording, deterministic unit coverage, and stable UI controls. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS CI run `32506833516` passed.
+- M2.8 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and contract assertions for repository/view-model deletion, confirmation UI, and focused unit/UI coverage. `swiftc` and `xcodebuild` remain unavailable; authoritative macOS build/unit/UI verification is pending rerun.
+- M2.8 macOS CI run `32507128111` for `43ada4f`: FAILURE only in `GymChecklistUITests.testAppLaunchesOnTodayAndNavigatesAllTabs()`. The destructive confirmation button is represented by both a parent and nested accessibility node with the same identifier, so the test selector matched multiple buttons. The focused repair selects the first matching button; rerun CI is pending.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -125,10 +126,10 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.8 `firebase_data_guardian` and `ios_ux_guardian`: PASS for owner/date-scoped deletion, native date-captured confirmation, and no Today/Firebase scope expansion. Future Firestore deletion must atomically remove nested descendants; that implementation is deferred to M4.3.
 
 ## Blockers
-None. M2.7 and M2.8 are `IN PROGRESS (PENDING CI)` solely because this Windows host has no Swift/Xcode toolchain.
+None. M2.8 requires a rerun of authoritative macOS CI after the focused UI-test selector repair; this Windows host has no Swift/Xcode toolchain.
 
 ## Exact next action
-Obtain authoritative macOS CI for `000f798` and the forthcoming M2.8 checkpoint. If it passes, mark M2.7/M2.8 `DONE` and continue with M2.9.
+Run authoritative macOS CI for the M2.8 selector-repair checkpoint. If it passes, mark M2.8 `DONE` and continue with M2.9.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

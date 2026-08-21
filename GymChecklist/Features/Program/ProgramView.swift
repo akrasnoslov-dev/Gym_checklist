@@ -4,6 +4,7 @@ import SwiftUI
 struct ProgramView: View {
     @ObservedObject var viewModel: ProgramViewModel
     @State private var exercisePickerRoute: ExercisePickerRoute?
+    @State private var setEditorRoute: SetEditorRoute?
     @State private var pendingDeletion: PendingExerciseDeletion?
     @State private var showsMutationError = false
 
@@ -31,6 +32,31 @@ struct ProgramView: View {
                     createCustom: viewModel.createCustomExercise,
                     onSelect: { exercise in
                         try viewModel.addExercise(exercise, to: route.workoutDate)
+                    }
+                )
+            }
+            .sheet(item: $setEditorRoute) { route in
+                ProgramSetEditorSheet(
+                    set: route.set,
+                    exerciseName: viewModel.exerciseName(for: route.exercise),
+                    onSave: { reps, weight, timeSeconds in
+                        guard let set = route.set else { return }
+                        try viewModel.editSet(
+                            set.id,
+                            in: route.exercise.id,
+                            on: route.workoutDate,
+                            reps: reps,
+                            weight: weight,
+                            timeSeconds: timeSeconds
+                        )
+                    },
+                    onDelete: {
+                        guard let set = route.set else { return }
+                        try viewModel.deleteSet(
+                            set.id,
+                            from: route.exercise.id,
+                            on: route.workoutDate
+                        )
                     }
                 )
             }
@@ -185,26 +211,84 @@ struct ProgramView: View {
 
     private func exerciseRow(_ exercise: WorkoutExercise, index: Int) -> some View {
         let name = viewModel.exerciseName(for: exercise)
-        return HStack(alignment: .center) {
-            Text(name)
-                .accessibilityIdentifier("programExercise-\(name)")
-            Spacer()
-            Menu {
-                if index > 0 {
-                    Button("Move up") { moveExercise(exercise.id, by: -1) }
-                        .accessibilityIdentifier("programExerciseMoveUp-\(exercise.id.rawValue.uuidString)")
+        let sets = viewModel.orderedSets(for: exercise.id, on: calendarState.selectedDate)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center) {
+                Text(name)
+                    .accessibilityIdentifier("programExercise-\(name)")
+                Spacer()
+                Menu {
+                    if index > 0 {
+                        Button("Move up") { moveExercise(exercise.id, by: -1) }
+                            .accessibilityIdentifier("programExerciseMoveUp-\(exercise.id.rawValue.uuidString)")
+                    }
+                    if index < orderedExercises.count - 1 {
+                        Button("Move down") { moveExercise(exercise.id, by: 1) }
+                            .accessibilityIdentifier("programExerciseMoveDown-\(exercise.id.rawValue.uuidString)")
+                    }
+                    Button("Delete", role: .destructive) { requestDeletion(of: exercise) }
+                        .accessibilityIdentifier("programExerciseDelete-\(exercise.id.rawValue.uuidString)")
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .frame(width: 44, height: 44)
                 }
-                if index < orderedExercises.count - 1 {
-                    Button("Move down") { moveExercise(exercise.id, by: 1) }
-                        .accessibilityIdentifier("programExerciseMoveDown-\(exercise.id.rawValue.uuidString)")
-                }
-                Button("Delete", role: .destructive) { requestDeletion(of: exercise) }
-                    .accessibilityIdentifier("programExerciseDelete-\(exercise.id.rawValue.uuidString)")
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .frame(width: 44, height: 44)
+                .accessibilityLabel("Actions for \(name), exercise \(index + 1) of \(orderedExercises.count)")
             }
-            .accessibilityLabel("Actions for \(name), exercise \(index + 1) of \(orderedExercises.count)")
+            ForEach(Array(sets.enumerated()), id: \.element.id) { setIndex, set in
+                HStack(spacing: 4) {
+                    Button {
+                        setEditorRoute = SetEditorRoute(
+                            workoutDate: calendarState.selectedDate,
+                            exercise: exercise,
+                            set: set
+                        )
+                    } label: {
+                        HStack {
+                            Text("Set \(setIndex + 1)")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(SetDisplayFormatter(unit: .kilograms).string(
+                                reps: set.displayedReps,
+                                weight: set.displayedWeight,
+                                timeSeconds: set.displayedTimeSeconds
+                            ))
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Edit set \(setIndex + 1) for \(name)")
+                    .accessibilityValue(SetDisplayFormatter(unit: .kilograms).string(
+                        reps: set.displayedReps,
+                        weight: set.displayedWeight,
+                        timeSeconds: set.displayedTimeSeconds
+                    ))
+                    .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
+
+                    if sets.count > 1 {
+                        Menu {
+                            if setIndex > 0 {
+                                Button("Move up") { moveSet(set.id, in: exercise.id, by: -1) }
+                            }
+                            if setIndex < sets.count - 1 {
+                                Button("Move down") { moveSet(set.id, in: exercise.id, by: 1) }
+                            }
+                        } label: {
+                            Image(systemName: "line.3.horizontal")
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel("Actions for set \(setIndex + 1) for \(name)")
+                    }
+                }
+            }
+            Button {
+                addSet(to: exercise.id)
+            } label: {
+                Label("Add set", systemImage: "plus")
+                    .frame(minHeight: 44)
+            }
+            .accessibilityLabel("Add set to \(name)")
+            .accessibilityIdentifier("programAddSet-\(exercise.id.rawValue.uuidString)")
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
@@ -278,6 +362,27 @@ struct ProgramView: View {
         }
     }
 
+    private func addSet(to exerciseID: WorkoutExerciseID) {
+        do {
+            try viewModel.addSet(to: exerciseID, on: calendarState.selectedDate)
+        } catch {
+            showsMutationError = true
+        }
+    }
+
+    private func moveSet(_ id: WorkoutSetID, in exerciseID: WorkoutExerciseID, by offset: Int) {
+        var reordered = viewModel.orderedSets(for: exerciseID, on: calendarState.selectedDate)
+        guard let source = reordered.firstIndex(where: { $0.id == id }) else { return }
+        let destination = source + offset
+        guard reordered.indices.contains(destination) else { return }
+        reordered.swapAt(source, destination)
+        do {
+            try viewModel.reorderSets(reordered.map(\.id), in: exerciseID, on: calendarState.selectedDate)
+        } catch {
+            showsMutationError = true
+        }
+    }
+
     private func requestDeletion(of exercise: WorkoutExercise) {
         if exercise.sets.isEmpty {
             deleteExercise(exercise.id)
@@ -305,4 +410,100 @@ private struct ExercisePickerRoute: Identifiable {
 private struct PendingExerciseDeletion {
     let id: WorkoutExerciseID
     let name: String
+}
+
+private struct SetEditorRoute: Identifiable {
+    let workoutDate: LocalDate
+    let exercise: WorkoutExercise
+    let set: WorkoutSet?
+
+    var id: String {
+        "\(workoutDate.description)-\(exercise.id.rawValue.uuidString)-\(set?.id.rawValue.uuidString ?? "new")"
+    }
+}
+
+private struct ProgramSetEditorSheet: View {
+    let set: WorkoutSet?
+    let exerciseName: String
+    let onSave: (Int, Double, Int) throws -> Void
+    let onDelete: () throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var reps: Int
+    @State private var weight: Double
+    @State private var timeSeconds: Int
+    @State private var showsValidationError = false
+
+    init(
+        set: WorkoutSet?,
+        exerciseName: String,
+        onSave: @escaping (Int, Double, Int) throws -> Void,
+        onDelete: @escaping () throws -> Void
+    ) {
+        self.set = set
+        self.exerciseName = exerciseName
+        self.onSave = onSave
+        self.onDelete = onDelete
+        _reps = State(initialValue: set?.reps ?? 0)
+        _weight = State(initialValue: set?.weight ?? 0)
+        _timeSeconds = State(initialValue: set?.timeSeconds ?? 0)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(set?.isCompleted == true ? "\(exerciseName) plan" : exerciseName) {
+                    if set?.isCompleted == true {
+                        Text("Actual results are unchanged.")
+                            .foregroundStyle(.secondary)
+                    }
+                    TextField("Reps", value: $reps, format: .number)
+                        .keyboardType(.numberPad)
+                        .accessibilityIdentifier("programSetEditorReps")
+                    TextField("Weight", value: $weight, format: .number)
+                        .keyboardType(.decimalPad)
+                        .accessibilityIdentifier("programSetEditorWeight")
+                    TextField("Time (seconds)", value: $timeSeconds, format: .number)
+                        .keyboardType(.numberPad)
+                        .accessibilityIdentifier("programSetEditorTime")
+                }
+
+                if set != nil {
+                    Section {
+                        Button("Delete set", role: .destructive) {
+                            do {
+                                try onDelete()
+                                dismiss()
+                            } catch {
+                                showsValidationError = true
+                            }
+                        }
+                        .accessibilityIdentifier("programSetEditorDelete")
+                    }
+                }
+            }
+            .navigationTitle(set?.isCompleted == true ? "Edit plan" : "Edit set")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        do {
+                            try onSave(reps, weight, timeSeconds)
+                            dismiss()
+                        } catch {
+                            showsValidationError = true
+                        }
+                    }
+                    .accessibilityIdentifier("programSetEditorSave")
+                }
+            }
+            .alert("Set values must be non-negative", isPresented: $showsValidationError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Enter valid reps, weight, and time values.")
+            }
+        }
+    }
 }

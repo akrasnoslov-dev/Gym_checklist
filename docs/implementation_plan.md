@@ -427,7 +427,7 @@ Manage the ordered exercise list for a date.
 
 ---
 
-### M2.7 `IN PROGRESS` Build arbitrary set editor
+### M2.7 `IN PROGRESS (PENDING CI)` Build arbitrary set editor
 **Goal**
 Let every set have independent reps/weight/time values.
 

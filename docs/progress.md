@@ -4,7 +4,7 @@
 Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
 
 ## Active task
-`M2.7` — Build an arbitrary Program set editor with independent reps, weight, time, add/edit/delete, and ordered-set behavior.
+`M2.7` — Implementation complete; pending authoritative macOS CI for the Program set editor.
 
 ## Published state
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
@@ -12,6 +12,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M1.1–M1.6 are `DONE`; the Milestone 1 domain checkpoint is complete.
 - Current branch: `dev`.
 - M2.6 implementation/test boundary commit: `4c956ac` (`Stabilize M2.6 Program UI smoke test`), published on `dev`.
+- M2.7 local checkpoint is on `dev`; it is intentionally pending publication and authoritative macOS CI.
 - M2.6 authoritative macOS CI: run `32503808413` passed for `4c956ac`; the `Build and test GymChecklist` job completed successfully in 5m17s.
 - M2.2 is published as commit `0d3471d` on `dev`.
 - M2.3 is published as commit `d0e9fc1` on `dev`.
@@ -65,6 +66,12 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - Materially changed files for M2.6: `GymChecklist/Features/Program/ProgramView.swift`, `GymChecklist/Features/Program/ProgramViewModel.swift`, `GymChecklistTests/DomainRulesTests.swift`, `GymChecklistUITests/GymChecklistUITests.swift`, `docs/implementation_plan.md`, and `docs/progress.md`.
 - UI-test boundary: deterministic week/date derivation remains unit-tested. The Program smoke flow verifies that Program opens and its previous/next-week controls are available and can be tapped, without asserting a SwiftUI `List` accessibility-label refresh. M2.6 UI coverage instead verifies add, reorder, delete, and per-date persistence behavior.
 
+## M2.7 implementation
+- Program exercise rows now show ordered set rows plus an `Add set` action. First sets start at explicit zero values; later sets copy only the previous planned reps/weight/time and always get a fresh, incomplete identity.
+- A compact Program sheet edits independent Reps, Weight, and Time fields; finite non-negative values are enforced at the view-model boundary, including explicit `weight = 0` and time-only sets. Completed-set sheets are explicitly labelled `Edit plan` and preserve actual results.
+- Program supports destructive set deletion and accessible per-set Move up/down actions. All mutations are scoped to the selected concrete date/exercise/set and persist through the existing repository after contiguous-order normalization.
+- Focused deterministic tests cover zero/default and copied sets, independent time/weight values, completed-actual preservation, invalid negative/non-finite rejection without mutation, reorder/delete normalization, missing sets, and cross-date isolation. The stable UI regression covers add, edit-sheet fields, move, and delete alongside existing Program persistence coverage.
+
 ## Verification status
 - Authoritative Milestone 0 macOS CI: PASS for published commit `7fe85bd` on `dev` (user-confirmed).
 - Milestone 1 macOS CI: PASS for commit `56c8e28`, run `31803547147` attempt 2. All 11 unit tests and the UI smoke test passed. Attempt 1 had a transient simulator app-launch timeout after all unit tests passed; rerunning the failed job succeeded without code changes.
@@ -93,6 +100,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - Six M2.6 CI failures (`31812569305`, `31813267131`, `31814068288`, `31815123053`, `31816172230`, and `31816956152`) were investigated. The first five attempted different SwiftUI `List` accessibility targets; the sixth showed that replacing the date-button assertion with a header-label assertion did not remove the timing dependency. The revised correction removes exact week-header/date-refresh assertions from UI automation, retains deterministic calendar calculations in unit tests, and keeps UI automation focused on stable Program navigation controls and M2.6 exercise editing/persistence behavior.
 - Revised M2.6 Windows static checks: `git diff --check` passed; the shared scheme XML parsed; deterministic `rg` checks confirmed the absence of exact week/date accessibility-refresh expectations, stable Program next/previous controls, the direct one-week unit assertion, and existing reorder/delete persistence coverage. `swiftc` and `xcodebuild` remain unavailable on this Windows host.
 - M2.6 macOS CI: PASS for commit `4c956ac`, run `32503808413`; the authoritative `Build and test GymChecklist` step completed successfully after the revised UI smoke-test boundary.
+- M2.7 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and source/test contract assertions for add/edit/delete/reorder, completed-plan wording, deterministic unit coverage, and stable UI controls. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS build/unit/UI verification is pending CI.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -107,12 +115,13 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.5 `architecture_guardian`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on the long-lived exercise-library ownership, one-tap result return, custom fallback/reuse flow, storage-agnostic picker UI, and later-editor scope boundary.
 - M2.6 `architecture_guardian`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on concrete-date stable-ID mutations, contiguous order normalization, native list controls, per-date isolation, and the M2.7+ scope boundary.
 - M2.6 revised test-boundary review: `test_ci_agent`, `ios_ux_guardian`, and `product_spec_guardian` PASS. Exact post-navigation `List` refresh checks were removed; direct week/date calculation coverage remains deterministic in unit tests, while UI coverage remains on Program-control interaction plus M2.6 add/reorder/delete/persistence behavior.
+- M2.7 `architecture_guardian`, `ios_ux_guardian`, `product_spec_guardian`, `code_quality_agent`, and `test_ci_agent`: PASS after post-change review. The initial missing set-reorder UI was corrected with accessible per-set move actions; completed-set editing is explicitly plan-only and preserves actual results.
 
 ## Blockers
-None. M2.7 is active; its implementation has not begun.
+None. M2.7 is `IN PROGRESS (PENDING CI)` solely because this Windows host has no Swift/Xcode toolchain.
 
 ## Exact next action
-Implement M2.7's smallest complete Program set editor, add deterministic model tests and stable UI coverage, then run available checks and publish for authoritative macOS CI.
+Publish the M2.7 checkpoint and obtain authoritative macOS CI. If it passes, mark M2.7 `DONE` and continue with M2.8; if publishing remains unavailable, continue only with safe M2 dependencies under the Cloud pending-CI rule.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

@@ -670,6 +670,141 @@ final class ProgramViewModelTests: XCTestCase {
         XCTAssertFalse(afterReAdd.last?.isSkipped == true)
     }
 
+    func testAddSetCopiesOnlyPreviousPlanWithFreshIdentityAndZeroFirstSet() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID(rawValue: UUID(uuidString: "50000000-0000-4000-8000-000000000001")!)
+        let firstSetID = WorkoutSetID(rawValue: UUID(uuidString: "50000000-0000-4000-8000-000000000002")!)
+        let secondSetID = WorkoutSetID(rawValue: UUID(uuidString: "50000000-0000-4000-8000-000000000003")!)
+        workout.exercises = [planningExercise(id: exerciseID, catalogIndex: 0, order: 0, reps: 0)]
+        workout.exercises[0].sets = []
+        try repository.save(workout)
+        var setIDs = [firstSetID, secondSetID]
+        let viewModel = ProgramViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar(),
+            makeWorkoutSetID: { setIDs.removeFirst() }
+        )
+
+        try viewModel.addSet(to: exerciseID, on: date)
+        var sets = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(sets.map(\.id), [firstSetID])
+        XCTAssertEqual(sets[0].order, 0)
+        XCTAssertEqual(sets[0].reps, 0)
+        XCTAssertEqual(sets[0].weight, 0)
+        XCTAssertEqual(sets[0].timeSeconds, 0)
+        XCTAssertFalse(sets[0].isCompleted)
+        XCTAssertNil(sets[0].actualReps)
+
+        try viewModel.editSet(firstSetID, in: exerciseID, on: date, reps: 8, weight: 0, timeSeconds: 45)
+        try viewModel.addSet(to: exerciseID, on: date)
+        sets = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(sets.map(\.id), [firstSetID, secondSetID])
+        XCTAssertEqual(sets.map(\.order), [0, 1])
+        XCTAssertEqual(sets[1].reps, 8)
+        XCTAssertEqual(sets[1].weight, 0)
+        XCTAssertEqual(sets[1].timeSeconds, 45)
+        XCTAssertFalse(sets[1].isCompleted)
+        XCTAssertNil(sets[1].actualWeight)
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weight: 0, timeSeconds: 45), "8 reps × 45 sec")
+    }
+
+    func testEditSetPreservesCompletedActualAndRejectsInvalidValuesAtomically() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID(rawValue: UUID(uuidString: "51000000-0000-4000-8000-000000000001")!)
+        let setID = WorkoutSetID(rawValue: UUID(uuidString: "51000000-0000-4000-8000-000000000002")!)
+        var completedSet = WorkoutSet(id: setID, order: 0, reps: 5, weight: 30, timeSeconds: 0)
+        completedSet.complete(at: .distantPast)
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [completedSet]
+        )]
+        try repository.save(workout)
+        let viewModel = ProgramViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
+
+        try viewModel.editSet(setID, in: exerciseID, on: date, reps: 7, weight: 0, timeSeconds: 45)
+        let updated = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets.first)
+        XCTAssertEqual(updated.reps, 7)
+        XCTAssertEqual(updated.weight, 0)
+        XCTAssertEqual(updated.timeSeconds, 45)
+        XCTAssertTrue(updated.isCompleted)
+        XCTAssertEqual(updated.actualReps, 5)
+        XCTAssertEqual(updated.actualWeight, 30)
+        XCTAssertEqual(updated.actualTimeSeconds, 0)
+
+        let beforeInvalid = repository.workout(on: date)
+        for invalid in [(-1, 0.0, 0), (0, -0.5, 0), (0, .nan, 0), (0, .infinity, 0), (0, 0, -1)] {
+            XCTAssertThrowsError(try viewModel.editSet(
+                setID,
+                in: exerciseID,
+                on: date,
+                reps: invalid.0,
+                weight: invalid.1,
+                timeSeconds: invalid.2
+            )) { error in
+                XCTAssertEqual(error as? ProgramPlanningError, .invalidSetValues)
+            }
+            XCTAssertEqual(repository.workout(on: date), beforeInvalid)
+        }
+    }
+
+    func testDeleteAndReorderSetsPersistOnlyOnSelectedDate() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let otherDate = LocalDate(year: 2026, month: 8, day: 15)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let otherWorkout = repository.createEmptyWorkout(on: otherDate, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID(rawValue: UUID(uuidString: "52000000-0000-4000-8000-000000000001")!)
+        let setIDs = (2...4).map { ordinal in
+            WorkoutSetID(rawValue: UUID(uuidString: "52000000-0000-4000-8000-00000000000\(ordinal)")!)
+        }
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [
+                WorkoutSet(id: setIDs[0], order: 8, reps: 5, weight: 0, timeSeconds: 0),
+                WorkoutSet(id: setIDs[1], order: 2, reps: 8, weight: 60, timeSeconds: 0),
+                WorkoutSet(id: setIDs[2], order: 5, reps: 0, weight: 0, timeSeconds: 45)
+            ]
+        )]
+        try repository.save(workout)
+        let viewModel = ProgramViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
+
+        try viewModel.reorderSets([setIDs[2], setIDs[0], setIDs[1]], in: exerciseID, on: date)
+        var persisted = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(persisted.map(\.id), [setIDs[2], setIDs[0], setIDs[1]])
+        XCTAssertEqual(persisted.map(\.order), [0, 1, 2])
+        XCTAssertEqual(persisted.map(\.timeSeconds), [45, 0, 0])
+
+        let beforeInvalid = repository.workout(on: date)
+        XCTAssertThrowsError(try viewModel.reorderSets([setIDs[0], setIDs[0], setIDs[1]], in: exerciseID, on: date)) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .invalidSetOrder)
+        }
+        XCTAssertEqual(repository.workout(on: date), beforeInvalid)
+
+        try viewModel.deleteSet(setIDs[0], from: exerciseID, on: date)
+        persisted = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(persisted.map(\.id), [setIDs[2], setIDs[1]])
+        XCTAssertEqual(persisted.map(\.order), [0, 1])
+        XCTAssertEqual(repository.workout(on: otherDate), otherWorkout)
+
+        XCTAssertThrowsError(try viewModel.deleteSet(setIDs[0], from: exerciseID, on: date)) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .workoutSetNotFound(setIDs[0]))
+        }
+    }
+
     private func mondayCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Copenhagen")!

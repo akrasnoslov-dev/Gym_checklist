@@ -48,6 +48,31 @@ final class GymChecklistUITests: XCTestCase {
         bench.tap()
         XCTAssertTrue(app.staticTexts["programExercise-Bench Press"].waitForExistence(timeout: 2))
 
+        let addBenchSet = app.buttons["Add set to Bench Press"]
+        XCTAssertTrue(addBenchSet.waitForExistence(timeout: 2))
+        addBenchSet.tap()
+        let firstBenchSet = app.buttons["Edit set 1 for Bench Press"]
+        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+        firstBenchSet.tap()
+        XCTAssertTrue(app.textFields["programSetEditorReps"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
+        XCTAssertTrue(app.textFields["programSetEditorTime"].exists)
+        app.buttons["programSetEditorSave"].tap()
+        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+
+        addBenchSet.tap()
+        let secondBenchSetActions = app.buttons["Actions for set 2 for Bench Press"]
+        XCTAssertTrue(secondBenchSetActions.waitForExistence(timeout: 2))
+        secondBenchSetActions.tap()
+        XCTAssertTrue(app.buttons["Move up"].waitForExistence(timeout: 2))
+        app.buttons["Move up"].tap()
+        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+
+        firstBenchSet.tap()
+        XCTAssertTrue(app.buttons["programSetEditorDelete"].waitForExistence(timeout: 2))
+        app.buttons["programSetEditorDelete"].tap()
+        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+
         app.buttons["programAddExercise"].tap()
         let customSearch = app.searchFields["Search exercises"]
         XCTAssertTrue(customSearch.waitForExistence(timeout: 2))
@@ -72,6 +97,8 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [reordered], timeout: 2), .completed)
 
         app.buttons["Actions for Bench Press, exercise 2 of 2"].tap()
+        app.buttons["Delete"].tap()
+        XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 2))
         app.buttons["Delete"].tap()
         XCTAssertFalse(benchName.waitForExistence(timeout: 1))
         app.buttons["programDate-2026-08-13"].tap()

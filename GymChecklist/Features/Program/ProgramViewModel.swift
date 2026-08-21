@@ -5,7 +5,10 @@ enum ProgramPlanningError: Error, Equatable {
     case workoutNotFound(LocalDate)
     case exerciseUnavailable(ExerciseID)
     case workoutExerciseNotFound(WorkoutExerciseID)
+    case workoutSetNotFound(WorkoutSetID)
     case invalidExerciseOrder
+    case invalidSetOrder
+    case invalidSetValues
 }
 
 @MainActor
@@ -19,6 +22,7 @@ final class ProgramViewModel: ObservableObject {
     private let repository: WorkoutRepository
     private let now: () -> Date
     private let makeWorkoutExerciseID: () -> WorkoutExerciseID
+    private let makeWorkoutSetID: () -> WorkoutSetID
 
     init(
         repository: WorkoutRepository,
@@ -27,7 +31,8 @@ final class ProgramViewModel: ObservableObject {
         calendar: Calendar = .autoupdatingCurrent,
         exerciseLibrary: LocalExerciseLibrary? = nil,
         now: @escaping () -> Date = Date.init,
-        makeWorkoutExerciseID: @escaping () -> WorkoutExerciseID = { WorkoutExerciseID() }
+        makeWorkoutExerciseID: @escaping () -> WorkoutExerciseID = { WorkoutExerciseID() },
+        makeWorkoutSetID: @escaping () -> WorkoutSetID = { WorkoutSetID() }
     ) {
         let library = exerciseLibrary ?? LocalExerciseLibrary(userID: repository.userID)
         precondition(
@@ -42,6 +47,7 @@ final class ProgramViewModel: ObservableObject {
         self.exerciseLibrary = library
         self.now = now
         self.makeWorkoutExerciseID = makeWorkoutExerciseID
+        self.makeWorkoutSetID = makeWorkoutSetID
         self.workouts = repository.workouts
     }
 
@@ -105,6 +111,12 @@ final class ProgramViewModel: ObservableObject {
         repository.workout(on: workoutDate).map { normalizedExercises($0.exercises) } ?? []
     }
 
+    func orderedSets(for exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) -> [WorkoutSet] {
+        orderedExercises(on: workoutDate)
+            .first(where: { $0.id == exerciseID })
+            .map { normalizedSets($0.sets) } ?? []
+    }
+
     func deleteExercise(_ id: WorkoutExerciseID, from workoutDate: LocalDate) throws {
         guard var workout = repository.workout(on: workoutDate) else {
             throw ProgramPlanningError.workoutNotFound(workoutDate)
@@ -145,6 +157,76 @@ final class ProgramViewModel: ObservableObject {
         workouts = repository.workouts
     }
 
+    func addSet(to exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) throws {
+        try mutateExercise(exerciseID, on: workoutDate) { exercise in
+            let sets = normalizedSets(exercise.sets)
+            let copiedValues = sets.last.map { (reps: $0.reps, weight: $0.weight, timeSeconds: $0.timeSeconds) }
+            guard copiedValues.map({ Self.areValidSetValues(reps: $0.reps, weight: $0.weight, timeSeconds: $0.timeSeconds) }) ?? true else {
+                throw ProgramPlanningError.invalidSetValues
+            }
+            exercise.sets = sets + [WorkoutSet(
+                id: makeWorkoutSetID(),
+                order: sets.count,
+                reps: copiedValues?.reps ?? 0,
+                weight: copiedValues?.weight ?? 0,
+                timeSeconds: copiedValues?.timeSeconds ?? 0
+            )]
+        }
+    }
+
+    func editSet(
+        _ setID: WorkoutSetID,
+        in exerciseID: WorkoutExerciseID,
+        on workoutDate: LocalDate,
+        reps: Int,
+        weight: Double,
+        timeSeconds: Int
+    ) throws {
+        guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
+            throw ProgramPlanningError.invalidSetValues
+        }
+        try mutateExercise(exerciseID, on: workoutDate) { exercise in
+            guard let setIndex = exercise.sets.firstIndex(where: { $0.id == setID }) else {
+                throw ProgramPlanningError.workoutSetNotFound(setID)
+            }
+            exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds)
+        }
+    }
+
+    func deleteSet(_ setID: WorkoutSetID, from exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) throws {
+        try mutateExercise(exerciseID, on: workoutDate) { exercise in
+            guard exercise.sets.contains(where: { $0.id == setID }) else {
+                throw ProgramPlanningError.workoutSetNotFound(setID)
+            }
+            exercise.sets.removeAll { $0.id == setID }
+        }
+    }
+
+    func reorderSets(
+        _ orderedIDs: [WorkoutSetID],
+        in exerciseID: WorkoutExerciseID,
+        on workoutDate: LocalDate
+    ) throws {
+        try mutateExercise(exerciseID, on: workoutDate) { exercise in
+            let current = normalizedSets(exercise.sets)
+            guard
+                orderedIDs.count == current.count,
+                Set(orderedIDs).count == orderedIDs.count,
+                Set(orderedIDs) == Set(current.map(\.id))
+            else { throw ProgramPlanningError.invalidSetOrder }
+            guard orderedIDs != current.map(\.id) else { return }
+
+            let setsByID = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
+            exercise.sets = orderedIDs.enumerated().compactMap { index, id in
+                setsByID[id].map { set in
+                    var reordered = set
+                    reordered.order = index
+                    return reordered
+                }
+            }
+        }
+    }
+
     func exerciseName(for workoutExercise: WorkoutExercise) -> String {
         exerciseLibrary.allExercises.first { $0.id == workoutExercise.exerciseID }?.name
             ?? workoutExercise.customName
@@ -158,7 +240,43 @@ final class ProgramViewModel: ObservableObject {
         }.enumerated().map { index, exercise in
             var normalized = exercise
             normalized.order = index
+            normalized.sets = normalizedSets(exercise.sets)
             return normalized
         }
+    }
+
+    private func normalizedSets(_ sets: [WorkoutSet]) -> [WorkoutSet] {
+        sets.sorted {
+            if $0.order != $1.order { return $0.order < $1.order }
+            return $0.id.rawValue.uuidString < $1.id.rawValue.uuidString
+        }.enumerated().map { index, set in
+            var normalized = set
+            normalized.order = index
+            return normalized
+        }
+    }
+
+    private func mutateExercise(
+        _ exerciseID: WorkoutExerciseID,
+        on workoutDate: LocalDate,
+        mutation: (inout WorkoutExercise) throws -> Void
+    ) throws {
+        guard var workout = repository.workout(on: workoutDate) else {
+            throw ProgramPlanningError.workoutNotFound(workoutDate)
+        }
+        workout.exercises = normalizedExercises(workout.exercises)
+        guard let exerciseIndex = workout.exercises.firstIndex(where: { $0.id == exerciseID }) else {
+            throw ProgramPlanningError.workoutExerciseNotFound(exerciseID)
+        }
+
+        try mutation(&workout.exercises[exerciseIndex])
+        workout.exercises[exerciseIndex].sets = normalizedSets(workout.exercises[exerciseIndex].sets)
+        workout.updatedAt = now()
+        try repository.save(workout)
+        workouts = repository.workouts
+    }
+
+    private static func areValidSetValues(reps: Int, weight: Double, timeSeconds: Int) -> Bool {
+        reps >= 0 && timeSeconds >= 0 && weight.isFinite && weight >= 0
     }
 }

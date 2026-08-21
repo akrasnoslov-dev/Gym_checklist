@@ -90,13 +90,10 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertLessThan(benchName.frame.minY, nordicName.frame.minY)
         app.buttons["Actions for Nordic Hop, exercise 2 of 2"].tap()
         app.buttons["Move up"].tap()
-        let reordered = XCTNSPredicateExpectation(
-            predicate: NSPredicate { _, _ in nordicName.frame.minY < benchName.frame.minY },
-            object: nil
-        )
-        XCTAssertEqual(XCTWaiter.wait(for: [reordered], timeout: 2), .completed)
 
-        app.buttons["Actions for Bench Press, exercise 2 of 2"].tap()
+        let reorderedBenchActions = app.buttons["Actions for Bench Press, exercise 2 of 2"]
+        XCTAssertTrue(reorderedBenchActions.waitForExistence(timeout: 2))
+        reorderedBenchActions.tap()
         app.buttons["Delete"].tap()
         XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 2))
         app.buttons["Delete"].tap()

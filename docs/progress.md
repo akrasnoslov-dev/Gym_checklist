@@ -108,6 +108,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.7 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and source/test contract assertions for add/edit/delete/reorder, completed-plan wording, deterministic unit coverage, and stable UI controls. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS CI run `32506833516` passed.
 - M2.8 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and contract assertions for repository/view-model deletion, confirmation UI, and focused unit/UI coverage. `swiftc` and `xcodebuild` remain unavailable; authoritative macOS build/unit/UI verification is pending rerun.
 - M2.8 macOS CI run `32507128111` for `43ada4f`: FAILURE only in `GymChecklistUITests.testAppLaunchesOnTodayAndNavigatesAllTabs()`. The destructive confirmation button is represented by both a parent and nested accessibility node with the same identifier, so the test selector matched multiple buttons. The focused repair selects the first matching button; rerun CI is pending.
+- M2.8 CI rerun `32523974413` for `6ed1a83`: the confirmation selector passed; build and all 37 unit tests passed. The UI test then timed out on a separate renderer-dependent row-coordinate assertion following reorder. The focused repair replaces it with the existing semantic action identifier for Bench Press after it moves to exercise 2 of 2; rerun CI is pending.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -124,6 +125,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.6 revised test-boundary review: `test_ci_agent`, `ios_ux_guardian`, and `product_spec_guardian` PASS. Exact post-navigation `List` refresh checks were removed; direct week/date calculation coverage remains deterministic in unit tests, while UI coverage remains on Program-control interaction plus M2.6 add/reorder/delete/persistence behavior.
 - M2.7 `architecture_guardian`, `ios_ux_guardian`, `product_spec_guardian`, `code_quality_agent`, and `test_ci_agent`: PASS after post-change review. The initial missing set-reorder UI was corrected with accessible per-set move actions; completed-set editing is explicitly plan-only and preserves actual results.
 - M2.8 `firebase_data_guardian` and `ios_ux_guardian`: PASS for owner/date-scoped deletion, native date-captured confirmation, and no Today/Firebase scope expansion. Future Firestore deletion must atomically remove nested descendants; that implementation is deferred to M4.3.
+- M2.8 CI-rerun `test_ci_agent`: PASS. The reordered action label is a semantic, rendered-order assertion and is more deterministic than comparing SwiftUI `List` row coordinates.
 
 ## Blockers
 None. M2.8 requires a rerun of authoritative macOS CI after the focused UI-test selector repair; this Windows host has no Swift/Xcode toolchain.

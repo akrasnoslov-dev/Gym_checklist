@@ -4,7 +4,7 @@
 Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
 
 ## Active task
-`M2.8` — Repair the authoritative macOS UI-test selector failure, then rerun CI.
+`M2.9` — Implement Copy Workout with independent plans and explicit occupied-date handling.
 
 ## Published state
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
@@ -109,6 +109,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.8 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and contract assertions for repository/view-model deletion, confirmation UI, and focused unit/UI coverage. `swiftc` and `xcodebuild` remain unavailable; authoritative macOS build/unit/UI verification is pending rerun.
 - M2.8 macOS CI run `32507128111` for `43ada4f`: FAILURE only in `GymChecklistUITests.testAppLaunchesOnTodayAndNavigatesAllTabs()`. The destructive confirmation button is represented by both a parent and nested accessibility node with the same identifier, so the test selector matched multiple buttons. The focused repair selects the first matching button; rerun CI is pending.
 - M2.8 CI rerun `32523974413` for `6ed1a83`: the confirmation selector passed; build and all 37 unit tests passed. The UI test then timed out on a separate renderer-dependent row-coordinate assertion following reorder. The focused repair replaces it with the existing semantic action identifier for Bench Press after it moves to exercise 2 of 2; rerun CI is pending.
+- M2.8 macOS CI: PASS for `ff2377a`, run `32528720383`; the authoritative build, 37 unit tests, and UI test passed.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -128,10 +129,10 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.8 CI-rerun `test_ci_agent`: PASS. The reordered action label is a semantic, rendered-order assertion and is more deterministic than comparing SwiftUI `List` row coordinates.
 
 ## Blockers
-None. M2.8 requires a rerun of authoritative macOS CI after the focused UI-test selector repair; this Windows host has no Swift/Xcode toolchain.
+None.
 
 ## Exact next action
-Run authoritative macOS CI for the M2.8 selector-repair checkpoint. If it passes, mark M2.8 `DONE` and continue with M2.9.
+Implement M2.9 Copy Workout; then run available checks and authoritative macOS CI.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

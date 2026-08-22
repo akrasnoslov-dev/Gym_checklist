@@ -630,7 +630,7 @@ Allow correction without polluting the main screen.
 
 ---
 
-### M3.4 `TODO` Implement Skip Exercise
+### M3.4 `IN PROGRESS (PENDING CI)` Implement Skip Exercise
 **Goal**
 Let users remove an exercise from the active Today flow without treating it as completed.
 

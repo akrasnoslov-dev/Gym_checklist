@@ -249,6 +249,22 @@ final class TodayInteractionUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["todayScreen"].exists)
     }
 
+    func testTodaySkipsExerciseWithoutRemovingRemainingWork() {
+        let app = launchSeededToday()
+        let benchPress = app.staticTexts["Bench Press"]
+
+        XCTAssertTrue(benchPress.waitForExistence(timeout: 5))
+        benchPress.press(forDuration: 1)
+        let skip = app.buttons["Skip exercise"]
+        XCTAssertTrue(skip.waitForExistence(timeout: 2))
+        skip.tap()
+
+        XCTAssertFalse(benchPress.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Barbell Row"].exists)
+        XCTAssertTrue(app.buttons[rowSet].exists)
+        assert(app.buttons[rowSet], hasValue: "Incomplete")
+    }
+
     private func launchSeededToday() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"

@@ -4,7 +4,21 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.3` — Implement long-press set editor (`IN PROGRESS (PENDING CI)`).
+`M3.4` — Implement Skip Exercise (`IN PROGRESS (PENDING CI)`).
+
+M3.1–M3.3 are implementation-complete and remain `IN PROGRESS (PENDING CI)`
+solely for authoritative macOS verification. M3.4 is implementation-complete
+under the same policy:
+- A secondary exercise-header context menu exposes `Skip exercise`; no set-row
+  or permanent Today control was added.
+- Skip only persists the exercise `isSkipped` flag. It preserves every set,
+  actual value, completion state, and ordering, and active Today immediately
+  removes the exercise while remaining work stays executable.
+- Unit and focused UI coverage verify persistence, unchanged incomplete sets,
+  removal from active Today, and remaining-work availability.
+- Same-day restore remains the distinct M3.5 task.
+
+Required M3.4 UX and product-scope reviews found no blocking scope conflict.
 
 M3.1 and M3.2 are implementation-complete and remain `IN PROGRESS (PENDING
 CI)` solely for authoritative macOS verification. M3.3 is likewise
@@ -150,6 +164,11 @@ build or test failure.
 - Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
   authoritative GitHub Actions verification remains pending free quota.
 
+## Latest M3.4 verification
+- `git diff --check` and deterministic skip implementation/test source checks: PASS.
+- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
+  authoritative GitHub Actions verification remains pending free quota.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -161,11 +180,9 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Start `M3.4` now. Read the full task plus Product/UX/Architecture references,
-apply the required agents, implement the hidden Today Skip Exercise action
-using the app-owned workout coordinator, add unit/UI coverage, run all
-available non-macOS checks, checkpoint the work, then continue through later
-safe M3 tasks without waiting for paid CI.
+Start `M3.5` now. Read the full task plus Product/UX/Architecture references,
+implement same-day Restore Skipped Exercise while preserving set state, add
+unit/UI coverage, and continue safe M3 work under the no-cost CI policy.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

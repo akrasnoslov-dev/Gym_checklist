@@ -836,6 +836,32 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.workout(on: date), beforeInvalid)
     }
 
+    func testSkipTodayExercisePersistsWithoutCompletingItsSets() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID()
+        let setID = WorkoutSetID()
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [WorkoutSet(id: setID, order: 0, reps: 8, weight: 60, timeSeconds: 0)]
+        )]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
+
+        try viewModel.skipTodayExercise(exerciseID, on: date)
+
+        let skipped = try XCTUnwrap(repository.workout(on: date)?.exercises.first)
+        XCTAssertTrue(skipped.isSkipped)
+        XCTAssertFalse(try XCTUnwrap(skipped.sets.first).isCompleted)
+        XCTAssertNil(try XCTUnwrap(skipped.sets.first).actualReps)
+        XCTAssertTrue(viewModel.workout(on: date)?.exercises.first?.isSkipped == true)
+    }
+
     func testEditSetPreservesCompletedActualAndRejectsInvalidValuesAtomically() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))

@@ -51,6 +51,11 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(viewModel.exerciseName(for: exercise))
                 .font(.headline)
+                .contextMenu {
+                    Button("Skip exercise", role: .destructive) {
+                        skip(exercise)
+                    }
+                }
 
             VStack(spacing: 0) {
                 ForEach(sets) { set in
@@ -120,6 +125,14 @@ struct TodayView: View {
             try viewModel.toggleCompletion(of: set.id, in: exercise.id, on: currentDate)
         } catch {
             assertionFailure("Today set completion failed: \(error)")
+        }
+    }
+
+    private func skip(_ exercise: WorkoutExercise) {
+        do {
+            try viewModel.skipTodayExercise(exercise.id, on: currentDate)
+        } catch {
+            assertionFailure("Today exercise skip failed: \(error)")
         }
     }
 }

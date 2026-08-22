@@ -24,7 +24,8 @@ struct ContentView: View {
             TodayView(
                 viewModel: workoutViewModel,
                 currentDate: workoutViewModel.currentDate,
-                calendar: workoutViewModel.calendar
+                calendar: workoutViewModel.calendar,
+                onOpenProgram: openProgramForToday
             )
                 .tabItem {
                     Label("Today", systemImage: "checkmark.circle")
@@ -56,7 +57,10 @@ struct ContentView: View {
         in repository: InMemoryWorkoutRepository,
         on date: LocalDate
     ) {
-        guard ProcessInfo.processInfo.environment["UITEST_SEED_TODAY_WORKOUT"] == "1" else { return }
+        guard ProcessInfo.processInfo.environment["UITEST_SEED_TODAY_WORKOUT"] == "1" else {
+            seedRestDayProgramForUITests(in: repository, on: date)
+            return
+        }
         var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
         let longWorkoutSets = (0..<16).map { index in
             let suffix = String(format: "%012d", 301 + index)
@@ -123,6 +127,21 @@ struct ContentView: View {
         } catch {
             preconditionFailure("Could not seed the UI-test workout: \(error)")
         }
+    }
+
+    private func openProgramForToday() {
+        workoutViewModel.select(workoutViewModel.currentDate)
+        selectedTab = .program
+    }
+
+    private static func seedRestDayProgramForUITests(
+        in repository: InMemoryWorkoutRepository,
+        on currentDate: LocalDate
+    ) {
+        guard ProcessInfo.processInfo.environment["UITEST_SEED_REST_DAY_PROGRAM"] == "1" else { return }
+        let programDate = LocalDate(year: 2026, month: 8, day: 15)
+        precondition(currentDate == LocalDate(year: 2026, month: 8, day: 14), "Rest-day UI test requires its fixed reference date")
+        _ = repository.createEmptyWorkout(on: programDate, at: .distantPast)
     }
 }
 

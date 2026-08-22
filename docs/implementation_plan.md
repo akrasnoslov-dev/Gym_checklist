@@ -674,7 +674,7 @@ Recover accidental skips during the same day.
 
 ---
 
-### M3.6 `TODO` Implement Today empty states
+### M3.6 `IN PROGRESS (PENDING CI)` Implement Today empty states
 **Goal**
 Handle no-program and rest-day cases cleanly.
 

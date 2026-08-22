@@ -145,6 +145,42 @@ final class WorkoutStatusTests: XCTestCase {
     }
 }
 
+final class TodayContentStateTests: XCTestCase {
+    func testResolveDistinguishesNoProgramRestDayAndCurrentWorkout() {
+        let currentDate = LocalDate(year: 2026, month: 8, day: 14)
+        let otherDateWorkout = Workout(
+            id: WorkoutID(),
+            userID: UserID(rawValue: "user"),
+            localDate: LocalDate(year: 2026, month: 8, day: 15),
+            exercises: [],
+            createdAt: .distantPast,
+            updatedAt: .distantPast
+        )
+        let currentDateWorkout = Workout(
+            id: WorkoutID(),
+            userID: UserID(rawValue: "user"),
+            localDate: currentDate,
+            exercises: [WorkoutExercise(
+                id: WorkoutExerciseID(),
+                exerciseID: ExerciseID(),
+                customName: nil,
+                order: 0,
+                isSkipped: true,
+                sets: [WorkoutSet(order: 0, reps: 8)]
+            )],
+            createdAt: .distantPast,
+            updatedAt: .distantPast
+        )
+
+        XCTAssertEqual(TodayContentState.resolve(workouts: [], currentDate: currentDate), .noProgram)
+        XCTAssertEqual(TodayContentState.resolve(workouts: [otherDateWorkout], currentDate: currentDate), .restDay)
+        XCTAssertEqual(
+            TodayContentState.resolve(workouts: [otherDateWorkout, currentDateWorkout], currentDate: currentDate),
+            .activeWorkout
+        )
+    }
+}
+
 final class SystemExerciseCatalogTests: XCTestCase {
     func testCatalogCoversApprovedCategoriesWithStableSystemExercises() throws {
         let exercises = SystemExerciseCatalog.all

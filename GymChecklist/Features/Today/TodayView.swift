@@ -1,9 +1,21 @@
 import SwiftUI
 
+enum TodayContentState: Equatable {
+    case activeWorkout
+    case noProgram
+    case restDay
+
+    static func resolve(workouts: [Workout], currentDate: LocalDate) -> TodayContentState {
+        guard !workouts.contains(where: { $0.localDate == currentDate }) else { return .activeWorkout }
+        return workouts.isEmpty ? .noProgram : .restDay
+    }
+}
+
 struct TodayView: View {
     @ObservedObject var viewModel: WorkoutViewModel
     let currentDate: LocalDate
     let calendar: Calendar
+    let onOpenProgram: () -> Void
     @State private var editorRoute: TodaySetEditorRoute?
 
     var body: some View {
@@ -11,12 +23,19 @@ struct TodayView: View {
             LazyVStack(alignment: .leading, spacing: 24) {
                 header
 
-                if let workout = viewModel.workout(on: currentDate), !workout.exercises.isEmpty {
-                    let exercises = orderedExercises(in: workout)
-                    ForEach(exercises.filter { !$0.isSkipped }) { exercise in
-                        exerciseSection(exercise)
+                switch TodayContentState.resolve(workouts: viewModel.workouts, currentDate: currentDate) {
+                case .activeWorkout:
+                    if let workout = viewModel.workout(on: currentDate), !workout.exercises.isEmpty {
+                        let exercises = orderedExercises(in: workout)
+                        ForEach(exercises.filter { !$0.isSkipped }) { exercise in
+                            exerciseSection(exercise)
+                        }
+                        restoreSkippedExercisesMenu(exercises.filter(\.isSkipped))
                     }
-                    restoreSkippedExercisesMenu(exercises.filter(\.isSkipped))
+                case .noProgram:
+                    noProgramState
+                case .restDay:
+                    restDayState
                 }
             }
             .padding(.horizontal)
@@ -45,6 +64,30 @@ struct TodayView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private var noProgramState: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("No workout planned yet.")
+                .foregroundStyle(.secondary)
+            Button("Create workout", action: onOpenProgram)
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("todayCreateWorkout")
+        }
+        .accessibilityIdentifier("todayNoProgramState")
+    }
+
+    private var restDayState: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Rest day.")
+                .font(.title3.weight(.semibold))
+            Text("See you tomorrow.")
+                .foregroundStyle(.secondary)
+            Button("View program", action: onOpenProgram)
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("todayViewProgram")
+        }
+        .accessibilityIdentifier("todayRestDayState")
     }
 
     private func exerciseSection(_ exercise: WorkoutExercise) -> some View {

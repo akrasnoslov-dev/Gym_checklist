@@ -313,3 +313,49 @@ final class TodayInteractionUITests: XCTestCase {
         field.typeText(value)
     }
 }
+
+final class TodayEmptyStateUITests: XCTestCase {
+    func testNoProgramStateOpensProgramForToday() {
+        let app = launchToday()
+
+        XCTAssertTrue(app.otherElements["todayNoProgramState"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No workout planned yet."].exists)
+        XCTAssertTrue(app.buttons["todayCreateWorkout"].exists)
+        XCTAssertTrue(app.buttons["Create workout"].exists)
+        XCTAssertFalse(app.otherElements["todayRestDayState"].exists)
+
+        app.buttons["todayCreateWorkout"].tap()
+        assertProgramIsFocusedOnToday(in: app)
+    }
+
+    func testRestDayStateOpensProgramForToday() {
+        let app = launchToday(environment: ["UITEST_SEED_REST_DAY_PROGRAM": "1"])
+
+        XCTAssertTrue(app.otherElements["todayRestDayState"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Rest day."].exists)
+        XCTAssertTrue(app.staticTexts["See you tomorrow."].exists)
+        XCTAssertTrue(app.buttons["todayViewProgram"].exists)
+        XCTAssertTrue(app.buttons["View program"].exists)
+        XCTAssertFalse(app.otherElements["todayNoProgramState"].exists)
+
+        app.buttons["todayViewProgram"].tap()
+        assertProgramIsFocusedOnToday(in: app)
+    }
+
+    private func launchToday(environment: [String: String] = [:]) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        environment.forEach { app.launchEnvironment[$0.key] = $0.value }
+        app.launch()
+        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func assertProgramIsFocusedOnToday(in app: XCUIApplication) {
+        XCTAssertTrue(app.otherElements["programScreen"].waitForExistence(timeout: 2))
+        let selectedDate = app.staticTexts["programSelectedDate"]
+        XCTAssertTrue(selectedDate.exists)
+        XCTAssertEqual(selectedDate.label, "Friday, August 14, 2026")
+        XCTAssertTrue(app.staticTexts["programEmptyState"].exists)
+    }
+}

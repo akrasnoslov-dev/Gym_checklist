@@ -11,6 +11,7 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M0.1–M0.6 are `DONE`; the Milestone 0 bootstrap checkpoint is complete.
 - M1.1–M1.6 are `DONE`; the Milestone 1 domain checkpoint is complete.
 - Current branch: `dev`.
+- M2.10 implementation checkpoint: `937f39d` (`Implement M2.10 weekly workout repeat`), local on `dev` and not pushed while GitHub Actions minutes are exhausted.
 - M2.6 implementation/test boundary commit: `4c956ac` (`Stabilize M2.6 Program UI smoke test`), published on `dev`.
 - M2.7 macOS CI: PASS for `000f798`, run `32506833516`; the authoritative build, unit-test, and UI-test job completed successfully.
 - M2.6 authoritative macOS CI: run `32503808413` passed for `4c956ac`; the `Build and test GymChecklist` job completed successfully in 5m17s.

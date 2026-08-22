@@ -1,158 +1,77 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current milestone
-Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
+Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M2.11` — Program UX checkpoint. M2.9 and M2.10 are implementation-complete and awaiting one consolidated authoritative macOS CI run.
+`M3.1` — Implement active Today workout layout.
 
-## Published state
-- Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
-- M0.1–M0.6 are `DONE`; the Milestone 0 bootstrap checkpoint is complete.
-- M1.1–M1.6 are `DONE`; the Milestone 1 domain checkpoint is complete.
-- Current branch: `dev`.
-- M2.10 implementation checkpoint: `937f39d` (`Implement M2.10 weekly workout repeat`), local on `dev` and not pushed while GitHub Actions minutes are exhausted.
-- M2.6 implementation/test boundary commit: `4c956ac` (`Stabilize M2.6 Program UI smoke test`), published on `dev`.
-- M2.7 macOS CI: PASS for `000f798`, run `32506833516`; the authoritative build, unit-test, and UI-test job completed successfully.
-- M2.6 authoritative macOS CI: run `32503808413` passed for `4c956ac`; the `Build and test GymChecklist` job completed successfully in 5m17s.
-- M2.2 is published as commit `0d3471d` on `dev`.
-- M2.3 is published as commit `d0e9fc1` on `dev`.
-- M2.4 is published as commit `045f8ae` on `dev`.
-- M2.5 is published as commit `f13e385` on `dev`.
+## Verification-deferred state
+The user explicitly chose **no paid GitHub Actions usage**. The included GitHub Actions quota is exhausted for the current billing cycle, so GitHub-hosted macOS jobs cannot currently provide authoritative Xcode verification.
 
-## Milestone 1 implementation
-- Foundation-only domain entities cover UserSettings, Exercise, Workout, WorkoutExercise, and WorkoutSet with typed identifiers, explicit ordering, skip state, and Codable support.
-- LocalDate stores validated calendar components independently from absolute timestamps and supports deterministic day/week navigation.
-- Reusable set formatting covers kg/lb, weighted, reps-only, time-only, and combined meaningful values without displaying technical zero weight.
-- WorkoutSet transitions centralize completion snapshots, deterministic undo, plan editing, and completed actual editing; invalid completed payloads are rejected during decoding.
-- Workout completion/calendar status rules cover planned, partial, completed, past incomplete, empty, zero-set, and explicitly skipped cases.
-- WorkoutDateKey and WorkoutScheduleRules enforce one workout per user/local date without Firebase coupling.
+`docs/ci_free_quota_policy.md` is active. It allows safe implementation to continue across milestone boundaries when the **only** unsatisfied requirement is macOS CI unavailable because the included quota is exhausted. This does not change acceptance criteria and does not allow unverified tasks/checkpoints to be marked `DONE`.
 
-## M2.1 implementation
-- A compiled immutable catalog provides 34 deterministic English system exercises across Chest, Back, Legs, Shoulders, Biceps, Triceps, Core, and Cardio/Other without network or resource decoding.
-- Stable UUIDs, deterministic order, `isSystem = true`, and no owning user make entries safe for later workout references.
-- Local in-memory search trims whitespace, matches exercise-name substrings case-insensitively, returns the full catalog for an empty query, and returns an empty result for no match.
-- Focused tests cover category breadth, catalog size, ownership flags, unique/stable IDs and names, mixed-case/trimmed search, deterministic ordering, empty queries, and no-match queries.
+## Completed and verified
+- Milestone 0 (`M0.1`–`M0.6`): `DONE`; authoritative macOS CI passed.
+- Milestone 1 (`M1.1`–`M1.6`): `DONE`; authoritative macOS CI passed.
+- Milestone 2 `M2.1`–`M2.8`: implementation complete and authoritative macOS CI passed.
+- M2.6 CI: PASS for `4c956ac`, run `32503808413`.
+- M2.7 CI: PASS for `000f798`, run `32506833516`.
+- M2.8 CI: PASS for `ff2377a`, run `32528720383`.
 
-## M2.2 implementation
-- A user-scoped `LocalExerciseLibrary` value type retains custom exercises locally without introducing the repository protocols reserved for M4.2.
-- Creation trims and collapses whitespace, rejects empty names, normalizes blank categories to nil, assigns the current owner, and prevents callers from supplying ownership/system flags.
-- Exact normalized matches reuse an existing system or owner-scoped custom exercise; similarly named exercises remain allowed.
-- Combined local search preserves bundled order followed by custom insertion order and cannot expose another library owner's custom entries.
-- Focused tests cover validation, ownership, category normalization, reuse, similar names, combined search, deterministic ordering, empty/no-match queries, and user isolation.
+## Milestone 2 pending CI
+### M2.9 — Copy Workout
+Implementation is complete.
+- Plan-only copy with fresh workout/exercise/set identities.
+- Completion, actual values, skipped state, and history are reset.
+- Source/destination remain independent.
+- Occupied destinations are not silently overwritten.
+- Deterministic/local checks passed.
 
-## M2.3 implementation
-- Program now opens a locale-aware seven-date week centered on the selected concrete local date, with unbounded previous/next week navigation that preserves the weekday.
-- Quiet, shape-distinct status markers derive from the existing workout calendar rules; absence of a workout remains a feature-only empty state.
-- The selected date is repeated in full and drives the content below. Empty dates expose an enabled `Create workout` intent without adding the persistence owned by M2.4.
-- Accessibility labels expose full dates, selection, and textual status; deterministic UI launch state covers week navigation and date selection.
+The attempted macOS run `32530423499` did not execute workflow steps and produced no job logs. This is treated as CI infrastructure/quota unavailability, not as an observed code/test failure.
 
-## M2.4 implementation
-- An owner-scoped `WorkoutRepository` boundary and in-memory implementation enforce one workout per `WorkoutDateKey`, return existing workouts idempotently, and reject cross-owner or identity/date collisions.
-- New workouts receive repository-owned user/date identity, an injected ID and timestamp, and an empty ordered exercise list; save/update preserves the original creation timestamp.
-- A single observable Program model owns selection and the current repository snapshot, so creation immediately replaces the empty-date CTA with a planned empty-workout state while leaving adjacent dates untouched.
-- Focused unit and UI coverage exercises creation, duplicate idempotency, distinct dates and owners, save protections, immediate selected-date refresh, and tab/week navigation regression.
+### M2.10 — Repeat Workout
+Implementation is complete.
+- Fixed weekly cadence.
+- 4 weeks / 8 weeks / Until date.
+- Occupied dates are explicitly skipped.
+- Generated workouts are independent plan-only copies with fresh identities.
+- Deterministic/local checks and required agent reviews passed.
 
-## M2.5 implementation
-- Program exposes `Add exercise` only for an existing selected-date workout and presents a native searchable picker over the long-lived owner-scoped local exercise library.
-- Bundled and custom results are searched together; selecting a result appends an ordered empty workout-exercise entry through the repository and returns directly to the same date.
-- The secondary custom flow prefills a missing search, validates the required name, reuses normalized exact matches, retains genuinely new custom exercises, adds the result, and dismisses without an extra confirmation screen.
-- The returned editor state resolves system/custom names without adding set editing, reorder/delete controls, media, category filters, or Today changes.
+### M2.11 — Program UX checkpoint
+Required Program reviews are provisionally satisfied with no blocking findings. The checkpoint remains `IN PROGRESS (PENDING CI)` because the consolidated authoritative macOS run has not yet been possible.
 
-## M2.6 implementation
-- Program now uses a native sectioned list for the selected-date editor, with Edit-mode drag reordering, swipe deletion, and accessible per-row move/delete actions keyed by stable workout-exercise identity.
-- View-model mutations are scoped to a concrete `LocalDate`, validate exact ID permutations, preserve full exercise/set payloads, normalize contiguous order, save through the repository, and refresh only after success.
-- Deleting removes only the selected workout-exercise aggregate; re-adding uses the existing picker and produces a fresh entry at the end without changing the exercise library or neighboring dates.
-- Focused tests cover persisted reorder from legacy order gaps, payload preservation, invalid-order rollback, deletion compaction, typed missing-entry errors, independent re-add identity, and cross-date isolation.
-- Materially changed files for M2.6: `GymChecklist/Features/Program/ProgramView.swift`, `GymChecklist/Features/Program/ProgramViewModel.swift`, `GymChecklistTests/DomainRulesTests.swift`, `GymChecklistUITests/GymChecklistUITests.swift`, `docs/implementation_plan.md`, and `docs/progress.md`.
-- UI-test boundary: deterministic week/date derivation remains unit-tested. The Program smoke flow verifies that Program opens and its previous/next-week controls are available and can be tapped, without asserting a SwiftUI `List` accessibility-label refresh. M2.6 UI coverage instead verifies add, reorder, delete, and per-date persistence behavior.
+## Current Program capability
+With local/mock persistence, Program currently supports:
+- week/date navigation;
+- create workout for a concrete date;
+- bundled exercise catalog and search;
+- custom exercises;
+- add/delete/reorder exercises;
+- arbitrary set add/edit/delete/reorder with reps/weight/time;
+- workout editing/deletion;
+- copy workout;
+- weekly repeat generation.
 
-## M2.7 implementation
-- Program exercise rows now show ordered set rows plus an `Add set` action. First sets start at explicit zero values; later sets copy only the previous planned reps/weight/time and always get a fresh, incomplete identity.
-- A compact Program sheet edits independent Reps, Weight, and Time fields; finite non-negative values are enforced at the view-model boundary, including explicit `weight = 0` and time-only sets. Completed-set sheets are explicitly labelled `Edit plan` and preserve actual results.
-- Program supports destructive set deletion and accessible per-set Move up/down actions. All mutations are scoped to the selected concrete date/exercise/set and persist through the existing repository after contiguous-order normalization.
-- Focused deterministic tests cover zero/default and copied sets, independent time/weight values, completed-actual preservation, invalid negative/non-finite rejection without mutation, reorder/delete normalization, missing sets, and cross-date isolation. The stable UI regression covers add, edit-sheet fields, move, and delete alongside existing Program persistence coverage.
+## GitHub Actions quota
+The current billing/usage report shows Actions usage fully covered by included usage so far (`net_amount = 0`). Paid Actions usage is not approved. Do not ask the user to enable billing merely to continue development.
 
-## M2.8 implementation
-- The existing owner-scoped repository now deletes only its selected local-date workout. Program refreshes its snapshot only after a successful deletion, so the selected date immediately returns to the existing empty state without altering adjacent dates or the exercise library.
-- Program exposes a destructive `Delete workout` toolbar action only when the selected date has a workout, including an empty one. A native confirmation dialog captures that concrete date and clearly warns that exercises, sets, and recorded results will be removed.
-- Focused unit/UI coverage exercises selected-date deletion, missing-delete safety, adjacent-date preservation, confirmation, and the empty-state return.
+When included GitHub Actions capacity becomes available again, run one consolidated authoritative macOS build/unit/UI test against the latest coherent checkpoint, fix real failures, and reconcile all affected `PENDING CI` tasks/checkpoints before marking them `DONE`.
 
-## M2.9 implementation
-- Program exposes a compact Copy workout sheet with source date/plan summary, a native destination-date picker, and explicit disabled-state guidance for source or occupied destinations; the flow never overwrites an existing workout and selects the new date after success.
-- The owner-scoped view model creates a repository-owned destination workout then maps ordered exercises/sets to fresh IDs, copying only exercise references/custom names and planned reps/weight/time. Copied exercises are unskipped and copied sets are incomplete with no actual values or completion timestamp.
-- Focused deterministic tests cover fresh aggregate IDs, plan/order/custom-name preservation, completed/actual/skipped reset, source/destination mutation independence, deterministic timestamps, and missing/same/occupied no-mutation failures. The UI smoke test covers the compact sheet and its source, destination, disabled-copy, and cancel controls without automating the native DatePicker.
+## USER ACTION REQUIRED
+None for the current implementation work.
 
-## M2.10 implementation
-- Program provides a compact `Repeat weekly` sheet for the selected workout. Its only end choices are 4 weeks, 8 weeks, or an inclusive `Until date`; cadence is fixed to weekly and generated source dates are always excluded.
-- The sheet previews the source plan, creation count, and every concrete occupied date that will be skipped. It never overwrites a workout; the confirmation is disabled when no new dates are available.
-- The view model reuses the plan-only copy mapping for every generated local date, creates fresh exercise/set identities, preserves plan/order/custom names, resets skipped/completion/actual history, and keeps the selected source date. Repository state publishes only after the full repeat succeeds.
-- Focused unit tests cover exact 4-week, 8-week, and inclusive-until schedules; occupied-date skips; source/sibling independence; fresh identities; history reset; deterministic timestamps; and invalid/missing source calls. The stable UI smoke test opens and verifies the compact default repeat sheet without manipulating native date controls.
-
-## Verification status
-- Authoritative Milestone 0 macOS CI: PASS for published commit `7fe85bd` on `dev` (user-confirmed).
-- Milestone 1 macOS CI: PASS for commit `56c8e28`, run `31803547147` attempt 2. All 11 unit tests and the UI smoke test passed. Attempt 1 had a transient simulator app-launch timeout after all unit tests passed; rerunning the failed job succeeded without code changes.
-- Milestone 1 temporary Swift Package test execution on Linux: PASS, 11 tests, 0 failures.
-- `swiftc -typecheck GymChecklist/Core/Models/*.swift GymChecklist/Core/Utilities/*.swift`: PASS.
-- Test source type-check against an emitted `GymChecklist` module: PASS.
-- Xcode project membership/static syntax, shared scheme XML, workflow YAML, and `git diff --check`: PASS.
-- M2.1 Windows static checks: PASS for catalog/category/scope assertions, explicit Xcode app-target membership, catalog test presence, shared scheme XML, and `git diff --check`.
-- M2.1 macOS CI: PASS for commit `765c237`, run `31805329059` attempt 1; all unit tests and the UI smoke test passed.
-- M2.2 Windows static checks: PASS for local API/ownership/duplicate/search assertions, explicit Xcode app-target membership, focused test presence, shared scheme XML, and `git diff --check`.
-- M2.2 macOS CI: PASS for commit `0d3471d`, run `31806340413` attempt 1; all unit tests and the UI smoke test passed.
-- M2.3 Windows static checks: PASS for deterministic calendar/status test presence, explicit Xcode app-target membership, updated UI smoke coverage, shared scheme XML, and `git diff --check`.
-- M2.3 macOS CI: PASS for commit `d0e9fc1`, run `31807783466` attempt 1; the full build, unit-test, and simulator UI-test job passed.
-- M2.4 Windows static checks: PASS for repository ownership/date-key assertions, deterministic test and UI flow presence, explicit Xcode membership for all three new sources, shared scheme XML, and `git diff --check`.
-- M2.4 macOS CI: PASS for commit `045f8ae`, run `31809202522` attempt 1; the full build, unit-test, and simulator UI-test job passed.
-- M2.5 Windows static checks: PASS for combined search/custom integration assertions, ordered repository-add mapping, typed missing-workout handling, picker PBX membership, shared scheme XML, focused UI-flow presence, and `git diff --check`.
-- M2.5 macOS CI: PASS for commit `f13e385`, run `31810779194` attempt 1; the full build, unit-test, and simulator picker/custom flow passed.
-- M2.6 Windows static checks: PASS for stable-ID mutation APIs, reorder/delete persistence assertions, cross-date and re-add coverage, native List edit-control presence, shared scheme XML, and `git diff --check`.
-- `swiftc` and `xcodebuild` are unavailable on this Windows host. M2.6 authoritative macOS verification is incomplete; M2.6 remains `IN PROGRESS`.
-- M2.6 initial macOS CI run `31812569305`: FAILURE in the UI regression because the stable row accessibility identifier masked its child exercise-name identifier; build/unit execution reached the UI flow, and the row now explicitly contains child accessibility elements before republishing.
-- M2.6 replacement run `31813267131`: UI flow passed custom add, reorder, delete, and per-date persistence, then failed because the converted List had virtualized the offscreen seven-date row before the next-week assertion; the test now scrolls back to the week selector before checking Aug 21.
-- M2.6 run `31814068288`: one scroll still left the next-week date row virtualized after all exercise-edit flows passed; next/previous week UI verification now asserts the always-rendered selected-date heading, while current-week date buttons remain directly exercised and unit tests cover every derived next-week date.
-- M2.6 run `31815123053`: attempt 1 hit transient simulator accessibility latency after all 33 unit tests passed; attempt 2 reached week navigation and proved that the selected-date section is also virtualized after the long editor flow. Week navigation now runs while the calendar is initially visible and directly asserts the concrete Aug 21/Aug 14 date buttons before exercising the editor.
-- M2.6 run `31816172230`: all 33 unit tests passed, but SwiftUI replaced the date-selector `List` row after Next Week and the new Aug 21 button was not exposed to UI automation.
-- Latest completed macOS CI is run `31816956152` for commit `10fc240`: **FAILURE**. Build and all 33 unit tests passed. `GymChecklistUITests.testAppLaunchesOnTodayAndNavigatesAllTabs()` then failed at `GymChecklistUITests.swift:27`: after `programNextWeek` was tapped, XCTest did not observe `programWeekHeader` change to `Aug 17 - Aug 23` within two seconds. This confirms the accessibility-refresh assertion remains flaky even on the header row.
-- Six M2.6 CI failures (`31812569305`, `31813267131`, `31814068288`, `31815123053`, `31816172230`, and `31816956152`) were investigated. The first five attempted different SwiftUI `List` accessibility targets; the sixth showed that replacing the date-button assertion with a header-label assertion did not remove the timing dependency. The revised correction removes exact week-header/date-refresh assertions from UI automation, retains deterministic calendar calculations in unit tests, and keeps UI automation focused on stable Program navigation controls and M2.6 exercise editing/persistence behavior.
-- Revised M2.6 Windows static checks: `git diff --check` passed; the shared scheme XML parsed; deterministic `rg` checks confirmed the absence of exact week/date accessibility-refresh expectations, stable Program next/previous controls, the direct one-week unit assertion, and existing reorder/delete persistence coverage. `swiftc` and `xcodebuild` remain unavailable on this Windows host.
-- M2.6 macOS CI: PASS for commit `4c956ac`, run `32503808413`; the authoritative `Build and test GymChecklist` step completed successfully after the revised UI smoke-test boundary.
-- M2.7 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and source/test contract assertions for add/edit/delete/reorder, completed-plan wording, deterministic unit coverage, and stable UI controls. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS CI run `32506833516` passed.
-- M2.8 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, and contract assertions for repository/view-model deletion, confirmation UI, and focused unit/UI coverage. `swiftc` and `xcodebuild` remain unavailable; authoritative macOS build/unit/UI verification is pending rerun.
-- M2.8 macOS CI run `32507128111` for `43ada4f`: FAILURE only in `GymChecklistUITests.testAppLaunchesOnTodayAndNavigatesAllTabs()`. The destructive confirmation button is represented by both a parent and nested accessibility node with the same identifier, so the test selector matched multiple buttons. The focused repair selects the first matching button; rerun CI is pending.
-- M2.8 CI rerun `32523974413` for `6ed1a83`: the confirmation selector passed; build and all 37 unit tests passed. The UI test then timed out on a separate renderer-dependent row-coordinate assertion following reorder. The focused repair replaces it with the existing semantic action identifier for Bench Press after it moves to exercise 2 of 2; rerun CI is pending.
-- M2.8 macOS CI: PASS for `ff2377a`, run `32528720383`; the authoritative build, 37 unit tests, and UI test passed.
-- M2.9 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, copy-flow/source-test/accessibility contract assertions, and changed-file review. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS CI is pending.
-- M2.9 macOS CI run `32530423499` for `baeff27`: attempt 1 and manual attempt 2 both failed before executing any workflow step (each runner job ended in roughly three seconds with no steps or log). This is a GitHub runner failure, not an observed build/test failure; the next published Milestone 2 checkpoint should consolidate the rerun.
-- M2.10 Windows static checks: PASS — `git diff --check`, PowerShell XML parsing of the shared scheme, and focused source/test contract checks for 4/8/until schedules, explicit occupied-date skips, plan-only copying, and stable UI identifiers. `swiftc` and `xcodebuild` are unavailable on this Windows host.
-- M2.9/M2.10 authoritative macOS CI: deliberately not queued. The account has used its included GitHub Actions minutes; the usage notice reports the allowance resets on 2026-09-01. The Milestone 2 checkpoint remains pending one consolidated publish/run after that reset or an approved Actions budget change.
-
-## Agent reviews
-- `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
-- `product_spec_guardian`: PASS after completed-payload validation, combined weighted/time display, and per-user/date uniqueness fixes.
-- `test_ci_agent`: PASS; diagnosed missing app-target Debug testability, confirmed the focused fix, and verified the existing domain tests were sufficient regression coverage.
-- M2.1 `architecture_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS; no blocking findings or scope drift.
-- M2.1 completion code review: no critical findings; checkpoint accuracy and complete stable-ID coverage were fixed before publication.
-- M2.2 `architecture_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS; the implementation remains local/user-scoped and defers picker UI and persistence protocols to their scheduled tasks.
-- M2.2 completion review ownership finding fixed: an explicit `init(userID:)` prevents synthesized seeding of arbitrary or cross-owner custom entries.
-- M2.3 `architecture_guardian`, `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS; navigation has one date source of truth, reuses domain status rules, remains calendar-centric, and includes deterministic accessibility/UI coverage.
-- M2.4 `architecture_guardian`, `firebase_data_guardian`, `security_privacy_agent`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on the owner-scoped, idempotent local repository and immediate Program state-flow design; no Firebase or later editor scope was added.
-- M2.5 `architecture_guardian`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on the long-lived exercise-library ownership, one-tap result return, custom fallback/reuse flow, storage-agnostic picker UI, and later-editor scope boundary.
-- M2.6 `architecture_guardian`, `code_quality_agent`, `test_ci_agent`, `product_spec_guardian`, and `ios_ux_guardian`: PASS on concrete-date stable-ID mutations, contiguous order normalization, native list controls, per-date isolation, and the M2.7+ scope boundary.
-- M2.6 revised test-boundary review: `test_ci_agent`, `ios_ux_guardian`, and `product_spec_guardian` PASS. Exact post-navigation `List` refresh checks were removed; direct week/date calculation coverage remains deterministic in unit tests, while UI coverage remains on Program-control interaction plus M2.6 add/reorder/delete/persistence behavior.
-- M2.7 `architecture_guardian`, `ios_ux_guardian`, `product_spec_guardian`, `code_quality_agent`, and `test_ci_agent`: PASS after post-change review. The initial missing set-reorder UI was corrected with accessible per-set move actions; completed-set editing is explicitly plan-only and preserves actual results.
-- M2.8 `firebase_data_guardian` and `ios_ux_guardian`: PASS for owner/date-scoped deletion, native date-captured confirmation, and no Today/Firebase scope expansion. Future Firestore deletion must atomically remove nested descendants; that implementation is deferred to M4.3.
-- M2.8 CI-rerun `test_ci_agent`: PASS. The reordered action label is a semantic, rendered-order assertion and is more deterministic than comparing SwiftUI `List` row coordinates.
-- M2.9 `architecture_guardian`, `firebase_data_guardian`, `security_privacy_agent`, `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS. Copy preserves owner-scoped plan data while resetting history, does not overwrite occupied dates, uses semantic UI coverage, and defers atomic Firestore create-if-absent behavior to M4 persistence.
-- M2.10 `architecture_guardian`, `firebase_data_guardian`, `security_privacy_agent`, `ios_ux_guardian`, `product_spec_guardian`, `code_quality_agent`, and `test_ci_agent`: PASS after review. The final flow has fixed weekly cadence, explicit pre-confirmation occupied-date skips, plan-only fresh copies, no recurrence engine, and deterministic local coverage.
-- M2.10 completion code review: no critical or important findings. Added direct eight-week unit coverage before checkpointing; authoritative macOS CI remains required.
-- M2.11 required reviews are satisfied provisionally by the M2.10 Program review set: no finding allows scope to leak into Today or blocks the local Program planning flow. The checkpoint cannot be marked `DONE` until the consolidated macOS CI run passes.
+Later genuine external checkpoints may still require batched user action for Firebase configuration, Apple Developer/App Store Connect, signing, or release secrets.
 
 ## Blockers
-GitHub Actions minutes are exhausted for the account, so authoritative macOS build/unit/UI verification cannot run before the stated 2026-09-01 reset unless the account budget changes. This Windows host has no Swift/Xcode toolchain. No product or implementation blocker is known.
+No product or implementation blocker is currently known.
+
+Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-After 2026-09-01 or an approved Actions budget change: push the checkpoint commit, run one `iOS CI / build-and-test` workflow for M2.9/M2.10, fix any finding, then mark M2.9, M2.10, and M2.11 `DONE` only if it passes. Do not start M3 before that Milestone 2 gate passes.
+Start `M3.1` now. Read the full M3.1 task plus Product/UX/Architecture references, apply the required agents, implement the active Today workout layout using the existing local/mock repository/domain model, add appropriate tests, run all available non-macOS checks, checkpoint the work, then continue through later safe M3 tasks without waiting for paid CI.
+
+If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

@@ -4,6 +4,7 @@ struct TodayView: View {
     @ObservedObject var viewModel: WorkoutViewModel
     let currentDate: LocalDate
     let calendar: Calendar
+    @State private var editorRoute: TodaySetEditorRoute?
 
     var body: some View {
         ScrollView {
@@ -20,6 +21,18 @@ struct TodayView: View {
             .padding(.vertical, 20)
         }
         .accessibilityIdentifier("todayScreen")
+        .sheet(item: $editorRoute) { route in
+            TodaySetEditorSheet(route: route) { reps, weight, timeSeconds in
+                try viewModel.editTodaySet(
+                    route.set.id,
+                    in: route.exercise.id,
+                    on: currentDate,
+                    reps: reps,
+                    weight: weight,
+                    timeSeconds: timeSeconds
+                )
+            }
+        }
     }
 
     private var header: some View {
@@ -49,6 +62,9 @@ struct TodayView: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("todaySet-\(set.id.rawValue.uuidString)")
                     .accessibilityValue(set.isCompleted ? "Completed" : "Incomplete")
+                    .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                        editorRoute = TodaySetEditorRoute(exercise: exercise, set: set)
+                    })
                     if set.id != sets.last?.id {
                         Divider()
                     }
@@ -104,6 +120,76 @@ struct TodayView: View {
             try viewModel.toggleCompletion(of: set.id, in: exercise.id, on: currentDate)
         } catch {
             assertionFailure("Today set completion failed: \(error)")
+        }
+    }
+}
+
+private struct TodaySetEditorRoute: Identifiable {
+    let exercise: WorkoutExercise
+    let set: WorkoutSet
+
+    var id: WorkoutSetID { set.id }
+}
+
+private struct TodaySetEditorSheet: View {
+    let route: TodaySetEditorRoute
+    let onSave: (Int, Double, Int) throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var reps: Int
+    @State private var weight: Double
+    @State private var timeSeconds: Int
+    @State private var showsValidationError = false
+
+    init(
+        route: TodaySetEditorRoute,
+        onSave: @escaping (Int, Double, Int) throws -> Void
+    ) {
+        self.route = route
+        self.onSave = onSave
+        _reps = State(initialValue: route.set.displayedReps)
+        _weight = State(initialValue: route.set.displayedWeight)
+        _timeSeconds = State(initialValue: route.set.displayedTimeSeconds)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(route.set.isCompleted ? "Actual results" : "Planned set") {
+                    TextField("Reps", value: $reps, format: .number)
+                        .keyboardType(.numberPad)
+                        .accessibilityIdentifier("todaySetEditorReps")
+                    TextField("Weight", value: $weight, format: .number)
+                        .keyboardType(.decimalPad)
+                        .accessibilityIdentifier("todaySetEditorWeight")
+                    TextField("Time (seconds)", value: $timeSeconds, format: .number)
+                        .keyboardType(.numberPad)
+                        .accessibilityIdentifier("todaySetEditorTime")
+                }
+            }
+            .navigationTitle(route.set.isCompleted ? "Edit actual" : "Edit set")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .accessibilityIdentifier("todaySetEditorCancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        do {
+                            try onSave(reps, weight, timeSeconds)
+                            dismiss()
+                        } catch {
+                            showsValidationError = true
+                        }
+                    }
+                    .accessibilityIdentifier("todaySetEditorSave")
+                }
+            }
+            .alert("Set values must be non-negative", isPresented: $showsValidationError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Enter valid reps, weight, and time values.")
+            }
         }
     }
 }

@@ -213,6 +213,42 @@ final class TodayInteractionUITests: XCTestCase {
         XCTAssertTrue(lowerSet.isHittable)
     }
 
+    func testTodayLongPressOpensEditorWithoutCompletingTheSet() {
+        let app = launchSeededToday()
+        let set = app.buttons[firstBenchSet]
+
+        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        set.press(forDuration: 1)
+        XCTAssertTrue(app.navigationBars["Edit set"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.textFields["todaySetEditorReps"].exists)
+        assert(set, hasValue: "Incomplete")
+
+        app.buttons["todaySetEditorCancel"].tap()
+        assert(set, hasValue: "Incomplete")
+        XCTAssertTrue(app.staticTexts["8 reps × 60 kg"].exists)
+    }
+
+    func testTodayLongPressEditsPlanThenActualWithoutLeavingToday() {
+        let app = launchSeededToday()
+        let set = app.buttons[firstBenchSet]
+
+        set.press(forDuration: 1)
+        replaceText(in: app.textFields["todaySetEditorReps"], with: "6")
+        app.buttons["todaySetEditorSave"].tap()
+        XCTAssertTrue(app.staticTexts["6 reps × 60 kg"].waitForExistence(timeout: 2))
+        assert(set, hasValue: "Incomplete")
+
+        set.tap()
+        assert(set, hasValue: "Completed")
+        set.press(forDuration: 1)
+        XCTAssertTrue(app.navigationBars["Edit actual"].waitForExistence(timeout: 2))
+        replaceText(in: app.textFields["todaySetEditorReps"], with: "7")
+        app.buttons["todaySetEditorSave"].tap()
+        XCTAssertTrue(app.staticTexts["7 reps × 60 kg"].waitForExistence(timeout: 2))
+        assert(set, hasValue: "Completed")
+        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+    }
+
     private func launchSeededToday() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
@@ -228,5 +264,11 @@ final class TodayInteractionUITests: XCTestCase {
             evaluatedWith: element
         )
         wait(for: [expectation], timeout: 2)
+    }
+
+    private func replaceText(in field: XCUIElement, with value: String) {
+        field.tap()
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
+        field.typeText(value)
     }
 }

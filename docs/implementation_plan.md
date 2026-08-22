@@ -596,7 +596,7 @@ Make the primary interaction instantaneous.
 
 ---
 
-### M3.3 `TODO` Implement long-press set editor
+### M3.3 `IN PROGRESS (PENDING CI)` Implement long-press set editor
 **Goal**
 Allow correction without polluting the main screen.
 

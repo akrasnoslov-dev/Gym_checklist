@@ -4,7 +4,25 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.2` — Implement one-tap set complete/undo (`IN PROGRESS (PENDING CI)`).
+`M3.3` — Implement long-press set editor (`IN PROGRESS (PENDING CI)`).
+
+M3.1 and M3.2 are implementation-complete and remain `IN PROGRESS (PENDING
+CI)` solely for authoritative macOS verification. M3.3 is likewise
+implementation-complete under the no-cost CI continuation policy:
+- Long-pressing a full Today set row opens a compact sheet without triggering
+  the one-tap completion action.
+- The editor initializes from displayed values and keeps all draft, validation,
+  Save, and Cancel state local to Today.
+- Incomplete sets save planned values; completed sets save actual values while
+  preserving completion and its timestamp. Validation is atomic and skipped
+  exercises remain non-editable from active Today.
+- Unit coverage verifies plan/actual routing and invalid-edit non-mutation.
+- Focused UI coverage verifies long-press no-toggle, Cancel, plan edit,
+  completed actual edit, Save/dismiss, and remaining on Today.
+
+Required M3.3 reviews completed with no blocking findings from
+`ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, and
+`test_ci_agent`.
 
 M3.1 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
 authoritative macOS verification. M3.2 is implementation-complete under the
@@ -125,6 +143,13 @@ build or test failure.
 - Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
   authoritative GitHub Actions verification remains pending free quota.
 
+## Latest M3.3 verification
+- `git diff --check`: PASS.
+- Deterministic app/model, interaction/test-source, and Xcode project
+  source/group checks: PASS.
+- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
+  authoritative GitHub Actions verification remains pending free quota.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -136,11 +161,11 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Start `M3.3` now. Read the full task plus Product/UX/Architecture references,
-apply the required agents, implement the compact Today long-press editor with
-correct planned/actual semantics using the app-owned workout coordinator, add
-unit/UI coverage, run all available non-macOS checks, checkpoint the work, then
-continue through later safe M3 tasks without waiting for paid CI.
+Start `M3.4` now. Read the full task plus Product/UX/Architecture references,
+apply the required agents, implement the hidden Today Skip Exercise action
+using the app-owned workout coordinator, add unit/UI coverage, run all
+available non-macOS checks, checkpoint the work, then continue through later
+safe M3 tasks without waiting for paid CI.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

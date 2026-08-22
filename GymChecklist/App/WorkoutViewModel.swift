@@ -260,6 +260,30 @@ final class WorkoutViewModel: ObservableObject {
         workouts = repository.workouts
     }
 
+    func editTodaySet(
+        _ setID: WorkoutSetID,
+        in exerciseID: WorkoutExerciseID,
+        on workoutDate: LocalDate,
+        reps: Int,
+        weight: Double,
+        timeSeconds: Int
+    ) throws {
+        guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
+            throw ProgramPlanningError.invalidSetValues
+        }
+        try mutateExercise(exerciseID, on: workoutDate) { exercise in
+            guard !exercise.isSkipped else { throw ProgramPlanningError.workoutExerciseSkipped(exerciseID) }
+            guard let setIndex = exercise.sets.firstIndex(where: { $0.id == setID }) else {
+                throw ProgramPlanningError.workoutSetNotFound(setID)
+            }
+            if exercise.sets[setIndex].isCompleted {
+                exercise.sets[setIndex].editActual(reps: reps, weight: weight, timeSeconds: timeSeconds)
+            } else {
+                exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds)
+            }
+        }
+    }
+
     func orderedSets(for exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) -> [WorkoutSet] {
         orderedExercises(on: workoutDate)
             .first(where: { $0.id == exerciseID })

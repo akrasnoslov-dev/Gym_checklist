@@ -776,6 +776,66 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertNil(undone.completedAt)
     }
 
+    func testTodaySetEditUsesPlanOrActualValuesWithoutChangingCompletionSemantics() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let timestamp = Date(timeIntervalSince1970: 98_765)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID(rawValue: UUID(uuidString: "51600000-0000-4000-8000-000000000001")!)
+        let plannedSetID = WorkoutSetID(rawValue: UUID(uuidString: "51600000-0000-4000-8000-000000000101")!)
+        let completedSetID = WorkoutSetID(rawValue: UUID(uuidString: "51600000-0000-4000-8000-000000000102")!)
+        var completedSet = WorkoutSet(id: completedSetID, order: 1, reps: 8, weight: 60, timeSeconds: 0)
+        completedSet.complete(at: .distantPast)
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [
+                WorkoutSet(id: plannedSetID, order: 0, reps: 10, weight: 40, timeSeconds: 0),
+                completedSet
+            ]
+        )]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar(),
+            now: { timestamp }
+        )
+
+        try viewModel.editTodaySet(plannedSetID, in: exerciseID, on: date, reps: 12, weight: 45, timeSeconds: 0)
+        try viewModel.editTodaySet(completedSetID, in: exerciseID, on: date, reps: 6, weight: 55, timeSeconds: 0)
+
+        let updated = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(updated[0].reps, 12)
+        XCTAssertEqual(updated[0].weight, 45)
+        XCTAssertFalse(updated[0].isCompleted)
+        XCTAssertNil(updated[0].actualReps)
+        XCTAssertEqual(updated[1].reps, 8)
+        XCTAssertEqual(updated[1].weight, 60)
+        XCTAssertTrue(updated[1].isCompleted)
+        XCTAssertEqual(updated[1].actualReps, 6)
+        XCTAssertEqual(updated[1].actualWeight, 55)
+        XCTAssertEqual(updated[1].completedAt, .distantPast)
+
+        let beforeInvalid = repository.workout(on: date)
+        XCTAssertThrowsError(try viewModel.editTodaySet(
+            plannedSetID,
+            in: exerciseID,
+            on: date,
+            reps: -1,
+            weight: 0,
+            timeSeconds: 0
+        )) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .invalidSetValues)
+        }
+        XCTAssertEqual(repository.workout(on: date), beforeInvalid)
+        XCTAssertEqual(viewModel.workout(on: date), beforeInvalid)
+    }
+
     func testEditSetPreservesCompletedActualAndRejectsInvalidValuesAtomically() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))

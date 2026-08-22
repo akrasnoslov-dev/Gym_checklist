@@ -4,7 +4,27 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.1` — Implement active Today workout layout.
+`M3.1` — Implement active Today workout layout (`IN PROGRESS (PENDING CI)`).
+
+Implementation is complete against the available local/mock model:
+- Today now receives the app-owned workout state and concrete local current date.
+- It presents a quiet date header plus vertically scrollable, ordered exercise
+  sections and one readable row per set.
+- Rows use `SetDisplayFormatter` with the displayed planned/actual values and
+  native semantic colors that support system Light/Dark appearance.
+- The layout intentionally adds no Start Workout action, secondary metrics, or
+  controls reserved for later Today tasks.
+
+Required reviews completed without blocking findings:
+- `ios_ux_guardian` and `product_spec_guardian`: layout matches the protected
+  Today scope; later completion, editing, skip/restore, popup, and empty states
+  remain deferred.
+- `architecture_guardian`: the single app-owned `ProgramViewModel` is an
+  acceptable temporary source of truth for the layout-only task; introduce a
+  focused Today coordinator before adding Today mutation commands in M3.2.
+- `test_ci_agent`: coverage and source wiring are appropriate for M3.1, with
+  richer multi-section/scroll interaction coverage to follow alongside the
+  relevant Today interaction work.
 
 ## Verification-deferred state
 The user explicitly chose **no paid GitHub Actions usage**. The included GitHub Actions quota is exhausted for the current billing cycle, so GitHub-hosted macOS jobs cannot currently provide authoritative Xcode verification.
@@ -58,6 +78,20 @@ The current billing/usage report shows Actions usage fully covered by included u
 
 When included GitHub Actions capacity becomes available again, run one consolidated authoritative macOS build/unit/UI test against the latest coherent checkpoint, fix real failures, and reconcile all affected `PENDING CI` tasks/checkpoints before marking them `DONE`.
 
+The latest attempted macOS run `32599368749` (job `97095229980`) started and
+failed before any workflow step ran; GitHub reports no failed-step log. This is
+treated as the same quota/infrastructure unavailability, not as an observed
+build or test failure.
+
+## Latest M3.1 verification
+- `git diff --check`: PASS.
+- Deterministic Today source checks: PASS (scrollable layout, displayed-value
+  formatter use, semantic system background, no prohibited Today scope).
+- UI-test source checks: PASS (Today screen, fixed local date, exercise, set
+  row, and no Start Workout assertion).
+- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
+  authoritative GitHub Actions verification is pending free quota.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -69,7 +103,12 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Start `M3.1` now. Read the full M3.1 task plus Product/UX/Architecture references, apply the required agents, implement the active Today workout layout using the existing local/mock repository/domain model, add appropriate tests, run all available non-macOS checks, checkpoint the work, then continue through later safe M3 tasks without waiting for paid CI.
+Start `M3.2` now. Read the full task plus Product/UX/Architecture references,
+apply the required agents, introduce the focused Today state/mutation boundary
+called for by the M3.1 architecture review, implement one-tap complete/undo
+against the existing local/mock repository, add unit/UI coverage, run all
+available non-macOS checks, checkpoint the work, then continue through later
+safe M3 tasks without waiting for paid CI.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

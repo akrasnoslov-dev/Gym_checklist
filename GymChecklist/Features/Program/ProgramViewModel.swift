@@ -228,6 +228,10 @@ final class ProgramViewModel: ObservableObject {
         repository.workout(on: workoutDate).map { normalizedExercises($0.exercises) } ?? []
     }
 
+    func workout(on workoutDate: LocalDate) -> Workout? {
+        workouts.first { $0.localDate == workoutDate }
+    }
+
     func orderedSets(for exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) -> [WorkoutSet] {
         orderedExercises(on: workoutDate)
             .first(where: { $0.id == exerciseID })

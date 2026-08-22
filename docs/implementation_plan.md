@@ -539,7 +539,7 @@ Ensure planning remains understandable before implementing Today.
 
 ## Milestone 3 — Today: protected core product experience
 
-### M3.1 `TODO` Implement active Today workout layout
+### M3.1 `IN PROGRESS (PENDING CI)` Implement active Today workout layout
 **Goal**
 Build the main product screen exactly around the checklist-first concept.
 

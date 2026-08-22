@@ -20,7 +20,11 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            TodayView()
+            TodayView(
+                viewModel: programViewModel,
+                currentDate: programViewModel.currentDate,
+                calendar: programViewModel.calendar
+            )
                 .tabItem {
                     Label("Today", systemImage: "checkmark.circle")
                 }

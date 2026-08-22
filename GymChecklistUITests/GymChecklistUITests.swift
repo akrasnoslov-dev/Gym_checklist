@@ -10,7 +10,7 @@ final class GymChecklistUITests: XCTestCase {
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["todayPlaceholder"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
 
         app.tabBars.buttons["Program"].tap()
         let weekHeader = app.staticTexts["programWeekHeader"]
@@ -71,6 +71,15 @@ final class GymChecklistUITests: XCTestCase {
         addBenchSet.tap()
         let firstBenchSet = app.buttons["Edit set 1 for Bench Press"]
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.staticTexts["Today"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Friday, August 14, 2026"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["0 reps"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["Start Workout"].exists)
+
+        app.tabBars.buttons["Program"].tap()
         firstBenchSet.tap()
         XCTAssertTrue(app.textFields["programSetEditorReps"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
@@ -138,6 +147,6 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["settingsPlaceholder"].waitForExistence(timeout: 2))
 
         app.tabBars.buttons["Today"].tap()
-        XCTAssertTrue(app.staticTexts["todayPlaceholder"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 2))
     }
 }

@@ -497,7 +497,7 @@ Copy one date's plan to another date with minimal effort.
 
 ---
 
-### M2.10 `TODO` Implement simple weekly Repeat Workout
+### M2.10 `IN PROGRESS (PENDING CI)` Implement simple weekly Repeat Workout
 **Goal**
 Generate future independent workout copies without a recurring-template engine.
 
@@ -520,7 +520,7 @@ Generate future independent workout copies without a recurring-template engine.
 
 ---
 
-### M2.11 `TODO` Program UX checkpoint
+### M2.11 `IN PROGRESS (PENDING CI)` Program UX checkpoint
 **Goal**
 Ensure planning remains understandable before implementing Today.
 

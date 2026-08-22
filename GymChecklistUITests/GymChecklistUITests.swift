@@ -42,6 +42,15 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertFalse(app.buttons["copyWorkoutAction"].isEnabled)
         app.buttons["copyWorkoutCancel"].tap()
 
+        app.buttons["programRepeatWorkout"].tap()
+        XCTAssertTrue(app.navigationBars["Repeat workout"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceDate"].exists)
+        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceSummary"].exists)
+        XCTAssertTrue(app.buttons["repeatWorkoutDuration"].exists)
+        XCTAssertTrue(app.staticTexts["repeatWorkoutSummary"].exists)
+        XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
+        app.buttons["repeatWorkoutCancel"].tap()
+
         app.buttons["programDate-2026-08-13"].tap()
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
         app.buttons["programDate-2026-08-14"].tap()

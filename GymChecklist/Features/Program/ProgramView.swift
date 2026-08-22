@@ -6,6 +6,7 @@ struct ProgramView: View {
     @State private var exercisePickerRoute: ExercisePickerRoute?
     @State private var setEditorRoute: SetEditorRoute?
     @State private var copyWorkoutRoute: CopyWorkoutRoute?
+    @State private var repeatWorkoutRoute: RepeatWorkoutRoute?
     @State private var pendingDeletion: PendingExerciseDeletion?
     @State private var pendingWorkoutDeletion: LocalDate?
     @State private var showsMutationError = false
@@ -38,6 +39,12 @@ struct ProgramView: View {
                         Label("Copy workout", systemImage: "doc.on.doc")
                     }
                     .accessibilityIdentifier("programCopyWorkout")
+                    Button {
+                        repeatWorkoutRoute = RepeatWorkoutRoute(sourceDate: workout.localDate)
+                    } label: {
+                        Label("Repeat weekly", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .accessibilityIdentifier("programRepeatWorkout")
                 }
                 if calendarState.selectedWorkout != nil {
                     Button("Delete workout", role: .destructive) {
@@ -89,6 +96,18 @@ struct ProgramView: View {
                     isDestinationOccupied: { viewModel.hasWorkout(on: $0) },
                     onCopy: { destinationDate in
                         try viewModel.copyWorkout(from: route.sourceDate, to: destinationDate)
+                    }
+                )
+            }
+            .sheet(item: $repeatWorkoutRoute) { route in
+                RepeatWorkoutSheet(
+                    sourceDate: route.sourceDate,
+                    exerciseCount: calendarState.selectedWorkout?.exercises.count ?? 0,
+                    setCount: calendarState.selectedWorkout?.exercises.flatMap(\.sets).count ?? 0,
+                    calendar: calendarState.calendar,
+                    isDestinationOccupied: { viewModel.hasWorkout(on: $0) },
+                    onRepeat: { endDate in
+                        try viewModel.repeatWorkout(from: route.sourceDate, through: endDate)
                     }
                 )
             }
@@ -491,6 +510,11 @@ private struct CopyWorkoutRoute: Identifiable {
     var id: LocalDate { sourceDate }
 }
 
+private struct RepeatWorkoutRoute: Identifiable {
+    let sourceDate: LocalDate
+    var id: LocalDate { sourceDate }
+}
+
 private struct CopyWorkoutSheet: View {
     let sourceDate: LocalDate
     let exerciseCount: Int
@@ -581,6 +605,162 @@ private struct CopyWorkoutSheet: View {
             return "A workout already exists on this date. Choose another date."
         }
         return nil
+    }
+
+    private func fullDateLabel(for date: LocalDate) -> String {
+        guard let value = date.date(in: calendar) else { return date.description }
+        return value.formatted(.dateTime.weekday(.wide).month(.wide).day().year().locale(Locale(identifier: "en")))
+    }
+}
+
+private struct RepeatWorkoutSheet: View {
+    private enum Duration: String, CaseIterable, Identifiable {
+        case fourWeeks = "4 weeks"
+        case eightWeeks = "8 weeks"
+        case untilDate = "Until date"
+
+        var id: Self { self }
+        var weeks: Int? {
+            switch self {
+            case .fourWeeks: 4
+            case .eightWeeks: 8
+            case .untilDate: nil
+            }
+        }
+    }
+
+    let sourceDate: LocalDate
+    let exerciseCount: Int
+    let setCount: Int
+    let calendar: Calendar
+    let isDestinationOccupied: (LocalDate) -> Bool
+    let onRepeat: (LocalDate) throws -> WorkoutRepeatResult
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var duration: Duration = .fourWeeks
+    @State private var untilDate: Date
+    @State private var showsRepeatError = false
+
+    init(
+        sourceDate: LocalDate,
+        exerciseCount: Int,
+        setCount: Int,
+        calendar: Calendar,
+        isDestinationOccupied: @escaping (LocalDate) -> Bool,
+        onRepeat: @escaping (LocalDate) throws -> WorkoutRepeatResult
+    ) {
+        self.sourceDate = sourceDate
+        self.exerciseCount = exerciseCount
+        self.setCount = setCount
+        self.calendar = calendar
+        self.isDestinationOccupied = isDestinationOccupied
+        self.onRepeat = onRepeat
+        _untilDate = State(initialValue: sourceDate.adding(weeks: 4, calendar: calendar)?.date(in: calendar) ?? Date())
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Repeat weekly") {
+                    Text(fullDateLabel(for: sourceDate))
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("repeatWorkoutSourceDate")
+                    Text("\(exerciseCount) \(exerciseCount == 1 ? "exercise" : "exercises") · \(setCount) \(setCount == 1 ? "set" : "sets")")
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("repeatWorkoutSourceSummary")
+                    LabeledContent("Cadence", value: "Weekly")
+                    Picker("Duration", selection: $duration) {
+                        ForEach(Duration.allCases) { duration in
+                            Text(duration.rawValue).tag(duration)
+                        }
+                    }
+                    .accessibilityIdentifier("repeatWorkoutDuration")
+                }
+
+                if duration == .untilDate {
+                    Section("End date") {
+                        DatePicker("Repeat until", selection: $untilDate, displayedComponents: .date)
+                            .accessibilityIdentifier("repeatWorkoutUntilDate")
+                    }
+                }
+
+                Section("Schedule") {
+                    Text(scheduleSummary)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("repeatWorkoutSummary")
+                    ForEach(occupiedDates, id: \.self) { date in
+                        Text("Skip existing workout: \(fullDateLabel(for: date))")
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("repeatWorkoutSkip-\(date.description)")
+                    }
+                }
+            }
+            .navigationTitle("Repeat workout")
+            .accessibilityIdentifier("repeatWorkoutSheet")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .accessibilityIdentifier("repeatWorkoutCancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create \(availableDates.count) \(availableDates.count == 1 ? "workout" : "workouts")") {
+                        do {
+                            _ = try onRepeat(endDate)
+                            dismiss()
+                        } catch {
+                            showsRepeatError = true
+                        }
+                    }
+                    .disabled(candidateDates.isEmpty || availableDates.isEmpty)
+                    .accessibilityIdentifier("repeatWorkoutAction")
+                }
+            }
+            .alert("Workout could not be repeated", isPresented: $showsRepeatError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Choose another duration and try again.")
+            }
+        }
+    }
+
+    private var endDate: LocalDate {
+        if let weeks = duration.weeks {
+            return sourceDate.adding(weeks: weeks, calendar: calendar) ?? sourceDate
+        }
+        return LocalDate(date: untilDate, calendar: calendar)
+    }
+
+    private var candidateDates: [LocalDate] {
+        guard endDate > sourceDate else { return [] }
+        var dates: [LocalDate] = []
+        var date = sourceDate
+        while let nextDate = date.adding(weeks: 1, calendar: calendar), nextDate <= endDate {
+            dates.append(nextDate)
+            date = nextDate
+        }
+        return dates
+    }
+
+    private var availableDates: [LocalDate] {
+        candidateDates.filter { !isDestinationOccupied($0) }
+    }
+
+    private var occupiedDates: [LocalDate] {
+        candidateDates.filter { isDestinationOccupied($0) }
+    }
+
+    private var scheduleSummary: String {
+        guard !candidateDates.isEmpty else {
+            return "Choose an end date at least one week after the source workout."
+        }
+        let occupiedCount = occupiedDates.count
+        guard !availableDates.isEmpty else {
+            return "Every selected week already has a workout. Nothing will be replaced."
+        }
+        if occupiedCount > 0 {
+            return "\(availableDates.count) \(availableDates.count == 1 ? "workout" : "workouts") will be created. \(occupiedCount) occupied \(occupiedCount == 1 ? "week" : "weeks") will be skipped."
+        }
+        return "\(availableDates.count) independent \(availableDates.count == 1 ? "workout" : "workouts") will be created."
     }
 
     private func fullDateLabel(for date: LocalDate) -> String {

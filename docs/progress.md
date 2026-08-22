@@ -4,7 +4,7 @@
 Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence first).
 
 ## Active task
-`M2.9` — Implementation complete; authoritative macOS CI is pending.
+`M2.11` — Program UX checkpoint. M2.9 and M2.10 are implementation-complete and awaiting one consolidated authoritative macOS CI run.
 
 ## Published state
 - Authoritative `iOS CI / build-and-test` run `31803547147`, attempt 2, passed for commit `56c8e28` on `dev`.
@@ -82,6 +82,12 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - The owner-scoped view model creates a repository-owned destination workout then maps ordered exercises/sets to fresh IDs, copying only exercise references/custom names and planned reps/weight/time. Copied exercises are unskipped and copied sets are incomplete with no actual values or completion timestamp.
 - Focused deterministic tests cover fresh aggregate IDs, plan/order/custom-name preservation, completed/actual/skipped reset, source/destination mutation independence, deterministic timestamps, and missing/same/occupied no-mutation failures. The UI smoke test covers the compact sheet and its source, destination, disabled-copy, and cancel controls without automating the native DatePicker.
 
+## M2.10 implementation
+- Program provides a compact `Repeat weekly` sheet for the selected workout. Its only end choices are 4 weeks, 8 weeks, or an inclusive `Until date`; cadence is fixed to weekly and generated source dates are always excluded.
+- The sheet previews the source plan, creation count, and every concrete occupied date that will be skipped. It never overwrites a workout; the confirmation is disabled when no new dates are available.
+- The view model reuses the plan-only copy mapping for every generated local date, creates fresh exercise/set identities, preserves plan/order/custom names, resets skipped/completion/actual history, and keeps the selected source date. Repository state publishes only after the full repeat succeeds.
+- Focused unit tests cover exact 4-week, 8-week, and inclusive-until schedules; occupied-date skips; source/sibling independence; fresh identities; history reset; deterministic timestamps; and invalid/missing source calls. The stable UI smoke test opens and verifies the compact default repeat sheet without manipulating native date controls.
+
 ## Verification status
 - Authoritative Milestone 0 macOS CI: PASS for published commit `7fe85bd` on `dev` (user-confirmed).
 - Milestone 1 macOS CI: PASS for commit `56c8e28`, run `31803547147` attempt 2. All 11 unit tests and the UI smoke test passed. Attempt 1 had a transient simulator app-launch timeout after all unit tests passed; rerunning the failed job succeeded without code changes.
@@ -117,6 +123,8 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.8 macOS CI: PASS for `ff2377a`, run `32528720383`; the authoritative build, 37 unit tests, and UI test passed.
 - M2.9 Windows static checks: PASS — `git diff --check`, shared scheme XML parse, copy-flow/source-test/accessibility contract assertions, and changed-file review. `swiftc` and `xcodebuild` are unavailable on this Windows host; authoritative macOS CI is pending.
 - M2.9 macOS CI run `32530423499` for `baeff27`: attempt 1 and manual attempt 2 both failed before executing any workflow step (each runner job ended in roughly three seconds with no steps or log). This is a GitHub runner failure, not an observed build/test failure; the next published Milestone 2 checkpoint should consolidate the rerun.
+- M2.10 Windows static checks: PASS — `git diff --check`, PowerShell XML parsing of the shared scheme, and focused source/test contract checks for 4/8/until schedules, explicit occupied-date skips, plan-only copying, and stable UI identifiers. `swiftc` and `xcodebuild` are unavailable on this Windows host.
+- M2.9/M2.10 authoritative macOS CI: deliberately not queued. The account has used its included GitHub Actions minutes; the usage notice reports the allowance resets on 2026-09-01. The Milestone 2 checkpoint remains pending one consolidated publish/run after that reset or an approved Actions budget change.
 
 ## Agent reviews
 - `architecture_guardian`: PASS; no blocking findings, Firebase/UI leakage, duplicated status source, or premature repository abstraction.
@@ -135,12 +143,15 @@ Milestone 2 — Exercise catalog and Program planning UX (local/mock persistence
 - M2.8 `firebase_data_guardian` and `ios_ux_guardian`: PASS for owner/date-scoped deletion, native date-captured confirmation, and no Today/Firebase scope expansion. Future Firestore deletion must atomically remove nested descendants; that implementation is deferred to M4.3.
 - M2.8 CI-rerun `test_ci_agent`: PASS. The reordered action label is a semantic, rendered-order assertion and is more deterministic than comparing SwiftUI `List` row coordinates.
 - M2.9 `architecture_guardian`, `firebase_data_guardian`, `security_privacy_agent`, `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`: PASS. Copy preserves owner-scoped plan data while resetting history, does not overwrite occupied dates, uses semantic UI coverage, and defers atomic Firestore create-if-absent behavior to M4 persistence.
+- M2.10 `architecture_guardian`, `firebase_data_guardian`, `security_privacy_agent`, `ios_ux_guardian`, `product_spec_guardian`, `code_quality_agent`, and `test_ci_agent`: PASS after review. The final flow has fixed weekly cadence, explicit pre-confirmation occupied-date skips, plan-only fresh copies, no recurrence engine, and deterministic local coverage.
+- M2.10 completion code review: no critical or important findings. Added direct eight-week unit coverage before checkpointing; authoritative macOS CI remains required.
+- M2.11 required reviews are satisfied provisionally by the M2.10 Program review set: no finding allows scope to leak into Today or blocks the local Program planning flow. The checkpoint cannot be marked `DONE` until the consolidated macOS CI run passes.
 
 ## Blockers
-No project blocker. Work is paused at the user's request; M2.9 still awaits authoritative macOS CI because this Windows host has no Swift/Xcode toolchain and the two available GitHub runner attempts failed before executing a workflow step.
+GitHub Actions minutes are exhausted for the account, so authoritative macOS build/unit/UI verification cannot run before the stated 2026-09-01 reset unless the account budget changes. This Windows host has no Swift/Xcode toolchain. No product or implementation blocker is known.
 
 ## Exact next action
-On `continue`, begin M2.10 provisionally, then consolidate M2.9/M2.10 authoritative macOS CI at the Milestone 2 checkpoint.
+After 2026-09-01 or an approved Actions budget change: push the checkpoint commit, run one `iOS CI / build-and-test` workflow for M2.9/M2.10, fix any finding, then mark M2.9, M2.10, and M2.11 `DONE` only if it passes. Do not start M3 before that Milestone 2 gate passes.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

@@ -5,12 +5,18 @@ enum ProgramPlanningError: Error, Equatable {
     case workoutNotFound(LocalDate)
     case copyDestinationMatchesSource(LocalDate)
     case copyDestinationOccupied(LocalDate)
+    case repeatEndDateMustFollowSource(LocalDate)
     case exerciseUnavailable(ExerciseID)
     case workoutExerciseNotFound(WorkoutExerciseID)
     case workoutSetNotFound(WorkoutSetID)
     case invalidExerciseOrder
     case invalidSetOrder
     case invalidSetValues
+}
+
+struct WorkoutRepeatResult: Equatable {
+    let createdDates: [LocalDate]
+    let skippedOccupiedDates: [LocalDate]
 }
 
 @MainActor
@@ -99,7 +105,50 @@ final class ProgramViewModel: ObservableObject {
             throw ProgramPlanningError.copyDestinationOccupied(destinationDate)
         }
 
-        let result = repository.createEmptyWorkout(on: destinationDate, at: now())
+        try createPlannedCopy(of: source, on: destinationDate)
+        workouts = repository.workouts
+        selectedDate = destinationDate
+    }
+
+    func repeatWorkout(from sourceDate: LocalDate, through endDate: LocalDate) throws -> WorkoutRepeatResult {
+        guard let source = repository.workout(on: sourceDate) else {
+            throw ProgramPlanningError.workoutNotFound(sourceDate)
+        }
+        guard endDate > sourceDate else {
+            throw ProgramPlanningError.repeatEndDateMustFollowSource(endDate)
+        }
+
+        let candidateDates = weeklyDates(after: sourceDate, through: endDate)
+        let skippedOccupiedDates = candidateDates.filter { repository.workout(on: $0) != nil }
+        let destinations = candidateDates.filter { repository.workout(on: $0) == nil }
+        var createdDates: [LocalDate] = []
+
+        do {
+            for destinationDate in destinations {
+                try createPlannedCopy(of: source, on: destinationDate)
+                createdDates.append(destinationDate)
+            }
+        } catch {
+            for destinationDate in createdDates {
+                try? repository.deleteWorkout(on: destinationDate)
+            }
+            throw error
+        }
+
+        workouts = repository.workouts
+        return WorkoutRepeatResult(
+            createdDates: createdDates,
+            skippedOccupiedDates: skippedOccupiedDates
+        )
+    }
+
+    private func createPlannedCopy(of source: Workout, on destinationDate: LocalDate) throws {
+        guard repository.workout(on: destinationDate) == nil else {
+            throw ProgramPlanningError.copyDestinationOccupied(destinationDate)
+        }
+
+        let timestamp = now()
+        let result = repository.createEmptyWorkout(on: destinationDate, at: timestamp)
         guard result.wasCreated else {
             throw ProgramPlanningError.copyDestinationOccupied(destinationDate)
         }
@@ -123,15 +172,23 @@ final class ProgramViewModel: ObservableObject {
                 }
             )
         }
-        copied.updatedAt = now()
+        copied.updatedAt = timestamp
         do {
             try repository.save(copied)
         } catch {
             try? repository.deleteWorkout(on: destinationDate)
             throw error
         }
-        workouts = repository.workouts
-        selectedDate = destinationDate
+    }
+
+    private func weeklyDates(after sourceDate: LocalDate, through endDate: LocalDate) -> [LocalDate] {
+        var dates: [LocalDate] = []
+        var date = sourceDate
+        while let nextDate = date.adding(weeks: 1, calendar: calendar), nextDate <= endDate {
+            dates.append(nextDate)
+            date = nextDate
+        }
+        return dates
     }
 
     func searchExercises(_ query: String) -> [Exercise] {

@@ -928,6 +928,130 @@ final class ProgramViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedDate, sourceDate)
     }
 
+    func testRepeatWorkoutCreatesIndependentPlanOnlyCopiesAndSkipsOccupiedDates() throws {
+        let sourceDate = LocalDate(year: 2026, month: 8, day: 14)
+        let occupiedDate = LocalDate(year: 2026, month: 8, day: 28)
+        let endDate = LocalDate(year: 2026, month: 9, day: 11)
+        let timestamp = Date(timeIntervalSince1970: 54_321)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var source = repository.createEmptyWorkout(on: sourceDate, at: .distantPast).workout
+        var completedSet = WorkoutSet(order: 6, reps: 8, weight: 40, timeSeconds: 0)
+        completedSet.complete(at: .distantPast)
+        completedSet.editActual(reps: 7, weight: 35, timeSeconds: 0)
+        source.exercises = [WorkoutExercise(
+            id: WorkoutExerciseID(),
+            exerciseID: ExerciseID(),
+            customName: "Custom press",
+            order: 4,
+            isSkipped: true,
+            sets: [completedSet]
+        )]
+        try repository.save(source)
+        let occupied = repository.createEmptyWorkout(on: occupiedDate, at: .distantPast).workout
+        let sourceBeforeRepeat = try XCTUnwrap(repository.workout(on: sourceDate))
+        let copiedExerciseIDs = [WorkoutExerciseID(), WorkoutExerciseID(), WorkoutExerciseID()]
+        let copiedSetIDs = [WorkoutSetID(), WorkoutSetID(), WorkoutSetID()]
+        var exerciseIDs = copiedExerciseIDs
+        var setIDs = copiedSetIDs
+        let viewModel = ProgramViewModel(
+            repository: repository,
+            initialDate: sourceDate,
+            currentDate: sourceDate,
+            calendar: mondayCalendar(),
+            now: { timestamp },
+            makeWorkoutExerciseID: { exerciseIDs.removeFirst() },
+            makeWorkoutSetID: { setIDs.removeFirst() }
+        )
+
+        let result = try viewModel.repeatWorkout(from: sourceDate, through: endDate)
+
+        let expectedDates = [
+            LocalDate(year: 2026, month: 8, day: 21),
+            LocalDate(year: 2026, month: 9, day: 4),
+            LocalDate(year: 2026, month: 9, day: 11)
+        ]
+        XCTAssertEqual(result.createdDates, expectedDates)
+        XCTAssertEqual(result.skippedOccupiedDates, [occupiedDate])
+        XCTAssertEqual(repository.workout(on: sourceDate), sourceBeforeRepeat)
+        XCTAssertEqual(repository.workout(on: occupiedDate), occupied)
+        XCTAssertEqual(viewModel.selectedDate, sourceDate)
+
+        let copies = try expectedDates.map { try XCTUnwrap(repository.workout(on: $0)) }
+        XCTAssertEqual(copies.map(\.createdAt), Array(repeating: timestamp, count: 3))
+        XCTAssertEqual(copies.map(\.updatedAt), Array(repeating: timestamp, count: 3))
+        XCTAssertEqual(copies.compactMap { $0.exercises.first?.id }, copiedExerciseIDs)
+        XCTAssertEqual(copies.compactMap { $0.exercises.first?.sets.first?.id }, copiedSetIDs)
+        XCTAssertTrue(Set(copiedExerciseIDs).isDisjoint(with: Set(sourceBeforeRepeat.exercises.map(\.id))))
+        XCTAssertTrue(Set(copiedSetIDs).isDisjoint(with: Set(sourceBeforeRepeat.exercises.flatMap(\.sets).map(\.id))))
+        XCTAssertTrue(copies.allSatisfy { copy in
+            guard let exercise = copy.exercises.first, let set = exercise.sets.first else { return false }
+            return exercise.order == 0
+                && exercise.customName == "Custom press"
+                && !exercise.isSkipped
+                && set.order == 0
+                && set.reps == 8
+                && set.weight == 40
+                && !set.isCompleted
+                && set.actualReps == nil
+                && set.actualWeight == nil
+                && set.actualTimeSeconds == nil
+                && set.completedAt == nil
+        })
+
+        let firstCopy = try XCTUnwrap(repository.workout(on: expectedDates[0]))
+        let firstExerciseID = try XCTUnwrap(firstCopy.exercises.first?.id)
+        let firstSetID = try XCTUnwrap(firstCopy.exercises.first?.sets.first?.id)
+        try viewModel.editSet(firstSetID, in: firstExerciseID, on: expectedDates[0], reps: 12, weight: 50, timeSeconds: 0)
+        XCTAssertEqual(repository.workout(on: sourceDate), sourceBeforeRepeat)
+        XCTAssertEqual(repository.workout(on: expectedDates[1])?.exercises.first?.sets.first?.reps, 8)
+        XCTAssertEqual(repository.workout(on: expectedDates[0])?.exercises.first?.sets.first?.reps, 12)
+    }
+
+    func testRepeatWorkoutUsesWeeklyDatesThroughInclusiveEndAndRejectsInvalidEndWithoutMutation() throws {
+        let sourceDate = LocalDate(year: 2026, month: 12, day: 18)
+        let untilDate = LocalDate(year: 2027, month: 1, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        _ = repository.createEmptyWorkout(on: sourceDate, at: .distantPast)
+        let viewModel = ProgramViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
+
+        let result = try viewModel.repeatWorkout(from: sourceDate, through: untilDate)
+        XCTAssertEqual(result.createdDates, [
+            LocalDate(year: 2026, month: 12, day: 25),
+            LocalDate(year: 2027, month: 1, day: 1),
+            LocalDate(year: 2027, month: 1, day: 8)
+        ])
+
+        let workoutsBeforeInvalidRepeat = repository.workouts
+        XCTAssertThrowsError(try viewModel.repeatWorkout(from: sourceDate, through: sourceDate)) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .repeatEndDateMustFollowSource(sourceDate))
+        }
+        XCTAssertThrowsError(try viewModel.repeatWorkout(from: LocalDate(year: 2026, month: 12, day: 17), through: untilDate)) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .workoutNotFound(LocalDate(year: 2026, month: 12, day: 17)))
+        }
+        XCTAssertEqual(repository.workouts, workoutsBeforeInvalidRepeat)
+    }
+
+    func testRepeatWorkoutCreatesExactlyEightFutureWeeklyDates() throws {
+        let sourceDate = LocalDate(year: 2026, month: 8, day: 14)
+        let endDate = LocalDate(year: 2026, month: 10, day: 9)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        _ = repository.createEmptyWorkout(on: sourceDate, at: .distantPast)
+        let viewModel = ProgramViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
+
+        let result = try viewModel.repeatWorkout(from: sourceDate, through: endDate)
+        XCTAssertEqual(result.createdDates, [
+            LocalDate(year: 2026, month: 8, day: 21),
+            LocalDate(year: 2026, month: 8, day: 28),
+            LocalDate(year: 2026, month: 9, day: 4),
+            LocalDate(year: 2026, month: 9, day: 11),
+            LocalDate(year: 2026, month: 9, day: 18),
+            LocalDate(year: 2026, month: 9, day: 25),
+            LocalDate(year: 2026, month: 10, day: 2),
+            LocalDate(year: 2026, month: 10, day: 9)
+        ])
+        XCTAssertTrue(result.skippedOccupiedDates.isEmpty)
+    }
+
     private func mondayCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Copenhagen")!

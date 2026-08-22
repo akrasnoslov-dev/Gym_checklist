@@ -359,3 +359,66 @@ final class TodayEmptyStateUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["programEmptyState"].exists)
     }
 }
+
+final class TodayCompletionUITests: XCTestCase {
+    func testLastRemainingSetShowsDismissibleCompletionPopupOncePerTransition() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
+        app.launch()
+
+        let benchPress = app.staticTexts["Bench Press"]
+        let rowSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000201"]
+        XCTAssertTrue(benchPress.waitForExistence(timeout: 5))
+        benchPress.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        XCTAssertTrue(rowSet.waitForExistence(timeout: 2))
+
+        rowSet.tap()
+        XCTAssertTrue(app.otherElements["todayCompletionPopup"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Another one done."].exists)
+        XCTAssertTrue(app.buttons["Done"].exists)
+        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+        app.buttons["todayCompletionDismiss"].tap()
+        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+        XCTAssertFalse(app.otherElements["todayCompletionPopup"].exists)
+
+        rowSet.tap()
+        XCTAssertFalse(app.otherElements["todayCompletionPopup"].exists)
+        rowSet.tap()
+        XCTAssertTrue(app.otherElements["todayCompletionPopup"].waitForExistence(timeout: 2))
+    }
+
+    func testSkippingLastRemainingExerciseShowsCompletionPopup() {
+        let app = launchCompletionWorkout()
+        let benchSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000101"]
+        let row = app.staticTexts["Barbell Row"]
+
+        benchSet.tap()
+        XCTAssertFalse(app.otherElements["todayCompletionPopup"].exists)
+        row.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+
+        XCTAssertTrue(app.otherElements["todayCompletionPopup"].waitForExistence(timeout: 2))
+    }
+
+    func testCompletedWorkoutDoesNotShowCompletionPopupOnLaunch() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
+        app.launchEnvironment["UITEST_SEED_COMPLETED_WORKOUT"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.otherElements["todayCompletionPopup"].exists)
+    }
+
+    private func launchCompletionWorkout() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
+        app.launch()
+        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
+        return app
+    }
+}

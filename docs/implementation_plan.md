@@ -696,7 +696,7 @@ Handle no-program and rest-day cases cleanly.
 
 ---
 
-### M3.7 `TODO` Implement workout completion popup
+### M3.7 `IN PROGRESS (PENDING CI)` Implement workout completion popup
 **Goal**
 Celebrate completion without creating navigation friction.
 

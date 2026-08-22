@@ -181,6 +181,17 @@ final class TodayContentStateTests: XCTestCase {
     }
 }
 
+final class WorkoutCompletionTriggerTests: XCTestCase {
+    func testPresentsOnlyForTransitionsIntoCompletedState() {
+        XCTAssertTrue(WorkoutCompletionTrigger.shouldPresent(before: .partial, after: .completed))
+        XCTAssertTrue(WorkoutCompletionTrigger.shouldPresent(before: .planned, after: .completed))
+        XCTAssertTrue(WorkoutCompletionTrigger.shouldPresent(before: .incomplete, after: .completed))
+        XCTAssertFalse(WorkoutCompletionTrigger.shouldPresent(before: .completed, after: .completed))
+        XCTAssertFalse(WorkoutCompletionTrigger.shouldPresent(before: .completed, after: .partial))
+        XCTAssertFalse(WorkoutCompletionTrigger.shouldPresent(before: .partial, after: .partial))
+    }
+}
+
 final class SystemExerciseCatalogTests: XCTestCase {
     func testCatalogCoversApprovedCategoriesWithStableSystemExercises() throws {
         let exercises = SystemExerciseCatalog.all

@@ -11,12 +11,19 @@ enum TodayContentState: Equatable {
     }
 }
 
+enum WorkoutCompletionTrigger {
+    static func shouldPresent(before: WorkoutStatus, after: WorkoutStatus) -> Bool {
+        before != .completed && after == .completed
+    }
+}
+
 struct TodayView: View {
     @ObservedObject var viewModel: WorkoutViewModel
     let currentDate: LocalDate
     let calendar: Calendar
     let onOpenProgram: () -> Void
     @State private var editorRoute: TodaySetEditorRoute?
+    @State private var showsCompletionPopup = false
 
     var body: some View {
         ScrollView {
@@ -52,6 +59,13 @@ struct TodayView: View {
                     weight: weight,
                     timeSeconds: timeSeconds
                 )
+            }
+        }
+        .overlay {
+            if showsCompletionPopup {
+                TodayCompletionOverlay {
+                    showsCompletionPopup = false
+                }
             }
         }
     }
@@ -185,16 +199,20 @@ struct TodayView: View {
     }
 
     private func toggleCompletion(for set: WorkoutSet, in exercise: WorkoutExercise) {
+        let statusBeforeMutation = viewModel.workout(on: currentDate)?.completionStatus ?? .planned
         do {
             try viewModel.toggleCompletion(of: set.id, in: exercise.id, on: currentDate)
+            presentCompletionIfNeeded(after: statusBeforeMutation)
         } catch {
             assertionFailure("Today set completion failed: \(error)")
         }
     }
 
     private func skip(_ exercise: WorkoutExercise) {
+        let statusBeforeMutation = viewModel.workout(on: currentDate)?.completionStatus ?? .planned
         do {
             try viewModel.skipTodayExercise(exercise.id, on: currentDate)
+            presentCompletionIfNeeded(after: statusBeforeMutation)
         } catch {
             assertionFailure("Today exercise skip failed: \(error)")
         }
@@ -205,6 +223,40 @@ struct TodayView: View {
             try viewModel.restoreTodayExercise(exercise.id, on: currentDate)
         } catch {
             assertionFailure("Today exercise restore failed: \(error)")
+        }
+    }
+
+    private func presentCompletionIfNeeded(after statusBeforeMutation: WorkoutStatus) {
+        let statusAfterMutation = viewModel.workout(on: currentDate)?.completionStatus ?? .planned
+        showsCompletionPopup = WorkoutCompletionTrigger.shouldPresent(
+            before: statusBeforeMutation,
+            after: statusAfterMutation
+        )
+    }
+}
+
+private struct TodayCompletionOverlay: View {
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.28)
+                .ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityHidden(true)
+                Text("Another one done.")
+                    .font(.title3.weight(.semibold))
+                Button("Done", action: onDismiss)
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("todayCompletionDismiss")
+            }
+            .padding(28)
+            .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 20))
+            .padding(32)
+            .accessibilityIdentifier("todayCompletionPopup")
         }
     }
 }

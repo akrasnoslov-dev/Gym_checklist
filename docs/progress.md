@@ -4,7 +4,26 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.6` — Implement Today empty states (`IN PROGRESS (PENDING CI)`).
+`M3.7` — Implement workout completion popup (`IN PROGRESS (PENDING CI)`).
+
+M3.7 is implementation-complete and pending only authoritative macOS
+verification:
+- Today compares completion status before and after a successful set toggle or
+  exercise skip, presenting the overlay only for a non-completed → completed
+  transition. It therefore does not appear on an already-completed app launch.
+- The overlay is a compact, non-navigating Today surface with one small
+  checkmark illustration, `Another one done.`, and a single `Done` action.
+- Dismissal returns directly to unchanged Today. Undo does not trigger it;
+  undo then a fresh completion transition does.
+- Unit coverage verifies the transition predicate. Focused UI coverage verifies
+  last-set completion, direct skip-to-complete, in-place dismissal, exact copy,
+  re-completion behavior, and no popup on a pre-completed launch.
+- Required M3.7 reviews completed without blocking findings from
+  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`,
+  `code_quality_agent`, and `test_ci_agent`.
+
+M3.6 remains implementation-complete and `IN PROGRESS (PENDING CI)` solely
+for authoritative macOS verification.
 
 M3.6 is implementation-complete and pending only authoritative macOS
 verification:
@@ -233,6 +252,18 @@ build or test failure.
 - Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
   authoritative GitHub Actions verification remains pending free quota.
 
+## Latest M3.7 verification
+- `git diff --check`: PASS.
+- Deterministic completion implementation and focused unit/UI test-source
+  checks: PASS (transition-only trigger, skip-aware completion, overlay
+  dismissal/copy, direct skip completion, and no pre-completed launch popup).
+- Shared Xcode scheme XML and project references for app/unit/UI targets: PASS.
+- Required M3.7 reviews: PASS with no blocking findings from
+  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`,
+  `code_quality_agent`, and `test_ci_agent`.
+- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
+  authoritative GitHub Actions verification remains pending free quota.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -244,9 +275,9 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Start M3.7. Read the full task plus Product/UX/Architecture references,
-implement the workout-completion motivation popup with focused unit/UI
-coverage, and continue safe M3 work under the no-cost CI policy.
+Start M3.8. Read the full task plus Product/UX/Architecture references,
+implement the Today accessibility and interaction identifier checkpoint, and
+continue safe M3 work under the no-cost CI policy.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

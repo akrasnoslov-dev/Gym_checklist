@@ -8,6 +8,7 @@ enum ProgramPlanningError: Error, Equatable {
     case repeatEndDateMustFollowSource(LocalDate)
     case exerciseUnavailable(ExerciseID)
     case workoutExerciseNotFound(WorkoutExerciseID)
+    case workoutExerciseSkipped(WorkoutExerciseID)
     case workoutSetNotFound(WorkoutSetID)
     case invalidExerciseOrder
     case invalidSetOrder
@@ -20,7 +21,7 @@ struct WorkoutRepeatResult: Equatable {
 }
 
 @MainActor
-final class ProgramViewModel: ObservableObject {
+final class WorkoutViewModel: ObservableObject {
     @Published private(set) var selectedDate: LocalDate
     @Published private(set) var workouts: [Workout]
     @Published private(set) var exerciseLibrary: LocalExerciseLibrary
@@ -230,6 +231,33 @@ final class ProgramViewModel: ObservableObject {
 
     func workout(on workoutDate: LocalDate) -> Workout? {
         workouts.first { $0.localDate == workoutDate }
+    }
+
+    // MARK: Today execution
+
+    func toggleCompletion(
+        of setID: WorkoutSetID,
+        in exerciseID: WorkoutExerciseID,
+        on workoutDate: LocalDate
+    ) throws {
+        guard var workout = repository.workout(on: workoutDate) else {
+            throw ProgramPlanningError.workoutNotFound(workoutDate)
+        }
+        guard let exerciseIndex = workout.exercises.firstIndex(where: { $0.id == exerciseID }) else {
+            throw ProgramPlanningError.workoutExerciseNotFound(exerciseID)
+        }
+        guard !workout.exercises[exerciseIndex].isSkipped else {
+            throw ProgramPlanningError.workoutExerciseSkipped(exerciseID)
+        }
+        guard let setIndex = workout.exercises[exerciseIndex].sets.firstIndex(where: { $0.id == setID }) else {
+            throw ProgramPlanningError.workoutSetNotFound(setID)
+        }
+
+        let timestamp = now()
+        workout.exercises[exerciseIndex].sets[setIndex].toggleCompletion(at: timestamp)
+        workout.updatedAt = timestamp
+        try repository.save(workout)
+        workouts = repository.workouts
     }
 
     func orderedSets(for exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) -> [WorkoutSet] {

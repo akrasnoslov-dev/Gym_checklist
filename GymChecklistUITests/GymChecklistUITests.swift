@@ -150,3 +150,83 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 2))
     }
 }
+
+final class TodayInteractionUITests: XCTestCase {
+    private let firstBenchSet = "todaySet-90000000-0000-4000-8000-000000000101"
+    private let secondBenchSet = "todaySet-90000000-0000-4000-8000-000000000102"
+    private let rowSet = "todaySet-90000000-0000-4000-8000-000000000201"
+    private let lowerSetIdentifier = "todaySet-90000000-0000-4000-8000-000000000316"
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    func testTodayCompletesAndUndoesSetWithoutLeavingTheScreen() {
+        let app = launchSeededToday()
+        let set = app.buttons[firstBenchSet]
+
+        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["8 reps × 60 kg"].exists)
+        assert(set, hasValue: "Incomplete")
+
+        set.tap()
+        assert(set, hasValue: "Completed")
+        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+        XCTAssertFalse(app.alerts.element.exists)
+
+        set.tap()
+        assert(set, hasValue: "Incomplete")
+        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+    }
+
+    func testTodayCompletesSetsInArbitraryExerciseAndSetOrder() {
+        let app = launchSeededToday()
+        let first = app.buttons[firstBenchSet]
+        let second = app.buttons[secondBenchSet]
+        let row = app.buttons[rowSet]
+
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        assert(first, hasValue: "Incomplete")
+        assert(second, hasValue: "Incomplete")
+
+        row.tap()
+        assert(row, hasValue: "Completed")
+        assert(first, hasValue: "Incomplete")
+        assert(second, hasValue: "Incomplete")
+
+        second.tap()
+        assert(second, hasValue: "Completed")
+        assert(first, hasValue: "Incomplete")
+    }
+
+    func testTodayKeepsLowerSetVisibleAfterCompletion() {
+        let app = launchSeededToday()
+        let lowerSet = app.buttons[lowerSetIdentifier]
+
+        for _ in 0..<6 where !lowerSet.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(lowerSet.isHittable)
+
+        lowerSet.tap()
+        assert(lowerSet, hasValue: "Completed")
+        XCTAssertTrue(lowerSet.isHittable)
+    }
+
+    private func launchSeededToday() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func assert(_ element: XCUIElement, hasValue expectedValue: String) {
+        let expectation = expectation(
+            for: NSPredicate(format: "value == %@", expectedValue),
+            evaluatedWith: element
+        )
+        wait(for: [expectation], timeout: 2)
+    }
+}

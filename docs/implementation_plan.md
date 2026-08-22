@@ -565,7 +565,7 @@ Build the main product screen exactly around the checklist-first concept.
 
 ---
 
-### M3.2 `TODO` Implement one-tap set complete/undo
+### M3.2 `IN PROGRESS (PENDING CI)` Implement one-tap set complete/undo
 **Goal**
 Make the primary interaction instantaneous.
 

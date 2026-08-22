@@ -449,12 +449,12 @@ final class InMemoryWorkoutRepositoryTests: XCTestCase {
 }
 
 @MainActor
-final class ProgramViewModelTests: XCTestCase {
+final class WorkoutViewModelTests: XCTestCase {
     func testCreateSelectedWorkoutRefreshesProgramWithoutChangingSelection() {
         let calendar = mondayCalendar()
         let selected = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: selected,
             currentDate: selected,
@@ -481,7 +481,7 @@ final class ProgramViewModelTests: XCTestCase {
     func testSearchCreateAndReuseCustomExercisesFromLongLivedLibrary() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
             currentDate: date,
@@ -511,7 +511,7 @@ final class ProgramViewModelTests: XCTestCase {
         let firstID = WorkoutExerciseID(rawValue: UUID(uuidString: "20000000-0000-4000-8000-000000000001")!)
         let secondID = WorkoutExerciseID(rawValue: UUID(uuidString: "20000000-0000-4000-8000-000000000002")!)
         var entryIDs = [firstID, secondID]
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
             currentDate: date,
@@ -541,7 +541,7 @@ final class ProgramViewModelTests: XCTestCase {
     func testAddingWithoutWorkoutReturnsTypedErrorAndDoesNotMutateRepository() {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
             currentDate: date,
@@ -558,7 +558,7 @@ final class ProgramViewModelTests: XCTestCase {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
         _ = repository.createEmptyWorkout(on: date, at: .distantPast)
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
             currentDate: date,
@@ -596,7 +596,7 @@ final class ProgramViewModelTests: XCTestCase {
             planningExercise(id: ids[2], catalogIndex: 2, order: 12, reps: 12)
         ]
         try repository.save(workout)
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
             currentDate: date,
@@ -614,7 +614,7 @@ final class ProgramViewModelTests: XCTestCase {
         XCTAssertEqual(repository.workout(on: otherDate), otherWorkout)
         XCTAssertEqual(viewModel.selectedDate, date)
 
-        let freshViewModel = ProgramViewModel(
+        let freshViewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
             currentDate: date,
@@ -643,7 +643,7 @@ final class ProgramViewModelTests: XCTestCase {
             planningExercise(id: lastID, catalogIndex: 2, order: 2, reps: 12)
         ]
         try repository.save(workout)
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
             currentDate: date,
@@ -681,7 +681,7 @@ final class ProgramViewModelTests: XCTestCase {
         workout.exercises[0].sets = []
         try repository.save(workout)
         var setIDs = [firstSetID, secondSetID]
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
             currentDate: date,
@@ -712,6 +712,70 @@ final class ProgramViewModelTests: XCTestCase {
         XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weight: 0, timeSeconds: 45), "8 reps × 45 sec")
     }
 
+    func testTodayCompletionTogglePersistsImmediatelyAndAllowsArbitraryOrder() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let timestamp = Date(timeIntervalSince1970: 12_345)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let firstExerciseID = WorkoutExerciseID(rawValue: UUID(uuidString: "51500000-0000-4000-8000-000000000001")!)
+        let secondExerciseID = WorkoutExerciseID(rawValue: UUID(uuidString: "51500000-0000-4000-8000-000000000002")!)
+        let firstSetID = WorkoutSetID(rawValue: UUID(uuidString: "51500000-0000-4000-8000-000000000101")!)
+        let secondSetID = WorkoutSetID(rawValue: UUID(uuidString: "51500000-0000-4000-8000-000000000201")!)
+        workout.exercises = [
+            WorkoutExercise(
+                id: firstExerciseID,
+                exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil,
+                order: 1,
+                isSkipped: false,
+                sets: [WorkoutSet(id: firstSetID, order: 2, reps: 8, weight: 60, timeSeconds: 0)]
+            ),
+            WorkoutExercise(
+                id: secondExerciseID,
+                exerciseID: SystemExerciseCatalog.all[6].id,
+                customName: nil,
+                order: 0,
+                isSkipped: false,
+                sets: [WorkoutSet(id: secondSetID, order: 4, reps: 12, weight: 0, timeSeconds: 0)]
+            )
+        ]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar(),
+            now: { timestamp }
+        )
+
+        try viewModel.toggleCompletion(of: secondSetID, in: secondExerciseID, on: date)
+        var persisted = try XCTUnwrap(repository.workout(on: date))
+        let completedSecond = try XCTUnwrap(persisted.exercises.first { $0.id == secondExerciseID }?.sets.first)
+        XCTAssertTrue(completedSecond.isCompleted)
+        XCTAssertEqual(completedSecond.actualReps, 12)
+        XCTAssertEqual(completedSecond.actualWeight, 0)
+        XCTAssertEqual(completedSecond.actualTimeSeconds, 0)
+        XCTAssertEqual(completedSecond.completedAt, timestamp)
+        XCTAssertEqual(persisted.updatedAt, timestamp)
+        XCTAssertFalse(try XCTUnwrap(persisted.exercises.first { $0.id == firstExerciseID }?.sets.first).isCompleted)
+
+        try viewModel.toggleCompletion(of: firstSetID, in: firstExerciseID, on: date)
+        persisted = try XCTUnwrap(repository.workout(on: date))
+        XCTAssertEqual(persisted.exercises.map(\.id), [firstExerciseID, secondExerciseID])
+        XCTAssertEqual(persisted.exercises.map(\.order), [1, 0])
+        XCTAssertEqual(persisted.exercises.flatMap(\.sets).map(\.id), [firstSetID, secondSetID])
+        XCTAssertTrue(persisted.exercises.flatMap(\.sets).allSatisfy(\.isCompleted))
+        XCTAssertEqual(viewModel.workout(on: date), persisted)
+
+        try viewModel.toggleCompletion(of: secondSetID, in: secondExerciseID, on: date)
+        let undone = try XCTUnwrap(repository.workout(on: date)?.exercises.first { $0.id == secondExerciseID }?.sets.first)
+        XCTAssertFalse(undone.isCompleted)
+        XCTAssertNil(undone.actualReps)
+        XCTAssertNil(undone.actualWeight)
+        XCTAssertNil(undone.actualTimeSeconds)
+        XCTAssertNil(undone.completedAt)
+    }
+
     func testEditSetPreservesCompletedActualAndRejectsInvalidValuesAtomically() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
@@ -729,7 +793,7 @@ final class ProgramViewModelTests: XCTestCase {
             sets: [completedSet]
         )]
         try repository.save(workout)
-        let viewModel = ProgramViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
 
         try viewModel.editSet(setID, in: exerciseID, on: date, reps: 7, weight: 0, timeSeconds: 45)
         let updated = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets.first)
@@ -780,7 +844,7 @@ final class ProgramViewModelTests: XCTestCase {
             ]
         )]
         try repository.save(workout)
-        let viewModel = ProgramViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
 
         try viewModel.reorderSets([setIDs[2], setIDs[0], setIDs[1]], in: exerciseID, on: date)
         var persisted = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
@@ -811,7 +875,7 @@ final class ProgramViewModelTests: XCTestCase {
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
         let workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
         let otherWorkout = repository.createEmptyWorkout(on: otherDate, at: .distantPast).workout
-        let viewModel = ProgramViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
 
         try viewModel.deleteWorkout(on: date)
 
@@ -861,7 +925,7 @@ final class ProgramViewModelTests: XCTestCase {
         let expectedCopiedSetIDs = [WorkoutSetID(), WorkoutSetID()]
         var copiedExerciseIDs = expectedCopiedExerciseIDs
         var copiedSetIDs = expectedCopiedSetIDs
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: sourceDate,
             currentDate: sourceDate,
@@ -909,7 +973,7 @@ final class ProgramViewModelTests: XCTestCase {
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
         _ = repository.createEmptyWorkout(on: sourceDate, at: .distantPast)
         _ = repository.createEmptyWorkout(on: occupiedDate, at: .distantPast)
-        let viewModel = ProgramViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
         let repositoryBefore = repository.workouts
         let viewModelBefore = viewModel.workouts
 
@@ -953,7 +1017,7 @@ final class ProgramViewModelTests: XCTestCase {
         let copiedSetIDs = [WorkoutSetID(), WorkoutSetID(), WorkoutSetID()]
         var exerciseIDs = copiedExerciseIDs
         var setIDs = copiedSetIDs
-        let viewModel = ProgramViewModel(
+        let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: sourceDate,
             currentDate: sourceDate,
@@ -1012,7 +1076,7 @@ final class ProgramViewModelTests: XCTestCase {
         let untilDate = LocalDate(year: 2027, month: 1, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
         _ = repository.createEmptyWorkout(on: sourceDate, at: .distantPast)
-        let viewModel = ProgramViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
 
         let result = try viewModel.repeatWorkout(from: sourceDate, through: untilDate)
         XCTAssertEqual(result.createdDates, [
@@ -1036,7 +1100,7 @@ final class ProgramViewModelTests: XCTestCase {
         let endDate = LocalDate(year: 2026, month: 10, day: 9)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
         _ = repository.createEmptyWorkout(on: sourceDate, at: .distantPast)
-        let viewModel = ProgramViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
 
         let result = try viewModel.repeatWorkout(from: sourceDate, through: endDate)
         XCTAssertEqual(result.createdDates, [

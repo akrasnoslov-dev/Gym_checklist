@@ -4,13 +4,14 @@ import SwiftUI
 @MainActor
 struct ContentView: View {
     @State private var selectedTab = AppTab.today
-    @StateObject private var programViewModel: ProgramViewModel
+    @StateObject private var workoutViewModel: WorkoutViewModel
 
     init() {
         let calendar = Calendar.autoupdatingCurrent
         let today = Self.testReferenceDate ?? LocalDate(date: Date(), calendar: calendar)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "local-mvp-user"))
-        _programViewModel = StateObject(wrappedValue: ProgramViewModel(
+        Self.seedTodayWorkoutForUITests(in: repository, on: today)
+        _workoutViewModel = StateObject(wrappedValue: WorkoutViewModel(
             repository: repository,
             initialDate: today,
             currentDate: today,
@@ -21,16 +22,16 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             TodayView(
-                viewModel: programViewModel,
-                currentDate: programViewModel.currentDate,
-                calendar: programViewModel.calendar
+                viewModel: workoutViewModel,
+                currentDate: workoutViewModel.currentDate,
+                calendar: workoutViewModel.calendar
             )
                 .tabItem {
                     Label("Today", systemImage: "checkmark.circle")
                 }
                 .tag(AppTab.today)
 
-            ProgramView(viewModel: programViewModel)
+            ProgramView(viewModel: workoutViewModel)
                 .tabItem {
                     Label("Program", systemImage: "calendar")
                 }
@@ -49,6 +50,79 @@ struct ContentView: View {
         let values = raw.split(separator: "-").compactMap { Int($0) }
         guard values.count == 3, (1...12).contains(values[1]), (1...31).contains(values[2]) else { return nil }
         return LocalDate(year: values[0], month: values[1], day: values[2])
+    }
+
+    private static func seedTodayWorkoutForUITests(
+        in repository: InMemoryWorkoutRepository,
+        on date: LocalDate
+    ) {
+        guard ProcessInfo.processInfo.environment["UITEST_SEED_TODAY_WORKOUT"] == "1" else { return }
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let longWorkoutSets = (0..<16).map { index in
+            let suffix = String(format: "%012d", 301 + index)
+            guard let id = UUID(uuidString: "90000000-0000-4000-8000-\(suffix)") else {
+                preconditionFailure("Invalid UI-test workout set identifier")
+            }
+            return WorkoutSet(
+                id: WorkoutSetID(rawValue: id),
+                order: index,
+                reps: 10,
+                weight: 20,
+                timeSeconds: 0
+            )
+        }
+        workout.exercises = [
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000001")!),
+                exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil,
+                order: 0,
+                isSkipped: false,
+                sets: [
+                    WorkoutSet(
+                        id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000101")!),
+                        order: 0,
+                        reps: 8,
+                        weight: 60,
+                        timeSeconds: 0
+                    ),
+                    WorkoutSet(
+                        id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000102")!),
+                        order: 1,
+                        reps: 10,
+                        weight: 65,
+                        timeSeconds: 0
+                    )
+                ]
+            ),
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000002")!),
+                exerciseID: SystemExerciseCatalog.all[6].id,
+                customName: nil,
+                order: 1,
+                isSkipped: false,
+                sets: [WorkoutSet(
+                    id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000201")!),
+                    order: 0,
+                    reps: 12,
+                    weight: 0,
+                    timeSeconds: 0
+                )]
+            ),
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000003")!),
+                exerciseID: SystemExerciseCatalog.all[14].id,
+                customName: nil,
+                order: 2,
+                isSkipped: false,
+                sets: longWorkoutSets
+            )
+        ]
+        do {
+            try repository.save(workout)
+        } catch {
+            preconditionFailure("Could not seed the UI-test workout: \(error)")
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct TodayView: View {
-    @ObservedObject var viewModel: ProgramViewModel
+    @ObservedObject var viewModel: WorkoutViewModel
     let currentDate: LocalDate
     let calendar: Calendar
 
@@ -11,7 +11,7 @@ struct TodayView: View {
                 header
 
                 if let workout = viewModel.workout(on: currentDate), !workout.exercises.isEmpty {
-                    ForEach(orderedExercises(in: workout)) { exercise in
+                    ForEach(orderedExercises(in: workout).filter { !$0.isSkipped }) { exercise in
                         exerciseSection(exercise)
                     }
                 }
@@ -41,7 +41,14 @@ struct TodayView: View {
 
             VStack(spacing: 0) {
                 ForEach(sets) { set in
-                    setRow(set)
+                    Button {
+                        toggleCompletion(for: set, in: exercise)
+                    } label: {
+                        setRow(set)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("todaySet-\(set.id.rawValue.uuidString)")
+                    .accessibilityValue(set.isCompleted ? "Completed" : "Incomplete")
                     if set.id != sets.last?.id {
                         Divider()
                     }
@@ -61,7 +68,8 @@ struct TodayView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
-        .frame(minHeight: 48)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private func orderedExercises(in workout: Workout) -> [WorkoutExercise] {
@@ -89,5 +97,13 @@ struct TodayView: View {
     private var dateLabel: String {
         guard let date = currentDate.date(in: calendar) else { return currentDate.description }
         return date.formatted(.dateTime.weekday(.wide).month(.wide).day().year().locale(Locale(identifier: "en")))
+    }
+
+    private func toggleCompletion(for set: WorkoutSet, in exercise: WorkoutExercise) {
+        do {
+            try viewModel.toggleCompletion(of: set.id, in: exercise.id, on: currentDate)
+        } catch {
+            assertionFailure("Today set completion failed: \(error)")
+        }
     }
 }

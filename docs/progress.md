@@ -4,7 +4,33 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.1` — Implement active Today workout layout (`IN PROGRESS (PENDING CI)`).
+`M3.2` — Implement one-tap set complete/undo (`IN PROGRESS (PENDING CI)`).
+
+M3.1 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
+authoritative macOS verification. M3.2 is implementation-complete under the
+same no-cost CI continuation policy:
+- The app owns one `WorkoutViewModel`, observed by Program and Today, so both
+  tabs share one published local/mock workout snapshot.
+- Every full 48pt set row is a plain button: tap immediately toggles only that
+  set, saves locally, refreshes published state, and neither navigates nor
+  prompts. Planned exercise/set order is preserved.
+- Completion uses the existing actual-value semantics and an injected absolute
+  timestamp; undo clears actual values and its completion timestamp.
+- Skipped exercises are excluded from active Today and cannot be toggled.
+- Deterministic unit coverage checks persistence, actual initialization/undo,
+  timestamping, published refresh, and arbitrary cross-exercise order.
+- Focused UI coverage checks complete/undo, arbitrary cross-exercise order,
+  and a lower-row tap retaining its scroll position.
+
+Required M3.2 reviews completed with no remaining blocking findings:
+- `ios_ux_guardian`: full-row interaction, no clutter/navigation, completion
+  signal, and scroll behavior are acceptable.
+- `product_spec_guardian`: completion preserves planned order; skipped state is
+  now protected from active Today interaction.
+- `architecture_guardian`: app-owned shared coordinator is explicit at
+  `GymChecklist/App/WorkoutViewModel.swift`; no duplicate state or extra layer.
+- `test_ci_agent`: required unit/UI coverage is present, including lower-row
+  scroll-position coverage.
 
 Implementation is complete against the available local/mock model:
 - Today now receives the app-owned workout state and concrete local current date.
@@ -92,6 +118,13 @@ build or test failure.
 - Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
   authoritative GitHub Actions verification is pending free quota.
 
+## Latest M3.2 verification
+- `git diff --check`: PASS.
+- Deterministic app/model, interaction/test-source, and Xcode project
+  source/group checks: PASS.
+- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
+  authoritative GitHub Actions verification remains pending free quota.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -103,12 +136,11 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Start `M3.2` now. Read the full task plus Product/UX/Architecture references,
-apply the required agents, introduce the focused Today state/mutation boundary
-called for by the M3.1 architecture review, implement one-tap complete/undo
-against the existing local/mock repository, add unit/UI coverage, run all
-available non-macOS checks, checkpoint the work, then continue through later
-safe M3 tasks without waiting for paid CI.
+Start `M3.3` now. Read the full task plus Product/UX/Architecture references,
+apply the required agents, implement the compact Today long-press editor with
+correct planned/actual semantics using the app-owned workout coordinator, add
+unit/UI coverage, run all available non-macOS checks, checkpoint the work, then
+continue through later safe M3 tasks without waiting for paid CI.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

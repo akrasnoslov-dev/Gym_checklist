@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 struct ProgramView: View {
-    @ObservedObject var viewModel: ProgramViewModel
+    @ObservedObject var viewModel: WorkoutViewModel
     @State private var exercisePickerRoute: ExercisePickerRoute?
     @State private var setEditorRoute: SetEditorRoute?
     @State private var copyWorkoutRoute: CopyWorkoutRoute?

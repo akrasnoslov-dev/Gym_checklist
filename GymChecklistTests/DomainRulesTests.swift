@@ -862,6 +862,71 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.workout(on: date)?.exercises.first?.isSkipped == true)
     }
 
+    func testRestoreTodayExerciseOnlyClearsSkippedStateAndRequiresCurrentDate() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let otherDate = LocalDate(year: 2026, month: 8, day: 15)
+        let timestamp = Date(timeIntervalSince1970: 123_456)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let leadingExerciseID = WorkoutExerciseID()
+        let exerciseID = WorkoutExerciseID()
+        let plannedSetID = WorkoutSetID()
+        let completedSetID = WorkoutSetID()
+        var completedSet = WorkoutSet(id: completedSetID, order: 1, reps: 8, weight: 60, timeSeconds: 0)
+        completedSet.complete(at: .distantPast)
+        completedSet.editActual(reps: 6, weight: 55, timeSeconds: 0)
+        workout.exercises = [
+            WorkoutExercise(
+                id: leadingExerciseID,
+                exerciseID: SystemExerciseCatalog.all[6].id,
+                customName: nil,
+                order: 0,
+                isSkipped: false,
+                sets: [WorkoutSet(order: 0, reps: 12, weight: 0, timeSeconds: 0)]
+            ),
+            WorkoutExercise(
+                id: exerciseID,
+                exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil,
+                order: 1,
+                isSkipped: false,
+                sets: [
+                    WorkoutSet(id: plannedSetID, order: 0, reps: 10, weight: 40, timeSeconds: 0),
+                    completedSet
+                ]
+            )
+        ]
+        try repository.save(workout)
+        let originalSets = try XCTUnwrap(repository.workout(on: date)?.exercises.first { $0.id == exerciseID }?.sets)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar(),
+            now: { timestamp }
+        )
+
+        try viewModel.skipTodayExercise(exerciseID, on: date)
+        try viewModel.restoreTodayExercise(exerciseID, on: date)
+
+        let restoredWorkout = try XCTUnwrap(repository.workout(on: date))
+        let restored = try XCTUnwrap(restoredWorkout.exercises.first { $0.id == exerciseID })
+        XCTAssertFalse(restored.isSkipped)
+        XCTAssertEqual(restored.id, exerciseID)
+        XCTAssertEqual(restored.order, 1)
+        XCTAssertEqual(restored.sets, originalSets)
+        XCTAssertEqual(restoredWorkout.exercises.map(\.id), [leadingExerciseID, exerciseID])
+        XCTAssertEqual(restoredWorkout.completionStatus, .partial)
+        XCTAssertEqual(restoredWorkout, viewModel.workout(on: date))
+
+        let afterRestore = try XCTUnwrap(repository.workout(on: date))
+        try viewModel.restoreTodayExercise(exerciseID, on: date)
+        XCTAssertEqual(repository.workout(on: date), afterRestore)
+        XCTAssertThrowsError(try viewModel.restoreTodayExercise(exerciseID, on: otherDate)) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .todayActionRequiresCurrentDate(otherDate))
+        }
+    }
+
     func testEditSetPreservesCompletedActualAndRejectsInvalidValuesAtomically() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))

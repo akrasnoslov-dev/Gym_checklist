@@ -653,7 +653,7 @@ Let users remove an exercise from the active Today flow without treating it as c
 
 ---
 
-### M3.5 `TODO` Implement Restore Skipped Exercise
+### M3.5 `IN PROGRESS (PENDING CI)` Implement Restore Skipped Exercise
 **Goal**
 Recover accidental skips during the same day.
 

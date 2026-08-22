@@ -265,6 +265,31 @@ final class TodayInteractionUITests: XCTestCase {
         assert(app.buttons[rowSet], hasValue: "Incomplete")
     }
 
+    func testTodayRestoresSkippedExerciseWithItsExistingSetState() {
+        let app = launchSeededToday()
+        let benchPress = app.staticTexts["Bench Press"]
+        let benchSet = app.buttons[firstBenchSet]
+
+        benchSet.tap()
+        assert(benchSet, hasValue: "Completed")
+        benchPress.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        XCTAssertFalse(benchPress.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons[rowSet].exists)
+
+        let restoreMenu = app.buttons["todayRestoreSkippedExercises"]
+        XCTAssertTrue(restoreMenu.waitForExistence(timeout: 2))
+        restoreMenu.tap()
+        let restoreBench = app.buttons["todayRestore-90000000-0000-4000-8000-000000000001"]
+        XCTAssertTrue(restoreBench.waitForExistence(timeout: 2))
+        restoreBench.tap()
+
+        XCTAssertTrue(benchPress.waitForExistence(timeout: 2))
+        assert(benchSet, hasValue: "Completed")
+        XCTAssertTrue(app.buttons[rowSet].exists)
+        XCTAssertFalse(app.buttons["todayRestoreSkippedExercises"].exists)
+    }
+
     private func launchSeededToday() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"

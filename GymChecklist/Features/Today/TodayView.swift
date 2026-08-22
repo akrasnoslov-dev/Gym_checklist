@@ -12,9 +12,11 @@ struct TodayView: View {
                 header
 
                 if let workout = viewModel.workout(on: currentDate), !workout.exercises.isEmpty {
-                    ForEach(orderedExercises(in: workout).filter { !$0.isSkipped }) { exercise in
+                    let exercises = orderedExercises(in: workout)
+                    ForEach(exercises.filter { !$0.isSkipped }) { exercise in
                         exerciseSection(exercise)
                     }
+                    restoreSkippedExercisesMenu(exercises.filter(\.isSkipped))
                 }
             }
             .padding(.horizontal)
@@ -93,6 +95,25 @@ struct TodayView: View {
         .contentShape(Rectangle())
     }
 
+    @ViewBuilder
+    private func restoreSkippedExercisesMenu(_ exercises: [WorkoutExercise]) -> some View {
+        if !exercises.isEmpty {
+            Menu {
+                ForEach(exercises) { exercise in
+                    Button("Restore \(viewModel.exerciseName(for: exercise))") {
+                        restore(exercise)
+                    }
+                    .accessibilityIdentifier("todayRestore-\(exercise.id.rawValue.uuidString)")
+                }
+            } label: {
+                Label("Skipped exercises", systemImage: "arrow.uturn.backward")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityIdentifier("todayRestoreSkippedExercises")
+        }
+    }
+
     private func orderedExercises(in workout: Workout) -> [WorkoutExercise] {
         workout.exercises.sorted {
             if $0.order != $1.order { return $0.order < $1.order }
@@ -133,6 +154,14 @@ struct TodayView: View {
             try viewModel.skipTodayExercise(exercise.id, on: currentDate)
         } catch {
             assertionFailure("Today exercise skip failed: \(error)")
+        }
+    }
+
+    private func restore(_ exercise: WorkoutExercise) {
+        do {
+            try viewModel.restoreTodayExercise(exercise.id, on: currentDate)
+        } catch {
+            assertionFailure("Today exercise restore failed: \(error)")
         }
     }
 }

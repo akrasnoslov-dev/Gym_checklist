@@ -4,7 +4,26 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.4` — Implement Skip Exercise (`IN PROGRESS (PENDING CI)`).
+`M3.5` — Implement Restore Skipped Exercise (`IN PROGRESS (PENDING CI)`).
+
+M3.5 is implementation-complete and pending only authoritative macOS
+verification:
+- Today shows a low-prominence `Skipped exercises` footer menu only when one
+  or more exercises are skipped; selecting an entry restores it in its retained
+  planned order.
+- Restore is restricted to the concrete current local date and only clears
+  `isSkipped`; set IDs/order, planned values, actual values, completion state,
+  and completion timestamps remain unchanged.
+- Unit coverage verifies same-day round trip, mixed completed/incomplete set
+  preservation, original multi-exercise position, snapshot refresh,
+  idempotence, and non-current-date rejection. Focused UI coverage verifies a
+  completed set survives skip/restore, remaining work remains usable, and the
+  conditional restore menu disappears after the final restore.
+- Required M3.5 reviews completed without blocking findings from
+  `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`.
+
+M3.4 remains implementation-complete and `IN PROGRESS (PENDING CI)` solely
+for authoritative macOS verification.
 
 M3.1–M3.3 are implementation-complete and remain `IN PROGRESS (PENDING CI)`
 solely for authoritative macOS verification. M3.4 is implementation-complete
@@ -169,6 +188,20 @@ build or test failure.
 - Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
   authoritative GitHub Actions verification remains pending free quota.
 
+## Latest M3.5 verification
+- `git diff --check`: PASS.
+- Deterministic restore implementation and focused unit/UI test-source checks:
+  PASS (conditional menu, current-date guard, only-flag mutation, state/order
+  preservation, and UI round trip).
+- Shared Xcode scheme XML and project references for app/unit/UI targets: PASS.
+- Required M3.5 reviews: PASS with no blocking findings from
+  `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`.
+- Latest GitHub Actions run `32599368749` remains the documented
+  quota/infrastructure failure before workflow steps; no new macOS CI run was
+  triggered while the included quota is exhausted.
+- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
+  authoritative GitHub Actions verification remains pending free quota.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -180,9 +213,9 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Start `M3.5` now. Read the full task plus Product/UX/Architecture references,
-implement same-day Restore Skipped Exercise while preserving set state, add
-unit/UI coverage, and continue safe M3 work under the no-cost CI policy.
+Start M3.6. Read the full task plus Product/UX/Architecture references,
+implement the completion motivation popup with focused unit/UI coverage, and
+continue safe M3 work under the no-cost CI policy.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

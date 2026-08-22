@@ -9,6 +9,7 @@ enum ProgramPlanningError: Error, Equatable {
     case exerciseUnavailable(ExerciseID)
     case workoutExerciseNotFound(WorkoutExerciseID)
     case workoutExerciseSkipped(WorkoutExerciseID)
+    case todayActionRequiresCurrentDate(LocalDate)
     case workoutSetNotFound(WorkoutSetID)
     case invalidExerciseOrder
     case invalidSetOrder
@@ -294,6 +295,24 @@ final class WorkoutViewModel: ObservableObject {
         guard !workout.exercises[exerciseIndex].isSkipped else { return }
 
         workout.exercises[exerciseIndex].isSkipped = true
+        workout.updatedAt = now()
+        try repository.save(workout)
+        workouts = repository.workouts
+    }
+
+    func restoreTodayExercise(_ exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) throws {
+        guard workoutDate == currentDate else {
+            throw ProgramPlanningError.todayActionRequiresCurrentDate(workoutDate)
+        }
+        guard var workout = repository.workout(on: workoutDate) else {
+            throw ProgramPlanningError.workoutNotFound(workoutDate)
+        }
+        guard let exerciseIndex = workout.exercises.firstIndex(where: { $0.id == exerciseID }) else {
+            throw ProgramPlanningError.workoutExerciseNotFound(exerciseID)
+        }
+        guard workout.exercises[exerciseIndex].isSkipped else { return }
+
+        workout.exercises[exerciseIndex].isSkipped = false
         workout.updatedAt = now()
         try repository.save(workout)
         workouts = repository.workouts

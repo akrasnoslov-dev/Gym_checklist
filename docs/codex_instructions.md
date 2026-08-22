@@ -1,7 +1,7 @@
 # Codex Instructions
 
 ## Purpose
-This repository is designed for long-running, low-touch Codex implementation. The user should not need to manually decompose every engineering task.
+This repository is designed for long-running, low-touch Codex implementation. The repository is durable project memory; chat history is not.
 
 ## Startup sequence
 For every new Codex session:
@@ -11,103 +11,120 @@ For every new Codex session:
 4. Read `docs/architecture.md`.
 5. Read `docs/implementation_plan.md`.
 6. Read `docs/progress.md`.
-7. Read `agents/routing.toml` and any required agent files.
-8. Inspect git status/branch and current repository state.
-9. Resume an existing `IN PROGRESS` task first; otherwise take the first `TODO` task whose dependencies are `DONE`.
+7. Read `docs/ci_free_quota_policy.md` when it exists.
+8. Read `agents/routing.toml` and required agent files.
+9. Inspect git status/branch, recent commits/diff, relevant source/tests, and available CI state.
+10. Resume the active task from repository state.
 
-If the user says only `continue`, follow the same startup sequence and resume from repository state.
+If the user says only `continue`, perform this startup sequence and resume without asking them to restate context.
 
 ## Autonomy policy
-Codex should continue task-by-task without waiting for user confirmation between normal implementation steps.
+Continue task-by-task without waiting for user confirmation between routine implementation steps.
 
-Stop only when:
-- product behavior is ambiguous enough that different choices materially change the intended UX;
-- credentials, Firebase console configuration, Apple Developer signing/provisioning, or other external account action is required;
-- a destructive migration or irreversible operation needs approval;
-- a genuinely required implementation tool is unavailable and no safe work within the current milestone can continue without it;
-- model/tool usage limits are exhausted.
+Stop only for:
+- product ambiguity that materially changes intended behavior/UX;
+- required credentials, Firebase/Apple/external account configuration, or signing/provisioning that cannot be completed from the repository;
+- destructive/irreversible decisions needing approval;
+- an actual implementation/test failure that makes later work unsafe;
+- a genuinely required tool being unavailable with no technically safe work remaining;
+- model/tool usage limits.
 
-Do not stop for routine naming, folder placement, implementation detail, test refactoring, or other reversible engineering decisions that are already bounded by the specs.
+Do not stop for routine naming, folder placement, reversible implementation decisions, or a missing Git remote in Codex Cloud.
 
-## Codex Cloud execution rule
-Codex Cloud may receive a repository snapshot without exposing a normal writable `origin`, authenticated `gh`, or direct PR creation inside the Linux sandbox. This is expected and is **not** a user-action blocker by itself.
+## No-cost GitHub Actions policy
+Paid GitHub Actions usage is not approved unless the user explicitly reverses that decision.
 
-When running in Codex Cloud:
-- Do not stop merely because `git remote -v` is empty, `origin` is missing, `gh auth status` is unauthenticated, `git push` is unavailable, or a PR cannot be created from the sandbox.
-- Do not ask the user to configure a PAT, `GH_TOKEN`, remote, or GitHub CLI solely to work around this Cloud sandbox limitation.
-- Make focused checkpoint commits inside the Cloud task when possible.
-- If authoritative GitHub/macOS CI cannot run only because Cloud cannot publish the checkpoint, record that verification as `PENDING EXTERNAL CI` rather than as a development blocker.
-- A task whose implementation and all available checks pass may remain `IN PROGRESS (PENDING CI)` while Codex continues to the next technically safe dependent task.
-- For dependency purposes inside the same Cloud run, `IN PROGRESS (PENDING CI)` counts as provisionally satisfied when the only missing acceptance item is external macOS/GitHub CI and the implementation is otherwise complete.
-- Do not finish the Cloud response after one such task. Immediately begin the next safe task in the same milestone.
-- Continue through all safe implementation tasks in the current milestone until reaching the milestone checkpoint task.
-- At the milestone checkpoint, consolidate all pending external CI into one user/export checkpoint. Do not request `Apply locally` or publishing after each individual task.
-- If a later task can be implemented safely without the missing external verification, continue. Missing CI is only a hard stop at a checkpoint that explicitly requires it, or when a real failure result exists and must be fixed before safe continuation.
+When authoritative macOS CI cannot start solely because the included GitHub Actions quota is exhausted, apply `docs/ci_free_quota_policy.md`:
+- classify the state as `CI UNAVAILABLE — FREE QUOTA EXHAUSTED`, not as a code failure;
+- keep affected tasks/checkpoints `IN PROGRESS (PENDING CI)` rather than falsely marking them `DONE`;
+- run every available non-macOS/static/deterministic check;
+- treat implementation-complete dependencies pending only on quota-blocked CI as provisionally satisfied for scheduling;
+- continue across milestone checkpoints and into later milestones when technically safe;
+- never use this exception to bypass a real build/test failure, product ambiguity, security issue, external credential/configuration blocker, or destructive choice;
+- reconcile pending verification with one consolidated macOS CI run when free capacity becomes available again.
 
-**Cloud final-response rule:** do not produce a final summary or end the task while another safe implementation task in the current milestone is eligible. A final response is appropriate only at a genuine stop condition, the milestone checkpoint/export boundary, or a usage/tool limit.
+This no-cost exception overrides generic `dependency must be DONE` and `milestone checkpoint must stop execution` rules **only for deciding whether safe implementation may continue**. It does not change acceptance criteria or the meaning of `DONE`.
 
-The intended Cloud rhythm is:
-`implement task -> local/static verification -> checkpoint commit -> next task -> ... -> milestone checkpoint -> one export/publish/CI cycle`.
+Do not ask the user to add a payment method, buy GitHub Pro, increase an Actions budget, rent a Mac runner, or pay for another CI provider merely to continue normal development.
+
+## Codex Cloud execution
+Codex Cloud may receive a repository snapshot without writable `origin`, authenticated `gh`, or PR creation. That is expected and is not a user blocker.
+
+In Cloud:
+- make focused checkpoint commits when possible;
+- do not request PAT/`GH_TOKEN` merely to work around the sandbox;
+- if CI is unavailable, record the exact reason and continue safe implementation;
+- do not end after one task while another safe task is eligible;
+- consolidate external verification instead of asking the user to apply/publish every small task.
 
 ## Task lifecycle
 For each implementation item:
-1. Confirm dependencies are complete, or in Cloud mode confirm that any incomplete dependency is incomplete **only** because external CI is pending and continuing is technically safe.
-2. Mark it `IN PROGRESS` in `docs/implementation_plan.md` before implementation.
-3. Immediately update `docs/progress.md` with the active task, intended scope, and last known good commit/branch state.
-4. Read affected code, referenced specs, and relevant subagent instructions.
-5. Implement the smallest coherent change.
-6. Add regression/unit/UI tests where appropriate.
-7. Run all verification available in the current environment.
-8. Use macOS CI for authoritative Xcode build/test once the milestone batch is published to GitHub.
-9. Fix failures before declaring the task complete when possible.
-10. Self-review against product/UX/architecture rules and every task acceptance criterion.
-11. Mark the task `DONE` only after required acceptance/verification passes; if only external CI is unavailable in Cloud, keep it explicitly `IN PROGRESS (PENDING CI)` and continue safely without claiming completion.
-12. Update `docs/progress.md` after the task with what changed, exact verification, checkpoint state, unresolved limitations, and exact next task.
-13. Create a checkpoint commit for the task or smallest tightly coupled task set.
-14. In Cloud, immediately start the next safe task in the same milestone. Do not return control to the user merely because one task reached `PENDING CI`.
+1. Read the full task body and referenced Product/UX/Architecture sections.
+2. Check dependencies. A dependency pending **only** quota-blocked CI may be provisionally satisfied under `docs/ci_free_quota_policy.md`.
+3. Apply required agents from `agents/routing.toml`.
+4. Mark the task `IN PROGRESS` and update `docs/progress.md` before substantial edits.
+5. Implement the smallest coherent solution.
+6. Add/update required unit/UI/regression tests.
+7. Run the strongest verification available in the current environment.
+8. Self-review against every acceptance criterion, product scope, Today UX, architecture, security/privacy, and offline implications.
+9. Fix all failures that can be established in the current environment.
+10. Mark `DONE` only when required acceptance and verification actually pass. If required macOS CI is unavailable because of the free quota, keep `IN PROGRESS (PENDING CI)`.
+11. Update `docs/progress.md` with exact verification state, blockers, commit/checkpoint, and next task.
+12. Create a focused checkpoint commit.
+13. Immediately continue to the next technically safe task.
 
-## Session continuity and context-window resilience
-Chat memory is not the project state. The repository is the project state.
+## CI failure classification
+Distinguish these states:
 
-Required rules:
-- `docs/progress.md` must be current after every completed task and whenever a task becomes meaningfully `IN PROGRESS`.
-- Prefer frequent focused commits over carrying a large uncommitted multi-task diff.
-- Record the current branch, active task, last completed task, last known good commit, verification/CI state, blockers, and exact next action in `docs/progress.md`.
-- At the beginning of a fresh session, trust Git state, committed files, current CI results, `docs/implementation_plan.md`, and `docs/progress.md` over assumptions from an older conversation.
-- If chat/context is compacted, reset, lost, or appears inconsistent, do not guess. Re-read repository checkpoint files and inspect the diff/branch.
-- If a prior session stopped mid-task, finish/reconcile that `IN PROGRESS` task before taking another task.
-- Never rely on the user to notice context pressure or manually summarize the prior session.
-- When practical, if a session has become very long or repeated reasoning starts losing precision, finish the current atomic task, write a clean checkpoint, and explicitly recommend starting a fresh Codex task/session. This recommendation is advisory, not a blocker.
-- A usage-limit stop and a context/session reset are different: after a usage-limit reset, `continue` in the same coherent task is fine; after a new task/session, the same repository checkpoints allow recovery without chat history.
+### Real CI failure
+A runner starts and produces build/test steps or logs showing an actual failure. Treat this as a real engineering signal. Fix it before proceeding when the affected behavior is required for safe continuation.
+
+### CI unavailable
+A job cannot start because of exhausted included Actions quota or equivalent external runner availability. Under the no-cost policy, record it as verification pending and continue safely.
+
+Never describe quota-blocked CI as a passing test.
+
+## Session continuity
+Keep `docs/progress.md` current enough that a fresh session can resume without chat history. Record at least:
+- current branch;
+- active task;
+- last verified checkpoint;
+- implementation-complete tasks pending CI;
+- latest available verification/CI state;
+- genuine blockers;
+- exact next action.
+
+Prefer focused commits. If context becomes unreliable, finish the smallest safe atomic unit, checkpoint it, and recommend a fresh Codex task. A fresh task must recover from repository state alone.
 
 ## Branching
-- Never implement normal work directly on `main`.
-- Use `dev` for integration.
-- Prefer `feature/<short-name>` for focused work based on `dev` when normal Git publishing is available.
-- PR target is `dev`.
-- Only create `dev -> main` release PR when explicitly requested.
-
-For the initial repository bootstrap, Codex may create/repair project scaffolding directly on `dev` if no feature workflow exists yet, then move to feature branches once the Xcode project and CI are stable.
+- `main`: stable/release only.
+- `dev`: integration/default development branch.
+- Prefer `feature/*` from `dev` when useful.
+- PR target is `dev` by default.
+- `dev -> main` only when explicitly requested for release.
+- Never overwrite uncommitted user work.
 
 ## Product-change rule
-The specification is authoritative. Do not add attractive but unrequested fitness features.
+The approved specifications are authoritative. Do not add attractive but unrequested fitness features. Record ideas under `Future candidates` instead of implementing them automatically.
 
-If implementation exposes a likely product improvement, record it under `Future candidates` in `docs/progress.md`; do not implement it automatically.
+## Today rule
+Today is the protected UX surface. Preserve:
 
-## UI rule
-Today is the protected UX surface. Every addition must justify why it is needed during an active workout. Prefer hiding secondary functionality rather than surfacing more controls.
+```text
+Open app -> Today -> one tap per completed set -> close app
+```
+
+Do not add charts, stats, timers, coaching, social content, PR dashboards, calories, recommendations, or other unapproved noise.
 
 ## Windows/macOS reality
-The user's primary machine is Windows and does not have Xcode.
-- Do not claim local Xcode verification on Windows.
-- Use GitHub Actions macOS runners for real builds/tests once milestone changes are published.
-- Keep CI output actionable.
-- Once TestFlight automation exists, treat successful upload as distribution verification, not proof of UX correctness.
+The user's primary machine is Windows and has no Xcode.
+- Never claim Xcode verification on Windows/Linux.
+- Static checks there are non-authoritative.
+- Authoritative iOS build/test verification requires a real macOS/Xcode environment.
+- If GitHub-hosted macOS is quota-blocked, use verification-deferred mode rather than paid usage.
 
 ## Verification commands
-Use native Xcode/compiler diagnostics as the code-quality baseline. Do not add a formatter or linter unless it is demonstrably stable across the supported development and CI environments.
-
-Authoritative build and test verification runs on macOS with an available iPhone simulator UDID:
+Preferred authoritative macOS command:
 
 ```bash
 DESTINATION_UDID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; data=json.load(sys.stdin); devices=[device for runtime, entries in data["devices"].items() if "iOS" in runtime for device in entries if device.get("isAvailable") and device.get("name", "").startswith("iPhone")]; print(devices[0]["udid"] if devices else "")')"
@@ -115,37 +132,17 @@ test -n "$DESTINATION_UDID"
 xcodebuild -project GymChecklist.xcodeproj -scheme GymChecklist -sdk iphonesimulator -destination "platform=iOS Simulator,id=$DESTINATION_UDID" CODE_SIGNING_ALLOWED=NO test
 ```
 
-GitHub Actions uses the same `xcodebuild test` path and selects a device from the newest installed iOS runtime deterministically. Its green macOS run is authoritative.
-
-Linux/Windows environments that lack Xcode may run only non-authoritative repository checks:
+Useful non-authoritative checks when Xcode is unavailable:
 
 ```bash
 python3 -c 'import xml.etree.ElementTree as ET; ET.parse("GymChecklist.xcodeproj/xcshareddata/xcschemes/GymChecklist.xcscheme")'
 git diff --check
 ```
 
-These static checks do not prove that Swift compiles or that tests pass.
+Add deterministic source/test checks appropriate to the active task. Static checks do not prove Swift compilation or UI-test success.
 
 ## External configuration checkpoints
-When an external action is required, write exact steps into `docs/progress.md` under `USER ACTION REQUIRED`, including:
-- where to click,
-- what value to create/select,
-- what secret name to add to GitHub,
-- how Codex will verify it afterward.
-
-Keep these asks consolidated. Avoid asking the user to perform one small console action at a time when several can be batched.
-
-## Pull request quality
-PR description should include:
-- task/milestone,
-- summary,
-- key files,
-- behavior confirmation,
-- tests/CI run,
-- offline impact,
-- security/privacy impact,
-- known limitations,
-- next planned task.
+When real external action is required, batch it in `docs/progress.md` under `USER ACTION REQUIRED` with exact steps, values/secrets, and follow-up verification. Avoid piecemeal interruptions.
 
 ## Progress continuity
-`docs/progress.md` is mandatory and must be kept current enough that a fresh Codex session with no chat history can resume safely from repository state alone.
+`docs/progress.md` is mandatory. `docs/implementation_plan.md` remains the ordered backlog and its acceptance criteria must not be weakened merely because CI is temporarily unavailable.

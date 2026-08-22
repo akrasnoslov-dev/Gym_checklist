@@ -106,9 +106,10 @@ struct TodayView: View {
 
     private func exerciseSection(_ exercise: WorkoutExercise) -> some View {
         let sets = orderedSets(in: exercise)
+        let exerciseName = viewModel.exerciseName(for: exercise)
 
         VStack(alignment: .leading, spacing: 8) {
-            Text(viewModel.exerciseName(for: exercise))
+            Text(exerciseName)
                 .font(.headline)
                 .contextMenu {
                     Button("Skip exercise", role: .destructive) {
@@ -117,7 +118,7 @@ struct TodayView: View {
                 }
 
             VStack(spacing: 0) {
-                ForEach(sets) { set in
+                ForEach(Array(sets.enumerated()), id: \.element.id) { index, set in
                     Button {
                         toggleCompletion(for: set, in: exercise)
                     } label: {
@@ -125,7 +126,9 @@ struct TodayView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("todaySet-\(set.id.rawValue.uuidString)")
+                    .accessibilityLabel("\(exerciseName), set \(index + 1): \(setDescription(for: set))")
                     .accessibilityValue(set.isCompleted ? "Completed" : "Incomplete")
+                    .accessibilityHint("Double tap to toggle completion. Long press to edit.")
                     .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
                         editorRoute = TodaySetEditorRoute(exercise: exercise, set: set)
                     })
@@ -145,6 +148,7 @@ struct TodayView: View {
                 .foregroundStyle(set.isCompleted ? Color.accentColor : Color.secondary)
             Text(setDescription(for: set))
                 .font(.body)
+                .multilineTextAlignment(.leading)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)

@@ -4,7 +4,12 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.7` — Implement workout completion popup (`IN PROGRESS (PENDING CI)`).
+`M3.8` — Add Today accessibility and interaction identifiers (`IN PROGRESS`).
+
+M3.8 has started. It will audit and complete VoiceOver labels, semantic state,
+touch targets, Dynamic Type resilience, and stable critical UI identifiers on
+Today. M3.7 remains implementation-complete and `IN PROGRESS (PENDING CI)`
+solely for authoritative macOS verification.
 
 M3.7 is implementation-complete and pending only authoritative macOS
 verification:
@@ -275,9 +280,9 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Start M3.8. Read the full task plus Product/UX/Architecture references,
-implement the Today accessibility and interaction identifier checkpoint, and
-continue safe M3 work under the no-cost CI policy.
+Implement M3.8 Today accessibility and interaction identifiers, add focused
+coverage, obtain required reviews, and continue safe M3 work under the
+no-cost CI policy.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

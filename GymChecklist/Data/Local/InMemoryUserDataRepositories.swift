@@ -51,9 +51,11 @@ final class InMemoryCustomExerciseRepository: CustomExerciseRepository {
     deinit { cancel() }
 }
 
+@MainActor
 final class InMemoryUserSettingsRepository: UserSettingsRepository {
     let userID: UserID
     private var storage: UserSettings
+    private var observers: [UUID: @MainActor (UserSettings) -> Void] = [:]
 
     init(userID: UserID, settings: UserSettings? = nil) {
         self.userID = userID
@@ -64,8 +66,27 @@ final class InMemoryUserSettingsRepository: UserSettingsRepository {
 
     var settings: UserSettings { storage }
 
+    func observeSettings(_ observer: @escaping @MainActor (UserSettings) -> Void) -> UserSettingsObservation {
+        let id = UUID()
+        observers[id] = observer
+        observer(settings)
+        return InMemoryUserSettingsObservation { [weak self] in
+            self?.observers.removeValue(forKey: id)
+        }
+    }
+
     func save(_ settings: UserSettings) throws {
         guard settings.userID == userID else { throw UserSettingsRepositoryError.ownerMismatch }
         storage = settings
+        publish()
     }
+
+    private func publish() { observers.values.forEach { $0(settings) } }
+}
+
+@MainActor private final class InMemoryUserSettingsObservation: UserSettingsObservation {
+    private var handler: (() -> Void)?
+    init(_ handler: @escaping () -> Void) { self.handler = handler }
+    func cancel() { handler?(); handler = nil }
+    deinit { cancel() }
 }

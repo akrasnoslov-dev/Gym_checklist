@@ -71,9 +71,18 @@ enum UserSettingsRepositoryError: Error, Equatable {
     case ownerMismatch
 }
 
+@MainActor
+protocol UserSettingsObservation: AnyObject {
+    func cancel()
+}
+
+@MainActor
 protocol UserSettingsRepository: AnyObject {
     var userID: UserID { get }
     var settings: UserSettings { get }
 
+    /// Registers a main-actor consumer for cached and subsequently synced
+    /// settings. The returned observation owns its cancellation lifecycle.
+    func observeSettings(_ observer: @escaping @MainActor (UserSettings) -> Void) -> UserSettingsObservation
     func save(_ settings: UserSettings) throws
 }

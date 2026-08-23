@@ -4,7 +4,7 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M4.5` — Implement Firestore UserSettings persistence (`IN PROGRESS`).
+`M4.7` — Implement Firestore Security Rules (`IN PROGRESS`).
 
 M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
 authoritative macOS verification. M4.1 is implementation-complete except for
@@ -77,6 +77,21 @@ Required M4.4 reviews completed with no unresolved implementation findings
 from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
 The security review reconfirmed that M4.7 must prevent cross-user access;
 client-side owner paths are not treated as authorization.
+
+M4.5 is implementation-complete and `IN PROGRESS (PENDING CI/RULES)` for
+scheduling purposes. `FirestoreUserSettingsRepository` derives its owner from
+Firebase Auth, reads the cached `users/{uid}/settings/default` document with a
+snapshot listener, starts from the approved System/kg defaults when no cached
+document is present, and publishes optimistic local saves before Firestore
+acknowledgement. Settings mapping persists only appearance and weight-unit
+values. App-level Firebase composition remains deferred until M5 authentication
+owns repository lifetimes. Live data access remains unverified until M4.7
+owner-only rules and macOS CI.
+
+Required M4.5 reviews completed with no unresolved implementation findings
+from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
+M4.7 is deliberately brought forward now that every currently defined
+user-owned document shape is known.
 
 M3.9 is implementation-complete and pending only authoritative macOS CI:
 - Today now refreshes its concrete local date on foreground activation and
@@ -452,6 +467,21 @@ build or test failure.
   live owner-isolation validation remain pending free GitHub Actions capacity
   and M4.7 Security Rules.
 
+## Latest M4.5 verification
+- `git diff --check`: PASS.
+- Deterministic repository, mapping, and Xcode-project source checks: PASS
+  (canonical settings path, Auth-derived owner validation, default settings,
+  cache listener, optimistic writes, cancellable observation, mapping fields,
+  Firebase import boundary, and app-target source references).
+- Focused XCTest source coverage: defaults, owner rejection, immediate settings
+  snapshot publication, and observation cancellation.
+- Required M4.5 reviews: PASS with no unresolved implementation findings from
+  `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
+- Swift and Xcode toolchains are unavailable on the Windows host. Authoritative
+  macOS build, unit/UI tests, Firestore cache-after-restart validation, and
+  live owner-isolation validation remain pending free GitHub Actions capacity
+  and M4.7 Security Rules.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -463,8 +493,8 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Implement M4.5 Firestore UserSettings persistence, then bring M4.7 Firestore
-Security Rules forward before further live-data claims. Do not claim live
+Implement M4.7 Firestore Security Rules and owner-isolation validation for the
+actual workout, custom-exercise, and settings schemas. Do not claim live
 Firestore verification until rules and macOS CI pass.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.

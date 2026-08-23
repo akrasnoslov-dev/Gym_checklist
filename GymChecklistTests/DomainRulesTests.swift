@@ -300,6 +300,22 @@ final class UserDataRepositoryTests: XCTestCase {
         XCTAssertEqual(recorder.snapshots, [[], [custom]])
     }
 
+    func testInMemorySettingsUseDefaultsPublishOptimisticallyAndCancel() throws {
+        let owner = UserID(rawValue: "owner")
+        let repository = InMemoryUserSettingsRepository(userID: owner)
+        let recorder = SettingsSnapshotRecorder()
+        let observation = repository.observeSettings { recorder.snapshots.append($0) }
+        let updated = UserSettings(userID: owner, appearance: .dark, weightUnit: .pounds)
+
+        XCTAssertEqual(repository.settings, UserSettings(userID: owner))
+        try repository.save(updated)
+        XCTAssertEqual(recorder.snapshots, [UserSettings(userID: owner), updated])
+
+        observation.cancel()
+        try repository.save(UserSettings(userID: owner, appearance: .light, weightUnit: .kilograms))
+        XCTAssertEqual(recorder.snapshots, [UserSettings(userID: owner), updated])
+    }
+
     func testWorkoutViewModelCombinesBundledAndPersistedCustomExercises() throws {
         let userID = UserID(rawValue: "owner")
         let workouts = InMemoryWorkoutRepository(userID: userID)
@@ -332,6 +348,10 @@ private final class SnapshotRecorder {
 
 private final class CustomExerciseSnapshotRecorder {
     var snapshots: [[Exercise]] = []
+}
+
+private final class SettingsSnapshotRecorder {
+    var snapshots: [UserSettings] = []
 }
 
 final class SystemExerciseCatalogTests: XCTestCase {

@@ -4,7 +4,7 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M4.7` — Implement Firestore Security Rules (`IN PROGRESS`).
+`M4.8` — Firebase/offline checkpoint (`IN PROGRESS`).
 
 M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
 authoritative macOS verification. M4.1 is implementation-complete except for
@@ -102,6 +102,23 @@ cannot run here; deploy/validation remains required before live-data claims.
 
 Required M4.7 reviews completed with no unresolved implementation findings
 from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
+
+M4.6 is implementation-complete and `IN PROGRESS (PENDING M5/LIVE/CI)` for
+scheduling purposes. The workout repository now publishes local creation before
+queueing its Firestore write, matching its existing save/delete local-first
+ordering. `docs/offline_test_plan.md` specifies cache priming, airplane-mode
+Today/Program operations, reconnect/identity checks, rejected-write
+reconciliation, and the required offline logout-to-other-user privacy scenario.
+`scripts/verify_offline_contract.ps1` verifies the documented contract and
+prevents a manual Today Sync control. Live acceptance cannot run until M5
+authenticates and composes Firestore repositories, and until an emulator or
+non-production Firebase project is available.
+
+Required M4.6 reviews completed with no unresolved implementation findings
+from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
+The security review identified repository teardown/recreation on auth changes
+as a mandatory M5 privacy requirement; it is recorded in the offline plan and
+must not be deferred past authentication composition.
 
 M3.9 is implementation-complete and pending only authoritative macOS CI:
 - Today now refreshes its concrete local date on foreground activation and
@@ -506,6 +523,17 @@ build or test failure.
   required before live Firestore behavior is claimed; macOS CI also remains
   pending free GitHub Actions capacity.
 
+## Latest M4.6 verification
+- `git diff --check`: PASS.
+- `scripts/verify_offline_contract.ps1`: PASS (listener, local snapshot before
+  queued create/save/delete persistence, canonical date-key path, required
+  airplane/reconnect plan sections, and no Today Sync control).
+- Required M4.6 reviews: PASS with no unresolved implementation findings from
+  `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
+- Firestore-backed UI execution is pending M5 authentication composition plus
+  an emulator/non-production Firebase project; macOS CI remains pending free
+  GitHub Actions capacity. No live offline/reconnect claim is made.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -517,9 +545,10 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Implement M4.6 offline/reconnect verification plan and deterministic coverage.
-Keep M4.7 pending deployment and two-user emulator/non-production validation;
-do not claim live Firestore verification until it and macOS CI pass.
+Perform M4.8 Firebase/offline checkpoint reviews against M4.3–M4.7. Keep M4.6
+pending M5/live verification and M4.7 pending deployment plus two-user
+emulator/non-production validation; do not claim live Firestore verification
+until those and macOS CI pass.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

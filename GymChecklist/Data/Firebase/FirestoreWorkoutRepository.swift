@@ -63,8 +63,8 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         if let existing = workout(on: date) { return .existing(existing) }
         let workout = Workout(userID: userID, localDate: date, exercises: [], createdAt: timestamp, updatedAt: timestamp)
         workouts.append(workout)
-        persist(workout)
         publish()
+        persist(workout)
         return .created(workout)
     }
 

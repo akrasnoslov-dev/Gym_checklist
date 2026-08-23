@@ -50,10 +50,19 @@ enum CustomExerciseRepositoryError: Error, Equatable {
     case identityConflict
 }
 
+@MainActor
+protocol CustomExerciseObservation: AnyObject {
+    func cancel()
+}
+
+@MainActor
 protocol CustomExerciseRepository: AnyObject {
     var userID: UserID { get }
     var customExercises: [Exercise] { get }
 
+    /// Registers a main-actor consumer for cached and subsequently synced
+    /// custom exercises. The returned observation owns its cancellation.
+    func observeCustomExercises(_ observer: @escaping @MainActor ([Exercise]) -> Void) -> CustomExerciseObservation
     func save(_ exercise: Exercise) throws
     func deleteCustomExercise(id: ExerciseID) throws
 }

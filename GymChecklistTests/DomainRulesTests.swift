@@ -240,6 +240,10 @@ final class FirestoreMappingTests: XCTestCase {
         let exercise = Exercise(id: ExerciseID(), name: "Cable Press", category: "Chest", isSystem: false, createdByUserID: userID)
         XCTAssertEqual(try FirestoreCustomExerciseDocument(exercise: exercise).exercise(userID: userID), exercise)
         XCTAssertThrowsError(try FirestoreCustomExerciseDocument(exercise: SystemExerciseCatalog.all[0]))
+        XCTAssertEqual(
+            FirestoreDocumentPath.customExercise(userID: userID, exerciseID: exercise.id),
+            "users/user-a/customExercises/\(exercise.id.rawValue.uuidString)"
+        )
 
         let settings = UserSettings(userID: userID, appearance: .dark, weightUnit: .pounds)
         XCTAssertEqual(FirestoreUserSettingsDocument(settings: settings).settings(userID: userID), settings)
@@ -271,15 +275,63 @@ final class UserDataRepositoryTests: XCTestCase {
         try exercises.save(custom)
         XCTAssertEqual(exercises.customExercises, [custom])
         XCTAssertThrowsError(try exercises.save(Exercise(id: ExerciseID(), name: "Other", category: nil, isSystem: false, createdByUserID: other)))
+        let systemExercise = Exercise(id: ExerciseID(), name: "System", category: nil, isSystem: true, createdByUserID: owner)
+        XCTAssertThrowsError(try exercises.save(systemExercise)) { error in
+            XCTAssertEqual(error as? CustomExerciseRepositoryError, .systemExerciseCannotBePersisted)
+        }
 
         let settings = InMemoryUserSettingsRepository(userID: owner)
         try settings.save(UserSettings(userID: owner, appearance: .light, weightUnit: .kilograms))
         XCTAssertThrowsError(try settings.save(UserSettings(userID: other)))
     }
+
+    func testInMemoryCustomExerciseRepositoryPublishesCachedSnapshotsAndCancels() throws {
+        let owner = UserID(rawValue: "owner")
+        let repository = InMemoryCustomExerciseRepository(userID: owner)
+        let recorder = CustomExerciseSnapshotRecorder()
+        let observation = repository.observeCustomExercises { recorder.snapshots.append($0) }
+        let custom = Exercise(id: ExerciseID(), name: "Sled Push", category: nil, isSystem: false, createdByUserID: owner)
+
+        try repository.save(custom)
+        XCTAssertEqual(recorder.snapshots, [[], [custom]])
+
+        observation.cancel()
+        try repository.deleteCustomExercise(id: custom.id)
+        XCTAssertEqual(recorder.snapshots, [[], [custom]])
+    }
+
+    func testWorkoutViewModelCombinesBundledAndPersistedCustomExercises() throws {
+        let userID = UserID(rawValue: "owner")
+        let workouts = InMemoryWorkoutRepository(userID: userID)
+        let customExercises = InMemoryCustomExerciseRepository(userID: userID)
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let viewModel = WorkoutViewModel(
+            repository: workouts,
+            initialDate: date,
+            currentDate: date,
+            customExerciseRepository: customExercises
+        )
+
+        let created = try viewModel.createCustomExercise(name: "  Bench   Anchor ")
+        XCTAssertEqual(customExercises.customExercises, [created])
+        XCTAssertEqual(viewModel.searchExercises("bench").map(\.name), ["Bench Press", "Close-Grip Bench Press", "Bench Anchor"])
+
+        let restoredSession = WorkoutViewModel(
+            repository: workouts,
+            initialDate: date,
+            currentDate: date,
+            customExerciseRepository: customExercises
+        )
+        XCTAssertEqual(restoredSession.searchExercises("anchor"), [created])
+    }
 }
 
 private final class SnapshotRecorder {
     var snapshots: [[Workout]] = []
+}
+
+private final class CustomExerciseSnapshotRecorder {
+    var snapshots: [[Exercise]] = []
 }
 
 final class SystemExerciseCatalogTests: XCTestCase {

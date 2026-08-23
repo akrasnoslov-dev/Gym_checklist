@@ -4,7 +4,7 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M4.3` — Implement Firestore workout persistence (`IN PROGRESS`).
+`M4.5` — Implement Firestore UserSettings persistence (`IN PROGRESS`).
 
 M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
 authoritative macOS verification. M4.1 is implementation-complete except for
@@ -57,6 +57,26 @@ acknowledgement, and observes/reconciles snapshots on the main actor. It is not
 yet app-composed because M5 authentication routing does not exist. Live writes
 remain intentionally unverified: the production-mode database denies access
 until owner-only rules are added in M4.7.
+
+M4.3 is implementation-complete and `IN PROGRESS (PENDING CI/RULES)` for
+scheduling purposes. M4.4 may proceed: system exercises remain bundled locally
+and user-created exercises will use the separately owner-scoped collection.
+
+M4.4 is implementation-complete and `IN PROGRESS (PENDING CI/RULES)` for
+scheduling purposes. `FirestoreCustomExerciseRepository` derives its owner
+only from Firebase Auth and observes `users/{uid}/customExercises`; it applies
+cache-first local save/delete mutations and reconciles Firestore snapshots.
+The shared custom-exercise contract now has main-actor cancellable snapshot
+delivery, and `WorkoutViewModel` merges those custom snapshots with the bundled
+system catalog for search and persists newly created custom exercises through
+the injected repository. App-level Firebase composition remains correctly
+deferred until M5 authentication owns the repository session lifetime. Live
+data access remains unverified until M4.7 owner-only rules and macOS CI.
+
+Required M4.4 reviews completed with no unresolved implementation findings
+from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
+The security review reconfirmed that M4.7 must prevent cross-user access;
+client-side owner paths are not treated as authorization.
 
 M3.9 is implementation-complete and pending only authoritative macOS CI:
 - Today now refreshes its concrete local date on foreground activation and
@@ -416,6 +436,22 @@ build or test failure.
 - Xcode/macOS build, unit tests, and UI tests: pending available free GitHub
   Actions capacity.
 
+## Latest M4.4 verification
+- `git diff --check`: PASS.
+- Deterministic repository, view-model, mapping, and Xcode-project source
+  checks: PASS (owner-scoped custom path, system-exercise rejection, immediate
+  cancellable cache snapshots, app-facing combined search, custom-create
+  persistence wiring, and app-target source references).
+- Focused XCTest source coverage: custom snapshot publication/cancellation,
+  owner/system rejection, canonical path mapping, and a fresh view-model
+  rebuilding combined system/custom search from the cached repository snapshot.
+- Required M4.4 reviews: PASS with no unresolved implementation findings from
+  `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
+- Swift and Xcode toolchains are unavailable on the Windows host. Authoritative
+  macOS build, unit/UI tests, Firestore cache-after-restart validation, and
+  live owner-isolation validation remain pending free GitHub Actions capacity
+  and M4.7 Security Rules.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -427,10 +463,9 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Finish M4.3 deterministic fake-backed tests and resolve Firestore adapter
-review findings, then implement M4.4 custom-exercise persistence when M4.3 is
-implementation-complete. Do not claim live Firestore verification until M4.7
-owner-only rules are in place.
+Implement M4.5 Firestore UserSettings persistence, then bring M4.7 Firestore
+Security Rules forward before further live-data claims. Do not claim live
+Firestore verification until rules and macOS CI pass.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

@@ -30,11 +30,13 @@ final class WorkoutViewModel: ObservableObject {
     @Published private(set) var currentDate: LocalDate
     let calendar: Calendar
     private let repository: WorkoutRepository
+    private let customExerciseRepository: CustomExerciseRepository?
     private let now: () -> Date
     private let currentDateProvider: () -> LocalDate
     private let makeWorkoutExerciseID: () -> WorkoutExerciseID
     private let makeWorkoutSetID: () -> WorkoutSetID
     private var workoutObservation: WorkoutObservation?
+    private var customExerciseObservation: CustomExerciseObservation?
 
     init(
         repository: WorkoutRepository,
@@ -42,18 +44,24 @@ final class WorkoutViewModel: ObservableObject {
         currentDate: LocalDate,
         calendar: Calendar = .autoupdatingCurrent,
         exerciseLibrary: LocalExerciseLibrary? = nil,
+        customExerciseRepository: CustomExerciseRepository? = nil,
         now: @escaping () -> Date = Date.init,
         currentDateProvider: (() -> LocalDate)? = nil,
         makeWorkoutExerciseID: @escaping () -> WorkoutExerciseID = { WorkoutExerciseID() },
         makeWorkoutSetID: @escaping () -> WorkoutSetID = { WorkoutSetID() }
     ) {
-        let library = exerciseLibrary ?? LocalExerciseLibrary(userID: repository.userID)
+        var library = exerciseLibrary ?? LocalExerciseLibrary(userID: repository.userID)
         precondition(
             repository.workouts.allSatisfy { $0.userID == repository.userID },
             "Workout repository returned another user's data"
         )
         precondition(library.userID == repository.userID, "Exercise library owner must match workout owner")
+        if let customExerciseRepository {
+            precondition(customExerciseRepository.userID == repository.userID, "Custom exercise repository owner must match workout owner")
+            library.replaceCustomExercises(customExerciseRepository.customExercises)
+        }
         self.repository = repository
+        self.customExerciseRepository = customExerciseRepository
         self.selectedDate = initialDate
         self.currentDate = currentDate
         self.calendar = calendar
@@ -65,6 +73,14 @@ final class WorkoutViewModel: ObservableObject {
         self.workouts = repository.workouts
         self.workoutObservation = repository.observeWorkouts { [weak self] workouts in
             self?.workouts = workouts
+        }
+        if let customExerciseRepository {
+            self.customExerciseObservation = customExerciseRepository.observeCustomExercises { [weak self] exercises in
+                guard let self else { return }
+                var library = self.exerciseLibrary
+                library.replaceCustomExercises(exercises)
+                self.exerciseLibrary = library
+            }
         }
     }
 
@@ -213,6 +229,9 @@ final class WorkoutViewModel: ObservableObject {
     func createCustomExercise(name: String) throws -> Exercise {
         var library = exerciseLibrary
         let result = try library.createCustomExercise(name: name)
+        if result.wasCreated {
+            try customExerciseRepository?.save(result.exercise)
+        }
         exerciseLibrary = library
         return result.exercise
     }

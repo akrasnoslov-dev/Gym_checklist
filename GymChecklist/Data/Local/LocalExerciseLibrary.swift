@@ -34,6 +34,14 @@ struct LocalExerciseLibrary {
         SystemExerciseCatalog.all + customExercises
     }
 
+    mutating func replaceCustomExercises(_ exercises: [Exercise]) {
+        precondition(exercises.allSatisfy { !$0.isSystem && $0.createdByUserID == userID })
+        customExercises = exercises.sorted {
+            if $0.name != $1.name { return $0.name < $1.name }
+            return $0.id.rawValue.uuidString < $1.id.rawValue.uuidString
+        }
+    }
+
     mutating func createCustomExercise(
         name: String,
         category: String? = nil

@@ -1,15 +1,29 @@
 import Foundation
 
+@MainActor
 final class InMemoryCustomExerciseRepository: CustomExerciseRepository {
     let userID: UserID
     private var storage: [ExerciseID: Exercise] = [:]
+    private var observers: [UUID: @MainActor ([Exercise]) -> Void] = [:]
 
     init(userID: UserID) {
         self.userID = userID
     }
 
     var customExercises: [Exercise] {
-        storage.values.sorted { $0.id.rawValue.uuidString < $1.id.rawValue.uuidString }
+        storage.values.sorted {
+            if $0.name != $1.name { return $0.name < $1.name }
+            return $0.id.rawValue.uuidString < $1.id.rawValue.uuidString
+        }
+    }
+
+    func observeCustomExercises(_ observer: @escaping @MainActor ([Exercise]) -> Void) -> CustomExerciseObservation {
+        let id = UUID()
+        observers[id] = observer
+        observer(customExercises)
+        return InMemoryCustomExerciseObservation { [weak self] in
+            self?.observers.removeValue(forKey: id)
+        }
     }
 
     func save(_ exercise: Exercise) throws {
@@ -19,11 +33,22 @@ final class InMemoryCustomExerciseRepository: CustomExerciseRepository {
             throw CustomExerciseRepositoryError.identityConflict
         }
         storage[exercise.id] = exercise
+        publish()
     }
 
     func deleteCustomExercise(id: ExerciseID) throws {
         storage.removeValue(forKey: id)
+        publish()
     }
+
+    private func publish() { observers.values.forEach { $0(customExercises) } }
+}
+
+@MainActor private final class InMemoryCustomExerciseObservation: CustomExerciseObservation {
+    private var handler: (() -> Void)?
+    init(_ handler: @escaping () -> Void) { self.handler = handler }
+    func cancel() { handler?(); handler = nil }
+    deinit { cancel() }
 }
 
 final class InMemoryUserSettingsRepository: UserSettingsRepository {

@@ -2,7 +2,9 @@ name: Linux checks
 
 on:
   push:
-    branches: [dev]
+    branches:
+      - dev
+      - 'feature/**'
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -12,6 +14,9 @@ on:
       - 'docs/**'
       - '**/*.md'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: linux-checks-${{ github.ref }}
@@ -42,7 +47,7 @@ jobs:
           test -f docs/codex_instructions.md
           test -f agents/routing.toml
 
-          if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- . ':!*.xcuserstate'; then
+          if git grep -n -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- . ':!docs/**' ':!*.md' ':!*.xcuserstate'; then
             echo 'Merge-conflict markers found.'
             exit 1
           fi

@@ -19,8 +19,9 @@ dSYM upload are deliberately deferred to M7.1/M7.2.
    returns a clear development failure until a valid plist is present; XCTest
    and UI-test processes intentionally bypass configuration so CI never needs a
    real plist. No Firebase services are used by the local/mock workout flow yet.
-5. Before M4.3/M4.7 verification, create owner-scoped Firestore rules and use
-   a non-production Firebase project for development and CI.
+5. Before live Firestore verification, deploy `firestore.rules` as documented
+   in `docs/firestore_security.md`, then validate owner isolation with two
+   non-production test users. Do not use Firestore test mode.
 
 `GoogleService-Info.plist` contains project identifiers rather than a service
 account key, but it remains local to avoid publishing project configuration.

@@ -121,15 +121,15 @@ Custom exercises are user-owned cloud data and should remain locally cached afte
 A practical starting point:
 
 ```text
-users/{userId}
 users/{userId}/settings/default
-users/{userId}/workouts/{workoutId}
-users/{userId}/workouts/{workoutId}/exercises/{workoutExerciseId}
-users/{userId}/workouts/{workoutId}/exercises/{workoutExerciseId}/sets/{setId}
+users/{userId}/workouts/{yyyy-MM-dd}
 users/{userId}/customExercises/{exerciseId}
 ```
 
-Codex may refine nesting if query constraints justify it, but changes must preserve owner isolation, offline behavior, and simple per-date reads.
+Each workout date document contains its ordered exercise/set aggregate. This
+refinement preserves simple per-date reads and Firestore cache behavior without
+requiring independent exercise/set writes. Changes must preserve owner
+isolation, offline behavior, and the local-date uniqueness invariant.
 
 ## 10. Security
 - Firebase Auth UID is the user ownership boundary.

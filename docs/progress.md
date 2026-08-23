@@ -91,7 +91,17 @@ owner-only rules and macOS CI.
 Required M4.5 reviews completed with no unresolved implementation findings
 from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
 M4.7 is deliberately brought forward now that every currently defined
-user-owned document shape is known.
+user-owned document shape is known. It is implementation-complete and
+`IN PROGRESS (PENDING DEPLOYMENT/EMULATOR/CI)`: the checked-in least-privilege
+rules cover only date-keyed workout aggregates, custom exercises, and the
+fixed settings document. The old illustrative nested workout shape was updated
+to the actual embedded aggregate schema. `firebase.json`, deployment guidance,
+and a dependency-free static rule contract check are present. This Windows host
+does not have the Firebase CLI or Java, so owner-isolation emulator execution
+cannot run here; deploy/validation remains required before live-data claims.
+
+Required M4.7 reviews completed with no unresolved implementation findings
+from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
 
 M3.9 is implementation-complete and pending only authoritative macOS CI:
 - Today now refreshes its concrete local date on foreground activation and
@@ -482,6 +492,20 @@ build or test failure.
   live owner-isolation validation remain pending free GitHub Actions capacity
   and M4.7 Security Rules.
 
+## Latest M4.7 verification
+- `git diff --check`: PASS.
+- `scripts/verify_firestore_rules.ps1`: PASS.
+- Deterministic rule/config checks: PASS (rules version 2, authenticated UID
+  predicate, exact workout/custom/settings paths, fixed settings document,
+  no broad recursive or unconditional allow, and `firebase.json` rule mapping).
+- Required M4.7 reviews: PASS with no unresolved implementation findings from
+  `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
+- Firebase CLI and Java are unavailable on the Windows host, so emulator rules
+  tests cannot run. Deployment to the configured non-production Firebase
+  project and two-user emulator/non-production owner-isolation validation are
+  required before live Firestore behavior is claimed; macOS CI also remains
+  pending free GitHub Actions capacity.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -493,9 +517,9 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Implement M4.7 Firestore Security Rules and owner-isolation validation for the
-actual workout, custom-exercise, and settings schemas. Do not claim live
-Firestore verification until rules and macOS CI pass.
+Implement M4.6 offline/reconnect verification plan and deterministic coverage.
+Keep M4.7 pending deployment and two-user emulator/non-production validation;
+do not claim live Firestore verification until it and macOS CI pass.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

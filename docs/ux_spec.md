@@ -17,6 +17,9 @@ I already know my program. Show me today's work and let me tick it off.
 - High information clarity with low visual density.
 - Purple accent is acceptable as the current concept direction, but color is secondary to hierarchy and readability.
 
+### Reference mockup status
+`today-program-mockup.png` is a non-authoritative visual reference. If it conflicts with this specification, this specification wins. In particular, any `Delete set` action shown in the Today long-press editor is obsolete: set deletion belongs to Program editing only and must not be exposed as a Today long-press action unless explicitly approved later.
+
 ## 3. Today — highest priority screen
 ### Content hierarchy
 1. `Today`

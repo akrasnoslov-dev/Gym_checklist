@@ -4,15 +4,29 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M4.1` — Add Firebase dependencies and safe configuration hooks (`IN PROGRESS`).
+`M4.1` — Add Firebase dependencies and safe configuration hooks (`IN PROGRESS (PENDING CI)`).
 
 M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
-authoritative macOS verification. M4.1 has started under the no-cost CI
-continuation policy. Its first safe checkpoint adds a configuration bootstrap:
-outside XCTest it fails Debug launches with a fixed missing-plist message, and
-XCTest deliberately bypasses initialization so config-free local/UI test runs
-remain possible. The official Firebase Apple SDK package linkage and lockfile
-are the next M4.1 step; no Firebase console output is committed.
+authoritative macOS verification. M4.1 is implementation-complete except for
+authoritative macOS resolution/build verification, and therefore remains
+`IN PROGRESS (PENDING CI)` under the no-cost CI continuation policy. It:
+- pins the official Firebase Apple SDK at exact version `11.15.0`, compatible
+  with the project’s Xcode-16-era configuration;
+- links FirebaseCore, FirebaseAuth, and FirebaseFirestore only. Analytics and
+  Crashlytics runtime linkage/collection are deferred to M7.1/M7.2;
+- validates the local plist before configuration, fails ordinary Debug launches
+  with fixed setup guidance, and allows only XCTest/UI-test processes to launch
+  config-free;
+- keeps all `GoogleService-Info*.plist` variants ignored, documents Firestore
+  production-mode setup, and makes macOS CI resolve SwiftPM before tests.
+
+The full transitive `Package.resolved` lockfile is intentionally not
+hand-authored on Windows. Xcode’s resolver must generate and commit it before
+the CI lockfile-diff check can enforce it. No Firebase console setup or
+cloud-data behavior is claimed.
+
+Required M4.1 reviews completed with no blocking findings from
+`firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
 
 M3.9 is implementation-complete and pending only authoritative macOS CI:
 - Today now refreshes its concrete local date on foreground activation and
@@ -348,6 +362,19 @@ build or test failure.
 - Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
   authoritative GitHub Actions verification remains pending free quota.
 
+## Latest M4.1 verification
+- `git diff --check`: PASS.
+- Deterministic integration checks: PASS (official Firebase URL, exact 11.15.0
+  requirement, Core/Auth/Firestore app linkage, no premature Analytics or
+  Crashlytics linkage, config-free XCTest detection, and no tracked Firebase
+  configuration/signing material).
+- CI workflow source review: PASS (package resolution precedes simulator test
+  and uses the same temporary source-package directory).
+- Local XML/YAML parser verification is unavailable because no usable Python
+  runtime is installed on this Windows host.
+- Xcode/macOS dependency resolution, generated `Package.resolved`, build,
+  unit tests, and UI tests: pending available free GitHub Actions capacity.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -359,11 +386,10 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Finish M4.1 by adding the pinned official Firebase Apple SDK SwiftPM package
-and committed resolution lockfile, then extend CI to resolve dependencies
-before its simulator test. M3.9 and earlier pending checkpoints are
-provisionally satisfied for scheduling only under
-`docs/ci_free_quota_policy.md`; do not claim their CI passed.
+Begin M4.2 — define domain-facing repository protocols and Firestore mapping
+types without letting Firestore query code reach SwiftUI views. M4.1 and
+earlier pending checkpoints are provisionally satisfied for scheduling only
+under `docs/ci_free_quota_policy.md`; do not claim their CI passed.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

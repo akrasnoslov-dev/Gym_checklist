@@ -192,6 +192,14 @@ final class WorkoutCompletionTriggerTests: XCTestCase {
     }
 }
 
+final class FirebaseBootstrapTests: XCTestCase {
+    func testTestProcessDetectionAllowsConfigFreeXCTestLaunches() {
+        XCTAssertTrue(FirebaseBootstrap.isRunningTests(environment: ["XCTestConfigurationFilePath": "/tmp/test.xctest"]))
+        XCTAssertTrue(FirebaseBootstrap.isRunningTests(environment: ["UITESTING": "1"]))
+        XCTAssertFalse(FirebaseBootstrap.isRunningTests(environment: [:]))
+    }
+}
+
 final class SystemExerciseCatalogTests: XCTestCase {
     func testCatalogCoversApprovedCategoriesWithStableSystemExercises() throws {
         let exercises = SystemExerciseCatalog.all

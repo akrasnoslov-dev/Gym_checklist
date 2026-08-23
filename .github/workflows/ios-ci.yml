@@ -70,10 +70,20 @@ jobs:
           PY
           )
           echo "Using simulator UDID: $DESTINATION_UDID"
+          PACKAGE_DIRECTORY="$RUNNER_TEMP/SourcePackages"
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY"
+          if [ -f "GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" ]; then
+            git diff --exit-code -- GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          fi
           xcodebuild \
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -sdk iphonesimulator \
             -destination "platform=iOS Simulator,id=$DESTINATION_UDID" \
+            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY" \
             CODE_SIGNING_ALLOWED=NO \
             test

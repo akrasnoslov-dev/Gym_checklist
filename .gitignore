@@ -21,7 +21,7 @@ build/
 .env
 .env.*
 !.env.example
-GoogleService-Info.plist
+GoogleService-Info*.plist
 *.p12
 *.mobileprovision
 AuthKey_*.p8

@@ -5,8 +5,7 @@ struct GymChecklistApp: App {
     init() {
         let status = FirebaseBootstrap.configureIfAvailable()
 #if DEBUG
-        if status == .missingConfiguration,
-           ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+        if status != .configured, !FirebaseBootstrap.isRunningTests() {
             preconditionFailure("Firebase requires GoogleService-Info.plist. See docs/firebase_setup.md.")
         }
 #endif

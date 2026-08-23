@@ -1,10 +1,10 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current milestone
-Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
+Milestone 5 - Authentication implementation may proceed while earlier checkpoints remain pending authoritative macOS/live verification.
 
 ## Active task
-`M4.8` — Firebase/offline checkpoint (`IN PROGRESS — CHECKPOINT COMMIT PENDING`).
+`M5.1` - Email/password registration (`TODO`).
 
 M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
 authoritative macOS verification. M4.1 is implementation-complete except for
@@ -576,20 +576,14 @@ None for the current implementation work or CI optimization.
 Later genuine external checkpoints may still require batched user action for Firebase configuration, Apple Developer/App Store Connect, signing, or release secrets.
 
 ## Blockers
-`MODEL_OR_TOOL_LIMIT`: Codex usage exhausted while creating the focused M4.8
-checkpoint commit. The coherent M4.8 review/hardening changes remain uncommitted
-in the worktree; no implementation or verification failure was observed.
+No current product or implementation blocker is known.
 
-Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
+Authoritative macOS CI remains pending because the free GitHub Actions quota is exhausted. M4.8 also retains the documented live Firebase verification gaps. These do not block safe M5 implementation under the no-cost CI policy.
 
 ## Exact next action
-First commit the already verified M4.8 review/hardening worktree changes, then
-start M5.1 email/password registration with required authentication/privacy
-reviews. Preserve the M4.8 M5 session-teardown/privacy requirements, and keep
-M4.6/M4.7 live verification pending until authenticated Firestore composition,
-deployment/emulator validation, and macOS CI pass.
+Start M5.1 email/password registration with the required authentication/privacy reviews. Keep M4.6-M4.8 authoritative macOS and live Firebase verification pending until the required environment is available.
 
-For routine M3 checkpoints, rely on Linux CI and deterministic checks. Trigger macOS only at the next meaningful authoritative checkpoint or earlier if a real Xcode-dependent risk makes continuation unsafe.
+For routine checkpoints, rely on Linux CI and deterministic checks. Trigger macOS only at the next meaningful authoritative checkpoint or earlier if a real Xcode-dependent risk makes continuation unsafe.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

@@ -91,6 +91,27 @@ This no-cost exception overrides generic `dependency must be DONE` and `mileston
 
 Do not ask the user to add a payment method, buy GitHub Pro, increase an Actions budget, rent a Mac runner, or pay for another CI provider merely to continue normal development.
 
+## CI cost-control operating mode
+The repository uses tiered CI permanently, including after the free macOS quota resets.
+
+Default behavior for routine implementation checkpoints:
+- push code/configuration normally and rely on `.github/workflows/linux-checks.yml`;
+- do **not** add `[macos-ci]` to routine task/checkpoint commits;
+- docs-only changes should not trigger automatic CI;
+- treat Linux CI as useful non-authoritative feedback, not proof that the iOS app compiles.
+
+Trigger authoritative `.github/workflows/ios-ci.yml` only when one of these is true:
+- a milestone/checkpoint requires authoritative Xcode evidence before it can become `DONE`;
+- Xcode project/build configuration, Apple-platform dependency integration, signing/release plumbing, or another change makes continued work unsafe without Xcode evidence;
+- a suspected compile/UI-test regression needs macOS reproduction;
+- free capacity has returned and pending CI should be reconciled with one consolidated run.
+
+Preferred automatic trigger is a coherent checkpoint commit whose message contains `[macos-ci]`. Manual `workflow_dispatch` is also valid. Release PRs targeting `main` run authoritative macOS CI automatically. Prefer one consolidated macOS run over per-task runs.
+
+Both workflows use `cancel-in-progress: true`; do not deliberately defeat this by creating redundant parallel runs.
+
+A green Linux check never satisfies an acceptance criterion that explicitly requires macOS/Xcode verification.
+
 ## Codex Cloud execution
 Codex Cloud may receive a repository snapshot without writable `origin`, authenticated `gh`, or PR creation. That is expected and is not a user blocker.
 

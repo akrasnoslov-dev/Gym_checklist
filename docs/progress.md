@@ -4,7 +4,7 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M4.8` — Firebase/offline checkpoint (`IN PROGRESS`).
+`M4.8` — Firebase/offline checkpoint (`IN PROGRESS — CHECKPOINT COMMIT PENDING`).
 
 M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
 authoritative macOS verification. M4.1 is implementation-complete except for
@@ -119,6 +119,16 @@ from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
 The security review identified repository teardown/recreation on auth changes
 as a mandatory M5 privacy requirement; it is recorded in the offline plan and
 must not be deferred past authentication composition.
+
+M4.8 is implementation-complete and `IN PROGRESS (PENDING CI/LIVE)`. Required
+Firebase, security, architecture, and test/CI reviews found no critical or high
+source defect. Review hardening preserved custom-exercise cached data on a
+listener error, strengthened offline ordering checks, aligned the implementation
+plan's M4 statuses with the actual checkpoint state, added a service-account
+hygiene scan, and documented the current single-active-editor aggregate-sync
+constraint. M5 must atomically dispose all repositories/observations and clear
+user-scoped UI snapshots on every auth transition; it must also add neutral
+handling for asynchronous Firestore rejection before live-data claims.
 
 M3.9 is implementation-complete and pending only authoritative macOS CI:
 - Today now refreshes its concrete local date on foreground activation and
@@ -534,21 +544,38 @@ build or test failure.
   an emulator/non-production Firebase project; macOS CI remains pending free
   GitHub Actions capacity. No live offline/reconnect claim is made.
 
+## Latest M4.8 verification
+- `git diff --check`: PASS.
+- `scripts/verify_firestore_rules.ps1`: PASS.
+- `scripts/verify_offline_contract.ps1`: PASS.
+- `scripts/verify_security_hygiene.ps1`: PASS (no tracked Firebase plist or
+  service-account material).
+- Required M4.8 reviews: PASS with no critical/high source finding from
+  `firebase_data_guardian`, `security_privacy_agent`, `architecture_guardian`,
+  and `test_ci_agent`.
+- M4.8 remains pending authoritative macOS CI, deployed-rules two-user and
+  unauthenticated validation, and Firestore cache/reconnect execution after M5
+  composes authenticated repositories. These verification gaps do not block
+  safe M5 implementation under the no-cost CI continuation policy.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
 Later genuine external checkpoints may still require batched user action for Firebase configuration, Apple Developer/App Store Connect, signing, or release secrets.
 
 ## Blockers
-No product or implementation blocker is currently known.
+`MODEL_OR_TOOL_LIMIT`: Codex usage exhausted while creating the focused M4.8
+checkpoint commit. The coherent M4.8 review/hardening changes remain uncommitted
+in the worktree; no implementation or verification failure was observed.
 
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Perform M4.8 Firebase/offline checkpoint reviews against M4.3–M4.7. Keep M4.6
-pending M5/live verification and M4.7 pending deployment plus two-user
-emulator/non-production validation; do not claim live Firestore verification
-until those and macOS CI pass.
+First commit the already verified M4.8 review/hardening worktree changes, then
+start M5.1 email/password registration with required authentication/privacy
+reviews. Preserve the M4.8 M5 session-teardown/privacy requirements, and keep
+M4.6/M4.7 live verification pending until authenticated Firestore composition,
+deployment/emulator validation, and macOS CI pass.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

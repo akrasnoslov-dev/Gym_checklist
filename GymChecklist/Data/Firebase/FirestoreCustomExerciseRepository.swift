@@ -16,11 +16,12 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         userID = user
         self.store = store
         listener = collection.addSnapshotListener { [weak self] snapshot, _ in
-            let exercises = snapshot?.documents.compactMap { document -> Exercise? in
+            guard let snapshot else { return }
+            let exercises = snapshot.documents.compactMap { document -> Exercise? in
                 guard let payload = try? document.data(as: FirestoreCustomExerciseDocument.self),
                       document.documentID == payload.id else { return nil }
                 return try? payload.exercise(userID: user)
-            } ?? []
+            }
             Task { @MainActor in
                 guard let self else { return }
                 self.customExercises = self.sorted(exercises)

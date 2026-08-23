@@ -15,18 +15,26 @@ foreach ($fragment in @('addSnapshotListener', 'workouts.append(workout)', 'publ
     }
 }
 
-$createMutation = [regex]::Match($repository, 'workouts\.append\(workout\)\s*publish\(\)\s*persist\(workout\)', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-if (-not $createMutation.Success) {
+$createStart = $repository.IndexOf('func createEmptyWorkout')
+$saveStart = $repository.IndexOf('func save(_ workout: Workout) throws')
+$deleteStart = $repository.IndexOf('func deleteWorkout')
+if ($createStart -lt 0 -or $saveStart -lt 0 -or $deleteStart -lt 0) {
+    throw 'Firestore workout repository is missing a required mutation method'
+}
+
+$createBody = $repository.Substring($createStart, $saveStart - $createStart)
+$saveBody = $repository.Substring($saveStart, $deleteStart - $saveStart)
+$deleteBody = $repository.Substring($deleteStart)
+
+if ($createBody.IndexOf('workouts.append(workout)') -gt $createBody.IndexOf('publish()') -or $createBody.IndexOf('publish()') -gt $createBody.IndexOf('persist(workout)')) {
     throw 'Workout creation must publish its local snapshot before persistence is queued'
 }
 
-$saveMutation = [regex]::Match($repository, 'workouts\.append\(workout\)\s*publish\(\)\s*persist\(workout\)', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-if (-not $saveMutation.Success) {
+if ($saveBody.IndexOf('workouts.append(workout)') -gt $saveBody.IndexOf('publish()') -or $saveBody.IndexOf('publish()') -gt $saveBody.IndexOf('persist(workout)')) {
     throw 'Workout saves must publish their local snapshot before persistence is queued'
 }
 
-$deleteMutation = [regex]::Match($repository, 'workouts\.removeAll\s*\{[^}]+\}\s*publish\(\)\s*document\(for: date\)\.delete\(\)', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-if (-not $deleteMutation.Success) {
+if ($deleteBody.IndexOf('workouts.removeAll') -gt $deleteBody.IndexOf('publish()') -or $deleteBody.IndexOf('publish()') -gt $deleteBody.IndexOf('document(for: date).delete()')) {
     throw 'Workout deletes must publish their local snapshot before deletion is queued'
 }
 

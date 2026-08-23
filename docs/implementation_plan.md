@@ -763,7 +763,7 @@ Protect the app's defining feature before backend integration.
 
 ## Milestone 4 — Firebase persistence and offline behavior
 
-### M4.1 `IN PROGRESS` Add Firebase dependencies and safe configuration hooks
+### M4.1 `IN PROGRESS (PENDING CI)` Add Firebase dependencies and safe configuration hooks
 **Goal**
 Prepare Firebase without committing credentials/secrets.
 
@@ -782,7 +782,7 @@ Prepare Firebase without committing credentials/secrets.
 
 ---
 
-### M4.2 `TODO` Define repository protocols and Firestore mapping
+### M4.2 `IN PROGRESS (PENDING CI)` Define repository protocols and Firestore mapping
 **Goal**
 Connect domain logic to persistence without coupling SwiftUI views directly to Firestore.
 
@@ -799,7 +799,7 @@ Connect domain logic to persistence without coupling SwiftUI views directly to F
 
 ---
 
-### M4.3 `TODO` Implement Firestore workout persistence
+### M4.3 `IN PROGRESS (PENDING CI/RULES)` Implement Firestore workout persistence
 **Goal**
 Persist Program/Today workout data per authenticated user.
 
@@ -819,7 +819,7 @@ Persist Program/Today workout data per authenticated user.
 
 ---
 
-### M4.4 `TODO` Implement Firestore custom exercise persistence
+### M4.4 `IN PROGRESS (PENDING CI/RULES)` Implement Firestore custom exercise persistence
 **Goal**
 Persist user-created exercises while keeping system catalog bundled locally.
 
@@ -836,7 +836,7 @@ Persist user-created exercises while keeping system catalog bundled locally.
 
 ---
 
-### M4.5 `TODO` Implement Firestore UserSettings persistence
+### M4.5 `IN PROGRESS (PENDING CI/RULES)` Implement Firestore UserSettings persistence
 **Goal**
 Persist theme and weight-unit preferences.
 
@@ -853,7 +853,7 @@ Persist theme and weight-unit preferences.
 
 ---
 
-### M4.6 `TODO` Verify and harden offline workout execution
+### M4.6 `IN PROGRESS (PENDING M5/LIVE/CI)` Verify and harden offline workout execution
 **Goal**
 Guarantee the app remains useful in a gym without network.
 
@@ -879,7 +879,7 @@ Guarantee the app remains useful in a gym without network.
 
 ---
 
-### M4.7 `TODO` Implement Firestore Security Rules
+### M4.7 `IN PROGRESS (PENDING DEPLOYMENT/EMULATOR/CI)` Implement Firestore Security Rules
 **Goal**
 Ensure users can access only their own cloud data.
 
@@ -898,7 +898,7 @@ Ensure users can access only their own cloud data.
 
 ---
 
-### M4.8 `TODO` Firebase/offline checkpoint
+### M4.8 `IN PROGRESS (PENDING CI/LIVE)` Firebase/offline checkpoint
 **Goal**
 Review persistence before adding auth UI.
 

@@ -22,6 +22,9 @@ build/
 .env.*
 !.env.example
 GoogleService-Info*.plist
+*-firebase-adminsdk-*.json
+service-account*.json
+firebase-service-account*.json
 *.p12
 *.mobileprovision
 AuthKey_*.p8

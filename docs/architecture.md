@@ -131,6 +131,10 @@ refinement preserves simple per-date reads and Firestore cache behavior without
 requiring independent exercise/set writes. Changes must preserve owner
 isolation, offline behavior, and the local-date uniqueness invariant.
 
+MVP sync supports a single active editor for a workout date. Concurrent edits
+to the same aggregate from multiple devices can be last-write-wins and are not
+an approved merge feature; do not claim conflict-free multi-device editing.
+
 ## 10. Security
 - Firebase Auth UID is the user ownership boundary.
 - Firestore rules must enforce owner-only access.

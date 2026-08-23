@@ -36,6 +36,45 @@ Then inspect relevant source/tests, Git state, available CI state, and applicabl
 
 Do not silently change product behavior to make implementation easier.
 
+## Continuous execution contract
+A Codex implementation run is a continuous backlog-execution loop, not a one-task interaction.
+
+The user's intended operating mode is: provide one master prompt, then let Codex continue autonomously through every technically safe backlog item until a genuine hard stop or model/tool usage limit occurs.
+
+Therefore:
+- Completing a task is not a stopping point.
+- Completing a milestone is not a stopping point.
+- Creating a commit is not a stopping point.
+- Updating `docs/progress.md` is not a stopping point.
+- Finishing required agent reviews is not a stopping point.
+- Reaching a known `Next:` action is not a stopping point when that action can be executed now.
+- macOS CI being unavailable solely because free GitHub Actions quota is exhausted is not a stopping point.
+- A long session, context compaction, or a desire to give the user a progress summary is not by itself a stopping point.
+
+After every atomic checkpoint, immediately select and begin the next technically safe backlog action. Do not wait for the user to say `continue`, approve routine work, or re-send the master prompt.
+
+Status summaries may be produced only as intermediate progress updates while work continues. A summary such as `M4.1 checkpointed; next add Firebase dependencies` must not be used as the final response if adding those dependencies is technically safe now.
+
+## Final-response gate
+Before producing any final response, perform this gate explicitly in your own reasoning:
+
+1. Re-read the current task state in `docs/progress.md` and inspect the actual Git/worktree state. If they disagree, treat Git/code as evidence of what was actually implemented and repair `docs/progress.md`.
+2. Determine the exact next backlog action.
+3. Ask: `Can I execute this action now, safely, with the tools/configuration currently available?`
+4. If YES, a final response is prohibited. Execute the next action instead.
+5. If NO, determine whether another technically safe backlog action is permitted by the specifications and dependency rules. If one exists, execute it instead of stopping.
+6. A final response is allowed only when at least one genuine stop condition below is true and no safe continuation remains.
+
+Allowed genuine stop conditions:
+- `USER_ACTION_REQUIRED`: external credentials/configuration/account action is required and cannot be completed from the repository or available tools.
+- `PRODUCT_DECISION_REQUIRED`: a material product ambiguity cannot be resolved from authoritative specifications.
+- `DESTRUCTIVE_APPROVAL_REQUIRED`: a destructive or irreversible action needs explicit approval.
+- `REAL_FAILURE_BLOCKS_CONTINUATION`: an actual build/test/implementation failure makes dependent work unsafe and cannot be resolved with available tools.
+- `REQUIRED_TOOL_UNAVAILABLE`: a genuinely required tool/environment is unavailable and no technically safe work remains.
+- `MODEL_OR_TOOL_LIMIT`: platform/model/tool usage limits prevent further execution in the current run.
+
+When stopping, record the exact stop-condition label, evidence, and exact resume action in `docs/progress.md`, checkpoint all coherent work, then summarize. Do not invent a blocker merely to end the run.
+
 ## Autonomous implementation contract
 For every task:
 1. Read the entire task body and all referenced Product/UX/Architecture sections.
@@ -50,7 +89,7 @@ For every task:
 10. Mark `DONE` only when required acceptance and verification genuinely pass.
 11. Update `docs/progress.md` with exact verification, branch/commit state, blockers, and next action.
 12. Make a focused checkpoint commit.
-13. Continue automatically to the next technically safe task unless a genuine blocker exists.
+13. Immediately loop to the next technically safe task. Do not emit a final response between routine tasks/checkpoints.
 
 Do not mark work `DONE` merely because code exists.
 
@@ -78,18 +117,21 @@ A **real** CI run that starts and reports an actual build/test failure is not co
 - A task/checkpoint pending only on quota-blocked CI may be provisionally crossed under the no-cost policy.
 - Keep changes focused on the active task plus strictly necessary support.
 - On Windows/Linux, run available static checks but never claim Xcode verification.
-- Keep `docs/progress.md` current.
+- Keep `docs/progress.md` current after every atomic checkpoint, not only at the end of the run.
 - Continue sequentially without asking approval for routine reversible engineering decisions.
-- If the user says `continue`, reconstruct state from the repository and resume.
+- Never require the user to send `continue` while the current run can still execute safe work.
+- If execution is resumed after a platform interruption, reconstruct state from the repository and continue without asking the user to restate context.
 
-Stop only for a genuine blocker: material product ambiguity, unavailable required credentials/configuration, destructive/irreversible choice, actual failure that makes continuation unsafe, unavailable required tools with no safe work left, or exhausted model/tool limits.
+Stop only under the Final-response gate above.
 
 ## Session continuity
 The repository, not chat history, is durable project memory.
 
 `docs/progress.md` must record enough for a brand-new Codex session to resume safely: current branch, active task, last verified checkpoint, pending-CI work, available verification state, blockers, and exact next action.
 
-Prefer small checkpoint commits. If context becomes unreliable, finish the smallest safe atomic unit and checkpoint it before moving sessions.
+Prefer small checkpoint commits. If context is compacted or seems incomplete, re-read Git history and the mandatory context files, repair your state model, and continue. Do not stop merely because the session is long or context was compacted. Stop for context reasons only if reliable reconstruction is genuinely impossible and further edits would be unsafe; classify that under `REQUIRED_TOOL_UNAVAILABLE` or `MODEL_OR_TOOL_LIMIT` as appropriate.
+
+Do not discard or reset coherent local commits merely because `origin/dev` is behind. Local repository state may be newer than GitHub during a Codex Local task.
 
 ## Product rules
 - English only for MVP.
@@ -184,4 +226,4 @@ Real CI failures block completion of tasks whose acceptance requires them. Quota
 ## Documentation discipline
 Update docs when behavior, architecture, setup, verification, CI, Firebase contracts, or release process changes.
 
-`docs/progress.md` is the continuity checkpoint. `docs/implementation_plan.md` remains the ordered backlog; do not weaken its acceptance criteria to match temporary environment limitations.
+`docs/progress.md` is the continuity checkpoint. It must reflect the actual latest local implementation state at every checkpoint. `docs/implementation_plan.md` remains the ordered backlog; do not weaken its acceptance criteria to match temporary environment limitations.

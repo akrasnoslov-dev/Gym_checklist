@@ -1,591 +1,108 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current milestone
-Milestone 5 - Authentication implementation may proceed while earlier checkpoints remain pending authoritative macOS/live verification.
+Milestone 5 — Authentication and account routing.
+
+Earlier implementation checkpoints may remain pending authoritative macOS/live verification under the no-cost CI continuation policy.
 
 ## Active task
-`M5.1` - Email/password registration (`TODO`).
+`M5.1` — Email/password registration (`TODO`).
 
-M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
-authoritative macOS verification. M4.1 is implementation-complete except for
-authoritative macOS resolution/build verification, and therefore remains
-`IN PROGRESS (PENDING CI)` under the no-cost CI continuation policy. It:
-- pins the official Firebase Apple SDK at exact version `11.15.0`, compatible
-  with the project’s Xcode-16-era configuration;
-- links FirebaseCore, FirebaseAuth, and FirebaseFirestore only. Analytics and
-  Crashlytics runtime linkage/collection are deferred to M7.1/M7.2;
-- validates the local plist before configuration, fails ordinary Debug launches
-  with fixed setup guidance, and allows only XCTest/UI-test processes to launch
-  config-free;
-- keeps all `GoogleService-Info*.plist` variants ignored, documents Firestore
-  production-mode setup, and makes macOS CI resolve SwiftPM before tests.
-
-The full transitive `Package.resolved` lockfile is intentionally not
-hand-authored on Windows. Xcode’s resolver must generate and commit it before
-the CI lockfile-diff check can enforce it. No Firebase console setup or
-cloud-data behavior is claimed.
-
-Required M4.1 reviews completed with no blocking findings from
-`firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
-
-M4.2 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
-authoritative macOS verification. It establishes Foundation-only, domain-facing
-repository contracts for workouts, custom exercises, and user settings; shared
-repository snapshot publication; strict user-scoped Firestore path/mapping DTOs;
-and in-memory implementations for the new user-data contracts. Mapping keeps
-local dates as canonical `yyyy-MM-dd` path keys and rejects malformed UUIDs,
-dates, set values, or completion state. No Firebase types or Firestore queries
-reach ViewModels or views, and system exercises cannot be persisted as custom
-user data.
-
-Required M4.2 reviews completed with no blocking findings from
-`firebase_data_guardian`, `security_privacy_agent`, `architecture_guardian`,
-`test_ci_agent`, and `code_quality_agent`. The code-quality review required
-main-actor, cancellable multi-observer repository delivery before M4.3; M4.2
-now has an actor-isolated observation contract, immediate local snapshots, and
-automatic cancellation when a view model releases its observation.
-
-The required Firebase development project, local plist, production-mode
-Firestore database, and non-production test account are now available. M4.3
-has resumed; the local configuration remains untracked and must not be printed
-or committed.
-
-M4.3 now has an unhooked `FirestoreWorkoutRepository` that derives its owner
-only from Firebase Auth, uses `users/{uid}/workouts/{yyyy-MM-dd}`, persists an
-atomic embedded workout aggregate, applies local snapshots before Firestore
-acknowledgement, and observes/reconciles snapshots on the main actor. It is not
-yet app-composed because M5 authentication routing does not exist. Live writes
-remain intentionally unverified: the production-mode database denies access
-until owner-only rules are added in M4.7.
-
-M4.3 is implementation-complete and `IN PROGRESS (PENDING CI/RULES)` for
-scheduling purposes. M4.4 may proceed: system exercises remain bundled locally
-and user-created exercises will use the separately owner-scoped collection.
-
-M4.4 is implementation-complete and `IN PROGRESS (PENDING CI/RULES)` for
-scheduling purposes. `FirestoreCustomExerciseRepository` derives its owner
-only from Firebase Auth and observes `users/{uid}/customExercises`; it applies
-cache-first local save/delete mutations and reconciles Firestore snapshots.
-The shared custom-exercise contract now has main-actor cancellable snapshot
-delivery, and `WorkoutViewModel` merges those custom snapshots with the bundled
-system catalog for search and persists newly created custom exercises through
-the injected repository. App-level Firebase composition remains correctly
-deferred until M5 authentication owns the repository session lifetime. Live
-data access remains unverified until M4.7 owner-only rules and macOS CI.
-
-Required M4.4 reviews completed with no unresolved implementation findings
-from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
-The security review reconfirmed that M4.7 must prevent cross-user access;
-client-side owner paths are not treated as authorization.
-
-M4.5 is implementation-complete and `IN PROGRESS (PENDING CI/RULES)` for
-scheduling purposes. `FirestoreUserSettingsRepository` derives its owner from
-Firebase Auth, reads the cached `users/{uid}/settings/default` document with a
-snapshot listener, starts from the approved System/kg defaults when no cached
-document is present, and publishes optimistic local saves before Firestore
-acknowledgement. Settings mapping persists only appearance and weight-unit
-values. App-level Firebase composition remains deferred until M5 authentication
-owns repository lifetimes. Live data access remains unverified until M4.7
-owner-only rules and macOS CI.
-
-Required M4.5 reviews completed with no unresolved implementation findings
-from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
-M4.7 is deliberately brought forward now that every currently defined
-user-owned document shape is known. It is implementation-complete and
-`IN PROGRESS (PENDING DEPLOYMENT/EMULATOR/CI)`: the checked-in least-privilege
-rules cover only date-keyed workout aggregates, custom exercises, and the
-fixed settings document. The old illustrative nested workout shape was updated
-to the actual embedded aggregate schema. `firebase.json`, deployment guidance,
-and a dependency-free static rule contract check are present. This Windows host
-does not have the Firebase CLI or Java, so owner-isolation emulator execution
-cannot run here; deploy/validation remains required before live-data claims.
-
-Required M4.7 reviews completed with no unresolved implementation findings
-from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
-
-M4.6 is implementation-complete and `IN PROGRESS (PENDING M5/LIVE/CI)` for
-scheduling purposes. The workout repository now publishes local creation before
-queueing its Firestore write, matching its existing save/delete local-first
-ordering. `docs/offline_test_plan.md` specifies cache priming, airplane-mode
-Today/Program operations, reconnect/identity checks, rejected-write
-reconciliation, and the required offline logout-to-other-user privacy scenario.
-`scripts/verify_offline_contract.ps1` verifies the documented contract and
-prevents a manual Today Sync control. Live acceptance cannot run until M5
-authenticates and composes Firestore repositories, and until an emulator or
-non-production Firebase project is available.
-
-Required M4.6 reviews completed with no unresolved implementation findings
-from `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
-The security review identified repository teardown/recreation on auth changes
-as a mandatory M5 privacy requirement; it is recorded in the offline plan and
-must not be deferred past authentication composition.
-
-M4.8 is implementation-complete and `IN PROGRESS (PENDING CI/LIVE)`. Required
-Firebase, security, architecture, and test/CI reviews found no critical or high
-source defect. Review hardening preserved custom-exercise cached data on a
-listener error, strengthened offline ordering checks, aligned the implementation
-plan's M4 statuses with the actual checkpoint state, added a service-account
-hygiene scan, and documented the current single-active-editor aggregate-sync
-constraint. M5 must atomically dispose all repositories/observations and clear
-user-scoped UI snapshots on every auth transition; it must also add neutral
-handling for asynchronous Firestore rejection before live-data claims.
-
-M3.9 is implementation-complete and pending only authoritative macOS CI:
-- Today now refreshes its concrete local date on foreground activation and
-  significant system time changes. Date changes dismiss date-bound editor,
-  popup, and error state; Program selection is intentionally unchanged.
-- All Today-only mutations reject a stale date. A failed save refreshes the
-  published snapshot before user feedback, including post-write throws, then
-  uses neutral manual-retry copy: `Couldn't confirm this change`.
-- Debug-only UI-test fixture hooks and focused unit/UI coverage exercise failed
-  completion, skip, restore, and editor writes; retry behavior; post-write
-  reconciliation; and stale-date rejection.
-- Required M3.9 reviews passed with no blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, and
-  `code_quality_agent`. `test_ci_agent` found the lifecycle notification wiring
-  source-reviewed only; the view-model refresh and date-switch safety are
-  covered, while simulator lifecycle execution remains pending macOS CI.
-
-M3.9 has started. It will consolidate deterministic local/mock coverage and
-the required UX, product, architecture, quality, and test/CI reviews across
-the completed Today flow. M3.1–M3.8 remain implementation-complete and
-`IN PROGRESS (PENDING CI)` solely for authoritative macOS verification.
-
-The M3.9 review added a direct all-required-sets completion-popup UI test and
-made the completion overlay accessibility-modal, hiding the background Today
-content from VoiceOver until dismissal. Local source checks pass. Before M3.9
-can be finalized, resolve the code-quality finding that Today mutation errors
-are silent in release builds and the architecture finding that Today’s local
-date does not refresh after the app remains open across midnight.
-
-### M3.8 implementation status
-
-`M3.8` — Add Today accessibility and interaction identifiers (`IN PROGRESS (PENDING CI)`).
-
-M3.8 is implementation-complete and pending only authoritative macOS
-verification:
-- Today set rows expose stable exercise/set identifiers, clear VoiceOver
-  exercise/set/value labels, an explicit Completed/Incomplete value, and a
-  selected trait when complete. The checkmark/circle icon and semantic state
-  mean completion is not conveyed by color alone.
-- VoiceOver Actions expose `Skip exercise` plus contextual `Edit set` or
-  `Edit actual`, using the existing skip/editor paths without adding visible
-  Today controls or changing the one-tap flow.
-- Set rows retain a 48pt minimum target and use multiline, vertically fixed
-  text so common accessibility sizes remain usable.
-- Focused UI coverage asserts stable identifiers, labels/state, touch-target
-  size, completion at Accessibility XXXL, and migration of critical exercise
-  lookups away from display-copy-dependent queries.
-- Required M3.8 reviews completed without blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`.
-
-M3.7 remains implementation-complete and `IN PROGRESS (PENDING CI)` solely
-for authoritative macOS verification.
-
-M3.7 is implementation-complete and pending only authoritative macOS
-verification:
-- Today compares completion status before and after a successful set toggle or
-  exercise skip, presenting the overlay only for a non-completed → completed
-  transition. It therefore does not appear on an already-completed app launch.
-- The overlay is a compact, non-navigating Today surface with one small
-  checkmark illustration, `Another one done.`, and a single `Done` action.
-- Dismissal returns directly to unchanged Today. Undo does not trigger it;
-  undo then a fresh completion transition does.
-- Unit coverage verifies the transition predicate. Focused UI coverage verifies
-  last-set completion, direct skip-to-complete, in-place dismissal, exact copy,
-  re-completion behavior, and no popup on a pre-completed launch.
-- Required M3.7 reviews completed without blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`,
-  `code_quality_agent`, and `test_ci_agent`.
-
-M3.6 remains implementation-complete and `IN PROGRESS (PENDING CI)` solely
-for authoritative macOS verification.
-
-M3.6 is implementation-complete and pending only authoritative macOS
-verification:
-- A pure Today state classifier uses concrete current-date workout presence:
-  no workouts is first-use, another-date program data is a rest day, and any
-  current-date workout (including empty or fully skipped) remains active.
-- First use shows only `No workout planned yet.` with `Create workout`; rest
-  day shows only `Rest day.`, `See you tomorrow.`, and `View program`.
-- Both CTAs select the concrete current local date and switch to Program,
-  without implicitly creating a workout or adding another navigation layer.
-- Unit coverage verifies all state classifications. Focused UI coverage
-  verifies the exact copy, each CTA, and Program landing at the fixed current
-  date with its existing create-workout affordance.
-- Required M3.6 reviews completed without blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`,
-  `code_quality_agent`, and `test_ci_agent`.
-
-M3.5 remains implementation-complete and `IN PROGRESS (PENDING CI)` solely
-for authoritative macOS verification.
-
-M3.5 is implementation-complete and pending only authoritative macOS
-verification:
-- Today shows a low-prominence `Skipped exercises` footer menu only when one
-  or more exercises are skipped; selecting an entry restores it in its retained
-  planned order.
-- Restore is restricted to the concrete current local date and only clears
-  `isSkipped`; set IDs/order, planned values, actual values, completion state,
-  and completion timestamps remain unchanged.
-- Unit coverage verifies same-day round trip, mixed completed/incomplete set
-  preservation, original multi-exercise position, snapshot refresh,
-  idempotence, and non-current-date rejection. Focused UI coverage verifies a
-  completed set survives skip/restore, remaining work remains usable, and the
-  conditional restore menu disappears after the final restore.
-- Required M3.5 reviews completed without blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`.
-
-M3.4 remains implementation-complete and `IN PROGRESS (PENDING CI)` solely
-for authoritative macOS verification.
-
-M3.1–M3.3 are implementation-complete and remain `IN PROGRESS (PENDING CI)`
-solely for authoritative macOS verification. M3.4 is implementation-complete
-under the same policy:
-- A secondary exercise-header context menu exposes `Skip exercise`; no set-row
-  or permanent Today control was added.
-- Skip only persists the exercise `isSkipped` flag. It preserves every set,
-  actual value, completion state, and ordering, and active Today immediately
-  removes the exercise while remaining work stays executable.
-- Unit and focused UI coverage verify persistence, unchanged incomplete sets,
-  removal from active Today, and remaining-work availability.
-- Same-day restore remains the distinct M3.5 task.
-
-Required M3.4 UX and product-scope reviews found no blocking scope conflict.
-
-M3.1 and M3.2 are implementation-complete and remain `IN PROGRESS (PENDING
-CI)` solely for authoritative macOS verification. M3.3 is likewise
-implementation-complete under the no-cost CI continuation policy:
-- Long-pressing a full Today set row opens a compact sheet without triggering
-  the one-tap completion action.
-- The editor initializes from displayed values and keeps all draft, validation,
-  Save, and Cancel state local to Today.
-- Incomplete sets save planned values; completed sets save actual values while
-  preserving completion and its timestamp. Validation is atomic and skipped
-  exercises remain non-editable from active Today.
-- Unit coverage verifies plan/actual routing and invalid-edit non-mutation.
-- Focused UI coverage verifies long-press no-toggle, Cancel, plan edit,
-  completed actual edit, Save/dismiss, and remaining on Today.
-
-Required M3.3 reviews completed with no blocking findings from
-`ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, and
-`test_ci_agent`.
-
-M3.1 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
-authoritative macOS verification. M3.2 is implementation-complete under the
-same no-cost CI continuation policy:
-- The app owns one `WorkoutViewModel`, observed by Program and Today, so both
-  tabs share one published local/mock workout snapshot.
-- Every full 48pt set row is a plain button: tap immediately toggles only that
-  set, saves locally, refreshes published state, and neither navigates nor
-  prompts. Planned exercise/set order is preserved.
-- Completion uses the existing actual-value semantics and an injected absolute
-  timestamp; undo clears actual values and its completion timestamp.
-- Skipped exercises are excluded from active Today and cannot be toggled.
-- Deterministic unit coverage checks persistence, actual initialization/undo,
-  timestamping, published refresh, and arbitrary cross-exercise order.
-- Focused UI coverage checks complete/undo, arbitrary cross-exercise order,
-  and a lower-row tap retaining its scroll position.
-
-Required M3.2 reviews completed with no remaining blocking findings:
-- `ios_ux_guardian`: full-row interaction, no clutter/navigation, completion
-  signal, and scroll behavior are acceptable.
-- `product_spec_guardian`: completion preserves planned order; skipped state is
-  now protected from active Today interaction.
-- `architecture_guardian`: app-owned shared coordinator is explicit at
-  `GymChecklist/App/WorkoutViewModel.swift`; no duplicate state or extra layer.
-- `test_ci_agent`: required unit/UI coverage is present, including lower-row
-  scroll-position coverage.
-
-Implementation is complete against the available local/mock model:
-- Today now receives the app-owned workout state and concrete local current date.
-- It presents a quiet date header plus vertically scrollable, ordered exercise
-  sections and one readable row per set.
-- Rows use `SetDisplayFormatter` with the displayed planned/actual values and
-  native semantic colors that support system Light/Dark appearance.
-- The layout intentionally adds no Start Workout action, secondary metrics, or
-  controls reserved for later Today tasks.
-
-Required reviews completed without blocking findings:
-- `ios_ux_guardian` and `product_spec_guardian`: layout matches the protected
-  Today scope; later completion, editing, skip/restore, popup, and empty states
-  remain deferred.
-- `architecture_guardian`: the single app-owned `ProgramViewModel` is an
-  acceptable temporary source of truth for the layout-only task; introduce a
-  focused Today coordinator before adding Today mutation commands in M3.2.
-- `test_ci_agent`: coverage and source wiring are appropriate for M3.1, with
-  richer multi-section/scroll interaction coverage to follow alongside the
-  relevant Today interaction work.
-
-## Verification-deferred state
-The user explicitly chose **no paid GitHub Actions usage**. The included GitHub Actions quota is exhausted for the current billing cycle, so GitHub-hosted macOS jobs cannot currently provide authoritative Xcode verification.
-
-`docs/ci_free_quota_policy.md` is active. It allows safe implementation to continue across milestone boundaries when the **only** unsatisfied requirement is macOS CI unavailable because the included quota is exhausted. This does not change acceptance criteria and does not allow unverified tasks/checkpoints to be marked `DONE`.
-
-## CI cost-control strategy — implemented
-The repository now uses tiered CI to reduce the chance of exhausting the included GitHub Actions quota again:
-- `.github/workflows/linux-checks.yml` runs low-cost platform-independent checks on normal code pushes to `dev` and relevant PRs;
-- `.github/workflows/ios-ci.yml` remains the authoritative macOS/Xcode workflow but a normal `dev` push does not allocate a macOS runner;
-- macOS runs are reserved for commits explicitly containing `[macos-ci]`, manual `workflow_dispatch`, and release PRs targeting `main`;
-- both workflows use `concurrency` with `cancel-in-progress: true`;
-- docs-only changes are excluded from automatic CI.
-
-Codex should use Linux CI for routine checkpoints and request authoritative macOS verification at milestone checkpoints or earlier only when Xcode evidence is required for safe continuation. Do not put `[macos-ci]` on every commit.
+## Current branch
+`dev`
 
 ## Completed and verified
 - Milestone 0 (`M0.1`–`M0.6`): `DONE`; authoritative macOS CI passed.
 - Milestone 1 (`M1.1`–`M1.6`): `DONE`; authoritative macOS CI passed.
-- Milestone 2 `M2.1`–`M2.8`: implementation complete and authoritative macOS CI passed.
+- Milestone 2 `M2.1`–`M2.8`: `DONE`; authoritative macOS CI passed.
 - M2.6 CI: PASS for `4c956ac`, run `32503808413`.
 - M2.7 CI: PASS for `000f798`, run `32506833516`.
 - M2.8 CI: PASS for `ff2377a`, run `32528720383`.
 
-## Milestone 2 pending CI
-### M2.9 — Copy Workout
-Implementation is complete.
-- Plan-only copy with fresh workout/exercise/set identities.
-- Completion, actual values, skipped state, and history are reset.
-- Source/destination remain independent.
-- Occupied destinations are not silently overwritten.
-- Deterministic/local checks passed.
+## Implementation-complete work pending authoritative verification
+### Milestone 2
+- `M2.9` Copy Workout — `IN PROGRESS (PENDING CI)`.
+- `M2.10` Repeat Workout — `IN PROGRESS (PENDING CI)`.
+- `M2.11` Program UX checkpoint — `IN PROGRESS (PENDING CI)`.
 
-The attempted macOS run `32530423499` did not execute workflow steps and produced no job logs. This is treated as CI infrastructure/quota unavailability, not as an observed code/test failure.
+### Milestone 3
+`M3.1`–`M3.9` are implementation-complete and remain `IN PROGRESS (PENDING CI)` solely for authoritative macOS verification.
 
-### M2.10 — Repeat Workout
-Implementation is complete.
-- Fixed weekly cadence.
-- 4 weeks / 8 weeks / Until date.
-- Occupied dates are explicitly skipped.
-- Generated workouts are independent plan-only copies with fresh identities.
-- Deterministic/local checks and required agent reviews passed.
+The completed Today flow includes:
+- active Today workout layout;
+- one-tap complete/undo;
+- long-press planned/actual editing;
+- skip/restore exercise;
+- no-program and rest-day states;
+- completion popup;
+- accessibility/interaction identifiers;
+- current-local-date refresh and stale-date mutation protection;
+- neutral mutation failure feedback and snapshot reconciliation.
 
-### M2.11 — Program UX checkpoint
-Required Program reviews are provisionally satisfied with no blocking findings. The checkpoint remains `IN PROGRESS (PENDING CI)` because the consolidated authoritative macOS run has not yet been possible.
+Required M3.9 reviews passed with no blocking findings from `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, `code_quality_agent`, and `test_ci_agent`. Simulator lifecycle execution remains pending macOS CI.
 
-## Current Program capability
-With local/mock persistence, Program currently supports:
-- week/date navigation;
-- create workout for a concrete date;
-- bundled exercise catalog and search;
-- custom exercises;
-- add/delete/reorder exercises;
-- arbitrary set add/edit/delete/reorder with reps/weight/time;
-- workout editing/deletion;
-- copy workout;
-- weekly repeat generation.
+### Milestone 4
+- `M4.1` Firebase dependency/configuration bootstrap — implementation-complete, `IN PROGRESS (PENDING CI)`.
+- `M4.2` repository protocols and Firestore mapping — implementation-complete, `IN PROGRESS (PENDING CI)`.
+- `M4.3` Firestore workout repository — implementation-complete, pending authenticated app composition/live verification/CI.
+- `M4.4` Firestore custom exercise persistence — implementation-complete, pending authenticated app composition/live verification/CI.
+- `M4.5` Firestore UserSettings persistence — implementation-complete, pending authenticated app composition/live verification/CI.
+- `M4.6` offline/reconnect contract — implementation-complete, `IN PROGRESS (PENDING M5/LIVE/CI)`.
+- `M4.7` owner-only Firestore rules — implementation-complete, `IN PROGRESS (PENDING DEPLOYMENT/EMULATOR/CI)`.
+- `M4.8` Firebase/offline checkpoint — implementation-complete, `IN PROGRESS (PENDING CI/LIVE)`.
 
-## GitHub Actions quota
-The current billing/usage report shows Actions usage fully covered by included usage so far (`net_amount = 0`). Paid Actions usage is not approved. Do not ask the user to enable billing merely to continue development.
+M4 uses owner-scoped paths, date-keyed workout aggregates, optimistic/local-first writes, bundled system exercises, user-scoped custom exercises/settings, and owner-only Firestore rules. App-level Firestore repository composition remains intentionally deferred until M5 owns authentication/session lifetime.
 
-When included GitHub Actions capacity becomes available again, run one consolidated authoritative macOS build/unit/UI test against the latest coherent checkpoint using `[macos-ci]` or manual dispatch, fix real failures, and reconcile all affected `PENDING CI` tasks/checkpoints before marking them `DONE`.
-
-After quota resets, keep the new tiered CI strategy permanently: routine code checkpoints use Linux CI; macOS remains sparse and authoritative.
-
-The latest attempted macOS run `32599368749` (job `97095229980`) started and
-failed before any workflow step ran; GitHub reports no failed-step log. This is
-treated as the same quota/infrastructure unavailability, not as an observed
-build or test failure.
-
-## Latest M3.1 verification
-- `git diff --check`: PASS.
-- Deterministic Today source checks: PASS (scrollable layout, displayed-value
-  formatter use, semantic system background, no prohibited Today scope).
-- UI-test source checks: PASS (Today screen, fixed local date, exercise, set
-  row, and no Start Workout assertion).
-- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
-  authoritative GitHub Actions verification is pending free quota.
-
-## Latest M3.2 verification
-- `git diff --check`: PASS.
-- Deterministic app/model, interaction/test-source, and Xcode project
-  source/group checks: PASS.
-- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
-  authoritative GitHub Actions verification remains pending free quota.
-
-## Latest M3.3 verification
-- `git diff --check`: PASS.
-- Deterministic app/model, interaction/test-source, and Xcode project
-  source/group checks: PASS.
-- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
-  authoritative GitHub Actions verification remains pending free quota.
-
-## Latest M3.4 verification
-- `git diff --check` and deterministic skip implementation/test source checks: PASS.
-- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
-  authoritative GitHub Actions verification remains pending free quota.
-
-## Latest M3.5 verification
-- `git diff --check`: PASS.
-- Deterministic restore implementation and focused unit/UI test-source checks:
-  PASS (conditional menu, current-date guard, only-flag mutation, state/order
-  preservation, and UI round trip).
-- Shared Xcode scheme XML and project references for app/unit/UI targets: PASS.
-- Required M3.5 reviews: PASS with no blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`.
-- Latest GitHub Actions run `32599368749` remains the documented
-  quota/infrastructure failure before workflow steps; no new macOS CI run was
-  triggered while the included quota is exhausted.
-- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
-  authoritative GitHub Actions verification remains pending free quota.
-
-## Latest M3.6 verification
-- `git diff --check`: PASS.
-- Deterministic empty-state implementation and focused unit/UI test-source
-  checks: PASS (date-presence classification, approved copy, current-date
-  Program routing, test coverage for both states and exact Program context).
-- Shared Xcode scheme XML and project references for app/unit/UI targets: PASS.
-- Required M3.6 reviews: PASS with no blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`,
-  `code_quality_agent`, and `test_ci_agent`.
-- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
-  authoritative GitHub Actions verification remains pending free quota.
-
-## Latest M3.7 verification
-- `git diff --check`: PASS.
-- Deterministic completion implementation and focused unit/UI test-source
-  checks: PASS (transition-only trigger, skip-aware completion, overlay
-  dismissal/copy, direct skip completion, and no pre-completed launch popup).
-- Shared Xcode scheme XML and project references for app/unit/UI targets: PASS.
-- Required M3.7 reviews: PASS with no blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`,
-  `code_quality_agent`, and `test_ci_agent`.
-- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
-  authoritative GitHub Actions verification remains pending free quota.
-
-## Latest M3.8 verification
-- `git diff --check`: PASS.
-- Deterministic Today accessibility and UI-test source checks: PASS (stable
-  IDs, labels, explicit semantic completion state, named VoiceOver actions,
-  non-color icon state, 48pt target, and Dynamic Type coverage).
-- Shared Xcode project UI-test source reference check: PASS.
-- Required M3.8 reviews: PASS with no blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`.
-- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
-  authoritative GitHub Actions verification remains pending free quota.
-
-## Latest M3.9 verification
-- `git diff --check`: PASS.
-- Deterministic source checks: PASS (project source references, user-visible
-  neutral retry feedback, snapshot reconciliation, current-date guards,
-  foreground/significant-time refresh wiring, and focused unit/UI test sources).
-- Required M3.9 reviews: PASS with no blocking findings from
-  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`,
-  `code_quality_agent`, and `test_ci_agent`. The test/CI review records only
-  that notification-event execution itself is source-reviewed pending a real
-  simulator; it found no code defect.
-- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
-  authoritative GitHub Actions verification remains pending free quota.
-
-## Latest M4.1 verification
-- `git diff --check`: PASS.
-- Deterministic integration checks: PASS (official Firebase URL, exact 11.15.0
-  requirement, Core/Auth/Firestore app linkage, no premature Analytics or
-  Crashlytics linkage, config-free XCTest detection, and no tracked Firebase
-  configuration/signing material).
-- CI workflow source review: PASS (package resolution precedes simulator test
-  and uses the same temporary source-package directory).
-- Local XML/YAML parser verification is unavailable because no usable Python
-  runtime is installed on this Windows host.
-- Xcode/macOS dependency resolution, generated `Package.resolved`, build,
-  unit tests, and UI tests: pending available free GitHub Actions capacity.
-
-## Latest M4.2 verification
-- `git diff --check`: PASS.
-- Deterministic repository/mapping source checks: PASS (user-scoped paths,
-  canonical date key, explicit completion fields, Foundation-only mapping,
-  project source references, cancellable main-actor snapshot contract, and no
-  Firebase types outside `Data/Firebase`).
-- Focused XCTest source coverage: added mapping round-trip/rejection,
-  custom/settings ownership, and local snapshot-publication cases.
-- Xcode/macOS build, unit tests, and UI tests: pending available free GitHub
-  Actions capacity.
-
-## Latest M4.4 verification
-- `git diff --check`: PASS.
-- Deterministic repository, view-model, mapping, and Xcode-project source
-  checks: PASS (owner-scoped custom path, system-exercise rejection, immediate
-  cancellable cache snapshots, app-facing combined search, custom-create
-  persistence wiring, and app-target source references).
-- Focused XCTest source coverage: custom snapshot publication/cancellation,
-  owner/system rejection, canonical path mapping, and a fresh view-model
-  rebuilding combined system/custom search from the cached repository snapshot.
-- Required M4.4 reviews: PASS with no unresolved implementation findings from
-  `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
-- Swift and Xcode toolchains are unavailable on the Windows host. Authoritative
-  macOS build, unit/UI tests, Firestore cache-after-restart validation, and
-  live owner-isolation validation remain pending free GitHub Actions capacity
-  and M4.7 Security Rules.
-
-## Latest M4.5 verification
-- `git diff --check`: PASS.
-- Deterministic repository, mapping, and Xcode-project source checks: PASS
-  (canonical settings path, Auth-derived owner validation, default settings,
-  cache listener, optimistic writes, cancellable observation, mapping fields,
-  Firebase import boundary, and app-target source references).
-- Focused XCTest source coverage: defaults, owner rejection, immediate settings
-  snapshot publication, and observation cancellation.
-- Required M4.5 reviews: PASS with no unresolved implementation findings from
-  `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
-- Swift and Xcode toolchains are unavailable on the Windows host. Authoritative
-  macOS build, unit/UI tests, Firestore cache-after-restart validation, and
-  live owner-isolation validation remain pending free GitHub Actions capacity
-  and M4.7 Security Rules.
-
-## Latest M4.7 verification
-- `git diff --check`: PASS.
-- `scripts/verify_firestore_rules.ps1`: PASS.
-- Deterministic rule/config checks: PASS (rules version 2, authenticated UID
-  predicate, exact workout/custom/settings paths, fixed settings document,
-  no broad recursive or unconditional allow, and `firebase.json` rule mapping).
-- Required M4.7 reviews: PASS with no unresolved implementation findings from
-  `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
-- Firebase CLI and Java are unavailable on the Windows host, so emulator rules
-  tests cannot run. Deployment to the configured non-production Firebase
-  project and two-user emulator/non-production owner-isolation validation are
-  required before live Firestore behavior is claimed; macOS CI also remains
-  pending free GitHub Actions capacity.
-
-## Latest M4.6 verification
-- `git diff --check`: PASS.
-- `scripts/verify_offline_contract.ps1`: PASS (listener, local snapshot before
-  queued create/save/delete persistence, canonical date-key path, required
-  airplane/reconnect plan sections, and no Today Sync control).
-- Required M4.6 reviews: PASS with no unresolved implementation findings from
-  `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
-- Firestore-backed UI execution is pending M5 authentication composition plus
-  an emulator/non-production Firebase project; macOS CI remains pending free
-  GitHub Actions capacity. No live offline/reconnect claim is made.
+M5 must atomically dispose user-scoped repositories/observations and clear user-scoped UI snapshots on every auth transition. This is a required privacy boundary, not optional cleanup.
 
 ## Latest M4.8 verification
 - `git diff --check`: PASS.
 - `scripts/verify_firestore_rules.ps1`: PASS.
 - `scripts/verify_offline_contract.ps1`: PASS.
-- `scripts/verify_security_hygiene.ps1`: PASS (no tracked Firebase plist or
-  service-account material).
-- Required M4.8 reviews: PASS with no critical/high source finding from
-  `firebase_data_guardian`, `security_privacy_agent`, `architecture_guardian`,
-  and `test_ci_agent`.
-- M4.8 remains pending authoritative macOS CI, deployed-rules two-user and
-  unauthenticated validation, and Firestore cache/reconnect execution after M5
-  composes authenticated repositories. These verification gaps do not block
-  safe M5 implementation under the no-cost CI continuation policy.
+- `scripts/verify_security_hygiene.ps1`: PASS; no tracked Firebase plist or service-account material.
+- Required reviews: PASS with no critical/high source finding from `firebase_data_guardian`, `security_privacy_agent`, `architecture_guardian`, and `test_ci_agent`.
+
+Still pending before live/offline claims can be finalized:
+- authoritative macOS/Xcode CI;
+- deployed-rules two-user and unauthenticated validation;
+- Firestore cache/reconnect execution after M5 composes authenticated repositories.
+
+These verification gaps do not block safe M5 implementation under `docs/ci_free_quota_policy.md`.
+
+## Firebase/configuration state
+The Firebase development project, local plist, production-mode Firestore database, and non-production test account are available. Local Firebase configuration remains untracked and must not be printed or committed.
+
+The full transitive `Package.resolved` lockfile is intentionally not hand-authored on Windows. Xcode’s resolver must generate and commit it when authoritative macOS capacity is available.
+
+## CI state
+The repository uses tiered CI permanently:
+- `.github/workflows/linux-checks.yml` runs low-cost platform-independent checks on normal code pushes to `dev` and relevant PRs;
+- `.github/workflows/ios-ci.yml` remains authoritative for Xcode build/unit/UI tests;
+- routine commits must not include `[macos-ci]`;
+- macOS CI is reserved for meaningful checkpoints, manual dispatch, release PRs to `main`, or Xcode-dependent risk;
+- both workflows use `cancel-in-progress: true`;
+- docs-only changes do not trigger automatic CI.
+
+The included GitHub Actions macOS quota is currently exhausted. Treat this as `CI UNAVAILABLE — FREE QUOTA EXHAUSTED`, not as a code failure. Paid GitHub Actions usage is not approved.
+
+When free capacity returns, run one consolidated authoritative macOS verification against the latest coherent checkpoint, fix any real failures, and reconcile pending CI checkpoints before marking them `DONE`.
 
 ## USER ACTION REQUIRED
-None for the current implementation work or CI optimization.
+None for current M5.1 implementation.
 
-Later genuine external checkpoints may still require batched user action for Firebase configuration, Apple Developer/App Store Connect, signing, or release secrets.
+Later genuine external checkpoints may still require batched user action for Google authentication configuration, Firebase deployment/validation, Apple Developer/App Store Connect, signing, or release secrets.
 
 ## Blockers
 No current product or implementation blocker is known.
 
-Authoritative macOS CI remains pending because the free GitHub Actions quota is exhausted. M4.8 also retains the documented live Firebase verification gaps. These do not block safe M5 implementation under the no-cost CI policy.
+Authoritative macOS CI and some live Firebase verification remain pending, but these do not block safe M5 implementation under the no-cost CI policy.
 
 ## Exact next action
-Start M5.1 email/password registration with the required authentication/privacy reviews. Keep M4.6-M4.8 authoritative macOS and live Firebase verification pending until the required environment is available.
+Start `M5.1` email/password registration with the required authentication/privacy reviews.
+
+Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 
 For routine checkpoints, rely on Linux CI and deterministic checks. Trigger macOS only at the next meaningful authoritative checkpoint or earlier if a real Xcode-dependent risk makes continuation unsafe.
-
-If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

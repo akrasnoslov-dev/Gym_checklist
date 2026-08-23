@@ -763,7 +763,7 @@ Protect the app's defining feature before backend integration.
 
 ## Milestone 4 — Firebase persistence and offline behavior
 
-### M4.1 `TODO` Add Firebase dependencies and safe configuration hooks
+### M4.1 `IN PROGRESS` Add Firebase dependencies and safe configuration hooks
 **Goal**
 Prepare Firebase without committing credentials/secrets.
 

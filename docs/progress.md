@@ -4,7 +4,15 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.9` — Today UX acceptance checkpoint (`IN PROGRESS (PENDING CI)`).
+`M4.1` — Add Firebase dependencies and safe configuration hooks (`IN PROGRESS`).
+
+M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
+authoritative macOS verification. M4.1 has started under the no-cost CI
+continuation policy. Its first safe checkpoint adds a configuration bootstrap:
+outside XCTest it fails Debug launches with a fixed missing-plist message, and
+XCTest deliberately bypasses initialization so config-free local/UI test runs
+remain possible. The official Firebase Apple SDK package linkage and lockfile
+are the next M4.1 step; no Firebase console output is committed.
 
 M3.9 is implementation-complete and pending only authoritative macOS CI:
 - Today now refreshes its concrete local date on foreground activation and
@@ -351,9 +359,11 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Start M4.1 — add Firebase dependencies and safe configuration hooks. M3.9 and
-earlier pending checkpoints are provisionally satisfied for scheduling only
-under `docs/ci_free_quota_policy.md`; do not claim their CI passed.
+Finish M4.1 by adding the pinned official Firebase Apple SDK SwiftPM package
+and committed resolution lockfile, then extend CI to resolve dependencies
+before its simulator test. M3.9 and earlier pending checkpoints are
+provisionally satisfied for scheduling only under
+`docs/ci_free_quota_policy.md`; do not claim their CI passed.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

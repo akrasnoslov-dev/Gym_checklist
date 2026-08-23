@@ -137,6 +137,15 @@ In that state:
 
 Quota-blocked CI is NEVER by itself a terminal reason.
 
+NORMAL CI COST CONTROL
+The repository uses tiered CI even when free macOS capacity is available.
+
+For routine code/configuration checkpoints, rely on the Linux workflow and do NOT add `[macos-ci]` to the commit message. Docs-only changes should not trigger automatic CI.
+
+Use authoritative macOS CI only at meaningful milestone/checkpoint verification, when an Xcode/build/dependency/signing change makes continued work unsafe without Xcode evidence, when reproducing a suspected iOS compile/UI-test regression, or when reconciling deferred verification after quota reset. A coherent checkpoint commit containing `[macos-ci]` is the preferred automatic trigger; manual dispatch is also valid. Release PRs to `main` run macOS automatically.
+
+Prefer one consolidated macOS run over per-task runs. A green Linux run is useful feedback but never substitutes for an acceptance criterion that explicitly requires macOS/Xcode verification. Both workflows intentionally cancel obsolete in-progress runs on the same ref.
+
 REAL CI FAILURE
 A CI run that actually starts and reports build/test failures is different from quota-blocked CI.
 

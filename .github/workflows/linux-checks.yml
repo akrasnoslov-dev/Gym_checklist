@@ -1,0 +1,89 @@
+name: Linux checks
+
+on:
+  push:
+    branches:
+      - dev
+      - 'feature/**'
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  pull_request:
+    branches: [dev, main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Repository consistency checks
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f AGENTS.md
+          test -f docs/product_spec.md
+          test -f docs/ux_spec.md
+          test -f docs/architecture.md
+          test -f docs/implementation_plan.md
+          test -f docs/progress.md
+          test -f docs/codex_instructions.md
+          test -f agents/routing.toml
+
+          if git grep -n -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- . ':!docs/**' ':!*.md' ':!*.xcuserstate'; then
+            echo 'Merge-conflict markers found.'
+            exit 1
+          fi
+
+      - name: Validate Xcode scheme XML
+        shell: bash
+        run: |
+          set -euo pipefail
+          SCHEME='GymChecklist.xcodeproj/xcshareddata/xcschemes/GymChecklist.xcscheme'
+          if [ -f "$SCHEME" ]; then
+            python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          ET.parse('GymChecklist.xcodeproj/xcshareddata/xcschemes/GymChecklist.xcscheme')
+          print('Xcode scheme XML is valid.')
+          PY
+          else
+            echo 'No shared scheme yet; skipping XML validation.'
+          fi
+
+      - name: Check changed-file whitespace errors
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            git diff --check "origin/${{ github.base_ref }}...HEAD"
+          else
+            git show --check --oneline --decorate=no HEAD
+          fi
+
+      - name: Run Swift package tests when available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f Package.swift ]; then
+            swift test
+          else
+            echo 'No Package.swift; Xcode/SwiftUI tests remain macOS-only.'
+          fi

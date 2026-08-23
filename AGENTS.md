@@ -111,6 +111,18 @@ Do not ask the user to enable paid Actions, buy GitHub Pro, add a payment method
 
 A **real** CI run that starts and reports an actual build/test failure is not covered by this exception and must be treated as an engineering failure.
 
+## CI cost-control default
+The no-cost strategy is permanent, not only a quota-emergency fallback.
+
+- Normal code/configuration checkpoints use `.github/workflows/linux-checks.yml` on Linux.
+- Do not put `[macos-ci]` in routine checkpoint commits.
+- `.github/workflows/ios-ci.yml` is authoritative but intentionally sparse. It runs for `[macos-ci]` checkpoint commits, manual dispatch, and release PRs targeting `main`.
+- Use `[macos-ci]` at milestone/checkpoint verification or earlier only when continuing safely requires real Xcode evidence.
+- Prefer one consolidated macOS run over separate runs for every task.
+- Docs-only changes should not trigger automatic CI.
+- `cancel-in-progress: true` is intentional; newer runs should supersede obsolete runs on the same ref.
+- Linux success is not equivalent to macOS/Xcode success and cannot satisfy acceptance criteria that explicitly require authoritative macOS verification.
+
 ## Default Codex workflow
 - Work from `dev` or a focused `feature/*` based on `dev`; never normal development directly on `main`.
 - Resume the active `IN PROGRESS` task from repository state.

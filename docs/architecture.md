@@ -18,7 +18,7 @@ The MVP targets iPhone on iOS 17.0 or later. This baseline is supported by curre
 - Firestore offline persistence
 - Firebase Analytics
 - Firebase Crashlytics
-- GitHub Actions macOS runners
+- GitHub Actions Linux + macOS runners
 
 ## 3. Module layout
 Recommended source structure once the Xcode project is created:
@@ -168,15 +168,25 @@ Keep event set intentionally small:
 Do not log detailed workout content as analytics parameters unless explicitly approved.
 
 ## 13. CI
-GitHub Actions on macOS is authoritative for build/test because primary development may occur on Windows.
+The project uses two CI tiers to preserve the included GitHub Actions quota while keeping macOS/Xcode authoritative for iOS verification.
 
-CI should eventually run:
-- project resolution
-- simulator build
-- unit tests
-- UI smoke tests where stable
+### Linux checkpoint CI
+`.github/workflows/linux-checks.yml` runs on normal code pushes to `dev` and relevant PRs. It provides fast, low-cost platform-independent checks such as repository consistency, conflict-marker detection, Xcode scheme XML validation, whitespace checks, and Linux-compatible Swift package tests when available.
 
-The initial workflow must tolerate the repository before the Xcode project is generated, then become strict once bootstrap is complete.
+Linux CI is non-authoritative for iOS compilation and simulator behavior.
+
+### macOS authoritative CI
+`.github/workflows/ios-ci.yml` runs the real Xcode simulator build/unit/UI test path on `macos-latest`.
+
+A normal push to `dev` does not allocate a macOS runner. macOS CI is reserved for:
+- milestone/checkpoint commits explicitly marked `[macos-ci]`;
+- manual `workflow_dispatch` runs;
+- release-oriented pull requests targeting `main`;
+- earlier risk-driven verification when continuing without Xcode evidence would be unsafe.
+
+Both workflows cancel obsolete in-progress runs for the same ref. Docs-only changes are excluded from automatic CI.
+
+Required macOS verification remains mandatory before a checkpoint that explicitly requires it can be marked `DONE`. Quota exhaustion follows `docs/ci_free_quota_policy.md`.
 
 ## 14. Distribution
 Development stages:

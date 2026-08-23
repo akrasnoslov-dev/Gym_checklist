@@ -1314,6 +1314,114 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertTrue(result.skippedOccupiedDates.isEmpty)
     }
 
+    func testRefreshCurrentDateUsesInjectedProviderWithoutChangingProgramSelection() {
+        let initialDate = LocalDate(year: 2026, month: 8, day: 14)
+        let refreshedDate = LocalDate(year: 2026, month: 8, day: 15)
+        var providedDate = initialDate
+        let viewModel = WorkoutViewModel(
+            repository: InMemoryWorkoutRepository(userID: UserID(rawValue: "user")),
+            initialDate: initialDate,
+            currentDate: initialDate,
+            calendar: mondayCalendar(),
+            currentDateProvider: { providedDate }
+        )
+
+        viewModel.select(LocalDate(year: 2026, month: 8, day: 21))
+        viewModel.refreshCurrentDate()
+        XCTAssertEqual(viewModel.currentDate, initialDate)
+
+        providedDate = refreshedDate
+        viewModel.refreshCurrentDate()
+
+        XCTAssertEqual(viewModel.currentDate, refreshedDate)
+        XCTAssertEqual(viewModel.calendarState.currentDate, refreshedDate)
+        XCTAssertEqual(viewModel.selectedDate, LocalDate(year: 2026, month: 8, day: 21))
+    }
+
+    func testFailedTodaySaveLeavesSnapshotUnchangedAndCanBeRetried() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let backingRepository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = backingRepository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID()
+        let setID = WorkoutSetID()
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [WorkoutSet(id: setID, order: 0, reps: 8, weight: 60, timeSeconds: 0)]
+        )]
+        try backingRepository.save(workout)
+        let repository = FailingOnceWorkoutRepository(backing: backingRepository)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar()
+        )
+        let snapshotBeforeFailure = viewModel.workouts
+
+        repository.failNextSave = true
+        XCTAssertThrowsError(try viewModel.toggleCompletion(of: setID, in: exerciseID, on: date))
+        XCTAssertEqual(viewModel.workouts, snapshotBeforeFailure)
+        XCTAssertEqual(backingRepository.workout(on: date), snapshotBeforeFailure.first)
+
+        try viewModel.toggleCompletion(of: setID, in: exerciseID, on: date)
+        XCTAssertTrue(viewModel.workout(on: date)?.exercises.first?.sets.first?.isCompleted == true)
+
+        repository.throwAfterNextSave = true
+        XCTAssertThrowsError(try viewModel.toggleCompletion(of: setID, in: exerciseID, on: date))
+        XCTAssertTrue(viewModel.workout(on: date)?.exercises.first?.sets.first?.isCompleted == false)
+    }
+
+    func testTodayMutationFailureUsesSafeRetryCopy() {
+        XCTAssertEqual(TodayMutationError.saveFailed.title, "Couldn't confirm this change")
+        XCTAssertEqual(TodayMutationError.saveFailed.message, "Check your workout before trying again.")
+    }
+
+    func testTodayMutationsRejectYesterdayAfterCurrentDateRefresh() throws {
+        let yesterday = LocalDate(year: 2026, month: 8, day: 14)
+        let today = LocalDate(year: 2026, month: 8, day: 15)
+        var providedDate = yesterday
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: yesterday, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID()
+        let setID = WorkoutSetID()
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [WorkoutSet(id: setID, order: 0, reps: 8, weight: 60, timeSeconds: 0)]
+        )]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: yesterday,
+            currentDate: yesterday,
+            calendar: mondayCalendar(),
+            currentDateProvider: { providedDate }
+        )
+
+        providedDate = today
+        viewModel.refreshCurrentDate()
+
+        XCTAssertEqual(TodayContentState.resolve(workouts: viewModel.workouts, currentDate: viewModel.currentDate), .restDay)
+        let mutations: [() throws -> Void] = [
+            { try viewModel.toggleCompletion(of: setID, in: exerciseID, on: yesterday) },
+            { try viewModel.editTodaySet(setID, in: exerciseID, on: yesterday, reps: 7, weight: 60, timeSeconds: 0) },
+            { try viewModel.skipTodayExercise(exerciseID, on: yesterday) },
+            { try viewModel.restoreTodayExercise(exerciseID, on: yesterday) }
+        ] {
+            XCTAssertThrowsError(try mutation()) { error in
+                XCTAssertEqual(error as? ProgramPlanningError, .todayActionRequiresCurrentDate(yesterday))
+            }
+        }
+        XCTAssertEqual(repository.workout(on: yesterday), workout)
+    }
+
     private func mondayCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Copenhagen")!
@@ -1335,5 +1443,45 @@ final class WorkoutViewModelTests: XCTestCase {
             isSkipped: false,
             sets: [WorkoutSet(order: 0, reps: reps)]
         )
+    }
+}
+
+private final class FailingOnceWorkoutRepository: WorkoutRepository {
+    enum Failure: Error { case saveFailed }
+
+    let backing: InMemoryWorkoutRepository
+    var failNextSave = false
+    var throwAfterNextSave = false
+
+    init(backing: InMemoryWorkoutRepository) {
+        self.backing = backing
+    }
+
+    var userID: UserID { backing.userID }
+    var workouts: [Workout] { backing.workouts }
+
+    func workout(on date: LocalDate) -> Workout? {
+        backing.workout(on: date)
+    }
+
+    @discardableResult
+    func createEmptyWorkout(on date: LocalDate, at timestamp: Date) -> WorkoutCreationResult {
+        backing.createEmptyWorkout(on: date, at: timestamp)
+    }
+
+    func save(_ workout: Workout) throws {
+        if failNextSave {
+            failNextSave = false
+            throw Failure.saveFailed
+        }
+        try backing.save(workout)
+        if throwAfterNextSave {
+            throwAfterNextSave = false
+            throw Failure.saveFailed
+        }
+    }
+
+    func deleteWorkout(on date: LocalDate) throws {
+        try backing.deleteWorkout(on: date)
     }
 }

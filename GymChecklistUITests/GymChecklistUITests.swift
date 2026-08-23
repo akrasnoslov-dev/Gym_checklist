@@ -181,6 +181,55 @@ final class TodayInteractionUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["todayScreen"].exists)
     }
 
+    func testTodayFailedSaveShowsRetryMessageAndAllowsSafeRetry() {
+        let app = launchSeededToday(environment: ["UITEST_FAIL_NEXT_TODAY_SAVE": "1"])
+        let set = app.buttons[firstBenchSet]
+
+        set.tap()
+        XCTAssertTrue(app.alerts["Couldn't confirm this change"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Check your workout before trying again."].exists)
+        assert(set, hasValue: "Incomplete")
+
+        app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
+        set.tap()
+        assert(set, hasValue: "Completed")
+        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+    }
+
+    func testTodayFailedSkipKeepsExerciseVisibleForManualRetry() {
+        let app = launchSeededToday(environment: ["UITEST_FAIL_NEXT_TODAY_SAVE": "1"])
+        let header = app.staticTexts[benchPress]
+
+        header.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        XCTAssertTrue(app.alerts["Couldn't confirm this change"].waitForExistence(timeout: 2))
+        XCTAssertTrue(header.exists)
+
+        app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
+        header.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        XCTAssertFalse(header.waitForExistence(timeout: 2))
+    }
+
+    func testTodayFailedRestoreKeepsSkippedExerciseAvailableForManualRetry() {
+        let app = launchSeededToday(environment: ["UITEST_FAIL_TODAY_SAVE_AFTER": "1"])
+        let header = app.staticTexts[benchPress]
+
+        header.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        let restoreMenu = app.buttons["todayRestoreSkippedExercises"]
+        XCTAssertTrue(restoreMenu.waitForExistence(timeout: 2))
+        restoreMenu.tap()
+        app.buttons["todayRestore-90000000-0000-4000-8000-000000000001"].tap()
+        XCTAssertTrue(app.alerts["Couldn't confirm this change"].waitForExistence(timeout: 2))
+        XCTAssertFalse(header.exists)
+
+        app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
+        restoreMenu.tap()
+        app.buttons["todayRestore-90000000-0000-4000-8000-000000000001"].tap()
+        XCTAssertTrue(header.waitForExistence(timeout: 2))
+    }
+
     func testTodaySetUsesStableIdentifierAndAccessibleCompletionState() {
         let app = launchSeededToday()
         let exercise = app.staticTexts[benchPress]
@@ -282,6 +331,23 @@ final class TodayInteractionUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["todayScreen"].exists)
     }
 
+    func testTodayEditorFailedSaveKeepsDraftOpenForManualRetry() {
+        let app = launchSeededToday(environment: ["UITEST_FAIL_NEXT_TODAY_SAVE": "1"])
+        let set = app.buttons[firstBenchSet]
+
+        set.press(forDuration: 1)
+        replaceText(in: app.textFields["todaySetEditorReps"], with: "6")
+        app.buttons["todaySetEditorSave"].tap()
+        XCTAssertTrue(app.alerts["Couldn't confirm this change"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.navigationBars["Edit set"].exists)
+        XCTAssertTrue(app.textFields["todaySetEditorReps"].exists)
+
+        app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
+        app.buttons["todaySetEditorSave"].tap()
+        XCTAssertTrue(app.staticTexts["6 reps × 60 kg"].waitForExistence(timeout: 2))
+        assert(set, hasValue: "Incomplete")
+    }
+
     func testTodaySkipsExerciseWithoutRemovingRemainingWork() {
         let app = launchSeededToday()
         let benchPressHeader = app.staticTexts[benchPress]
@@ -323,10 +389,11 @@ final class TodayInteractionUITests: XCTestCase {
         XCTAssertFalse(app.buttons["todayRestoreSkippedExercises"].exists)
     }
 
-    private func launchSeededToday() -> XCUIApplication {
+    private func launchSeededToday(environment: [String: String] = [:]) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        environment.forEach { app.launchEnvironment[$0.key] = $0.value }
         app.launch()
         XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
         return app

@@ -741,7 +741,7 @@ Make the protected core flow testable and accessible.
 
 ---
 
-### M3.9 `IN PROGRESS` Today UX acceptance checkpoint
+### M3.9 `IN PROGRESS (PENDING CI)` Today UX acceptance checkpoint
 **Goal**
 Protect the app's defining feature before backend integration.
 

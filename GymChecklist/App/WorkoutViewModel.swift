@@ -27,10 +27,11 @@ final class WorkoutViewModel: ObservableObject {
     @Published private(set) var workouts: [Workout]
     @Published private(set) var exerciseLibrary: LocalExerciseLibrary
 
-    let currentDate: LocalDate
+    @Published private(set) var currentDate: LocalDate
     let calendar: Calendar
     private let repository: WorkoutRepository
     private let now: () -> Date
+    private let currentDateProvider: () -> LocalDate
     private let makeWorkoutExerciseID: () -> WorkoutExerciseID
     private let makeWorkoutSetID: () -> WorkoutSetID
 
@@ -41,6 +42,7 @@ final class WorkoutViewModel: ObservableObject {
         calendar: Calendar = .autoupdatingCurrent,
         exerciseLibrary: LocalExerciseLibrary? = nil,
         now: @escaping () -> Date = Date.init,
+        currentDateProvider: (() -> LocalDate)? = nil,
         makeWorkoutExerciseID: @escaping () -> WorkoutExerciseID = { WorkoutExerciseID() },
         makeWorkoutSetID: @escaping () -> WorkoutSetID = { WorkoutSetID() }
     ) {
@@ -56,6 +58,7 @@ final class WorkoutViewModel: ObservableObject {
         self.calendar = calendar
         self.exerciseLibrary = library
         self.now = now
+        self.currentDateProvider = currentDateProvider ?? { currentDate }
         self.makeWorkoutExerciseID = makeWorkoutExerciseID
         self.makeWorkoutSetID = makeWorkoutSetID
         self.workouts = repository.workouts
@@ -72,6 +75,12 @@ final class WorkoutViewModel: ObservableObject {
 
     func select(_ date: LocalDate) {
         selectedDate = date
+    }
+
+    func refreshCurrentDate() {
+        let refreshedDate = currentDateProvider()
+        guard refreshedDate != currentDate else { return }
+        currentDate = refreshedDate
     }
 
     func moveWeek(by offset: Int) {
@@ -241,6 +250,7 @@ final class WorkoutViewModel: ObservableObject {
         in exerciseID: WorkoutExerciseID,
         on workoutDate: LocalDate
     ) throws {
+        try requireCurrentTodayDate(workoutDate)
         guard var workout = repository.workout(on: workoutDate) else {
             throw ProgramPlanningError.workoutNotFound(workoutDate)
         }
@@ -257,8 +267,7 @@ final class WorkoutViewModel: ObservableObject {
         let timestamp = now()
         workout.exercises[exerciseIndex].sets[setIndex].toggleCompletion(at: timestamp)
         workout.updatedAt = timestamp
-        try repository.save(workout)
-        workouts = repository.workouts
+        try saveTodayWorkout(workout)
     }
 
     func editTodaySet(
@@ -269,6 +278,7 @@ final class WorkoutViewModel: ObservableObject {
         weight: Double,
         timeSeconds: Int
     ) throws {
+        try requireCurrentTodayDate(workoutDate)
         guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
             throw ProgramPlanningError.invalidSetValues
         }
@@ -286,6 +296,7 @@ final class WorkoutViewModel: ObservableObject {
     }
 
     func skipTodayExercise(_ exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) throws {
+        try requireCurrentTodayDate(workoutDate)
         guard var workout = repository.workout(on: workoutDate) else {
             throw ProgramPlanningError.workoutNotFound(workoutDate)
         }
@@ -296,14 +307,11 @@ final class WorkoutViewModel: ObservableObject {
 
         workout.exercises[exerciseIndex].isSkipped = true
         workout.updatedAt = now()
-        try repository.save(workout)
-        workouts = repository.workouts
+        try saveTodayWorkout(workout)
     }
 
     func restoreTodayExercise(_ exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) throws {
-        guard workoutDate == currentDate else {
-            throw ProgramPlanningError.todayActionRequiresCurrentDate(workoutDate)
-        }
+        try requireCurrentTodayDate(workoutDate)
         guard var workout = repository.workout(on: workoutDate) else {
             throw ProgramPlanningError.workoutNotFound(workoutDate)
         }
@@ -314,8 +322,7 @@ final class WorkoutViewModel: ObservableObject {
 
         workout.exercises[exerciseIndex].isSkipped = false
         workout.updatedAt = now()
-        try repository.save(workout)
-        workouts = repository.workouts
+        try saveTodayWorkout(workout)
     }
 
     func orderedSets(for exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) -> [WorkoutSet] {
@@ -479,7 +486,28 @@ final class WorkoutViewModel: ObservableObject {
         try mutation(&workout.exercises[exerciseIndex])
         workout.exercises[exerciseIndex].sets = normalizedSets(workout.exercises[exerciseIndex].sets)
         workout.updatedAt = now()
-        try repository.save(workout)
+        do {
+            try repository.save(workout)
+        } catch {
+            workouts = repository.workouts
+            throw error
+        }
+        workouts = repository.workouts
+    }
+
+    private func requireCurrentTodayDate(_ workoutDate: LocalDate) throws {
+        guard workoutDate == currentDate else {
+            throw ProgramPlanningError.todayActionRequiresCurrentDate(workoutDate)
+        }
+    }
+
+    private func saveTodayWorkout(_ workout: Workout) throws {
+        do {
+            try repository.save(workout)
+        } catch {
+            workouts = repository.workouts
+            throw error
+        }
         workouts = repository.workouts
     }
 

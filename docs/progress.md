@@ -4,7 +4,23 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.9` — Today UX acceptance checkpoint (`IN PROGRESS`).
+`M3.9` — Today UX acceptance checkpoint (`IN PROGRESS (PENDING CI)`).
+
+M3.9 is implementation-complete and pending only authoritative macOS CI:
+- Today now refreshes its concrete local date on foreground activation and
+  significant system time changes. Date changes dismiss date-bound editor,
+  popup, and error state; Program selection is intentionally unchanged.
+- All Today-only mutations reject a stale date. A failed save refreshes the
+  published snapshot before user feedback, including post-write throws, then
+  uses neutral manual-retry copy: `Couldn't confirm this change`.
+- Debug-only UI-test fixture hooks and focused unit/UI coverage exercise failed
+  completion, skip, restore, and editor writes; retry behavior; post-write
+  reconciliation; and stale-date rejection.
+- Required M3.9 reviews passed with no blocking findings from
+  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, and
+  `code_quality_agent`. `test_ci_agent` found the lifecycle notification wiring
+  source-reviewed only; the view-model refresh and date-switch safety are
+  covered, while simulator lifecycle execution remains pending macOS CI.
 
 M3.9 has started. It will consolidate deterministic local/mock coverage and
 the required UX, product, architecture, quality, and test/CI reviews across
@@ -311,6 +327,19 @@ build or test failure.
 - Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
   authoritative GitHub Actions verification remains pending free quota.
 
+## Latest M3.9 verification
+- `git diff --check`: PASS.
+- Deterministic source checks: PASS (project source references, user-visible
+  neutral retry feedback, snapshot reconciliation, current-date guards,
+  foreground/significant-time refresh wiring, and focused unit/UI test sources).
+- Required M3.9 reviews: PASS with no blocking findings from
+  `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`,
+  `code_quality_agent`, and `test_ci_agent`. The test/CI review records only
+  that notification-event execution itself is source-reviewed pending a real
+  simulator; it found no code defect.
+- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
+  authoritative GitHub Actions verification remains pending free quota.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -322,9 +351,9 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Finish M3.9 by adding user-visible retry-safe Today mutation error handling
-and refreshable local-date handling on foreground/day change, with focused
-coverage; then rerun required reviews and deterministic full-flow checks.
+Start M4.1 — add Firebase dependencies and safe configuration hooks. M3.9 and
+earlier pending checkpoints are provisionally satisfied for scheduling only
+under `docs/ci_free_quota_policy.md`; do not claim their CI passed.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

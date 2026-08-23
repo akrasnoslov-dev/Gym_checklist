@@ -28,6 +28,9 @@ protocol WorkoutRepository: AnyObject {
 
     func workout(on date: LocalDate) -> Workout?
     @discardableResult func createEmptyWorkout(on date: LocalDate, at timestamp: Date) -> WorkoutCreationResult
+    /// Replaces the locally observable workout snapshot.
+    /// A throw can follow a durable local change, so callers must refresh from
+    /// `workouts` before treating the attempted mutation as unchanged.
     func save(_ workout: Workout) throws
     func deleteWorkout(on date: LocalDate) throws
 }

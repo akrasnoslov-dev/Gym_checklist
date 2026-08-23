@@ -24,6 +24,7 @@ struct TodayView: View {
     let onOpenProgram: () -> Void
     @State private var editorRoute: TodaySetEditorRoute?
     @State private var showsCompletionPopup = false
+    @State private var mutationError: TodayMutationError?
 
     var body: some View {
         ScrollView {
@@ -50,6 +51,11 @@ struct TodayView: View {
             .accessibilityHidden(showsCompletionPopup)
         }
         .accessibilityIdentifier("todayScreen")
+        .onChange(of: currentDate) { _, _ in
+            editorRoute = nil
+            showsCompletionPopup = false
+            mutationError = nil
+        }
         .sheet(item: $editorRoute) { route in
             TodaySetEditorSheet(route: route) { reps, weight, timeSeconds in
                 try viewModel.editTodaySet(
@@ -68,6 +74,13 @@ struct TodayView: View {
                     showsCompletionPopup = false
                 }
             }
+        }
+        .alert(item: $mutationError) { error in
+            Alert(
+                title: Text(error.title),
+                message: Text(error.message),
+                dismissButton: .default(Text("OK"))
+            )
         }
     }
 
@@ -221,7 +234,7 @@ struct TodayView: View {
             try viewModel.toggleCompletion(of: set.id, in: exercise.id, on: currentDate)
             presentCompletionIfNeeded(after: statusBeforeMutation)
         } catch {
-            assertionFailure("Today set completion failed: \(error)")
+            showMutationError()
         }
     }
 
@@ -231,7 +244,7 @@ struct TodayView: View {
             try viewModel.skipTodayExercise(exercise.id, on: currentDate)
             presentCompletionIfNeeded(after: statusBeforeMutation)
         } catch {
-            assertionFailure("Today exercise skip failed: \(error)")
+            showMutationError()
         }
     }
 
@@ -239,8 +252,12 @@ struct TodayView: View {
         do {
             try viewModel.restoreTodayExercise(exercise.id, on: currentDate)
         } catch {
-            assertionFailure("Today exercise restore failed: \(error)")
+            showMutationError()
         }
+    }
+
+    private func showMutationError() {
+        mutationError = .saveFailed
     }
 
     private func presentCompletionIfNeeded(after statusBeforeMutation: WorkoutStatus) {
@@ -250,6 +267,14 @@ struct TodayView: View {
             after: statusAfterMutation
         )
     }
+}
+
+enum TodayMutationError: Identifiable {
+    case saveFailed
+
+    var id: String { "saveFailed" }
+    var title: String { "Couldn't confirm this change" }
+    var message: String { "Check your workout before trying again." }
 }
 
 private struct TodayCompletionOverlay: View {
@@ -295,6 +320,7 @@ private struct TodaySetEditorSheet: View {
     @State private var weight: Double
     @State private var timeSeconds: Int
     @State private var showsValidationError = false
+    @State private var showsSaveError = false
 
     init(
         route: TodaySetEditorRoute,
@@ -334,7 +360,12 @@ private struct TodaySetEditorSheet: View {
                             try onSave(reps, weight, timeSeconds)
                             dismiss()
                         } catch {
-                            showsValidationError = true
+                            if let planningError = error as? ProgramPlanningError,
+                               planningError == .invalidSetValues {
+                                showsValidationError = true
+                            } else {
+                                showsSaveError = true
+                            }
                         }
                     }
                     .accessibilityIdentifier("todaySetEditorSave")
@@ -344,6 +375,11 @@ private struct TodaySetEditorSheet: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("Enter valid reps, weight, and time values.")
+            }
+            .alert("Couldn't confirm this change", isPresented: $showsSaveError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Check your workout before trying again.")
             }
         }
     }

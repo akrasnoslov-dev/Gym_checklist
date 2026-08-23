@@ -4,6 +4,10 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
     let userID: UserID
     private var storage: [WorkoutDateKey: Workout] = [:]
     private let makeWorkoutID: () -> WorkoutID
+#if DEBUG
+    private var failNextSaveForTesting = false
+    private var successfulSavesBeforeFailureForTesting: Int?
+#endif
 
     init(userID: UserID, makeWorkoutID: @escaping () -> WorkoutID = { WorkoutID() }) {
         precondition(!userID.rawValue.isEmpty, "Workout repository requires a user ID")
@@ -40,6 +44,19 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
     }
 
     func save(_ workout: Workout) throws {
+#if DEBUG
+        if failNextSaveForTesting {
+            failNextSaveForTesting = false
+            throw InMemoryWorkoutRepositoryError.simulatedSaveFailure
+        }
+        if let remainingSaves = successfulSavesBeforeFailureForTesting {
+            guard remainingSaves > 0 else {
+                successfulSavesBeforeFailureForTesting = nil
+                throw InMemoryWorkoutRepositoryError.simulatedSaveFailure
+            }
+            successfulSavesBeforeFailureForTesting = remainingSaves - 1
+        }
+#endif
         guard workout.userID == userID else { throw WorkoutRepositoryError.ownerMismatch }
 
         let key = workout.dateKey
@@ -57,6 +74,17 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
         storage[key] = persisted
     }
 
+#if DEBUG
+    func armNextSaveFailureForTesting() {
+        failNextSaveForTesting = true
+    }
+
+    func armSaveFailureForTesting(afterSuccessfulSaves count: Int) {
+        precondition(count >= 0, "Save failure delay must not be negative")
+        successfulSavesBeforeFailureForTesting = count
+    }
+#endif
+
     func deleteWorkout(on date: LocalDate) throws {
         let key = WorkoutDateKey(userID: userID, localDate: date)
         guard storage.removeValue(forKey: key) != nil else { throw InMemoryWorkoutRepositoryError.workoutNotFound(key) }
@@ -65,4 +93,7 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
 
 enum InMemoryWorkoutRepositoryError: Error, Equatable {
     case workoutNotFound(WorkoutDateKey)
+#if DEBUG
+    case simulatedSaveFailure
+#endif
 }

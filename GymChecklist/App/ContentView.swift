@@ -1,21 +1,34 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 @MainActor
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = AppTab.today
     @StateObject private var workoutViewModel: WorkoutViewModel
 
     init() {
         let calendar = Calendar.autoupdatingCurrent
-        let today = Self.testReferenceDate ?? LocalDate(date: Date(), calendar: calendar)
+        let currentDateProvider = { Self.localCurrentDate(calendar: calendar) }
+        let today = currentDateProvider()
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "local-mvp-user"))
         Self.seedTodayWorkoutForUITests(in: repository, on: today)
+#if DEBUG
+        if ProcessInfo.processInfo.environment["UITEST_FAIL_NEXT_TODAY_SAVE"] == "1" {
+            repository.armNextSaveFailureForTesting()
+        }
+        if let rawFailureDelay = ProcessInfo.processInfo.environment["UITEST_FAIL_TODAY_SAVE_AFTER"],
+           let failureDelay = Int(rawFailureDelay), failureDelay >= 0 {
+            repository.armSaveFailureForTesting(afterSuccessfulSaves: failureDelay)
+        }
+#endif
         _workoutViewModel = StateObject(wrappedValue: WorkoutViewModel(
             repository: repository,
             initialDate: today,
             currentDate: today,
-            calendar: calendar
+            calendar: calendar,
+            currentDateProvider: currentDateProvider
         ))
     }
 
@@ -42,7 +55,14 @@ struct ContentView: View {
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }
-                .tag(AppTab.settings)
+            .tag(AppTab.settings)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            workoutViewModel.refreshCurrentDate()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            workoutViewModel.refreshCurrentDate()
         }
     }
 
@@ -51,6 +71,10 @@ struct ContentView: View {
         let values = raw.split(separator: "-").compactMap { Int($0) }
         guard values.count == 3, (1...12).contains(values[1]), (1...31).contains(values[2]) else { return nil }
         return LocalDate(year: values[0], month: values[1], day: values[2])
+    }
+
+    private static func localCurrentDate(calendar: Calendar) -> LocalDate {
+        testReferenceDate ?? LocalDate(date: Date(), calendar: calendar)
     }
 
     private static func seedTodayWorkoutForUITests(

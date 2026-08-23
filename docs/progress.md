@@ -4,7 +4,7 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M4.2` — Define repository protocols and Firestore mapping (`IN PROGRESS`).
+`M4.3` — Implement Firestore workout persistence (`IN PROGRESS — USER ACTION REQUIRED`).
 
 M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
 authoritative macOS verification. M4.1 is implementation-complete except for
@@ -44,6 +44,12 @@ Required M4.2 reviews completed with no blocking findings from
 main-actor, cancellable multi-observer repository delivery before M4.3; M4.2
 now has an actor-isolated observation contract, immediate local snapshots, and
 automatic cancellation when a view model releases its observation.
+
+M4.3 cannot safely begin real Firestore reads/writes until a development
+Firebase project exists. The repository deliberately has no Firebase console
+configuration, authenticated user, or committed permissive rules. Creating an
+adapter without those safeguards would either be untestable or risk normalizing
+unsafe test-mode access; no cloud persistence behavior is claimed.
 
 M3.9 is implementation-complete and pending only authoritative macOS CI:
 - Today now refreshes its concrete local date on foreground activation and
@@ -404,21 +410,33 @@ build or test failure.
   Actions capacity.
 
 ## USER ACTION REQUIRED
-None for the current implementation work.
+`USER_ACTION_REQUIRED` — Create a **development** Firebase project for bundle
+identifier `dev.akrasnoslov.GymChecklist`, enable Email/Password Authentication,
+and create Cloud Firestore in **production mode** (not test mode). Download
+`GoogleService-Info.plist` and add it locally to the GymChecklist app target;
+do not commit it. Create one non-production test account for owner-scope
+verification. Do not add Firestore test-mode rules or service-account material
+to the repository.
+
+Resume action: with that local configuration available, implement and verify
+the M4.3 user-scoped Firestore repository against the M4.2 contracts, then add
+M4.7 owner-only rules before any broader shared-environment use.
 
 Later genuine external checkpoints may still require batched user action for Firebase configuration, Apple Developer/App Store Connect, signing, or release secrets.
 
 ## Blockers
-No product or implementation blocker is currently known.
+M4.3 requires the Firebase development configuration and authenticated test
+account described above. This is an external configuration dependency, not an
+implementation failure.
 
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-After the required M4.2 code-quality review, checkpoint M4.2 and begin M4.3 —
-implement user-scoped Firestore workout persistence with local-first writes and
-repository-owned observation. M4.1 and earlier pending checkpoints are
-provisionally satisfied for scheduling only under `docs/ci_free_quota_policy.md`;
-do not claim their CI passed.
+After the Firebase development project, local plist, and authenticated test
+account are available, implement M4.3 user-scoped Firestore workout persistence
+with local-first writes and repository-owned observation. M4.1 and earlier
+pending checkpoints are provisionally satisfied for scheduling only under
+`docs/ci_free_quota_policy.md`; do not claim their CI passed.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

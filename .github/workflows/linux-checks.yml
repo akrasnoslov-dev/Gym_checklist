@@ -67,11 +67,16 @@ jobs:
             echo 'No shared scheme yet; skipping XML validation.'
           fi
 
-      - name: Check latest commit whitespace errors
+      - name: Check changed-file whitespace errors
         shell: bash
         run: |
           set -euo pipefail
-          git show --check --oneline --decorate=no HEAD
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            git diff --check "origin/${{ github.base_ref }}...HEAD"
+          else
+            git show --check --oneline --decorate=no HEAD
+          fi
 
       - name: Run Swift package tests when available
         shell: bash

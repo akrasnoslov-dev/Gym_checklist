@@ -78,6 +78,7 @@ struct TodayView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
+        .accessibilityIdentifier("todayHeader")
     }
 
     private var noProgramState: some View {
@@ -116,6 +117,12 @@ struct TodayView: View {
                         skip(exercise)
                     }
                 }
+                .accessibilityLabel("\(exerciseName), \(sets.count) \(sets.count == 1 ? \"set\" : \"sets\")")
+                .accessibilityHint("Actions available to skip this exercise.")
+                .accessibilityIdentifier("todayExercise-\(exercise.id.rawValue.uuidString)")
+                .accessibilityAction(named: Text("Skip exercise")) {
+                    skip(exercise)
+                }
 
             VStack(spacing: 0) {
                 ForEach(Array(sets.enumerated()), id: \.element.id) { index, set in
@@ -128,10 +135,14 @@ struct TodayView: View {
                     .accessibilityIdentifier("todaySet-\(set.id.rawValue.uuidString)")
                     .accessibilityLabel("\(exerciseName), set \(index + 1): \(setDescription(for: set))")
                     .accessibilityValue(set.isCompleted ? "Completed" : "Incomplete")
-                    .accessibilityHint("Double tap to toggle completion. Long press to edit.")
+                    .accessibilityHint("Double tap to toggle completion. Actions available to edit this set.")
+                    .accessibilityAddTraits(set.isCompleted ? .isSelected : [])
                     .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
                         editorRoute = TodaySetEditorRoute(exercise: exercise, set: set)
                     })
+                    .accessibilityAction(named: Text(set.isCompleted ? "Edit actual" : "Edit set")) {
+                        editorRoute = TodaySetEditorRoute(exercise: exercise, set: set)
+                    }
                     if set.id != sets.last?.id {
                         Divider()
                     }
@@ -149,6 +160,7 @@ struct TodayView: View {
             Text(setDescription(for: set))
                 .font(.body)
                 .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)

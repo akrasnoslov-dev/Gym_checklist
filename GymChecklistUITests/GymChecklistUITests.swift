@@ -75,7 +75,7 @@ final class GymChecklistUITests: XCTestCase {
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.staticTexts["Today"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["Friday, August 14, 2026"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["todayExercise-90000000-0000-4000-8000-000000000001"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["0 reps"].waitForExistence(timeout: 2))
         XCTAssertFalse(app.buttons["Start Workout"].exists)
 
@@ -152,6 +152,8 @@ final class GymChecklistUITests: XCTestCase {
 }
 
 final class TodayInteractionUITests: XCTestCase {
+    private let benchPress = "todayExercise-90000000-0000-4000-8000-000000000001"
+    private let barbellRow = "todayExercise-90000000-0000-4000-8000-000000000002"
     private let firstBenchSet = "todaySet-90000000-0000-4000-8000-000000000101"
     private let secondBenchSet = "todaySet-90000000-0000-4000-8000-000000000102"
     private let rowSet = "todaySet-90000000-0000-4000-8000-000000000201"
@@ -177,6 +179,37 @@ final class TodayInteractionUITests: XCTestCase {
         set.tap()
         assert(set, hasValue: "Incomplete")
         XCTAssertTrue(app.otherElements["todayScreen"].exists)
+    }
+
+    func testTodaySetUsesStableIdentifierAndAccessibleCompletionState() {
+        let app = launchSeededToday()
+        let exercise = app.staticTexts[benchPress]
+        let set = app.buttons[firstBenchSet]
+
+        XCTAssertTrue(exercise.waitForExistence(timeout: 5))
+        XCTAssertEqual(exercise.label, "Bench Press, 2 sets")
+        XCTAssertTrue(set.waitForExistence(timeout: 2))
+        XCTAssertEqual(set.label, "Bench Press, set 1: 8 reps × 60 kg")
+        assert(set, hasValue: "Incomplete")
+        XCTAssertGreaterThanOrEqual(set.frame.height, 44)
+
+        set.tap()
+        assert(set, hasValue: "Completed")
+    }
+
+    func testTodaySetRemainsUsableAtAccessibilityTextSize() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        let set = app.buttons[firstBenchSet]
+        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        XCTAssertTrue(set.isHittable)
+        XCTAssertGreaterThanOrEqual(set.frame.height, 44)
+        set.tap()
+        assert(set, hasValue: "Completed")
     }
 
     func testTodayCompletesSetsInArbitraryExerciseAndSetOrder() {
@@ -251,30 +284,30 @@ final class TodayInteractionUITests: XCTestCase {
 
     func testTodaySkipsExerciseWithoutRemovingRemainingWork() {
         let app = launchSeededToday()
-        let benchPress = app.staticTexts["Bench Press"]
+        let benchPressHeader = app.staticTexts[benchPress]
 
-        XCTAssertTrue(benchPress.waitForExistence(timeout: 5))
-        benchPress.press(forDuration: 1)
+        XCTAssertTrue(benchPressHeader.waitForExistence(timeout: 5))
+        benchPressHeader.press(forDuration: 1)
         let skip = app.buttons["Skip exercise"]
         XCTAssertTrue(skip.waitForExistence(timeout: 2))
         skip.tap()
 
-        XCTAssertFalse(benchPress.waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Barbell Row"].exists)
+        XCTAssertFalse(benchPressHeader.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts[barbellRow].exists)
         XCTAssertTrue(app.buttons[rowSet].exists)
         assert(app.buttons[rowSet], hasValue: "Incomplete")
     }
 
     func testTodayRestoresSkippedExerciseWithItsExistingSetState() {
         let app = launchSeededToday()
-        let benchPress = app.staticTexts["Bench Press"]
+        let benchPressHeader = app.staticTexts[benchPress]
         let benchSet = app.buttons[firstBenchSet]
 
         benchSet.tap()
         assert(benchSet, hasValue: "Completed")
-        benchPress.press(forDuration: 1)
+        benchPressHeader.press(forDuration: 1)
         app.buttons["Skip exercise"].tap()
-        XCTAssertFalse(benchPress.waitForExistence(timeout: 2))
+        XCTAssertFalse(benchPressHeader.waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons[rowSet].exists)
 
         let restoreMenu = app.buttons["todayRestoreSkippedExercises"]
@@ -284,7 +317,7 @@ final class TodayInteractionUITests: XCTestCase {
         XCTAssertTrue(restoreBench.waitForExistence(timeout: 2))
         restoreBench.tap()
 
-        XCTAssertTrue(benchPress.waitForExistence(timeout: 2))
+        XCTAssertTrue(benchPressHeader.waitForExistence(timeout: 2))
         assert(benchSet, hasValue: "Completed")
         XCTAssertTrue(app.buttons[rowSet].exists)
         XCTAssertFalse(app.buttons["todayRestoreSkippedExercises"].exists)
@@ -367,7 +400,7 @@ final class TodayCompletionUITests: XCTestCase {
         app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
         app.launch()
 
-        let benchPress = app.staticTexts["Bench Press"]
+        let benchPress = app.staticTexts["todayExercise-90000000-0000-4000-8000-000000000001"]
         let rowSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000201"]
         XCTAssertTrue(benchPress.waitForExistence(timeout: 5))
         benchPress.press(forDuration: 1)
@@ -392,7 +425,7 @@ final class TodayCompletionUITests: XCTestCase {
     func testSkippingLastRemainingExerciseShowsCompletionPopup() {
         let app = launchCompletionWorkout()
         let benchSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000101"]
-        let row = app.staticTexts["Barbell Row"]
+        let row = app.staticTexts["todayExercise-90000000-0000-4000-8000-000000000002"]
 
         benchSet.tap()
         XCTAssertFalse(app.otherElements["todayCompletionPopup"].exists)

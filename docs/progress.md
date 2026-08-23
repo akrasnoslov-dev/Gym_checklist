@@ -4,12 +4,27 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M3.8` — Add Today accessibility and interaction identifiers (`IN PROGRESS`).
+`M3.8` — Add Today accessibility and interaction identifiers (`IN PROGRESS (PENDING CI)`).
 
-M3.8 has started. It will audit and complete VoiceOver labels, semantic state,
-touch targets, Dynamic Type resilience, and stable critical UI identifiers on
-Today. M3.7 remains implementation-complete and `IN PROGRESS (PENDING CI)`
-solely for authoritative macOS verification.
+M3.8 is implementation-complete and pending only authoritative macOS
+verification:
+- Today set rows expose stable exercise/set identifiers, clear VoiceOver
+  exercise/set/value labels, an explicit Completed/Incomplete value, and a
+  selected trait when complete. The checkmark/circle icon and semantic state
+  mean completion is not conveyed by color alone.
+- VoiceOver Actions expose `Skip exercise` plus contextual `Edit set` or
+  `Edit actual`, using the existing skip/editor paths without adding visible
+  Today controls or changing the one-tap flow.
+- Set rows retain a 48pt minimum target and use multiline, vertically fixed
+  text so common accessibility sizes remain usable.
+- Focused UI coverage asserts stable identifiers, labels/state, touch-target
+  size, completion at Accessibility XXXL, and migration of critical exercise
+  lookups away from display-copy-dependent queries.
+- Required M3.8 reviews completed without blocking findings from
+  `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`.
+
+M3.7 remains implementation-complete and `IN PROGRESS (PENDING CI)` solely
+for authoritative macOS verification.
 
 M3.7 is implementation-complete and pending only authoritative macOS
 verification:
@@ -269,6 +284,17 @@ build or test failure.
 - Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
   authoritative GitHub Actions verification remains pending free quota.
 
+## Latest M3.8 verification
+- `git diff --check`: PASS.
+- Deterministic Today accessibility and UI-test source checks: PASS (stable
+  IDs, labels, explicit semantic completion state, named VoiceOver actions,
+  non-color icon state, 48pt target, and Dynamic Type coverage).
+- Shared Xcode project UI-test source reference check: PASS.
+- Required M3.8 reviews: PASS with no blocking findings from
+  `ios_ux_guardian`, `product_spec_guardian`, and `test_ci_agent`.
+- Xcode/macOS build, unit tests, UI tests: unavailable on the Windows host;
+  authoritative GitHub Actions verification remains pending free quota.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -280,9 +306,9 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Implement M3.8 Today accessibility and interaction identifiers, add focused
-coverage, obtain required reviews, and continue safe M3 work under the
-no-cost CI policy.
+Run the M3.9 Today UX acceptance checkpoint, including its required reviews
+and deterministic full-flow source/test checks, then continue safe work under
+the no-cost CI policy.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

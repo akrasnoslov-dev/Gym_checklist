@@ -721,7 +721,7 @@ Celebrate completion without creating navigation friction.
 
 ---
 
-### M3.8 `IN PROGRESS` Add Today accessibility and interaction identifiers
+### M3.8 `IN PROGRESS (PENDING CI)` Add Today accessibility and interaction identifiers
 **Goal**
 Make the protected core flow testable and accessible.
 

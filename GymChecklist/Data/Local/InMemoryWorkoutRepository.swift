@@ -1,7 +1,9 @@
 import Foundation
 
+@MainActor
 final class InMemoryWorkoutRepository: WorkoutRepository {
     let userID: UserID
+    private var observers: [UUID: @MainActor ([Workout]) -> Void] = [:]
     private var storage: [WorkoutDateKey: Workout] = [:]
     private let makeWorkoutID: () -> WorkoutID
 #if DEBUG
@@ -19,6 +21,15 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
         storage.values.sorted {
             if $0.localDate != $1.localDate { return $0.localDate < $1.localDate }
             return $0.id.rawValue.uuidString < $1.id.rawValue.uuidString
+        }
+    }
+
+    func observeWorkouts(_ observer: @escaping @MainActor ([Workout]) -> Void) -> WorkoutObservation {
+        let id = UUID()
+        observers[id] = observer
+        observer(workouts)
+        return InMemoryWorkoutObservation { [weak self] in
+            self?.observers.removeValue(forKey: id)
         }
     }
 
@@ -40,6 +51,7 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
             updatedAt: timestamp
         )
         storage[key] = workout
+        publishSnapshot()
         return .created(workout)
     }
 
@@ -72,6 +84,7 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
         var persisted = workout
         if let existing = storage[key] { persisted.createdAt = existing.createdAt }
         storage[key] = persisted
+        publishSnapshot()
     }
 
 #if DEBUG
@@ -88,6 +101,30 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
     func deleteWorkout(on date: LocalDate) throws {
         let key = WorkoutDateKey(userID: userID, localDate: date)
         guard storage.removeValue(forKey: key) != nil else { throw InMemoryWorkoutRepositoryError.workoutNotFound(key) }
+        publishSnapshot()
+    }
+
+    private func publishSnapshot() {
+        let snapshot = workouts
+        observers.values.forEach { $0(snapshot) }
+    }
+}
+
+@MainActor
+private final class InMemoryWorkoutObservation: WorkoutObservation {
+    private var cancelHandler: (() -> Void)?
+
+    init(cancelHandler: @escaping () -> Void) {
+        self.cancelHandler = cancelHandler
+    }
+
+    func cancel() {
+        cancelHandler?()
+        cancelHandler = nil
+    }
+
+    deinit {
+        cancel()
     }
 }
 

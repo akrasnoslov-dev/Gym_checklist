@@ -104,6 +104,36 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         self.completedAt = nil
     }
 
+    init(
+        id: WorkoutSetID,
+        order: Int,
+        reps: Int,
+        weight: Double,
+        timeSeconds: Int,
+        isCompleted: Bool,
+        actualReps: Int?,
+        actualWeight: Double?,
+        actualTimeSeconds: Int?,
+        completedAt: Date?
+    ) throws {
+        guard !isCompleted || (actualReps != nil && actualWeight != nil && actualTimeSeconds != nil && completedAt != nil) else {
+            throw WorkoutSetPersistenceError.completedSetMissingActualValues
+        }
+        guard isCompleted || (actualReps == nil && actualWeight == nil && actualTimeSeconds == nil && completedAt == nil) else {
+            throw WorkoutSetPersistenceError.incompleteSetHasActualValues
+        }
+        self.id = id
+        self.order = order
+        self.reps = reps
+        self.weight = weight
+        self.timeSeconds = timeSeconds
+        self.isCompleted = isCompleted
+        self.actualReps = actualReps
+        self.actualWeight = actualWeight
+        self.actualTimeSeconds = actualTimeSeconds
+        self.completedAt = completedAt
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(WorkoutSetID.self, forKey: .id)
@@ -120,6 +150,11 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
             throw DecodingError.dataCorruptedError(forKey: .isCompleted, in: container, debugDescription: "Completed sets require actual values and a completion timestamp")
         }
     }
+}
+
+enum WorkoutSetPersistenceError: Error, Equatable {
+    case completedSetMissingActualValues
+    case incompleteSetHasActualValues
 }
 
 import Foundation

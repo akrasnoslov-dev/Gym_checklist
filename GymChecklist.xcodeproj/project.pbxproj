@@ -31,6 +31,8 @@
 		M10000000000000000000001 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = M20000000000000000000001 /* FirebaseCore */; };
 		M10000000000000000000002 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = M20000000000000000000002 /* FirebaseAuth */; };
 		M10000000000000000000003 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = M20000000000000000000003 /* FirebaseFirestore */; };
+		N10000000000000000000001 /* FirestoreMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = N20000000000000000000001 /* FirestoreMapping.swift */; };
+		N10000000000000000000002 /* InMemoryUserDataRepositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = N20000000000000000000002 /* InMemoryUserDataRepositories.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,6 +65,8 @@
 		J20000000000000000000001 /* WorkoutViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutViewModel.swift; sourceTree = "<group>"; };
 		K20000000000000000000001 /* ExercisePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExercisePickerView.swift; sourceTree = "<group>"; };
 		L20000000000000000000001 /* FirebaseBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseBootstrap.swift; sourceTree = "<group>"; };
+		N20000000000000000000001 /* FirestoreMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreMapping.swift; sourceTree = "<group>"; };
+		N20000000000000000000002 /* InMemoryUserDataRepositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryUserDataRepositories.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,8 +92,8 @@
 		A70000000000000000000012 /* UI */ = {isa = PBXGroup; children = (); path = UI; sourceTree = "<group>"; };
 		A70000000000000000000013 /* Utilities */ = {isa = PBXGroup; children = (D20000000000000000000003 /* LocalDate.swift */, D20000000000000000000004 /* SetDisplayFormatter.swift */,); path = Utilities; sourceTree = "<group>"; };
 		A70000000000000000000014 /* Repositories */ = {isa = PBXGroup; children = (H20000000000000000000001 /* WorkoutRepository.swift */,); path = Repositories; sourceTree = "<group>"; };
-		A70000000000000000000015 /* Firebase */ = {isa = PBXGroup; children = (L20000000000000000000001 /* FirebaseBootstrap.swift */,); path = Firebase; sourceTree = "<group>"; };
-		A70000000000000000000016 /* Local */ = {isa = PBXGroup; children = (E20000000000000000000001 /* SystemExerciseCatalog.swift */, F20000000000000000000001 /* LocalExerciseLibrary.swift */, I20000000000000000000001 /* InMemoryWorkoutRepository.swift */,); path = Local; sourceTree = "<group>"; };
+		A70000000000000000000015 /* Firebase */ = {isa = PBXGroup; children = (L20000000000000000000001 /* FirebaseBootstrap.swift */, N20000000000000000000001 /* FirestoreMapping.swift */,); path = Firebase; sourceTree = "<group>"; };
+		A70000000000000000000016 /* Local */ = {isa = PBXGroup; children = (E20000000000000000000001 /* SystemExerciseCatalog.swift */, F20000000000000000000001 /* LocalExerciseLibrary.swift */, I20000000000000000000001 /* InMemoryWorkoutRepository.swift */, N20000000000000000000002 /* InMemoryUserDataRepositories.swift */,); path = Local; sourceTree = "<group>"; };
 		A70000000000000000000003 /* GymChecklistTests */ = {isa = PBXGroup; children = (A20000000000000000000003 /* DomainRulesTests.swift */,); path = GymChecklistTests; sourceTree = "<group>"; };
 		A70000000000000000000004 /* GymChecklistUITests */ = {isa = PBXGroup; children = (A20000000000000000000004 /* GymChecklistUITests.swift */,); path = GymChecklistUITests; sourceTree = "<group>"; };
 		A70000000000000000000005 /* Frameworks */ = {isa = PBXGroup; children = (A20000000000000000000006 /* XCTest.framework */,); name = Frameworks; sourceTree = "<group>"; };
@@ -113,7 +117,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A90000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* GymChecklistApp.swift in Sources */, A10000000000000000000002 /* ContentView.swift in Sources */, A10000000000000000000007 /* TodayView.swift in Sources */, A10000000000000000000008 /* ProgramView.swift in Sources */, A10000000000000000000009 /* SettingsView.swift in Sources */, D10000000000000000000001 /* DomainModels.swift in Sources */, D10000000000000000000002 /* WorkoutRules.swift in Sources */, D10000000000000000000003 /* LocalDate.swift in Sources */, D10000000000000000000004 /* SetDisplayFormatter.swift in Sources */, E10000000000000000000001 /* SystemExerciseCatalog.swift in Sources */, F10000000000000000000001 /* LocalExerciseLibrary.swift in Sources */, G10000000000000000000001 /* ProgramCalendarState.swift in Sources */, H10000000000000000000001 /* WorkoutRepository.swift in Sources */, I10000000000000000000001 /* InMemoryWorkoutRepository.swift in Sources */, J10000000000000000000001 /* WorkoutViewModel.swift in Sources */, K10000000000000000000001 /* ExercisePickerView.swift in Sources */, L10000000000000000000001 /* FirebaseBootstrap.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A90000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* GymChecklistApp.swift in Sources */, A10000000000000000000002 /* ContentView.swift in Sources */, A10000000000000000000007 /* TodayView.swift in Sources */, A10000000000000000000008 /* ProgramView.swift in Sources */, A10000000000000000000009 /* SettingsView.swift in Sources */, D10000000000000000000001 /* DomainModels.swift in Sources */, D10000000000000000000002 /* WorkoutRules.swift in Sources */, D10000000000000000000003 /* LocalDate.swift in Sources */, D10000000000000000000004 /* SetDisplayFormatter.swift in Sources */, E10000000000000000000001 /* SystemExerciseCatalog.swift in Sources */, F10000000000000000000001 /* LocalExerciseLibrary.swift in Sources */, G10000000000000000000001 /* ProgramCalendarState.swift in Sources */, H10000000000000000000001 /* WorkoutRepository.swift in Sources */, I10000000000000000000001 /* InMemoryWorkoutRepository.swift in Sources */, J10000000000000000000001 /* WorkoutViewModel.swift in Sources */, K10000000000000000000001 /* ExercisePickerView.swift in Sources */, L10000000000000000000001 /* FirebaseBootstrap.swift in Sources */, N10000000000000000000001 /* FirestoreMapping.swift in Sources */, N10000000000000000000002 /* InMemoryUserDataRepositories.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 		A90000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* DomainRulesTests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 		A90000000000000000000003 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000005 /* GymChecklistUITests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */

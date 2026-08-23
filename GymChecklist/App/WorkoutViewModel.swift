@@ -34,6 +34,7 @@ final class WorkoutViewModel: ObservableObject {
     private let currentDateProvider: () -> LocalDate
     private let makeWorkoutExerciseID: () -> WorkoutExerciseID
     private let makeWorkoutSetID: () -> WorkoutSetID
+    private var workoutObservation: WorkoutObservation?
 
     init(
         repository: WorkoutRepository,
@@ -62,6 +63,9 @@ final class WorkoutViewModel: ObservableObject {
         self.makeWorkoutExerciseID = makeWorkoutExerciseID
         self.makeWorkoutSetID = makeWorkoutSetID
         self.workouts = repository.workouts
+        self.workoutObservation = repository.observeWorkouts { [weak self] workouts in
+            self?.workouts = workouts
+        }
     }
 
     var calendarState: ProgramCalendarState {

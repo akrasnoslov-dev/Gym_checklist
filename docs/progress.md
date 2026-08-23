@@ -4,7 +4,7 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
-`M4.1` — Add Firebase dependencies and safe configuration hooks (`IN PROGRESS (PENDING CI)`).
+`M4.2` — Define repository protocols and Firestore mapping (`IN PROGRESS`).
 
 M3.9 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
 authoritative macOS verification. M4.1 is implementation-complete except for
@@ -27,6 +27,23 @@ cloud-data behavior is claimed.
 
 Required M4.1 reviews completed with no blocking findings from
 `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent`.
+
+M4.2 is implementation-complete and `IN PROGRESS (PENDING CI)` solely for
+authoritative macOS verification. It establishes Foundation-only, domain-facing
+repository contracts for workouts, custom exercises, and user settings; shared
+repository snapshot publication; strict user-scoped Firestore path/mapping DTOs;
+and in-memory implementations for the new user-data contracts. Mapping keeps
+local dates as canonical `yyyy-MM-dd` path keys and rejects malformed UUIDs,
+dates, set values, or completion state. No Firebase types or Firestore queries
+reach ViewModels or views, and system exercises cannot be persisted as custom
+user data.
+
+Required M4.2 reviews completed with no blocking findings from
+`firebase_data_guardian`, `security_privacy_agent`, `architecture_guardian`,
+`test_ci_agent`, and `code_quality_agent`. The code-quality review required
+main-actor, cancellable multi-observer repository delivery before M4.3; M4.2
+now has an actor-isolated observation contract, immediate local snapshots, and
+automatic cancellation when a view model releases its observation.
 
 M3.9 is implementation-complete and pending only authoritative macOS CI:
 - Today now refreshes its concrete local date on foreground activation and
@@ -375,6 +392,17 @@ build or test failure.
 - Xcode/macOS dependency resolution, generated `Package.resolved`, build,
   unit tests, and UI tests: pending available free GitHub Actions capacity.
 
+## Latest M4.2 verification
+- `git diff --check`: PASS.
+- Deterministic repository/mapping source checks: PASS (user-scoped paths,
+  canonical date key, explicit completion fields, Foundation-only mapping,
+  project source references, cancellable main-actor snapshot contract, and no
+  Firebase types outside `Data/Firebase`).
+- Focused XCTest source coverage: added mapping round-trip/rejection,
+  custom/settings ownership, and local snapshot-publication cases.
+- Xcode/macOS build, unit tests, and UI tests: pending available free GitHub
+  Actions capacity.
+
 ## USER ACTION REQUIRED
 None for the current implementation work.
 
@@ -386,10 +414,11 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Begin M4.2 — define domain-facing repository protocols and Firestore mapping
-types without letting Firestore query code reach SwiftUI views. M4.1 and
-earlier pending checkpoints are provisionally satisfied for scheduling only
-under `docs/ci_free_quota_policy.md`; do not claim their CI passed.
+After the required M4.2 code-quality review, checkpoint M4.2 and begin M4.3 —
+implement user-scoped Firestore workout persistence with local-first writes and
+repository-owned observation. M4.1 and earlier pending checkpoints are
+provisionally satisfied for scheduling only under `docs/ci_free_quota_policy.md`;
+do not claim their CI passed.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

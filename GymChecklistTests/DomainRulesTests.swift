@@ -200,6 +200,88 @@ final class FirebaseBootstrapTests: XCTestCase {
     }
 }
 
+final class FirestoreMappingTests: XCTestCase {
+    private let userID = UserID(rawValue: "user-a")
+    private let date = LocalDate(year: 2028, month: 2, day: 29)
+
+    func testWorkoutMappingsPreserveCanonicalDateOrderingAndActualValues() throws {
+        let workoutID = WorkoutID(rawValue: UUID(uuidString: "10000000-0000-4000-8000-000000000001")!)
+        let exerciseID = WorkoutExerciseID(rawValue: UUID(uuidString: "10000000-0000-4000-8000-000000000002")!)
+        let domainExerciseID = ExerciseID(rawValue: UUID(uuidString: "10000000-0000-4000-8000-000000000003")!)
+        let setID = WorkoutSetID(rawValue: UUID(uuidString: "10000000-0000-4000-8000-000000000004")!)
+        var set = WorkoutSet(id: setID, order: 9, reps: 8, weight: 60, timeSeconds: 0)
+        set.complete(at: Date(timeIntervalSince1970: 123))
+        set.editActual(reps: 7, weight: 61, timeSeconds: 5)
+        let exercise = WorkoutExercise(id: exerciseID, exerciseID: domainExerciseID, customName: nil, order: 7, isSkipped: true, sets: [set])
+        let workout = Workout(id: workoutID, userID: userID, localDate: date, exercises: [exercise], createdAt: .distantPast, updatedAt: Date(timeIntervalSince1970: 456))
+
+        let decodedSet = try FirestoreWorkoutSetDocument(set: set).workoutSet()
+        let decodedExercise = try FirestoreWorkoutExerciseDocument(exercise: exercise).workoutExercise(sets: [decodedSet])
+        let decodedWorkout = try FirestoreWorkoutDocument(workout: workout).workout(userID: userID, documentDate: date, exercises: [decodedExercise])
+
+        XCTAssertEqual(decodedWorkout, workout)
+        XCTAssertEqual(decodedWorkout.exercises[0].order, 7)
+        XCTAssertEqual(decodedWorkout.exercises[0].sets[0].order, 9)
+        XCTAssertEqual(FirestoreDocumentPath.workout(userID: userID, date: date), "users/user-a/workouts/2028-02-29")
+    }
+
+    func testMappingsRejectMalformedDateAndIncompleteCompletionState() {
+        let invalidDate = FirestoreWorkoutDocument(id: UUID().uuidString, localDate: "2028-02-30", createdAt: .distantPast, updatedAt: .distantPast)
+        XCTAssertThrowsError(try invalidDate.workout(userID: userID, documentDate: date, exercises: []))
+
+        let missingActual = FirestoreWorkoutSetDocument(id: UUID().uuidString, order: 0, reps: 8, weight: 60, timeSeconds: 0, isCompleted: true, actualReps: nil, actualWeight: 60, actualTimeSeconds: 0, completedAt: .distantPast)
+        XCTAssertThrowsError(try missingActual.workoutSet())
+
+        let negativeWeight = FirestoreWorkoutSetDocument(id: UUID().uuidString, order: 0, reps: 8, weight: -1, timeSeconds: 0, isCompleted: false, actualReps: nil, actualWeight: nil, actualTimeSeconds: nil, completedAt: nil)
+        XCTAssertThrowsError(try negativeWeight.workoutSet())
+    }
+
+    func testCustomExerciseAndSettingsMappingsStayUserScoped() throws {
+        let exercise = Exercise(id: ExerciseID(), name: "Cable Press", category: "Chest", isSystem: false, createdByUserID: userID)
+        XCTAssertEqual(try FirestoreCustomExerciseDocument(exercise: exercise).exercise(userID: userID), exercise)
+        XCTAssertThrowsError(try FirestoreCustomExerciseDocument(exercise: SystemExerciseCatalog.all[0]))
+
+        let settings = UserSettings(userID: userID, appearance: .dark, weightUnit: .pounds)
+        XCTAssertEqual(FirestoreUserSettingsDocument(settings: settings).settings(userID: userID), settings)
+        XCTAssertEqual(FirestoreDocumentPath.settings(userID: userID), "users/user-a/settings/default")
+    }
+}
+
+final class UserDataRepositoryTests: XCTestCase {
+    func testWorkoutRepositoryPublishesItsLocalSnapshotAfterMutation() {
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "owner"))
+        let recorder = SnapshotRecorder()
+        let observation = repository.observeWorkouts { recorder.snapshots.append($0) }
+
+        _ = repository.createEmptyWorkout(on: LocalDate(year: 2026, month: 8, day: 14), at: .distantPast)
+
+        XCTAssertEqual(recorder.snapshots.count, 2)
+        XCTAssertTrue(recorder.snapshots[0].isEmpty)
+        XCTAssertEqual(recorder.snapshots[1].count, 1)
+        observation.cancel()
+        _ = repository.createEmptyWorkout(on: LocalDate(year: 2026, month: 8, day: 15), at: .distantPast)
+        XCTAssertEqual(recorder.snapshots.count, 2)
+    }
+
+    func testInMemoryCustomExercisesAndSettingsRejectAnotherOwner() throws {
+        let owner = UserID(rawValue: "owner")
+        let other = UserID(rawValue: "other")
+        let exercises = InMemoryCustomExerciseRepository(userID: owner)
+        let custom = Exercise(id: ExerciseID(), name: "Sled Push", category: nil, isSystem: false, createdByUserID: owner)
+        try exercises.save(custom)
+        XCTAssertEqual(exercises.customExercises, [custom])
+        XCTAssertThrowsError(try exercises.save(Exercise(id: ExerciseID(), name: "Other", category: nil, isSystem: false, createdByUserID: other)))
+
+        let settings = InMemoryUserSettingsRepository(userID: owner)
+        try settings.save(UserSettings(userID: owner, appearance: .light, weightUnit: .kilograms))
+        XCTAssertThrowsError(try settings.save(UserSettings(userID: other)))
+    }
+}
+
+private final class SnapshotRecorder {
+    var snapshots: [[Workout]] = []
+}
+
 final class SystemExerciseCatalogTests: XCTestCase {
     func testCatalogCoversApprovedCategoriesWithStableSystemExercises() throws {
         let exercises = SystemExerciseCatalog.all
@@ -1467,6 +1549,9 @@ private final class FailingOnceWorkoutRepository: WorkoutRepository {
 
     var userID: UserID { backing.userID }
     var workouts: [Workout] { backing.workouts }
+    func observeWorkouts(_ observer: @escaping @MainActor ([Workout]) -> Void) -> WorkoutObservation {
+        backing.observeWorkouts(observer)
+    }
 
     func workout(on date: LocalDate) -> Workout? {
         backing.workout(on: date)

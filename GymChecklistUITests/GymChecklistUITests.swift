@@ -394,6 +394,20 @@ final class TodayEmptyStateUITests: XCTestCase {
 }
 
 final class TodayCompletionUITests: XCTestCase {
+    func testCompletingEveryRequiredSetShowsDismissibleCompletionPopup() {
+        let app = launchCompletionWorkout()
+        let benchSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000101"]
+        let rowSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000201"]
+
+        benchSet.tap()
+        XCTAssertFalse(app.otherElements["todayCompletionPopup"].exists)
+        rowSet.tap()
+        XCTAssertTrue(app.otherElements["todayCompletionPopup"].waitForExistence(timeout: 2))
+        XCTAssertFalse(rowSet.exists)
+        app.buttons["todayCompletionDismiss"].tap()
+        XCTAssertTrue(rowSet.waitForExistence(timeout: 2))
+    }
+
     func testLastRemainingSetShowsDismissibleCompletionPopupOncePerTransition() {
         let app = XCUIApplication()
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"

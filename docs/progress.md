@@ -4,6 +4,22 @@
 Milestone 3 — Today implementation may proceed provisionally while the Milestone 2 checkpoint remains pending authoritative macOS CI.
 
 ## Active task
+`M3.9` — Today UX acceptance checkpoint (`IN PROGRESS`).
+
+M3.9 has started. It will consolidate deterministic local/mock coverage and
+the required UX, product, architecture, quality, and test/CI reviews across
+the completed Today flow. M3.1–M3.8 remain implementation-complete and
+`IN PROGRESS (PENDING CI)` solely for authoritative macOS verification.
+
+The M3.9 review added a direct all-required-sets completion-popup UI test and
+made the completion overlay accessibility-modal, hiding the background Today
+content from VoiceOver until dismissal. Local source checks pass. Before M3.9
+can be finalized, resolve the code-quality finding that Today mutation errors
+are silent in release builds and the architecture finding that Today’s local
+date does not refresh after the app remains open across midnight.
+
+### M3.8 implementation status
+
 `M3.8` — Add Today accessibility and interaction identifiers (`IN PROGRESS (PENDING CI)`).
 
 M3.8 is implementation-complete and pending only authoritative macOS
@@ -306,9 +322,9 @@ No product or implementation blocker is currently known.
 Authoritative macOS CI is temporarily unavailable because the free GitHub Actions quota is exhausted. Under `docs/ci_free_quota_policy.md`, this is a verification deferral rather than a development stop.
 
 ## Exact next action
-Run the M3.9 Today UX acceptance checkpoint, including its required reviews
-and deterministic full-flow source/test checks, then continue safe work under
-the no-cost CI policy.
+Finish M3.9 by adding user-visible retry-safe Today mutation error handling
+and refreshable local-date handling on foreground/day change, with focused
+coverage; then rerun required reviews and deterministic full-flow checks.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

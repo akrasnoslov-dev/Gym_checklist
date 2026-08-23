@@ -47,6 +47,7 @@ struct TodayView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 20)
+            .accessibilityHidden(showsCompletionPopup)
         }
         .accessibilityIdentifier("todayScreen")
         .sheet(item: $editorRoute) { route in
@@ -273,6 +274,7 @@ private struct TodayCompletionOverlay: View {
             .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 20))
             .padding(32)
             .accessibilityIdentifier("todayCompletionPopup")
+            .accessibilityAddTraits(.isModal)
         }
     }
 }

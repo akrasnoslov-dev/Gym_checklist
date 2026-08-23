@@ -95,6 +95,35 @@ struct FirestoreWorkoutExerciseDocument: Codable, Equatable {
     }
 }
 
+struct FirestoreWorkoutPayload: Codable, Equatable {
+    let workout: FirestoreWorkoutDocument
+    let exercises: [FirestoreWorkoutExercisePayload]
+
+    init(workout: Workout) {
+        self.workout = FirestoreWorkoutDocument(workout: workout)
+        exercises = workout.exercises.map(FirestoreWorkoutExercisePayload.init)
+    }
+
+    func domainWorkout(userID: UserID, documentDate: LocalDate) throws -> Workout {
+        let exercises = try exercises.map { try $0.domainExercise() }
+        return try workout.workout(userID: userID, documentDate: documentDate, exercises: exercises)
+    }
+}
+
+struct FirestoreWorkoutExercisePayload: Codable, Equatable {
+    let exercise: FirestoreWorkoutExerciseDocument
+    let sets: [FirestoreWorkoutSetDocument]
+
+    init(exercise: WorkoutExercise) {
+        self.exercise = FirestoreWorkoutExerciseDocument(exercise: exercise)
+        sets = exercise.sets.map(FirestoreWorkoutSetDocument.init)
+    }
+
+    func domainExercise() throws -> WorkoutExercise {
+        try exercise.workoutExercise(sets: sets.map { try $0.workoutSet() })
+    }
+}
+
 struct FirestoreWorkoutSetDocument: Codable, Equatable {
     let id: String
     let order: Int

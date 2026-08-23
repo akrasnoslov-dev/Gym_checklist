@@ -11,6 +11,16 @@ The user explicitly chose **no paid GitHub Actions usage**. The included GitHub 
 
 `docs/ci_free_quota_policy.md` is active. It allows safe implementation to continue across milestone boundaries when the **only** unsatisfied requirement is macOS CI unavailable because the included quota is exhausted. This does not change acceptance criteria and does not allow unverified tasks/checkpoints to be marked `DONE`.
 
+## CI cost-control strategy — implemented
+The repository now uses tiered CI to reduce the chance of exhausting the included GitHub Actions quota again:
+- `.github/workflows/linux-checks.yml` runs low-cost platform-independent checks on normal code pushes to `dev` and relevant PRs;
+- `.github/workflows/ios-ci.yml` remains the authoritative macOS/Xcode workflow but a normal `dev` push does not allocate a macOS runner;
+- macOS runs are reserved for commits explicitly containing `[macos-ci]`, manual `workflow_dispatch`, and release PRs targeting `main`;
+- both workflows use `concurrency` with `cancel-in-progress: true`;
+- docs-only changes are excluded from automatic CI.
+
+Codex should use Linux CI for routine checkpoints and request authoritative macOS verification at milestone checkpoints or earlier only when Xcode evidence is required for safe continuation. Do not put `[macos-ci]` on every commit.
+
 ## Completed and verified
 - Milestone 0 (`M0.1`–`M0.6`): `DONE`; authoritative macOS CI passed.
 - Milestone 1 (`M1.1`–`M1.6`): `DONE`; authoritative macOS CI passed.
@@ -56,10 +66,12 @@ With local/mock persistence, Program currently supports:
 ## GitHub Actions quota
 The current billing/usage report shows Actions usage fully covered by included usage so far (`net_amount = 0`). Paid Actions usage is not approved. Do not ask the user to enable billing merely to continue development.
 
-When included GitHub Actions capacity becomes available again, run one consolidated authoritative macOS build/unit/UI test against the latest coherent checkpoint, fix real failures, and reconcile all affected `PENDING CI` tasks/checkpoints before marking them `DONE`.
+When included GitHub Actions capacity becomes available again, run one consolidated authoritative macOS build/unit/UI test against the latest coherent checkpoint using `[macos-ci]` or manual dispatch, fix real failures, and reconcile all affected `PENDING CI` tasks/checkpoints before marking them `DONE`.
+
+After quota resets, keep the new tiered CI strategy permanently: routine code checkpoints use Linux CI; macOS remains sparse and authoritative.
 
 ## USER ACTION REQUIRED
-None for the current implementation work.
+None for the current implementation work or CI optimization.
 
 Later genuine external checkpoints may still require batched user action for Firebase configuration, Apple Developer/App Store Connect, signing, or release secrets.
 
@@ -70,6 +82,8 @@ Authoritative macOS CI is temporarily unavailable because the free GitHub Action
 
 ## Exact next action
 Start `M3.1` now. Read the full M3.1 task plus Product/UX/Architecture references, apply the required agents, implement the active Today workout layout using the existing local/mock repository/domain model, add appropriate tests, run all available non-macOS checks, checkpoint the work, then continue through later safe M3 tasks without waiting for paid CI.
+
+For routine M3 checkpoints, rely on Linux CI and deterministic checks. Trigger macOS only at the next meaningful authoritative checkpoint or earlier if a real Xcode-dependent risk makes continuation unsafe.
 
 If a task exposes a real dependency that cannot be validated safely without macOS/Xcode, stop at that specific dependency and record it. Do not stop merely because an earlier milestone checkpoint is `PENDING CI` for quota reasons.
 

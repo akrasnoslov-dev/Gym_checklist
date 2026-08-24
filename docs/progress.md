@@ -6,7 +6,7 @@ Milestone 5 — Authentication and account routing.
 Earlier implementation checkpoints remain pending authoritative macOS/live verification. Public-repository macOS capacity is available; failure verification now uses build, unit, and UI layers before a consolidated full suite.
 
 ## Active task
-`M5.3` — Password reset (`IN PROGRESS`). M5.1 and M5.2 are implementation-complete and `IN PROGRESS (PENDING CI)`.
+`M5.3` — Password reset (`IN PROGRESS (PENDING CI)`). M5.1 and M5.2 are implementation-complete and `IN PROGRESS (PENDING CI)`.
 
 ## Current branch
 `dev`
@@ -121,7 +121,7 @@ No current product or implementation blocker is known.
 Focused UI verification for the selector-only correction is active. It has not reported a real failure and does not block safe M5.1 implementation. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Add the focused deterministic M5.3 password-reset UI test, then run static checks and checkpoint M5.3 pending macOS unit/UI verification.
+Implement M5.4 Google Sign-In configuration and routing, batching any required external configuration for the user.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

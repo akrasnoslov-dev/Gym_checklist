@@ -129,6 +129,12 @@ integration and deterministic test routing. M5.5 hardening is already partly
 implemented by resolving-state, UID-bound repository, and sanitized-error work,
 but M5.6 cannot pass until the Google flow is live-verified.
 
+## Stop condition
+`MODEL_OR_TOOL_LIMIT` — this run exhausted its execution budget after pushing
+M5.3 and recording the M5.4 Google configuration contract. Resume by adding
+the official Google Sign-In SDK integration and deterministic routing; do not
+wait for another prompt once the required setup is available.
+
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 
 For routine checkpoints, rely on Linux CI and deterministic checks. Use public-repository macOS CI at meaningful authoritative checkpoints or earlier when a real Xcode-dependent risk makes continuation unsafe.

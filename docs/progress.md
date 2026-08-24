@@ -9,11 +9,11 @@ The pause does not mean the backlog is blocked. It only means Codex must not res
 `dev`
 
 ## Repository checkpoints
-Latest repository head before the execution-policy correction:
-- `5eaa082` — `Record user-requested pause`
+Execution-policy baseline:
+- `3854028` — `Make Desktop Codex CI execution work-first`
 
-Previous execution-policy reconciliation:
-- `0ea95f5` — `Reconcile implementation plan and autonomy rules`
+User pause checkpoint:
+- `5eaa082` — `Record user-requested pause`
 
 Latest code checkpoints:
 - `8ebe053` — `Complete settings account surface`
@@ -93,11 +93,12 @@ CI execution rule is defined in `docs/desktop_continuation_policy.md`:
 - `full` is for clean milestone/release reconciliation;
 - a result verifies the checkpoint SHA it ran against.
 
-Latest known active run:
-- focused UI run `32729461891`
+Latest focused UI run:
+- run `32729461891`
 - checkpoint SHA: `0ea95f5069b700abd0594c6623c24b05c0d87f4c`
-- status at last check: `in_progress`
-- this run may continue externally while Codex remains paused
+- final status: `completed / cancelled`
+- the cancelled run provides no new pass/fail evidence and must not be treated as a code failure
+- M6.3–M6.5 focused UI verification therefore remains `PENDING CI`
 
 Important earlier macOS evidence:
 - `32711661052`: all-target `build-for-testing` passed
@@ -144,14 +145,15 @@ None of these establishes a technical run-level stop.
 
 Do not turn CI back into the foreground task.
 
-1. Check focused UI run `32729461891` **once**.
-2. If it is still queued/running, record `PENDING CI` and immediately continue implementation.
-3. If it passed, reconcile the M6.3–M6.5 verification that the run actually covers, then continue implementation.
-4. If it failed, inspect the failure once, fix the reported issue if possible, dispatch one narrow rerun, then continue independent implementation instead of waiting.
-5. Inspect/finish the M5.5 hardening that does not depend on live Google Sign-In.
-6. Continue M6.1 historical viewing and M6.2 historical actual editing where implementation is safe without M5.4/M5.6 live evidence; record provisional dependency scheduling if used.
-7. At later natural checkpoints only, inspect pending CI and react once.
-8. If M5/M6 paths become blocked, scan the entire remaining plan for another independent safe implementation task before considering a final response.
+1. Do **not** make CI the first foreground task.
+2. Inspect/finish the M5.5 hardening that does not depend on live Google Sign-In.
+3. Continue M6.1 historical viewing and M6.2 historical actual editing where implementation is safe without M5.4/M5.6 live evidence; record provisional dependency scheduling if used.
+4. At a natural checkpoint, dispatch one focused M6.3–M6.5 UI rerun if that verification is still needed; record it and immediately return to implementation.
+5. At later natural checkpoints only, inspect pending CI once and react:
+   - pass -> reconcile only the acceptance the run actually proves;
+   - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;
+   - queued/running -> keep `PENDING CI`, return to implementation.
+6. If M5/M6 paths become blocked, scan the entire remaining plan for another independent safe implementation task before considering a final response.
 
 ## Stop condition
 `USER-REQUESTED PAUSE` — explicit current user instruction.

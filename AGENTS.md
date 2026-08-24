@@ -21,6 +21,7 @@ Before any non-trivial task, read:
 - `docs/implementation_plan.md`
 - `docs/progress.md`
 - `docs/ci_free_quota_policy.md` when present
+- `docs/autonomous_execution_policy.md`
 - `agents/routing.toml`
 
 Then inspect relevant source/tests, Git state, available CI state, and applicable `agents/*.toml` instructions.
@@ -32,9 +33,31 @@ Then inspect relevant source/tests, Git state, available CI state, and applicabl
 4. `docs/architecture.md` for technical boundaries.
 5. `docs/implementation_plan.md` for ordered execution.
 6. `docs/progress.md` for current checkpoint/state.
-7. `docs/ci_free_quota_policy.md` for the user-approved no-paid-CI continuation exception.
+7. `docs/autonomous_execution_policy.md` for supervisor-backed execution, global backlog routing, external-blocker deferral, and terminal-state mechanics.
+8. `docs/ci_free_quota_policy.md` for the user-approved no-paid-CI continuation exception.
 
 Do not silently change product behavior to make implementation easier.
+
+## Supervisor-backed autonomy
+The durable target is not merely a long Codex turn. The durable target is a self-resuming execution loop.
+
+`scripts/run_codex_autonomous.ps1` is the external supervisor. It treats a normal Codex final message as a checkpoint, runs `scripts/codex_final_gate.py`, and resumes the same non-interactive Codex thread when unfinished safe work remains.
+
+Therefore:
+- a Codex final response without a valid terminal stop state does not mean the project run is finished;
+- before a genuine terminal response, use `scripts/write_codex_stop_state.py` with one allowed terminal reason and `--confirm-no-safe-work`;
+- an individual task blocked by external configuration is not a run-level stop condition;
+- finish the safe part, mark it `PENDING EXTERNAL`, queue the user action, and scan the full remaining backlog for other safe work;
+- dependencies pending only CI/live/external verification may be provisionally crossed for scheduling when implementation can continue safely, but they are not `DONE`;
+- use `docs/autonomous_execution_policy.md` for the full execution contract.
+
+Before any final response, run:
+
+```bash
+python scripts/codex_final_gate.py
+```
+
+If it exits `10` / prints `CONTINUE`, a final response is prohibited. Continue working.
 
 ## Continuous execution contract
 A Codex implementation run is a continuous backlog-execution loop, not a one-task interaction.
@@ -72,6 +95,8 @@ Allowed genuine stop conditions:
 - `REAL_FAILURE_BLOCKS_CONTINUATION`: an actual build/test/implementation failure makes dependent work unsafe and cannot be resolved with available tools.
 - `REQUIRED_TOOL_UNAVAILABLE`: a genuinely required tool/environment is unavailable and no technically safe work remains.
 - `MODEL_OR_TOOL_LIMIT`: platform/model/tool usage limits prevent further execution in the current run.
+
+A task-level external dependency is not sufficient for `USER_ACTION_REQUIRED`. Use that terminal reason only after scanning the entire remaining implementation plan and establishing that no technically safe work remains anywhere.
 
 When stopping, record the exact stop-condition label, evidence, and exact resume action in `docs/progress.md`, checkpoint all coherent work, then summarize. Do not invent a blocker merely to end the run.
 

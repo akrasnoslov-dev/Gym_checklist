@@ -199,7 +199,10 @@ Minimum:
 - Logout.
 - No onboarding; after first login go directly to Today.
 
-Before public App Store submission, verify whether Sign in with Apple is required under current App Review rules because Google Sign-In is offered.
+Because Google Sign-In establishes the primary app account, public/external
+release must also offer Sign in with Apple as the equivalent login path. See
+`docs/app_store_auth_compliance.md`; it must be enabled and verified before
+external TestFlight/App Store submission.
 
 ## 15. Offline requirements
 If cached data exists, user must be able to:

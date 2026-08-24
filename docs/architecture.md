@@ -155,7 +155,8 @@ MVP implementation target:
 - Google Sign-In
 - reset password
 
-Before App Store release, verify current Apple requirements and implement Sign in with Apple if required.
+Sign in with Apple is a required release companion to Google Sign-In under the
+current App Review decision in `docs/app_store_auth_compliance.md`.
 
 ## 12. Analytics
 Keep event set intentionally small:

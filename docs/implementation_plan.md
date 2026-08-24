@@ -1265,13 +1265,14 @@ Protect critical behavior before beta distribution.
 
 ## Milestone 8 — TestFlight readiness and iPhone beta distribution
 
-### M8.1 `TODO` Verify current App Store authentication requirements
+### M8.1 `IN PROGRESS (PENDING IMPLEMENTATION/EXTERNAL)` Verify current App Store authentication requirements
 **Goal**
 Resolve release compliance for third-party login.
 
 **Requirements**
 - Verify current Apple requirement for Google Sign-In and equivalent login options.
-- Add Sign in with Apple if required for TestFlight/App Store compliance.
+- Add and Firebase-enable Sign in with Apple as the required equivalent login
+  path before external TestFlight/App Store compliance.
 - Update Product Spec if this becomes mandatory release scope.
 
 **Required agent**
@@ -1285,7 +1286,7 @@ Resolve release compliance for third-party login.
 
 ---
 
-### M8.2 `TODO` Define app identity and release metadata baseline
+### M8.2 `IN PROGRESS (PENDING FINAL APP ICON/APPLE CONFIRMATION)` Define app identity and release metadata baseline
 **Goal**
 Prepare signing/build identity.
 

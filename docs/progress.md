@@ -51,6 +51,7 @@ Recent auth checkpoints:
 
 ### Deferred external work
 - `M5.4` Google Sign-In — `IN PROGRESS (PENDING EXTERNAL)`
+- `M8.1` App Store auth compliance — `IN PROGRESS (PENDING IMPLEMENTATION/EXTERNAL)`
 
 ### Not yet accepted
 - `M5.6` auth/security checkpoint
@@ -118,6 +119,13 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 ### M7.6 Broad review
 - `IN PROGRESS (PENDING CI/EXTERNAL)`: required architecture, UX, Firebase, security/privacy, code-quality, test/CI, and product reviews are complete. The fixes retain malformed cached workout snapshots behind neutral unavailable feedback, ignore stale write completions, fail closed when release Firebase configuration is unavailable, and make skipping a partially completed exercise restore as skipped/incomplete per spec.
 - Linux CI now runs the Firebase security-hygiene check; normal pushes no longer cancel a manual macOS verification run. App Store Analytics/Crashlytics privacy disclosures, Google Sign-In, live Firebase cache/rules checks, and a generated/committed SPM lockfile remain explicit external/deferred work. A later post-MVP decomposition of the large workout/program view models is documented as a maintenance opportunity, not churn in this checkpoint.
+
+### M8.1 App Store authentication compliance
+- Apple Guideline 4.8 was verified on 2026-08-24: Google Sign-In for the primary Gym Checklist account requires an equivalent private-email login. Sign in with Apple is now mandatory before external TestFlight/App Store release; email/password is not claimed as the equivalent route.
+- `docs/app_store_auth_compliance.md` records the implementation, Firebase/Apple setup, App Review demo, and separate in-app account-deletion requirements. Google + Apple provider configuration and signed-device validation remain external blockers.
+
+### M8.2 Release metadata baseline
+- `docs/release_metadata.md` records the current app identity (`dev.akrasnoslov.GymChecklist`, `1.0` / build `1`, iOS 17, iPhone, Health & Fitness) and the required monotonically increasing build convention. There is no tracked app-icon asset catalog yet, so final icon supply/validation and Apple identifier ownership remain pending.
 
 ## CI / verification state
 
@@ -197,6 +205,17 @@ When resumed, the local environment may require:
 5. run live Google sign-in/cancel/failure validation.
 
 Use `docs/google_signin_setup.md` for exact setup details. Never commit OAuth/Firebase credentials.
+
+### M8.1 Sign in with Apple and account deletion
+
+Before external TestFlight/App Store release:
+
+1. enable the Apple capability and Firebase Apple provider using non-committed
+   Apple/Firebase configuration;
+2. implement and signed-device-test Sign in with Apple alongside Google;
+3. implement and validate in-app account-deletion initiation plus its backend
+   workout/custom-exercise/settings deletion semantics;
+4. provide current App Review test information and a non-personal demo path.
 
 Later release work may require Apple Developer/App Store Connect actions, signing, TestFlight configuration, and GitHub release secrets. Batch them when they become the actual blocker.
 

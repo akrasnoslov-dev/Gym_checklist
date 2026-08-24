@@ -1220,7 +1220,7 @@ Make network/storage failures non-disruptive.
 
 ---
 
-### M7.5 `TODO` Expand regression test suite
+### M7.5 `IN PROGRESS (PENDING CI)` Expand regression test suite
 **Goal**
 Protect critical behavior before beta distribution.
 
@@ -1246,7 +1246,7 @@ Protect critical behavior before beta distribution.
 
 ---
 
-### M7.6 `TODO` Broad repository quality/security/product review
+### M7.6 `IN PROGRESS (PENDING CI)` Broad repository quality/security/product review
 **Required reviews**
 - `architecture_guardian`
 - `ios_ux_guardian`

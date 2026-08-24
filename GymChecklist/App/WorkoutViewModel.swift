@@ -402,6 +402,9 @@ final class WorkoutViewModel: ObservableObject {
 
         let statusBeforeMutation = workout.completionStatus
         workout.exercises[exerciseIndex].isSkipped = true
+        for setIndex in workout.exercises[exerciseIndex].sets.indices {
+            workout.exercises[exerciseIndex].sets[setIndex].undoCompletion()
+        }
         workout.updatedAt = now()
         try saveTodayWorkout(workout)
         analytics.log(.exerciseSkipped)

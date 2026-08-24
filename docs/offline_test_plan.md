@@ -4,6 +4,12 @@ This plan verifies the approved Firestore-cache path after M5 authenticates and
 composes the Firestore repositories. It does not add a custom sync engine or a
 manual Sync control.
 
+The explicit availability banner currently covers workout snapshots because
+Today execution is the protected offline path. The bundled system catalog and
+default settings remain locally usable; custom-exercise and settings writes are
+still optimistic Firestore operations. Their rejected-write reconciliation is
+therefore part of the live session checks below, not a separate sync UI.
+
 ## Preconditions
 
 1. Use a non-production Firebase project with `firestore.rules` deployed.

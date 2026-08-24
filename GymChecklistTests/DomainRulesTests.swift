@@ -475,6 +475,13 @@ final class FirebaseBootstrapTests: XCTestCase {
         XCTAssertTrue(FirebaseBootstrap.isRunningTests(environment: ["UITESTING": "1"]))
         XCTAssertFalse(FirebaseBootstrap.isRunningTests(environment: [:]))
     }
+
+    func testOnlyConfiguredOrTestProcessesComposeFirebaseServices() {
+        XCTAssertTrue(GymChecklistApp.canComposeFirebaseServices(status: .configured, isRunningTests: false))
+        XCTAssertTrue(GymChecklistApp.canComposeFirebaseServices(status: .missingConfiguration, isRunningTests: true))
+        XCTAssertFalse(GymChecklistApp.canComposeFirebaseServices(status: .missingConfiguration, isRunningTests: false))
+        XCTAssertFalse(GymChecklistApp.canComposeFirebaseServices(status: .invalidConfiguration, isRunningTests: false))
+    }
 }
 
 final class FirestoreMappingTests: XCTestCase {
@@ -1048,6 +1055,76 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.workouts.isEmpty)
     }
 
+    func testWorkoutAvailabilityPropagatesWithoutHidingCachedToday() {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let userID = UserID(rawValue: "user")
+        let repository = ControllableWorkoutRepository(userID: userID)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar()
+        )
+
+        XCTAssertEqual(viewModel.workoutLoadState, .loading)
+        XCTAssertEqual(
+            TodayContentState.resolve(
+                workouts: viewModel.workouts,
+                currentDate: date,
+                loadState: viewModel.workoutLoadState
+            ),
+            .loading
+        )
+
+        repository.publish([], state: .unavailable(hasUsableSnapshot: false))
+        XCTAssertEqual(viewModel.workoutLoadState, .unavailable(hasUsableSnapshot: false))
+        XCTAssertEqual(
+            TodayContentState.resolve(
+                workouts: viewModel.workouts,
+                currentDate: date,
+                loadState: viewModel.workoutLoadState
+            ),
+            .unavailable
+        )
+
+        let exerciseID = WorkoutExerciseID()
+        let setID = WorkoutSetID()
+        let cachedWorkout = Workout(
+            id: WorkoutID(),
+            userID: userID,
+            localDate: date,
+            exercises: [WorkoutExercise(
+                id: exerciseID,
+                exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil,
+                order: 0,
+                isSkipped: false,
+                sets: [WorkoutSet(id: setID, order: 0, reps: 8, weight: 60, timeSeconds: 0)]
+            )],
+            createdAt: .distantPast,
+            updatedAt: .distantPast
+        )
+        repository.publish([cachedWorkout], state: .unavailable(hasUsableSnapshot: true))
+
+        XCTAssertEqual(viewModel.workoutLoadState, .unavailable(hasUsableSnapshot: true))
+        XCTAssertEqual(viewModel.workout(on: date), cachedWorkout)
+        XCTAssertEqual(
+            TodayContentState.resolve(
+                workouts: viewModel.workouts,
+                currentDate: date,
+                loadState: viewModel.workoutLoadState
+            ),
+            .activeWorkout
+        )
+
+        try viewModel.toggleCompletion(of: setID, in: exerciseID, on: date)
+        XCTAssertTrue(try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets.first).isCompleted)
+        XCTAssertEqual(viewModel.workoutLoadState, .unavailable(hasUsableSnapshot: true))
+
+        repository.publish([cachedWorkout], state: .available)
+        XCTAssertEqual(viewModel.workoutLoadState, .available)
+    }
+
     func testAnalyticsLogsOnlySuccessfulPlanningMutations() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
@@ -1519,7 +1596,7 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.workout(on: date)?.exercises.first?.isSkipped == true)
     }
 
-    func testRestoreTodayExerciseOnlyClearsSkippedStateAndRequiresCurrentDate() throws {
+    func testRestoreTodayExerciseKeepsSkippedExerciseIncompleteAndRequiresCurrentDate() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let otherDate = LocalDate(year: 2026, month: 8, day: 15)
         let timestamp = Date(timeIntervalSince1970: 123_456)
@@ -1554,7 +1631,6 @@ final class WorkoutViewModelTests: XCTestCase {
             )
         ]
         try repository.save(workout)
-        let originalSets = try XCTUnwrap(repository.workout(on: date)?.exercises.first { $0.id == exerciseID }?.sets)
         let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
@@ -1571,9 +1647,10 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertFalse(restored.isSkipped)
         XCTAssertEqual(restored.id, exerciseID)
         XCTAssertEqual(restored.order, 1)
-        XCTAssertEqual(restored.sets, originalSets)
+        XCTAssertTrue(restored.sets.allSatisfy { !$0.isCompleted })
+        XCTAssertTrue(restored.sets.allSatisfy { $0.actualReps == nil && $0.actualWeight == nil && $0.actualTimeSeconds == nil })
         XCTAssertEqual(restoredWorkout.exercises.map(\.id), [leadingExerciseID, exerciseID])
-        XCTAssertEqual(restoredWorkout.completionStatus, .partial)
+        XCTAssertEqual(restoredWorkout.completionStatus, .planned)
         XCTAssertEqual(restoredWorkout, viewModel.workout(on: date))
 
         let afterRestore = try XCTUnwrap(repository.workout(on: date))
@@ -2189,4 +2266,64 @@ private final class FailingOnceWorkoutRepository: WorkoutRepository {
     func deleteWorkout(on date: LocalDate) throws {
         try backing.deleteWorkout(on: date)
     }
+}
+
+@MainActor
+private final class ControllableWorkoutRepository: WorkoutRepository {
+    let userID: UserID
+    private var observer: (@MainActor ([Workout], WorkoutLoadState) -> Void)?
+    private(set) var workouts: [Workout] = []
+    private var loadState: WorkoutLoadState = .loading
+
+    init(userID: UserID) {
+        self.userID = userID
+    }
+
+    func observeWorkouts(_ observer: @escaping @MainActor ([Workout], WorkoutLoadState) -> Void) -> WorkoutObservation {
+        self.observer = observer
+        observer(workouts, loadState)
+        return ControllableWorkoutObservation { [weak self] in self?.observer = nil }
+    }
+
+    func publish(_ workouts: [Workout], state: WorkoutLoadState) {
+        self.workouts = workouts
+        loadState = state
+        observer?(workouts, state)
+    }
+
+    func workout(on date: LocalDate) -> Workout? {
+        workouts.first { $0.localDate == date }
+    }
+
+    @discardableResult
+    func createEmptyWorkout(on date: LocalDate, at timestamp: Date) -> WorkoutCreationResult {
+        fatalError("Not used by availability tests")
+    }
+
+    func save(_ workout: Workout) throws {
+        guard workout.userID == userID else { throw WorkoutRepositoryError.ownerMismatch }
+        workouts.removeAll { $0.localDate == workout.localDate }
+        workouts.append(workout)
+        observer?(workouts, loadState)
+    }
+
+    func deleteWorkout(on date: LocalDate) throws {
+        fatalError("Not used by availability tests")
+    }
+}
+
+@MainActor
+private final class ControllableWorkoutObservation: WorkoutObservation {
+    private var onCancel: (() -> Void)?
+
+    init(onCancel: @escaping () -> Void) {
+        self.onCancel = onCancel
+    }
+
+    func cancel() {
+        onCancel?()
+        onCancel = nil
+    }
+
+    deinit { cancel() }
 }

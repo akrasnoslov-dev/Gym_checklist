@@ -111,6 +111,14 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - `IN PROGRESS (PENDING CI/LIVE)`: workout repositories now publish a provider-neutral availability state. Cold loads show a compact loading state; an unavailable first load is distinct from an empty plan; cached snapshots remain interactive with passive sync feedback and no manual Sync control.
 - Firestore listener/write failures are mapped only to that neutral state; provider errors are neither displayed nor logged. The expanded offline plan covers first-load, unavailable-cache, rejected-write, and reconnect behavior. Live cache/reconnect evidence remains required.
 
+### M7.5 Regression coverage
+- `IN PROGRESS (PENDING CI)`: the existing focused unit/UI suite covers dates/day boundaries, display and kg/lb conversion, completion/undo and popup transitions, actual/history edits, skip/restore, planning mutations, copy/repeat independence, and auth isolation. A deterministic repository test now also proves loading/unavailable/cached availability reaches the view model without hiding cached Today data.
+- The broad UI launch flow remains intentionally unchanged in this checkpoint; future UI edits should split it before adding more responsibilities. macOS verification gates milestone/release checkpoints by the documented no-cost policy, while Linux checks remain routine feedback for `dev` work.
+
+### M7.6 Broad review
+- `IN PROGRESS (PENDING CI/EXTERNAL)`: required architecture, UX, Firebase, security/privacy, code-quality, test/CI, and product reviews are complete. The fixes retain malformed cached workout snapshots behind neutral unavailable feedback, ignore stale write completions, fail closed when release Firebase configuration is unavailable, and make skipping a partially completed exercise restore as skipped/incomplete per spec.
+- Linux CI now runs the Firebase security-hygiene check; normal pushes no longer cancel a manual macOS verification run. App Store Analytics/Crashlytics privacy disclosures, Google Sign-In, live Firebase cache/rules checks, and a generated/committed SPM lockfile remain explicit external/deferred work. A later post-MVP decomposition of the large workout/program view models is documented as a maintenance opportunity, not churn in this checkpoint.
+
 ## CI / verification state
 
 The repository is public and free GitHub-hosted macOS capacity is available.
@@ -141,10 +149,11 @@ Latest macOS build:
 - final status: `completed / success` (`build-for-testing`)
 - scope: focused verification for the Program compiler correction, Crashlytics linkage, and M7.3 accessibility checkpoint
 
-Current dispatched macOS unit test:
+Latest macOS unit test:
 - run `32747162000`
 - checkpoint SHA: `5a26a4b`
-- scope: `GymChecklistTests`; it is the gated follow-up to the successful focused build
+- final status: `completed / success` (`GymChecklistTests`)
+- scope: gated follow-up to the successful focused build; it validates the M7.4 offline-state checkpoint but not later M7.5/M7.6 edits
 
 Previous successful macOS build:
 - run `32734248577`
@@ -204,7 +213,7 @@ Do not turn CI back into the foreground task.
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
 3. Continue M7.4 offline/error/loading-state hardening using M7.1–M7.3 provisionally; keep their authoritative/manual verification pending.
-4. The focused macOS build for the Program compiler correction plus Crashlytics/accessibility checkpoint passed. The gated unit run is dispatched for the M7.4 checkpoint; do not dispatch UI until it is green.
+4. Focused M7.3 build and M7.4 unit verification passed. Build the next M7.5/M7.6 checkpoint before its unit/UI layers; do not dispatch UI until its matching unit run is green.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

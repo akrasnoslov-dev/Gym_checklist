@@ -200,7 +200,7 @@ struct TodayView: View {
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 .contentShape(Rectangle())
                 .contextMenu {
-                    Button("Skip exercise", role: .destructive) {
+                    Button("Skip exercise") {
                         skip(exercise)
                     }
                 }

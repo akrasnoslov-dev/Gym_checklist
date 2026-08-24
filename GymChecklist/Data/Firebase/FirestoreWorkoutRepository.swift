@@ -19,6 +19,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     private(set) var workouts: [Workout] = []
     private var loadState: WorkoutLoadState = .loading
     private var hasUsableSnapshot = false
+    private var latestWriteGeneration = 0
 
     var userID: UserID {
         guard let boundUserID else { preconditionFailure("Firestore repository requires an authenticated user") }
@@ -38,17 +39,6 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     }
 
     deinit { MainActor.assumeIsolated { listener?.remove() } }
-
-    func refreshAuthentication() {
-        listener?.remove()
-        listener = nil
-        boundUserID = validatedCurrentUserID()
-        workouts = []
-        loadState = .loading
-        hasUsableSnapshot = false
-        publish()
-        startListening()
-    }
 
     func observeWorkouts(_ observer: @escaping @MainActor ([Workout], WorkoutLoadState) -> Void) -> WorkoutObservation {
         let id = UUID()
@@ -90,9 +80,10 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         workouts.removeAll { $0.localDate == date }
         markLocalSnapshotAvailable()
         publish()
+        let writeGeneration = nextWriteGeneration()
         document(for: date).delete { [weak self] error in
             Task { @MainActor in
-                self?.recordWriteCompletion(error)
+                self?.recordWriteCompletion(error, generation: writeGeneration)
             }
         }
     }
@@ -107,14 +98,15 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     }
 
     private func persist(_ workout: Workout) {
+        let writeGeneration = nextWriteGeneration()
         do {
             try document(for: workout.localDate).setData(from: FirestoreWorkoutPayload(workout: workout)) { [weak self] error in
                 Task { @MainActor in
-                    self?.recordWriteCompletion(error)
+                    self?.recordWriteCompletion(error, generation: writeGeneration)
                 }
             }
         } catch {
-            recordUnavailable()
+            recordWriteCompletion(error, generation: writeGeneration)
         }
     }
 
@@ -128,7 +120,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                 }
                 return
             }
-            let decoded: [Workout] = snapshot.documents.compactMap { document -> Workout? in
+            let decoded: [Workout?] = snapshot.documents.map { document -> Workout? in
                 guard let date = FirestoreWorkoutDocument.localDate(document.documentID),
                       let payload = try? document.data(as: FirestoreWorkoutPayload.self),
                       let workout = try? payload.domainWorkout(userID: userID, documentDate: date)
@@ -138,8 +130,18 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
             let isFromCache = snapshot.metadata.isFromCache
             Task { @MainActor in
                 guard let self, self.boundUserID == userID else { return }
-                self.workouts = decoded.sorted { $0.localDate < $1.localDate }
-                self.hasUsableSnapshot = self.hasUsableSnapshot || !isFromCache || !decoded.isEmpty
+                guard decoded.allSatisfy({ $0 != nil }) else {
+                    if self.hasUsableSnapshot {
+                        self.recordUnavailable()
+                    } else {
+                        self.loadState = .unavailable(hasUsableSnapshot: false)
+                        self.publish()
+                    }
+                    return
+                }
+                let validWorkouts = decoded.compactMap { $0 }
+                self.workouts = validWorkouts.sorted { $0.localDate < $1.localDate }
+                self.hasUsableSnapshot = self.hasUsableSnapshot || !isFromCache || !validWorkouts.isEmpty
                 self.loadState = isFromCache
                     ? .unavailable(hasUsableSnapshot: self.hasUsableSnapshot)
                     : .available
@@ -153,7 +155,13 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         loadState = .available
     }
 
-    private func recordWriteCompletion(_ error: Swift.Error?) {
+    private func nextWriteGeneration() -> Int {
+        latestWriteGeneration += 1
+        return latestWriteGeneration
+    }
+
+    private func recordWriteCompletion(_ error: Swift.Error?, generation: Int) {
+        guard generation == latestWriteGeneration else { return }
         if error == nil {
             if hasUsableSnapshot { loadState = .available }
         } else {

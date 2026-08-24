@@ -78,6 +78,10 @@ jobs:
             git show --check --oneline --decorate=no HEAD
           fi
 
+      - name: Verify Firebase security hygiene
+        shell: pwsh
+        run: ./scripts/verify_security_hygiene.ps1
+
       - name: Run Swift package tests when available
         shell: bash
         run: |

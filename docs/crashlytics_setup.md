@@ -13,6 +13,15 @@ that file remain configuration-free.
 - The MVP adds no manual non-fatal error recording. Automatic crash reporting
   remains limited to the Crashlytics SDK's standard reports.
 
+## Submission privacy review
+
+Before each TestFlight/App Store submission, verify the current Firebase
+Analytics and Crashlytics collection disclosures against the exact SDK
+configuration and complete the App Store privacy nutrition label and privacy
+policy accordingly. Do not infer the submission answers from this repository's
+parameter-free event policy: SDK diagnostics and device data require their own
+current review.
+
 ## Symbols
 
 The app target creates dSYMs in Debug and Release and has a final build phase

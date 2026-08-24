@@ -30,7 +30,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ios-macos-${{ github.ref }}
+  group: ios-macos-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || contains(github.event.head_commit.message, '[macos-ci]') && 'scheduled' || 'skip' }}
   cancel-in-progress: true
 
 jobs:

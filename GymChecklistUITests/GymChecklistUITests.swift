@@ -11,7 +11,7 @@ final class GymChecklistUITests: XCTestCase {
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launch()
 
-        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
 
         app.tabBars.buttons["Program"].tap()
         let weekHeader = app.staticTexts["programWeekHeader"]
@@ -148,7 +148,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["settingsPlaceholder"].waitForExistence(timeout: 2))
 
         app.tabBars.buttons["Today"].tap()
-        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
     }
 }
 
@@ -174,12 +174,12 @@ final class TodayInteractionUITests: XCTestCase {
 
         set.tap()
         assert(set, hasValue: "Completed")
-        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
         XCTAssertFalse(app.alerts.element.exists)
 
         set.tap()
         assert(set, hasValue: "Incomplete")
-        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
     }
 
     func testTodayFailedSaveShowsRetryMessageAndAllowsSafeRetry() {
@@ -194,7 +194,7 @@ final class TodayInteractionUITests: XCTestCase {
         app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
         set.tap()
         assert(set, hasValue: "Completed")
-        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
     }
 
     func testTodayFailedSkipKeepsExerciseVisibleForManualRetry() {
@@ -330,7 +330,7 @@ final class TodayInteractionUITests: XCTestCase {
         app.buttons["todaySetEditorSave"].tap()
         XCTAssertTrue(app.staticTexts["7 reps × 60 kg"].waitForExistence(timeout: 2))
         assert(set, hasValue: "Completed")
-        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
     }
 
     func testTodayEditorFailedSaveKeepsDraftOpenForManualRetry() {
@@ -398,7 +398,7 @@ final class TodayInteractionUITests: XCTestCase {
         app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
         environment.forEach { app.launchEnvironment[$0.key] = $0.value }
         app.launch()
-        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
         return app
     }
 
@@ -451,7 +451,7 @@ final class TodayEmptyStateUITests: XCTestCase {
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         environment.forEach { app.launchEnvironment[$0.key] = $0.value }
         app.launch()
-        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
         return app
     }
 
@@ -497,9 +497,9 @@ final class TodayCompletionUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["todayCompletionPopup"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["Another one done."].exists)
         XCTAssertTrue(app.buttons["Done"].exists)
-        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
         app.buttons["todayCompletionDismiss"].tap()
-        XCTAssertTrue(app.otherElements["todayScreen"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
         XCTAssertFalse(app.otherElements["todayCompletionPopup"].exists)
 
         rowSet.tap()
@@ -529,7 +529,7 @@ final class TodayCompletionUITests: XCTestCase {
         app.launchEnvironment["UITEST_SEED_COMPLETED_WORKOUT"] = "1"
         app.launch()
 
-        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.otherElements["todayCompletionPopup"].exists)
     }
 
@@ -539,7 +539,7 @@ final class TodayCompletionUITests: XCTestCase {
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
         app.launch()
-        XCTAssertTrue(app.otherElements["todayScreen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
         return app
     }
 }

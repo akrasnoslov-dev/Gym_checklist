@@ -103,6 +103,7 @@ struct TodayView: View {
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("todayCreateWorkout")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("todayNoProgramState")
     }
 
@@ -116,6 +117,7 @@ struct TodayView: View {
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("todayViewProgram")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("todayRestDayState")
     }
 
@@ -298,6 +300,7 @@ private struct TodayCompletionOverlay: View {
             .padding(28)
             .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 20))
             .padding(32)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("todayCompletionPopup")
             .accessibilityAddTraits(.isModal)
         }

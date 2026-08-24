@@ -155,7 +155,7 @@ private struct AuthenticatedContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = AppTab.today
     @StateObject private var workoutViewModel: WorkoutViewModel
-    @State private var userSettingsRepository: UserSettingsRepository?
+    @StateObject private var settingsViewModel: SettingsViewModel
     private let onLogout: () -> Void
     private let authenticationError: String?
 
@@ -176,7 +176,7 @@ private struct AuthenticatedContentView: View {
             }
             repository = inMemoryRepository
             customExerciseRepository = nil
-            settingsRepository = nil
+            settingsRepository = InMemoryUserSettingsRepository(userID: userID)
         } else {
             repository = FirestoreWorkoutRepository(currentUserID: { userID })
             customExerciseRepository = FirestoreCustomExerciseRepository(currentUserID: { userID })
@@ -206,7 +206,10 @@ private struct AuthenticatedContentView: View {
             currentDateProvider: currentDateProvider,
             customExerciseRepository: customExerciseRepository
         ))
-        _userSettingsRepository = State(initialValue: settingsRepository)
+        guard let settingsRepository else {
+            preconditionFailure("Authenticated content requires a user settings repository")
+        }
+        _settingsViewModel = StateObject(wrappedValue: SettingsViewModel(repository: settingsRepository))
     }
 
     var body: some View {
@@ -229,6 +232,7 @@ private struct AuthenticatedContentView: View {
                 .tag(AppTab.program)
 
             SettingsView(
+                viewModel: settingsViewModel,
                 onLogout: onLogout,
                 errorMessage: authenticationError
             )
@@ -244,6 +248,9 @@ private struct AuthenticatedContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
             workoutViewModel.refreshCurrentDate()
         }
+        .preferredColorScheme(settingsViewModel.preferredColorScheme)
+        .accessibilityIdentifier("authenticatedContent")
+        .accessibilityValue(settingsViewModel.settings.appearance.rawValue)
     }
 
     private func openProgramForToday() {

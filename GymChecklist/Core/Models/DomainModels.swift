@@ -24,7 +24,7 @@ struct WorkoutSetID: RawRepresentable, Codable, Hashable, Sendable {
     init(rawValue: UUID = UUID()) { self.rawValue = rawValue }
 }
 
-enum Appearance: String, Codable, CaseIterable, Sendable {
+enum Appearance: String, Codable, CaseIterable, Hashable, Sendable {
     case system, light, dark
 }
 

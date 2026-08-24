@@ -1064,7 +1064,7 @@ Correct past workout results.
 
 ---
 
-### M6.3 `TODO` Implement appearance setting
+### M6.3 `IN PROGRESS (PENDING CI)` Implement appearance setting
 **Goal**
 Support one design system with System/Light/Dark themes.
 

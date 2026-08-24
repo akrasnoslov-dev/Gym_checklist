@@ -228,9 +228,20 @@ struct FirestoreUserSettingsDocument: Codable, Equatable {
     let appearance: Appearance
     let weightUnit: WeightUnit
 
+    private enum CodingKeys: String, CodingKey {
+        case appearance
+        case weightUnit
+    }
+
     init(settings: UserSettings) {
         appearance = settings.appearance
         weightUnit = settings.weightUnit
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        appearance = try container.decodeIfPresent(Appearance.self, forKey: .appearance) ?? .system
+        weightUnit = try container.decodeIfPresent(WeightUnit.self, forKey: .weightUnit) ?? .kilograms
     }
 
     func settings(userID: UserID) -> UserSettings {

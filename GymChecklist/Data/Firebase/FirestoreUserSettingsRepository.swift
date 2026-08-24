@@ -41,7 +41,7 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
         guard settings.userID == userID else { throw UserSettingsRepositoryError.ownerMismatch }
         self.settings = settings
         publish()
-        try document.setData(from: FirestoreUserSettingsDocument(settings: settings))
+        try document.setData(from: FirestoreUserSettingsDocument(settings: settings), merge: true)
     }
 
     private var document: DocumentReference {

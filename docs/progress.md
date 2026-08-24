@@ -6,7 +6,7 @@ Milestone 5 — Authentication and account routing.
 Earlier implementation checkpoints remain pending authoritative macOS/live verification. Public-repository macOS capacity is available; failure verification now uses build, unit, and UI layers before a consolidated full suite.
 
 ## Active task
-`M5.4` — Google Sign-In (`IN PROGRESS`). M5.1–M5.3 are implementation-complete and `IN PROGRESS (PENDING CI)`.
+`M6.3` — appearance setting (`IN PROGRESS (PENDING CI)`). M5.4 Google Sign-In remains `IN PROGRESS (PENDING EXTERNAL)` pending local Firebase OAuth configuration; M5.1–M5.3 are implementation-complete and `IN PROGRESS (PENDING CI)`.
 
 ## Current branch
 `dev`
@@ -90,6 +90,14 @@ These verification gaps do not block safe M5 implementation under `docs/ci_free_
 - Sign-in exposes a compact Forgot password? flow that submits only a validated email through Firebase Auth’s password-reset API. It stays unauthenticated and gives non-enumerating success feedback.
 - Reset errors are fixed English messages; no reset URL, token, or provider detail is displayed or logged. Unit coverage validates input, trims a valid email, and confirms the session is unchanged.
 
+## Latest M6.3 implementation
+- Authenticated content now owns one UID-bound `SettingsViewModel`, observes the existing UserSettings repository, applies its System/Light/Dark value at the authenticated app root, and passes it to Settings. The authenticated view is UID-identified, so an auth transition disposes the prior settings observation with the rest of that user-scoped UI state.
+- Settings adds only the approved native Appearance segmented control: System, Light, and Dark. Selecting it saves through the repository (including Firestore's local/offline cache path); save failures remain a fixed English message.
+- UI-test composition now uses an owner-bound in-memory settings repository instead of bypassing settings behavior.
+- Settings mapping accepts missing legacy fields as the documented defaults and writes with Firestore merge semantics, avoiding accidental loss of future settings fields.
+- New coverage exercises all appearance mapping values, default migration, view-model save/observation behavior, selection retention, and Today availability after a theme switch.
+- Local verification: `git diff --check`, Firestore rules, offline-contract, and security-hygiene checks plus Xcode-scheme XML and merge-marker scans PASS. Required reviews: `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, `code_quality_agent`, `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent` found no high/critical blocker; the settings migration/merge feedback is implemented. Authoritative macOS build, unit, and focused UI verification remain pending.
+
 ## Firebase/configuration state
 The Firebase development project, local plist, production-mode Firestore database, and non-production test account are available. Local Firebase configuration remains untracked and must not be printed or committed.
 
@@ -124,16 +132,12 @@ Google Console setup. Do not commit the plist or OAuth credentials.
 Focused UI verification for the selector-only correction is active. It has not reported a real failure and does not block safe M5.1 implementation. Some live Firebase verification also remains pending.
 
 ## Exact next action
-After the local Google Sign-In configuration is supplied, implement M5.4 SDK
-integration and deterministic test routing. M5.5 hardening is already partly
-implemented by resolving-state, UID-bound repository, and sanitized-error work,
-but M5.6 cannot pass until the Google flow is live-verified.
+Push the M6.3 checkpoint, request the narrow macOS build, unit, and UI
+verification layers, then reconcile M6.3. M5.4 resumes when the local Google
+Sign-In configuration is supplied.
 
 ## Stop condition
-`MODEL_OR_TOOL_LIMIT` — this run exhausted its execution budget after pushing
-M5.3 and recording the M5.4 Google configuration contract. Resume by adding
-the official Google Sign-In SDK integration and deterministic routing; do not
-wait for another prompt once the required setup is available.
+None while M6.3 authoritative verification remains available.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

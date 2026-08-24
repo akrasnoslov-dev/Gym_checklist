@@ -139,12 +139,34 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
 
         app.tabBars.buttons["Settings"].tap()
-        XCTAssertTrue(app.staticTexts["settingsPlaceholder"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].waitForExistence(timeout: 2))
+        let appearance = app.descendants(matching: .any)["settingsAppearance"]
+        XCTAssertTrue(appearance.exists)
+        XCTAssertEqual(appearance.value as? String, "system")
 
         XCUIDevice.shared.press(.home)
         app.activate()
-        XCTAssertTrue(app.staticTexts["settingsPlaceholder"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].waitForExistence(timeout: 2))
 
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
+    }
+
+    func testAppearanceSelectionKeepsTodayAvailable() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launch()
+
+        app.tabBars.buttons["Settings"].tap()
+        let appearance = app.descendants(matching: .any)["settingsAppearance"]
+        XCTAssertTrue(appearance.waitForExistence(timeout: 2))
+        app.buttons["settingsAppearanceDark"].tap()
+        XCTAssertEqual(appearance.value as? String, "dark")
+        XCTAssertEqual(app.descendants(matching: .any)["authenticatedContent"].value as? String, "dark")
+
+        app.buttons["settingsAppearanceSystem"].tap()
+        XCTAssertEqual(appearance.value as? String, "system")
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
     }

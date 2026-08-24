@@ -419,8 +419,15 @@ final class FirestoreMappingTests: XCTestCase {
             "users/user-a/customExercises/\(exercise.id.rawValue.uuidString)"
         )
 
-        let settings = UserSettings(userID: userID, appearance: .dark, weightUnit: .pounds)
-        XCTAssertEqual(FirestoreUserSettingsDocument(settings: settings).settings(userID: userID), settings)
+        for appearance in Appearance.allCases {
+            let settings = UserSettings(userID: userID, appearance: appearance, weightUnit: .pounds)
+            XCTAssertEqual(FirestoreUserSettingsDocument(settings: settings).settings(userID: userID), settings)
+        }
+        let legacySettings = try JSONDecoder().decode(
+            FirestoreUserSettingsDocument.self,
+            from: Data(#"{"weightUnit":"lb"}"#.utf8)
+        )
+        XCTAssertEqual(legacySettings.settings(userID: userID), UserSettings(userID: userID, appearance: .system, weightUnit: .pounds))
         XCTAssertEqual(FirestoreDocumentPath.settings(userID: userID), "users/user-a/settings/default")
     }
 }
@@ -489,6 +496,29 @@ final class UserDataRepositoryTests: XCTestCase {
         observation.cancel()
         try repository.save(UserSettings(userID: owner, appearance: .light, weightUnit: .kilograms))
         XCTAssertEqual(recorder.snapshots, [UserSettings(userID: owner), updated])
+    }
+
+    func testSettingsViewModelAppliesAllAppearanceChoicesAndObservedUpdates() throws {
+        let owner = UserID(rawValue: "owner")
+        let repository = InMemoryUserSettingsRepository(
+            userID: owner,
+            settings: UserSettings(userID: owner, appearance: .system, weightUnit: .pounds)
+        )
+        let viewModel = SettingsViewModel(repository: repository)
+
+        XCTAssertNil(viewModel.preferredColorScheme)
+        for appearance in Appearance.allCases {
+            viewModel.selectAppearance(appearance)
+            XCTAssertEqual(repository.settings.appearance, appearance)
+            XCTAssertEqual(viewModel.settings.appearance, appearance)
+            XCTAssertEqual(viewModel.settings.weightUnit, .pounds)
+        }
+        XCTAssertEqual(viewModel.preferredColorScheme, .dark)
+
+        try repository.save(UserSettings(userID: owner, appearance: .light, weightUnit: .kilograms))
+        XCTAssertEqual(viewModel.settings.appearance, .light)
+        XCTAssertEqual(viewModel.settings.weightUnit, .kilograms)
+        XCTAssertEqual(viewModel.preferredColorScheme, .light)
     }
 
     func testWorkoutViewModelCombinesBundledAndPersistedCustomExercises() throws {

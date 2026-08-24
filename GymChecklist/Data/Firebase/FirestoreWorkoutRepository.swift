@@ -61,7 +61,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     func createEmptyWorkout(on date: LocalDate, at timestamp: Date) -> WorkoutCreationResult {
         guard let userID = boundUserID else { preconditionFailure("Firestore repository requires an authenticated user") }
         if let existing = workout(on: date) { return .existing(existing) }
-        let workout = Workout(userID: userID, localDate: date, exercises: [], createdAt: timestamp, updatedAt: timestamp)
+        let workout = Workout(id: WorkoutID(), userID: userID, localDate: date, exercises: [], createdAt: timestamp, updatedAt: timestamp)
         workouts.append(workout)
         publish()
         persist(workout)
@@ -71,7 +71,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     func save(_ workout: Workout) throws {
         let userID = try authenticatedUserID()
         guard workout.userID == userID else { throw Error.ownerMismatch }
-        if let existing = workout(on: workout.localDate), existing.id != workout.id { throw Error.duplicateDate }
+        if let existing = self.workout(on: workout.localDate), existing.id != workout.id { throw Error.duplicateDate }
         workouts.removeAll { $0.localDate == workout.localDate }
         workouts.append(workout)
         publish()
@@ -103,13 +103,13 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         guard let userID = boundUserID else { return }
         listener = store.collection("users").document(userID.rawValue).collection("workouts").addSnapshotListener { [weak self] snapshot, _ in
             guard let snapshot else { return }
-            let decoded = snapshot.documents.compactMap { document in
+            let decoded: [Workout] = snapshot.documents.compactMap { document -> Workout? in
                 guard let date = FirestoreWorkoutDocument.localDate(document.documentID),
                       let payload = try? document.data(as: FirestoreWorkoutPayload.self),
                       let workout = try? payload.domainWorkout(userID: userID, documentDate: date)
                 else { return nil }
                 return workout
-            } ?? []
+            }
             Task { @MainActor in
                 guard let self, self.boundUserID == userID else { return }
                 self.workouts = decoded.sorted { $0.localDate < $1.localDate }

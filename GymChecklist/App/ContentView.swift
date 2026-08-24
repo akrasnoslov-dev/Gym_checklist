@@ -267,6 +267,7 @@ private struct AuthenticatedContentView: View {
             currentDate: today,
             calendar: calendar,
             customExerciseRepository: customExerciseRepository,
+            analytics: AnalyticsTrackerFactory.makeDefault(),
             currentDateProvider: currentDateProvider,
         ))
         guard let settingsRepository else {

@@ -1025,6 +1025,93 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.workouts.isEmpty)
     }
 
+    func testAnalyticsLogsOnlySuccessfulPlanningMutations() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        let analytics = AnalyticsRecorder()
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar(),
+            analytics: analytics
+        )
+
+        viewModel.createSelectedWorkout()
+        viewModel.createSelectedWorkout()
+        let custom = try viewModel.createCustomExercise(name: "Nordic Hop")
+        _ = try viewModel.createCustomExercise(name: "  NORDIC hop ")
+        try viewModel.addExercise(SystemExerciseCatalog.all[0], to: date)
+        try viewModel.addExercise(custom, to: date)
+        try viewModel.copyWorkout(from: date, to: LocalDate(year: 2026, month: 8, day: 15))
+        _ = try viewModel.repeatWorkout(from: date, through: LocalDate(year: 2026, month: 8, day: 28))
+
+        XCTAssertEqual(analytics.events, [
+            .workoutCreated,
+            .customExerciseCreated,
+            .exerciseAdded,
+            .exerciseAdded,
+            .workoutCopied,
+            .workoutRepeatCreated
+        ])
+    }
+
+    func testAnalyticsLogsTodayAndHistoricalActualTransitionsAfterSuccessfulSaves() throws {
+        let currentDate = LocalDate(year: 2026, month: 8, day: 14)
+        let historicalDate = LocalDate(year: 2026, month: 8, day: 7)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        let analytics = AnalyticsRecorder()
+        var todayWorkout = repository.createEmptyWorkout(on: currentDate, at: .distantPast).workout
+        let todayExerciseID = WorkoutExerciseID()
+        let todaySetID = WorkoutSetID()
+        todayWorkout.exercises = [WorkoutExercise(
+            id: todayExerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [WorkoutSet(id: todaySetID, order: 0, reps: 8, weight: 60, timeSeconds: 0)]
+        )]
+        try repository.save(todayWorkout)
+        var historicalWorkout = repository.createEmptyWorkout(on: historicalDate, at: .distantPast).workout
+        let historicalExerciseID = WorkoutExerciseID()
+        let historicalSetID = WorkoutSetID()
+        var historicalSet = WorkoutSet(id: historicalSetID, order: 0, reps: 8, weight: 60, timeSeconds: 0)
+        historicalSet.complete(at: .distantPast)
+        historicalWorkout.exercises = [WorkoutExercise(
+            id: historicalExerciseID,
+            exerciseID: SystemExerciseCatalog.all[1].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [historicalSet]
+        )]
+        try repository.save(historicalWorkout)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: currentDate,
+            currentDate: currentDate,
+            calendar: mondayCalendar(),
+            analytics: analytics
+        )
+
+        try viewModel.toggleCompletion(of: todaySetID, in: todayExerciseID, on: currentDate)
+        try viewModel.editTodaySet(todaySetID, in: todayExerciseID, on: currentDate, reps: 7, weight: 55, timeSeconds: 0)
+        try viewModel.toggleCompletion(of: todaySetID, in: todayExerciseID, on: currentDate)
+        try viewModel.skipTodayExercise(todayExerciseID, on: currentDate)
+        try viewModel.editHistoricalActual(historicalSetID, in: historicalExerciseID, on: historicalDate, reps: 6, weight: 50, timeSeconds: 0)
+
+        XCTAssertEqual(analytics.events, [
+            .setCompleted,
+            .workoutCompleted,
+            .setActualEdited,
+            .setUncompleted,
+            .exerciseSkipped,
+            .workoutCompleted,
+            .setActualEdited
+        ])
+    }
+
     func testSearchCreateAndReuseCustomExercisesFromLongLivedLibrary() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
@@ -1940,11 +2027,13 @@ final class WorkoutViewModelTests: XCTestCase {
         )]
         try backingRepository.save(workout)
         let repository = FailingOnceWorkoutRepository(backing: backingRepository)
+        let analytics = AnalyticsRecorder()
         let viewModel = WorkoutViewModel(
             repository: repository,
             initialDate: date,
             currentDate: date,
-            calendar: mondayCalendar()
+            calendar: mondayCalendar(),
+            analytics: analytics
         )
         let snapshotBeforeFailure = viewModel.workouts
 
@@ -1952,13 +2041,16 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertThrowsError(try viewModel.toggleCompletion(of: setID, in: exerciseID, on: date))
         XCTAssertEqual(viewModel.workouts, snapshotBeforeFailure)
         XCTAssertEqual(backingRepository.workout(on: date), snapshotBeforeFailure.first)
+        XCTAssertTrue(analytics.events.isEmpty)
 
         try viewModel.toggleCompletion(of: setID, in: exerciseID, on: date)
         XCTAssertTrue(viewModel.workout(on: date)?.exercises.first?.sets.first?.isCompleted == true)
+        XCTAssertEqual(analytics.events, [.setCompleted, .workoutCompleted])
 
         repository.throwAfterNextSave = true
         XCTAssertThrowsError(try viewModel.toggleCompletion(of: setID, in: exerciseID, on: date))
         XCTAssertTrue(viewModel.workout(on: date)?.exercises.first?.sets.first?.isCompleted == false)
+        XCTAssertEqual(analytics.events, [.setCompleted, .workoutCompleted])
     }
 
     func testTodayMutationFailureUsesSafeRetryCopy() {

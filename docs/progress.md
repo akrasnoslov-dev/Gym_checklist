@@ -93,7 +93,8 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - M6.6 remains pending: Google Sign-In needs external configuration/live validation, M7 telemetry/crash work is not yet implemented, and current UI changes need macOS CI.
 
 ### M7.1 Analytics
-- FirebaseAnalytics is linked through a small no-parameter tracker. Successful email registration/sign-in emit `sign_up`/`login`; remaining approved workout events are active work.
+- `IN PROGRESS (PENDING CI)`: FirebaseAnalytics uses a small no-parameter tracker.
+- Successful registration/sign-in and all approved workout mutations emit only the approved event names; failed, duplicate, unchanged, and render paths do not emit events.
 - Tracker never includes user IDs, emails, workout content, dates, or free-form parameters.
 
 ## CI / verification state
@@ -168,9 +169,10 @@ None of these establishes a technical run-level stop.
 Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
-2. Continue M7.1 by emitting remaining approved no-parameter workout events only after successful local mutations.
-3. Dispatch one focused macOS build for the current M6 corrective checkpoint, then return to implementation; do not dispatch unit until that build is green.
-4. At later natural checkpoints only, inspect pending CI once and react:
+2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
+3. Continue M7.2 Crashlytics using the implementation-complete M7.1 dependency provisionally; keep M7.1 pending authoritative CI.
+4. Dispatch one focused macOS build for the current M6/M7 corrective checkpoint, then return to implementation; do not dispatch unit until that build is green.
+5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;
    - queued/running -> keep `PENDING CI`, return to implementation.

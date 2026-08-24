@@ -33,6 +33,7 @@ final class WorkoutViewModel: ObservableObject {
     let calendar: Calendar
     private let repository: WorkoutRepository
     private let customExerciseRepository: CustomExerciseRepository?
+    private let analytics: AnalyticsTracking
     private let now: () -> Date
     private let currentDateProvider: () -> LocalDate
     private let makeWorkoutExerciseID: () -> WorkoutExerciseID
@@ -47,6 +48,7 @@ final class WorkoutViewModel: ObservableObject {
         calendar: Calendar = .autoupdatingCurrent,
         exerciseLibrary: LocalExerciseLibrary? = nil,
         customExerciseRepository: CustomExerciseRepository? = nil,
+        analytics: AnalyticsTracking = NoOpAnalyticsTracker(),
         now: @escaping () -> Date = Date.init,
         currentDateProvider: (() -> LocalDate)? = nil,
         makeWorkoutExerciseID: @escaping () -> WorkoutExerciseID = { WorkoutExerciseID() },
@@ -64,6 +66,7 @@ final class WorkoutViewModel: ObservableObject {
         }
         self.repository = repository
         self.customExerciseRepository = customExerciseRepository
+        self.analytics = analytics
         self.selectedDate = initialDate
         self.currentDate = currentDate
         self.calendar = calendar
@@ -112,8 +115,11 @@ final class WorkoutViewModel: ObservableObject {
 
     func createSelectedWorkout() {
         guard selectedDate >= currentDate else { return }
-        _ = repository.createEmptyWorkout(on: selectedDate, at: now())
+        let result = repository.createEmptyWorkout(on: selectedDate, at: now())
         workouts = repository.workouts
+        if result.wasCreated {
+            analytics.log(.workoutCreated)
+        }
     }
 
     func deleteWorkout(on workoutDate: LocalDate) throws {
@@ -142,6 +148,7 @@ final class WorkoutViewModel: ObservableObject {
         try createPlannedCopy(of: source, on: destinationDate)
         workouts = repository.workouts
         selectedDate = destinationDate
+        analytics.log(.workoutCopied)
     }
 
     func repeatWorkout(from sourceDate: LocalDate, through endDate: LocalDate) throws -> WorkoutRepeatResult {
@@ -170,10 +177,14 @@ final class WorkoutViewModel: ObservableObject {
         }
 
         workouts = repository.workouts
-        return WorkoutRepeatResult(
+        let result = WorkoutRepeatResult(
             createdDates: createdDates,
             skippedOccupiedDates: skippedOccupiedDates
         )
+        if !result.createdDates.isEmpty {
+            analytics.log(.workoutRepeatCreated)
+        }
+        return result
     }
 
     private func createPlannedCopy(of source: Workout, on destinationDate: LocalDate) throws {
@@ -236,6 +247,9 @@ final class WorkoutViewModel: ObservableObject {
             try customExerciseRepository?.save(result.exercise)
         }
         exerciseLibrary = library
+        if result.wasCreated {
+            analytics.log(.customExerciseCreated)
+        }
         return result.exercise
     }
 
@@ -259,6 +273,7 @@ final class WorkoutViewModel: ObservableObject {
         workout.updatedAt = now()
         try repository.save(workout)
         workouts = repository.workouts
+        analytics.log(.exerciseAdded)
     }
 
     func orderedExercises(on workoutDate: LocalDate) -> [WorkoutExercise] {
@@ -290,10 +305,16 @@ final class WorkoutViewModel: ObservableObject {
             throw ProgramPlanningError.workoutSetNotFound(setID)
         }
 
+        let statusBeforeMutation = workout.completionStatus
         let timestamp = now()
         workout.exercises[exerciseIndex].sets[setIndex].toggleCompletion(at: timestamp)
+        let isCompleted = workout.exercises[exerciseIndex].sets[setIndex].isCompleted
         workout.updatedAt = timestamp
         try saveTodayWorkout(workout)
+        analytics.log(isCompleted ? .setCompleted : .setUncompleted)
+        if statusBeforeMutation != .completed, workout.completionStatus == .completed {
+            analytics.log(.workoutCompleted)
+        }
     }
 
     func editTodaySet(
@@ -308,16 +329,26 @@ final class WorkoutViewModel: ObservableObject {
         guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
             throw ProgramPlanningError.invalidSetValues
         }
+        var actualValuesChanged = false
         try mutateExercise(exerciseID, on: workoutDate) { exercise in
             guard !exercise.isSkipped else { throw ProgramPlanningError.workoutExerciseSkipped(exerciseID) }
             guard let setIndex = exercise.sets.firstIndex(where: { $0.id == setID }) else {
                 throw ProgramPlanningError.workoutSetNotFound(setID)
             }
             if exercise.sets[setIndex].isCompleted {
-                exercise.sets[setIndex].editActual(reps: reps, weight: weight, timeSeconds: timeSeconds)
+                let current = exercise.sets[setIndex]
+                actualValuesChanged = current.actualReps != reps
+                    || current.actualWeight != weight
+                    || current.actualTimeSeconds != timeSeconds
+                if actualValuesChanged {
+                    exercise.sets[setIndex].editActual(reps: reps, weight: weight, timeSeconds: timeSeconds)
+                }
             } else {
                 exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds)
             }
+        }
+        if actualValuesChanged {
+            analytics.log(.setActualEdited)
         }
     }
 
@@ -335,6 +366,7 @@ final class WorkoutViewModel: ObservableObject {
         guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
             throw ProgramPlanningError.invalidSetValues
         }
+        var actualValuesChanged = false
         try mutateExercise(exerciseID, on: workoutDate) { exercise in
             guard let setIndex = exercise.sets.firstIndex(where: { $0.id == setID }) else {
                 throw ProgramPlanningError.workoutSetNotFound(setID)
@@ -342,7 +374,16 @@ final class WorkoutViewModel: ObservableObject {
             guard exercise.sets[setIndex].isCompleted else {
                 throw ProgramPlanningError.workoutSetNotCompleted(setID)
             }
-            exercise.sets[setIndex].editActual(reps: reps, weight: weight, timeSeconds: timeSeconds)
+            let current = exercise.sets[setIndex]
+            actualValuesChanged = current.actualReps != reps
+                || current.actualWeight != weight
+                || current.actualTimeSeconds != timeSeconds
+            if actualValuesChanged {
+                exercise.sets[setIndex].editActual(reps: reps, weight: weight, timeSeconds: timeSeconds)
+            }
+        }
+        if actualValuesChanged {
+            analytics.log(.setActualEdited)
         }
     }
 
@@ -356,9 +397,14 @@ final class WorkoutViewModel: ObservableObject {
         }
         guard !workout.exercises[exerciseIndex].isSkipped else { return }
 
+        let statusBeforeMutation = workout.completionStatus
         workout.exercises[exerciseIndex].isSkipped = true
         workout.updatedAt = now()
         try saveTodayWorkout(workout)
+        analytics.log(.exerciseSkipped)
+        if statusBeforeMutation != .completed, workout.completionStatus == .completed {
+            analytics.log(.workoutCompleted)
+        }
     }
 
     func restoreTodayExercise(_ exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) throws {

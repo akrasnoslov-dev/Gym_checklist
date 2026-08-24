@@ -7,6 +7,7 @@ final class GymChecklistUITests: XCTestCase {
 
     func testAppLaunchesOnTodayAndNavigatesAllTabs() {
         let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launch()
 
@@ -248,6 +249,7 @@ final class TodayInteractionUITests: XCTestCase {
 
     func testTodaySetRemainsUsableAtAccessibilityTextSize() {
         let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
@@ -391,6 +393,7 @@ final class TodayInteractionUITests: XCTestCase {
 
     private func launchSeededToday(environment: [String: String] = [:]) -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
         environment.forEach { app.launchEnvironment[$0.key] = $0.value }
@@ -444,6 +447,7 @@ final class TodayEmptyStateUITests: XCTestCase {
 
     private func launchToday(environment: [String: String] = [:]) -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         environment.forEach { app.launchEnvironment[$0.key] = $0.value }
         app.launch()
@@ -477,6 +481,7 @@ final class TodayCompletionUITests: XCTestCase {
 
     func testLastRemainingSetShowsDismissibleCompletionPopupOncePerTransition() {
         let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
         app.launch()
@@ -518,6 +523,7 @@ final class TodayCompletionUITests: XCTestCase {
 
     func testCompletedWorkoutDoesNotShowCompletionPopupOnLaunch() {
         let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
         app.launchEnvironment["UITEST_SEED_COMPLETED_WORKOUT"] = "1"
@@ -529,6 +535,7 @@ final class TodayCompletionUITests: XCTestCase {
 
     private func launchCompletionWorkout() -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
         app.launch()

@@ -54,12 +54,23 @@ final class LocalDateTests: XCTestCase {
 
 final class SetDisplayFormatterTests: XCTestCase {
     func testCompactDisplayRules() {
-        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weight: 60, timeSeconds: 0), "8 reps × 60 kg")
-        XCTAssertEqual(SetDisplayFormatter(unit: .pounds).string(reps: 8, weight: 132.5, timeSeconds: 0), "8 reps × 132.5 lb")
-        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 12, weight: 0, timeSeconds: 0), "12 reps")
-        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 1, weight: 0, timeSeconds: 45), "45 sec")
-        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weight: 60, timeSeconds: 45), "8 reps × 60 kg × 45 sec")
-        XCTAssertFalse(SetDisplayFormatter(unit: .kilograms).string(reps: 12, weight: 0, timeSeconds: 0).contains("0 kg"))
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weightInKilograms: 60, timeSeconds: 0), "8 reps × 60 kg")
+        XCTAssertEqual(SetDisplayFormatter(unit: .pounds).string(reps: 8, weightInKilograms: 60, timeSeconds: 0), "8 reps × 132.28 lb")
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 12, weightInKilograms: 0, timeSeconds: 0), "12 reps")
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 1, weightInKilograms: 0, timeSeconds: 45), "45 sec")
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weightInKilograms: 60, timeSeconds: 45), "8 reps × 60 kg × 45 sec")
+        XCTAssertFalse(SetDisplayFormatter(unit: .kilograms).string(reps: 12, weightInKilograms: 0, timeSeconds: 0).contains("0 kg"))
+    }
+
+    func testWeightUnitsConvertAtTheDisplayBoundaryWithoutChangingCanonicalWeight() {
+        let canonicalKilograms = 60.0
+        let pounds = WeightUnit.pounds.displayWeight(fromCanonicalKilograms: canonicalKilograms)
+
+        XCTAssertEqual(WeightUnit.kilograms.displayWeight(fromCanonicalKilograms: canonicalKilograms), canonicalKilograms)
+        XCTAssertEqual(pounds, 132.277_357_311, accuracy: 0.000_000_001)
+        XCTAssertEqual(WeightUnit.pounds.canonicalKilograms(fromDisplayWeight: pounds), canonicalKilograms, accuracy: 0.000_000_001)
+        XCTAssertEqual(WeightUnit.pounds.displayWeight(fromCanonicalKilograms: 0), 0)
+        XCTAssertEqual(WeightUnit.pounds.canonicalKilograms(fromDisplayWeight: 0), 0)
     }
 }
 
@@ -230,11 +241,13 @@ final class AuthenticationViewModelTests: XCTestCase {
         let service = TestAuthenticationService(result: .success(expectedUser))
         let viewModel = AuthenticationViewModel(service: service)
 
-        XCTAssertFalse(await viewModel.signIn(email: "not-an-email", password: "password"))
+        let invalidEmailResult = await viewModel.signIn(email: "not-an-email", password: "password")
+        XCTAssertFalse(invalidEmailResult)
         XCTAssertEqual(service.registrationCalls, 0)
         XCTAssertEqual(viewModel.errorMessage, "Enter a valid email address.")
 
-        XCTAssertTrue(await viewModel.signIn(email: "member@example.com", password: "password"))
+        let validSignInResult = await viewModel.signIn(email: "member@example.com", password: "password")
+        XCTAssertTrue(validSignInResult)
         XCTAssertEqual(viewModel.currentUser, expectedUser)
         XCTAssertFalse(viewModel.isSubmitting)
     }
@@ -243,11 +256,13 @@ final class AuthenticationViewModelTests: XCTestCase {
         let service = TestAuthenticationService(result: .failure(.invalidCredentials))
         let viewModel = AuthenticationViewModel(service: service)
 
-        XCTAssertFalse(await viewModel.signIn(email: "member@example.com", password: ""))
+        let emptyPasswordResult = await viewModel.signIn(email: "member@example.com", password: "")
+        XCTAssertFalse(emptyPasswordResult)
         XCTAssertEqual(service.registrationCalls, 0)
         XCTAssertEqual(viewModel.errorMessage, "Enter your password.")
 
-        XCTAssertFalse(await viewModel.signIn(email: "member@example.com", password: "password"))
+        let invalidCredentialsResult = await viewModel.signIn(email: "member@example.com", password: "password")
+        XCTAssertFalse(invalidCredentialsResult)
         XCTAssertEqual(viewModel.errorMessage, "Email or password is incorrect.")
     }
 
@@ -264,9 +279,11 @@ final class AuthenticationViewModelTests: XCTestCase {
     func testPasswordResetValidatesAndKeepsSessionUnchanged() async {
         let service = TestAuthenticationService()
         let viewModel = AuthenticationViewModel(service: service)
-        XCTAssertFalse(await viewModel.sendPasswordReset(email: "bad"))
+        let invalidResetResult = await viewModel.sendPasswordReset(email: "bad")
+        XCTAssertFalse(invalidResetResult)
         XCTAssertEqual(service.resetCalls, 0)
-        XCTAssertTrue(await viewModel.sendPasswordReset(email: " member@example.com "))
+        let validResetResult = await viewModel.sendPasswordReset(email: " member@example.com ")
+        XCTAssertTrue(validResetResult)
         XCTAssertEqual(service.resetCalls, 1)
         XCTAssertNil(viewModel.currentUser)
         XCTAssertEqual(viewModel.passwordResetMessage, "If an account matches this email, we’ll send reset instructions.")
@@ -519,6 +536,38 @@ final class UserDataRepositoryTests: XCTestCase {
         XCTAssertEqual(viewModel.settings.appearance, .light)
         XCTAssertEqual(viewModel.settings.weightUnit, .kilograms)
         XCTAssertEqual(viewModel.preferredColorScheme, .light)
+    }
+
+    func testSettingsViewModelPersistsWeightUnitWithoutChangingAppearance() throws {
+        let owner = UserID(rawValue: "owner")
+        let repository = InMemoryUserSettingsRepository(
+            userID: owner,
+            settings: UserSettings(userID: owner, appearance: .dark, weightUnit: .kilograms)
+        )
+        let viewModel = SettingsViewModel(repository: repository)
+
+        viewModel.selectWeightUnit(.pounds)
+
+        XCTAssertEqual(repository.settings, UserSettings(userID: owner, appearance: .dark, weightUnit: .pounds))
+        XCTAssertEqual(viewModel.settings, repository.settings)
+        try repository.saveAppearance(.light)
+        XCTAssertEqual(viewModel.settings, UserSettings(userID: owner, appearance: .light, weightUnit: .pounds))
+    }
+
+    func testUnitSwitchDoesNotMutateStoredPlannedOrActualWeights() throws {
+        let owner = UserID(rawValue: "owner")
+        let repository = InMemoryUserSettingsRepository(userID: owner)
+        var set = WorkoutSet(order: 0, reps: 8, weight: 60, timeSeconds: 0)
+        set.complete(at: .distantPast)
+        set.editActual(reps: 7, weight: 61, timeSeconds: 0)
+        let original = set
+
+        try repository.saveWeightUnit(.pounds)
+        try repository.saveWeightUnit(.kilograms)
+
+        XCTAssertEqual(set, original)
+        XCTAssertEqual(set.weight, 60)
+        XCTAssertEqual(set.actualWeight, 61)
     }
 
     func testWorkoutViewModelCombinesBundledAndPersistedCustomExercises() throws {
@@ -1124,7 +1173,7 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertEqual(sets[1].timeSeconds, 45)
         XCTAssertFalse(sets[1].isCompleted)
         XCTAssertNil(sets[1].actualWeight)
-        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weight: 0, timeSeconds: 45), "8 reps × 45 sec")
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weightInKilograms: 0, timeSeconds: 45), "8 reps × 45 sec")
     }
 
     func testTodayCompletionTogglePersistsImmediatelyAndAllowsArbitraryOrder() throws {

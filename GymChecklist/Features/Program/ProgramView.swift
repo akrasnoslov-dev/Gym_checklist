@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ProgramView: View {
     @ObservedObject var viewModel: WorkoutViewModel
+    let weightUnit: WeightUnit
     @State private var exercisePickerRoute: ExercisePickerRoute?
     @State private var setEditorRoute: SetEditorRoute?
     @State private var copyWorkoutRoute: CopyWorkoutRoute?
@@ -66,6 +67,7 @@ struct ProgramView: View {
                 ProgramSetEditorSheet(
                     set: route.set,
                     exerciseName: viewModel.exerciseName(for: route.exercise),
+                    weightUnit: weightUnit,
                     onSave: { reps, weight, timeSeconds in
                         guard let set = route.set else { return }
                         try viewModel.editSet(
@@ -312,9 +314,9 @@ struct ProgramView: View {
                             Text("Set \(setIndex + 1)")
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Text(SetDisplayFormatter(unit: .kilograms).string(
+                            Text(SetDisplayFormatter(unit: weightUnit).string(
                                 reps: set.displayedReps,
-                                weight: set.displayedWeight,
+                                weightInKilograms: set.displayedWeight,
                                 timeSeconds: set.displayedTimeSeconds
                             ))
                         }
@@ -323,9 +325,9 @@ struct ProgramView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Edit set \(setIndex + 1) for \(name)")
-                    .accessibilityValue(SetDisplayFormatter(unit: .kilograms).string(
+                    .accessibilityValue(SetDisplayFormatter(unit: weightUnit).string(
                         reps: set.displayedReps,
-                        weight: set.displayedWeight,
+                        weightInKilograms: set.displayedWeight,
                         timeSeconds: set.displayedTimeSeconds
                     ))
                     .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
@@ -772,6 +774,7 @@ private struct RepeatWorkoutSheet: View {
 private struct ProgramSetEditorSheet: View {
     let set: WorkoutSet?
     let exerciseName: String
+    let weightUnit: WeightUnit
     let onSave: (Int, Double, Int) throws -> Void
     let onDelete: () throws -> Void
 
@@ -784,15 +787,17 @@ private struct ProgramSetEditorSheet: View {
     init(
         set: WorkoutSet?,
         exerciseName: String,
+        weightUnit: WeightUnit,
         onSave: @escaping (Int, Double, Int) throws -> Void,
         onDelete: @escaping () throws -> Void
     ) {
         self.set = set
         self.exerciseName = exerciseName
+        self.weightUnit = weightUnit
         self.onSave = onSave
         self.onDelete = onDelete
         _reps = State(initialValue: set?.reps ?? 0)
-        _weight = State(initialValue: set?.weight ?? 0)
+        _weight = State(initialValue: weightUnit.displayWeight(fromCanonicalKilograms: set?.weight ?? 0))
         _timeSeconds = State(initialValue: set?.timeSeconds ?? 0)
     }
 
@@ -807,7 +812,7 @@ private struct ProgramSetEditorSheet: View {
                     TextField("Reps", value: $reps, format: .number)
                         .keyboardType(.numberPad)
                         .accessibilityIdentifier("programSetEditorReps")
-                    TextField("Weight", value: $weight, format: .number)
+                    TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
                         .keyboardType(.decimalPad)
                         .accessibilityIdentifier("programSetEditorWeight")
                     TextField("Time (seconds)", value: $timeSeconds, format: .number)
@@ -837,7 +842,7 @@ private struct ProgramSetEditorSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         do {
-                            try onSave(reps, weight, timeSeconds)
+                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
                             dismiss()
                         } catch {
                             showsValidationError = true

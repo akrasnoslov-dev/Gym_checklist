@@ -218,6 +218,7 @@ private struct AuthenticatedContentView: View {
                 viewModel: workoutViewModel,
                 currentDate: workoutViewModel.currentDate,
                 calendar: workoutViewModel.calendar,
+                weightUnit: settingsViewModel.settings.weightUnit,
                 onOpenProgram: openProgramForToday
             )
                 .tabItem {
@@ -225,7 +226,10 @@ private struct AuthenticatedContentView: View {
                 }
                 .tag(AppTab.today)
 
-            ProgramView(viewModel: workoutViewModel)
+            ProgramView(
+                viewModel: workoutViewModel,
+                weightUnit: settingsViewModel.settings.weightUnit
+            )
                 .tabItem {
                     Label("Program", systemImage: "calendar")
                 }

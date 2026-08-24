@@ -28,7 +28,7 @@ enum Appearance: String, Codable, CaseIterable, Hashable, Sendable {
     case system, light, dark
 }
 
-enum WeightUnit: String, Codable, CaseIterable, Sendable {
+enum WeightUnit: String, Codable, CaseIterable, Hashable, Sendable {
     case kilograms = "kg"
     case pounds = "lb"
 }

@@ -85,4 +85,6 @@ protocol UserSettingsRepository: AnyObject {
     /// settings. The returned observation owns its cancellation lifecycle.
     func observeSettings(_ observer: @escaping @MainActor (UserSettings) -> Void) -> UserSettingsObservation
     func save(_ settings: UserSettings) throws
+    func saveAppearance(_ appearance: Appearance) throws
+    func saveWeightUnit(_ weightUnit: WeightUnit) throws
 }

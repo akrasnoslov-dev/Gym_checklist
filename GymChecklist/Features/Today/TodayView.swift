@@ -21,6 +21,7 @@ struct TodayView: View {
     @ObservedObject var viewModel: WorkoutViewModel
     let currentDate: LocalDate
     let calendar: Calendar
+    let weightUnit: WeightUnit
     let onOpenProgram: () -> Void
     @State private var editorRoute: TodaySetEditorRoute?
     @State private var showsCompletionPopup = false
@@ -57,7 +58,7 @@ struct TodayView: View {
             mutationError = nil
         }
         .sheet(item: $editorRoute) { route in
-            TodaySetEditorSheet(route: route) { reps, weight, timeSeconds in
+            TodaySetEditorSheet(route: route, weightUnit: weightUnit) { reps, weight, timeSeconds in
                 try viewModel.editTodaySet(
                     route.workoutSet.id,
                     in: route.exercise.id,
@@ -218,9 +219,9 @@ struct TodayView: View {
     }
 
     private func setDescription(for set: WorkoutSet) -> String {
-        SetDisplayFormatter(unit: .kilograms).string(
+        SetDisplayFormatter(unit: weightUnit).string(
             reps: set.displayedReps,
-            weight: set.displayedWeight,
+            weightInKilograms: set.displayedWeight,
             timeSeconds: set.displayedTimeSeconds
         )
     }
@@ -316,6 +317,7 @@ private struct TodaySetEditorRoute: Identifiable {
 
 private struct TodaySetEditorSheet: View {
     let route: TodaySetEditorRoute
+    let weightUnit: WeightUnit
     let onSave: (Int, Double, Int) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -327,12 +329,14 @@ private struct TodaySetEditorSheet: View {
 
     init(
         route: TodaySetEditorRoute,
+        weightUnit: WeightUnit,
         onSave: @escaping (Int, Double, Int) throws -> Void
     ) {
         self.route = route
+        self.weightUnit = weightUnit
         self.onSave = onSave
         _reps = State(initialValue: route.workoutSet.displayedReps)
-        _weight = State(initialValue: route.workoutSet.displayedWeight)
+        _weight = State(initialValue: weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight))
         _timeSeconds = State(initialValue: route.workoutSet.displayedTimeSeconds)
     }
 
@@ -343,7 +347,7 @@ private struct TodaySetEditorSheet: View {
                     TextField("Reps", value: $reps, format: .number)
                         .keyboardType(.numberPad)
                         .accessibilityIdentifier("todaySetEditorReps")
-                    TextField("Weight", value: $weight, format: .number)
+                    TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
                         .keyboardType(.decimalPad)
                         .accessibilityIdentifier("todaySetEditorWeight")
                     TextField("Time (seconds)", value: $timeSeconds, format: .number)
@@ -360,7 +364,7 @@ private struct TodaySetEditorSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         do {
-                            try onSave(reps, weight, timeSeconds)
+                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
                             dismiss()
                         } catch {
                             if let planningError = error as? ProgramPlanningError,

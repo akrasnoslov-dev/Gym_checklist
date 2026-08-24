@@ -64,6 +64,13 @@ Avoid introducing extra layers unless a real testing or separation problem appea
 - theme: system/light/dark
 - weightUnit: kg/lb
 
+All `WorkoutSet.weight` and `WorkoutSet.actualWeight` values are stored as
+canonical kilograms. `weightUnit` is only a user-scoped display/input
+preference: conversion occurs at the view/formatter boundary using
+2.20462262185 lb per kg, while persisted workout values are never rewritten
+when the preference changes. Display and editor text use at most two decimal
+places; the stored canonical value retains its full precision.
+
 ### Exercise
 - id
 - name

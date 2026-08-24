@@ -3,12 +3,14 @@ import Foundation
 struct SetDisplayFormatter {
     var unit: WeightUnit
 
-    func string(reps: Int, weight: Double, timeSeconds: Int) -> String {
-        if timeSeconds > 0 && weight <= 0 && reps <= 1 {
+    /// `weightInKilograms` is the canonical stored weight for every workout set.
+    func string(reps: Int, weightInKilograms: Double, timeSeconds: Int) -> String {
+        if timeSeconds > 0 && weightInKilograms <= 0 && reps <= 1 {
             return "\(timeSeconds) sec"
         }
-        if weight > 0 {
-            let weighted = "\(reps) reps × \(formatted(weight)) \(unit.rawValue)"
+        if weightInKilograms > 0 {
+            let displayWeight = unit.displayWeight(fromCanonicalKilograms: weightInKilograms)
+            let weighted = "\(reps) reps × \(formatted(displayWeight)) \(unit.rawValue)"
             return timeSeconds > 0 ? "\(weighted) × \(timeSeconds) sec" : weighted
         }
         if timeSeconds > 0 {
@@ -22,5 +24,23 @@ struct SetDisplayFormatter {
         return String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), value)
             .replacingOccurrences(of: #"0+$"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"\.$"#, with: "", options: .regularExpression)
+    }
+}
+
+extension WeightUnit {
+    private static let poundsPerKilogram = 2.204_622_621_85
+
+    func displayWeight(fromCanonicalKilograms weightInKilograms: Double) -> Double {
+        switch self {
+        case .kilograms: weightInKilograms
+        case .pounds: weightInKilograms * Self.poundsPerKilogram
+        }
+    }
+
+    func canonicalKilograms(fromDisplayWeight weight: Double) -> Double {
+        switch self {
+        case .kilograms: weight
+        case .pounds: weight / Self.poundsPerKilogram
+        }
     }
 }

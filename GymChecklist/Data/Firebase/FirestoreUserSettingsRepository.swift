@@ -44,6 +44,22 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
         try document.setData(from: FirestoreUserSettingsDocument(settings: settings), merge: true)
     }
 
+    func saveAppearance(_ appearance: Appearance) throws {
+        var updated = settings
+        updated.appearance = appearance
+        settings = updated
+        publish()
+        document.setData(["appearance": appearance.rawValue], merge: true)
+    }
+
+    func saveWeightUnit(_ weightUnit: WeightUnit) throws {
+        var updated = settings
+        updated.weightUnit = weightUnit
+        settings = updated
+        publish()
+        document.setData(["weightUnit": weightUnit.rawValue], merge: true)
+    }
+
     private var document: DocumentReference {
         store.document(FirestoreDocumentPath.settings(userID: userID))
     }

@@ -28,12 +28,19 @@ final class SettingsViewModel: ObservableObject {
 
     func selectAppearance(_ appearance: Appearance) {
         guard appearance != settings.appearance else { return }
-        var updated = settings
-        updated.appearance = appearance
         do {
-            try repository.save(updated)
+            try repository.saveAppearance(appearance)
         } catch {
             errorMessage = "Couldn’t save appearance. Try again."
+        }
+    }
+
+    func selectWeightUnit(_ weightUnit: WeightUnit) {
+        guard weightUnit != settings.weightUnit else { return }
+        do {
+            try repository.saveWeightUnit(weightUnit)
+        } catch {
+            errorMessage = "Couldn’t save weight unit. Try again."
         }
     }
 
@@ -73,6 +80,25 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Weight unit") {
+                    Picker(
+                        "Weight unit",
+                        selection: Binding(
+                            get: { viewModel.settings.weightUnit },
+                            set: viewModel.selectWeightUnit
+                        )
+                    ) {
+                        ForEach(WeightUnit.allCases, id: \.self) { weightUnit in
+                            Text(weightUnit.title)
+                                .tag(weightUnit)
+                                .accessibilityIdentifier("settingsWeightUnit\(weightUnit.accessibilitySuffix)")
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("settingsWeightUnit")
+                    .accessibilityValue(viewModel.settings.weightUnit.rawValue)
+                }
+
                 Section("Account") {
                     Button("Log out", role: .destructive, action: onLogout)
                         .accessibilityIdentifier("authLogout")
@@ -105,6 +131,17 @@ private extension Appearance {
         case .system: "System"
         case .light: "Light"
         case .dark: "Dark"
+        }
+    }
+}
+
+private extension WeightUnit {
+    var title: String { rawValue }
+
+    var accessibilitySuffix: String {
+        switch self {
+        case .kilograms: "Kg"
+        case .pounds: "Lb"
         }
     }
 }

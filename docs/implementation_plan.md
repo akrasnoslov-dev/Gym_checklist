@@ -1082,7 +1082,7 @@ Support one design system with System/Light/Dark themes.
 
 ---
 
-### M6.4 `TODO` Implement kg/lb setting
+### M6.4 `IN PROGRESS (PENDING CI)` Implement kg/lb setting
 **Goal**
 Switch weight display and editing units.
 

@@ -6,7 +6,7 @@ Milestone 5 — Authentication and account routing.
 Earlier implementation checkpoints remain pending authoritative macOS/live verification. Public-repository macOS capacity is available; failure verification now uses build, unit, and UI layers before a consolidated full suite.
 
 ## Active task
-`M6.3` — appearance setting (`IN PROGRESS (PENDING CI)`). M5.4 Google Sign-In remains `IN PROGRESS (PENDING EXTERNAL)` pending local Firebase OAuth configuration; M5.1–M5.3 are implementation-complete and `IN PROGRESS (PENDING CI)`.
+`M6.4` — kg/lb setting (`IN PROGRESS (PENDING CI)`); M6.3 appearance setting is `IN PROGRESS (PENDING CI)`. M5.4 Google Sign-In remains `IN PROGRESS (PENDING EXTERNAL)` pending local Firebase OAuth configuration; M5.1–M5.3 are implementation-complete and `IN PROGRESS (PENDING CI)`.
 
 ## Current branch
 `dev`
@@ -98,6 +98,13 @@ These verification gaps do not block safe M5 implementation under `docs/ci_free_
 - New coverage exercises all appearance mapping values, default migration, view-model save/observation behavior, selection retention, and Today availability after a theme switch.
 - Local verification: `git diff --check`, Firestore rules, offline-contract, and security-hygiene checks plus Xcode-scheme XML and merge-marker scans PASS. Required reviews: `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, `code_quality_agent`, `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent` found no high/critical blocker; the settings migration/merge feedback is implemented. Authoritative macOS build, unit, and focused UI verification remain pending.
 
+## Latest M6.4 implementation
+- Workout set planned and actual weights retain the established canonical-kilogram storage contract. The kg/lb setting is a user-scoped display/input preference only, so switching it never rewrites workouts, actual results, copies, or history.
+- One conversion boundary uses 2.20462262185 lb per kg. Today and Program rows (including accessibility values) render through it; both program-plan and Today planned/actual editors show the selected unit and convert submitted values back to canonical kilograms.
+- Settings adds the approved native kg/lb segmented control. Field-specific repository writes preserve a concurrent appearance or unit setting rather than resending a stale full settings object. Existing Firestore optimistic/offline cache behavior remains in use.
+- Architecture documents the canonical storage and two-decimal presentation precision. New deterministic unit/UI coverage checks conversion, formatter rules, no-mutation unit switching, settings observation, and Today/Program propagation.
+- Required reviews: `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, `code_quality_agent`, `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent` found no high/critical blocker; field-specific settings writes implement the concurrent-field safeguard. Local static verification is PASS; authoritative macOS verification remains pending.
+
 ## Firebase/configuration state
 The Firebase development project, local plist, production-mode Firestore database, and non-production test account are available. Local Firebase configuration remains untracked and must not be printed or committed.
 
@@ -118,6 +125,8 @@ Consolidated authoritative verification against `dev` commit `de536f23ac63d68cef
 
 Focused UI run [32714126343](https://github.com/akrasnoslov-dev/Gym_checklist/actions/runs/32714126343) passed all completion and interaction tests. Its three remaining failures are stale test selectors: the Program root is queried as `Other`, and an empty-set Program-to-Today smoke assertion assumes a generated workout-exercise ID. The current test-only correction makes the Program root role-agnostic and removes the non-behavioral empty-set assertion. Build, then focused UI verification remain required.
 
+M6.3 build run [32727119669](https://github.com/akrasnoslov-dev/Gym_checklist/actions/runs/32727119669) reached the unit-test target but failed before tests ran: Xcode rejects six `await` calls embedded directly in XCTest autoclosures in pre-existing M5 auth tests. The local checkpoint replaces each with an awaited result variable before the assertion; macOS build/unit/UI verification must be rerun after it is pushed.
+
 ## USER ACTION REQUIRED
 None for current M5.1 implementation.
 
@@ -132,12 +141,13 @@ Google Console setup. Do not commit the plist or OAuth credentials.
 Focused UI verification for the selector-only correction is active. It has not reported a real failure and does not block safe M5.1 implementation. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Push the M6.3 checkpoint, request the narrow macOS build, unit, and UI
-verification layers, then reconcile M6.3. M5.4 resumes when the local Google
-Sign-In configuration is supplied.
+Push the combined M6.3 compiler correction/M6.4 checkpoint, request the
+narrow macOS build, unit, and UI verification layers, then reconcile both
+settings tasks. M5.4 resumes when the local Google Sign-In configuration is
+supplied.
 
 ## Stop condition
-None while M6.3 authoritative verification remains available.
+None while M6.3/M6.4 authoritative verification remains available.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

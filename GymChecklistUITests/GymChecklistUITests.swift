@@ -170,6 +170,32 @@ final class GymChecklistUITests: XCTestCase {
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
     }
+
+    func testWeightUnitUpdatesTodayAndProgramWithoutChangingStoredWorkout() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["8 reps × 60 kg"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Settings"].tap()
+        let weightUnit = app.descendants(matching: .any)["settingsWeightUnit"]
+        XCTAssertTrue(weightUnit.waitForExistence(timeout: 2))
+        XCTAssertEqual(weightUnit.value as? String, "kg")
+        app.buttons["settingsWeightUnitLb"].tap()
+        XCTAssertEqual(weightUnit.value as? String, "lb")
+
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.staticTexts["8 reps × 132.28 lb"].waitForExistence(timeout: 2))
+        app.tabBars.buttons["Program"].tap()
+        XCTAssertTrue(app.staticTexts["132.28 lb"].waitForExistence(timeout: 2))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settingsWeightUnitKg"].tap()
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.staticTexts["8 reps × 60 kg"].waitForExistence(timeout: 2))
+    }
 }
 
 final class TodayInteractionUITests: XCTestCase {

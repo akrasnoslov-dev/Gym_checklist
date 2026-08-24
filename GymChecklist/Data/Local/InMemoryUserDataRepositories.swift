@@ -81,6 +81,18 @@ final class InMemoryUserSettingsRepository: UserSettingsRepository {
         publish()
     }
 
+    func saveAppearance(_ appearance: Appearance) throws {
+        var updated = storage
+        updated.appearance = appearance
+        try save(updated)
+    }
+
+    func saveWeightUnit(_ weightUnit: WeightUnit) throws {
+        var updated = storage
+        updated.weightUnit = weightUnit
+        try save(updated)
+    }
+
     private func publish() { observers.values.forEach { $0(settings) } }
 }
 

@@ -167,10 +167,15 @@ Latest macOS unit test:
 - scope: gated follow-up to the successful focused build; it validates the M7.4 offline-state checkpoint but not later M7.5/M7.6 edits
 
 Current dispatched macOS build:
+- run `32748702328`
+- checkpoint SHA: `413c765`
+- scope: focused retry after the `32748151516` compile-only test-helper correction; do not dispatch unit until it passes
+
+Previous macOS build:
 - run `32748151516`
 - checkpoint SHA: `b82e96f`
 - final status: `completed / failure` (`build-for-testing`)
-- diagnosis: two compile-only issues in the new controllable test helper (missing `throws` and a main-actor deinitializer call); the narrow correction is queued for a build retry
+- diagnosis: two compile-only issues in the new controllable test helper (missing `throws` and a main-actor deinitializer call), corrected at `413c765`
 
 Previous successful macOS build:
 - run `32734248577`

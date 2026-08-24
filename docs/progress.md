@@ -3,7 +3,7 @@
 ## Current milestone
 Milestone 5 — Authentication and account routing.
 
-Earlier implementation checkpoints may remain pending authoritative macOS/live verification under the no-cost CI continuation policy.
+Earlier implementation checkpoints remain pending authoritative macOS/live verification. Consolidated CI run `32705517082` reached Xcode but failed at compile time; its fix awaits authoritative re-verification.
 
 ## Active task
 `M5.1` — Email/password registration (`TODO`).
@@ -40,6 +40,8 @@ The completed Today flow includes:
 - neutral mutation failure feedback and snapshot reconciliation.
 
 Required M3.9 reviews passed with no blocking findings from `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, `code_quality_agent`, and `test_ci_agent`. Simulator lifecycle execution remains pending macOS CI.
+
+M3.9 is additionally `IN PROGRESS (REAL CI FAILURE)`: macOS run `32705517082` identified an unterminated interpolation in `TodayView.swift` and a `set`-accessor parse collision in `TodaySetEditorRoute`. The local corrective change is staged in the worktree and must pass the next macOS run before any dependent CI acceptance can be reconciled.
 
 ### Milestone 4
 - `M4.1` Firebase dependency/configuration bootstrap — implementation-complete, `IN PROGRESS (PENDING CI)`.
@@ -83,9 +85,9 @@ The repository uses tiered CI permanently:
 - both workflows use `cancel-in-progress: true`;
 - docs-only changes do not trigger automatic CI.
 
-The included GitHub Actions macOS quota is currently exhausted. Treat this as `CI UNAVAILABLE — FREE QUOTA EXHAUSTED`, not as a code failure. Paid GitHub Actions usage is not approved.
+The repository is public as of 2026-08-24 and free GitHub-hosted macOS Actions capacity has been restored. The former `CI UNAVAILABLE — FREE QUOTA EXHAUSTED` state is stale and no longer applies.
 
-When free capacity returns, run one consolidated authoritative macOS verification against the latest coherent checkpoint, fix any real failures, and reconcile pending CI checkpoints before marking them `DONE`.
+Consolidated authoritative verification against `dev` commit `de536f23ac63d68cef5cf4a39cd7dd2c15f3b0c7` ran successfully through checkout, Xcode discovery, Firebase package resolution, and compilation startup, proving capacity is available. [Run 32705517082](https://github.com/akrasnoslov-dev/Gym_checklist/actions/runs/32705517082) then failed with Xcode exit 65 before tests: `TodayView.swift:134` had an unterminated string literal and `TodayView.swift:311` had a `set` accessor parse error. This is a real code failure, not a quota failure. The pending CI work cannot yet be marked `DONE`. A corrective commit will trigger the replacement consolidated macOS build, package resolution, unit-test, and UI-test run. Even a green run cannot satisfy M4.3–M4.7 live Firestore, deployed-rules, emulator, or offline-reconnect acceptance checks; those remain separately pending.
 
 ## USER ACTION REQUIRED
 None for current M5.1 implementation.
@@ -95,14 +97,14 @@ Later genuine external checkpoints may still require batched user action for Goo
 ## Blockers
 No current product or implementation blocker is known.
 
-Authoritative macOS CI and some live Firebase verification remain pending, but these do not block safe M5 implementation under the no-cost CI policy.
+MacOS capacity is available, but a real compile failure blocks CI reconciliation until the local correction is verified. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Start `M5.1` email/password registration with the required authentication/privacy reviews.
+Commit the focused `TodayView.swift` parser correction, then rerun consolidated authoritative macOS CI. If it passes, reconcile M2.9–M3.9 and the CI portions of M4.1–M4.8 in order; otherwise fix the reported real failure before starting dependent implementation.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 
-For routine checkpoints, rely on Linux CI and deterministic checks. Trigger macOS only at the next meaningful authoritative checkpoint or earlier if a real Xcode-dependent risk makes continuation unsafe.
+For routine checkpoints, rely on Linux CI and deterministic checks. Use public-repository macOS CI at meaningful authoritative checkpoints or earlier when a real Xcode-dependent risk makes continuation unsafe.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

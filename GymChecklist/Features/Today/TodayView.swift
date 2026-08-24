@@ -59,7 +59,7 @@ struct TodayView: View {
         .sheet(item: $editorRoute) { route in
             TodaySetEditorSheet(route: route) { reps, weight, timeSeconds in
                 try viewModel.editTodaySet(
-                    route.set.id,
+                    route.workoutSet.id,
                     in: route.exercise.id,
                     on: currentDate,
                     reps: reps,
@@ -131,7 +131,7 @@ struct TodayView: View {
                         skip(exercise)
                     }
                 }
-                .accessibilityLabel("\(exerciseName), \(sets.count) \(sets.count == 1 ? \"set\" : \"sets\")")
+                .accessibilityLabel("\(exerciseName), \(sets.count) \(sets.count == 1 ? "set" : "sets")")
                 .accessibilityHint("Actions available to skip this exercise.")
                 .accessibilityIdentifier("todayExercise-\(exercise.id.rawValue.uuidString)")
                 .accessibilityAction(named: Text("Skip exercise")) {
@@ -152,10 +152,10 @@ struct TodayView: View {
                     .accessibilityHint("Double tap to toggle completion. Actions available to edit this set.")
                     .accessibilityAddTraits(set.isCompleted ? .isSelected : [])
                     .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
-                        editorRoute = TodaySetEditorRoute(exercise: exercise, set: set)
+                        editorRoute = TodaySetEditorRoute(exercise: exercise, workoutSet: set)
                     })
                     .accessibilityAction(named: Text(set.isCompleted ? "Edit actual" : "Edit set")) {
-                        editorRoute = TodaySetEditorRoute(exercise: exercise, set: set)
+                        editorRoute = TodaySetEditorRoute(exercise: exercise, workoutSet: set)
                     }
                     if set.id != sets.last?.id {
                         Divider()
@@ -306,9 +306,9 @@ private struct TodayCompletionOverlay: View {
 
 private struct TodaySetEditorRoute: Identifiable {
     let exercise: WorkoutExercise
-    let set: WorkoutSet
+    let workoutSet: WorkoutSet
 
-    var id: WorkoutSetID { set.id }
+    var id: WorkoutSetID { workoutSet.id }
 }
 
 private struct TodaySetEditorSheet: View {
@@ -328,15 +328,15 @@ private struct TodaySetEditorSheet: View {
     ) {
         self.route = route
         self.onSave = onSave
-        _reps = State(initialValue: route.set.displayedReps)
-        _weight = State(initialValue: route.set.displayedWeight)
-        _timeSeconds = State(initialValue: route.set.displayedTimeSeconds)
+        _reps = State(initialValue: route.workoutSet.displayedReps)
+        _weight = State(initialValue: route.workoutSet.displayedWeight)
+        _timeSeconds = State(initialValue: route.workoutSet.displayedTimeSeconds)
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section(route.set.isCompleted ? "Actual results" : "Planned set") {
+                Section(route.workoutSet.isCompleted ? "Actual results" : "Planned set") {
                     TextField("Reps", value: $reps, format: .number)
                         .keyboardType(.numberPad)
                         .accessibilityIdentifier("todaySetEditorReps")
@@ -348,7 +348,7 @@ private struct TodaySetEditorSheet: View {
                         .accessibilityIdentifier("todaySetEditorTime")
                 }
             }
-            .navigationTitle(route.set.isCompleted ? "Edit actual" : "Edit set")
+            .navigationTitle(route.workoutSet.isCompleted ? "Edit actual" : "Edit set")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

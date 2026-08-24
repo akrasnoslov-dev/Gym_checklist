@@ -6,7 +6,7 @@ Milestone 5 — Authentication and account routing.
 Earlier implementation checkpoints remain pending authoritative macOS/live verification. Public-repository macOS capacity is available; failure verification now uses build, unit, and UI layers before a consolidated full suite.
 
 ## Active task
-`M6.4` — kg/lb setting (`IN PROGRESS (PENDING CI)`); M6.3 appearance setting is `IN PROGRESS (PENDING CI)`. M5.4 Google Sign-In remains `IN PROGRESS (PENDING EXTERNAL)` pending local Firebase OAuth configuration; M5.1–M5.3 are implementation-complete and `IN PROGRESS (PENDING CI)`.
+`M6.5` — Settings/Account completion (`IN PROGRESS (PENDING CI)`); M6.3/M6.4 are `IN PROGRESS (PENDING CI)`. M5.4 Google Sign-In remains `IN PROGRESS (PENDING EXTERNAL)` pending local Firebase OAuth configuration; M5.1–M5.3 are implementation-complete and `IN PROGRESS (PENDING CI)`.
 
 ## Current branch
 `dev`
@@ -105,6 +105,11 @@ These verification gaps do not block safe M5 implementation under `docs/ci_free_
 - Architecture documents the canonical storage and two-decimal presentation precision. New deterministic unit/UI coverage checks conversion, formatter rules, no-mutation unit switching, settings observation, and Today/Program propagation.
 - Required reviews: `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, `code_quality_agent`, `firebase_data_guardian`, `security_privacy_agent`, and `test_ci_agent` found no high/critical blocker; field-specific settings writes implement the concurrent-field safeguard. Local static verification is PASS; authoritative macOS verification remains pending.
 
+## Latest M6.5 implementation
+- Settings now contains exactly the approved MVP surface: Appearance, Weight unit, Account status, and Log out. The account summary is the privacy-preserving `Signed in` status; it exposes neither email nor raw UID. The optional About/version row is deliberately omitted to keep the screen quiet.
+- Existing logout routing and UID-bound teardown remain unchanged. UI coverage asserts the account summary alongside the persisted settings controls; existing logout and A → logout → B isolation coverage remains in place.
+- Required reviews: `ios_ux_guardian`, `product_spec_guardian`, `code_quality_agent`, `security_privacy_agent`, and `test_ci_agent` found no high/critical blocker. Local static verification remains pending final rerun; authoritative macOS verification is pending.
+
 ## Firebase/configuration state
 The Firebase development project, local plist, production-mode Firestore database, and non-production test account are available. Local Firebase configuration remains untracked and must not be printed or committed.
 
@@ -127,6 +132,8 @@ Focused UI run [32714126343](https://github.com/akrasnoslov-dev/Gym_checklist/ac
 
 M6.3 build run [32727119669](https://github.com/akrasnoslov-dev/Gym_checklist/actions/runs/32727119669) reached the unit-test target but failed before tests ran: Xcode rejects six `await` calls embedded directly in XCTest autoclosures in pre-existing M5 auth tests. The local checkpoint replaces each with an awaited result variable before the assertion; macOS build/unit/UI verification must be rerun after it is pushed.
 
+M6.4 build run [32728030697](https://github.com/akrasnoslov-dev/Gym_checklist/actions/runs/32728030697) then exposed two more current-Xcode compiler errors outside the unit-setting behavior: `WorkoutViewModel` arguments in `ContentView` were out of declared order, and `sendPasswordReset` needed an explicit `CheckedContinuation<Void, Error>` type. Both corrections are included in the current local checkpoint; no tests ran in this failed build.
+
 ## USER ACTION REQUIRED
 None for current M5.1 implementation.
 
@@ -141,13 +148,13 @@ Google Console setup. Do not commit the plist or OAuth credentials.
 Focused UI verification for the selector-only correction is active. It has not reported a real failure and does not block safe M5.1 implementation. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Push the combined M6.3 compiler correction/M6.4 checkpoint, request the
-narrow macOS build, unit, and UI verification layers, then reconcile both
-settings tasks. M5.4 resumes when the local Google Sign-In configuration is
-supplied.
+Push the M6.3–M6.5 compiler-correction/settings checkpoint, request the
+narrow macOS build, unit, and UI verification layers, then reconcile all
+three settings tasks. M5.4 resumes when the local Google Sign-In configuration
+is supplied.
 
 ## Stop condition
-None while M6.3/M6.4 authoritative verification remains available.
+None while M6.3–M6.5 authoritative verification remains available.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

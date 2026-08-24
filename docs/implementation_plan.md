@@ -1101,7 +1101,7 @@ Switch weight display and editing units.
 
 ---
 
-### M6.5 `TODO` Complete Settings/Account screen
+### M6.5 `IN PROGRESS (PENDING CI)` Complete Settings/Account screen
 **Goal**
 Provide only the approved MVP settings.
 

@@ -100,6 +100,9 @@ struct SettingsView: View {
                 }
 
                 Section("Account") {
+                    Text("Signed in")
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("settingsAccountSummary")
                     Button("Log out", role: .destructive, action: onLogout)
                         .accessibilityIdentifier("authLogout")
                 }

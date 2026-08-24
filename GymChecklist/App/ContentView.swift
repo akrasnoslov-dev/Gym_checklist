@@ -203,8 +203,8 @@ private struct AuthenticatedContentView: View {
             initialDate: today,
             currentDate: today,
             calendar: calendar,
+            customExerciseRepository: customExerciseRepository,
             currentDateProvider: currentDateProvider,
-            customExerciseRepository: customExerciseRepository
         ))
         guard let settingsRepository else {
             preconditionFailure("Authenticated content requires a user settings repository")

@@ -183,6 +183,7 @@ final class GymChecklistUITests: XCTestCase {
         let weightUnit = app.descendants(matching: .any)["settingsWeightUnit"]
         XCTAssertTrue(weightUnit.waitForExistence(timeout: 2))
         XCTAssertEqual(weightUnit.value as? String, "kg")
+        XCTAssertTrue(app.staticTexts["settingsAccountSummary"].exists)
         app.buttons["settingsWeightUnitLb"].tap()
         XCTAssertEqual(weightUnit.value as? String, "lb")
 

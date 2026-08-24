@@ -222,7 +222,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
     func signOut() throws { try auth.signOut() }
 
     func sendPasswordReset(email: String) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             auth.sendPasswordReset(withEmail: email) { error in
                 if let error { continuation.resume(throwing: Self.map(error)) }
                 else { continuation.resume() }

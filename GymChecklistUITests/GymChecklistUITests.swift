@@ -462,6 +462,64 @@ final class TodayEmptyStateUITests: XCTestCase {
     }
 }
 
+final class RegistrationUITests: XCTestCase {
+    func testRegistrationScreenShowsInvalidEmailInline() {
+        let app = launchRegistration()
+
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("not-an-email")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.secureTextFields["authConfirmPassword"].tap()
+        app.secureTextFields["authConfirmPassword"].typeText("password")
+        app.buttons["authRegister"].tap()
+
+        XCTAssertTrue(app.staticTexts["Enter a valid email address."].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testRegistrationScreenShowsPasswordMismatchInline() {
+        let app = launchRegistration()
+
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.secureTextFields["authConfirmPassword"].tap()
+        app.secureTextFields["authConfirmPassword"].typeText("different")
+        app.buttons["authRegister"].tap()
+
+        XCTAssertTrue(app.staticTexts["Passwords do not match."].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testSuccessfulRegistrationRoutesDirectlyToTodayEmptyState() {
+        let app = launchRegistration()
+
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.secureTextFields["authConfirmPassword"].tap()
+        app.secureTextFields["authConfirmPassword"].typeText("password")
+        app.buttons["authRegister"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No workout planned yet."].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    private func launchRegistration() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_AUTH_MODE"] = "registration"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+        return app
+    }
+}
+
 final class TodayCompletionUITests: XCTestCase {
     func testCompletingEveryRequiredSetShowsDismissibleCompletionPopup() {
         let app = launchCompletionWorkout()

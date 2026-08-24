@@ -145,6 +145,115 @@ final class WorkoutStatusTests: XCTestCase {
     }
 }
 
+@MainActor
+final class AuthenticationViewModelTests: XCTestCase {
+    func testInvalidRegistrationInputDoesNotCallService() async {
+        let service = TestAuthenticationService()
+        let viewModel = AuthenticationViewModel(service: service)
+
+        let registered = await viewModel.register(
+            email: "not-an-email",
+            password: "password",
+            confirmation: "password"
+        )
+
+        XCTAssertFalse(registered)
+        XCTAssertEqual(service.registrationCalls, 0)
+        XCTAssertEqual(viewModel.errorMessage, "Enter a valid email address.")
+    }
+
+    func testPasswordMismatchDoesNotCallService() async {
+        let service = TestAuthenticationService()
+        let viewModel = AuthenticationViewModel(service: service)
+
+        let registered = await viewModel.register(
+            email: "member@example.com",
+            password: "password",
+            confirmation: "different"
+        )
+
+        XCTAssertFalse(registered)
+        XCTAssertEqual(service.registrationCalls, 0)
+        XCTAssertEqual(viewModel.errorMessage, "Passwords do not match.")
+    }
+
+    func testShortPasswordDoesNotCallService() async {
+        let service = TestAuthenticationService()
+        let viewModel = AuthenticationViewModel(service: service)
+
+        let registered = await viewModel.register(
+            email: "member@example.com",
+            password: "short",
+            confirmation: "short"
+        )
+
+        XCTAssertFalse(registered)
+        XCTAssertEqual(service.registrationCalls, 0)
+        XCTAssertEqual(viewModel.errorMessage, "Use a password with at least 6 characters.")
+    }
+
+    func testSuccessfulRegistrationPublishesAuthenticatedUser() async {
+        let expectedUser = AuthenticatedUser(id: UserID(rawValue: "new-user"))
+        let service = TestAuthenticationService(result: .success(expectedUser))
+        let viewModel = AuthenticationViewModel(service: service)
+
+        let registered = await viewModel.register(
+            email: "member@example.com",
+            password: "password",
+            confirmation: "password"
+        )
+
+        XCTAssertTrue(registered)
+        XCTAssertEqual(service.registrationCalls, 1)
+        XCTAssertEqual(viewModel.currentUser, expectedUser)
+        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertFalse(viewModel.isRegistering)
+    }
+
+    func testRegistrationFailureUsesSanitizedMessage() async {
+        let service = TestAuthenticationService(result: .failure(RegistrationError.emailAlreadyInUse))
+        let viewModel = AuthenticationViewModel(service: service)
+
+        let registered = await viewModel.register(
+            email: "member@example.com",
+            password: "password",
+            confirmation: "password"
+        )
+
+        XCTAssertFalse(registered)
+        XCTAssertEqual(viewModel.errorMessage, "An account already uses this email.")
+        XCTAssertFalse(viewModel.isRegistering)
+    }
+}
+
+@MainActor
+private final class TestAuthenticationService: AuthenticationService {
+    @MainActor
+    private final class Observation: AuthenticationObservation {
+        func cancel() {}
+    }
+
+    private let result: Result<AuthenticatedUser, RegistrationError>
+    private(set) var currentUser: AuthenticatedUser?
+    private(set) var registrationCalls = 0
+
+    init(result: Result<AuthenticatedUser, RegistrationError> = .success(AuthenticatedUser(id: UserID(rawValue: "test-user")))) {
+        self.result = result
+    }
+
+    func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation {
+        observer(currentUser)
+        return Observation()
+    }
+
+    func register(email: String, password: String) async throws -> AuthenticatedUser {
+        registrationCalls += 1
+        let user = try result.get()
+        currentUser = user
+        return user
+    }
+}
+
 final class TodayContentStateTests: XCTestCase {
     func testResolveDistinguishesNoProgramRestDayAndCurrentWorkout() {
         let currentDate = LocalDate(year: 2026, month: 8, day: 14)

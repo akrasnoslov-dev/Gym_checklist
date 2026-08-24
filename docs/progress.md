@@ -6,7 +6,7 @@ Milestone 5 — Authentication and account routing.
 Earlier implementation checkpoints remain pending authoritative macOS/live verification. Public-repository macOS capacity is available; failure verification now uses build, unit, and UI layers before a consolidated full suite.
 
 ## Active task
-`M5.1` — Email/password registration (`TODO`).
+`M5.1` — Email/password registration (`IN PROGRESS (PENDING CI)`).
 
 ## Current branch
 `dev`
@@ -71,6 +71,14 @@ Still pending before live/offline claims can be finalized:
 
 These verification gaps do not block safe M5 implementation under `docs/ci_free_quota_policy.md`.
 
+## Latest M5.1 implementation
+- Email/password registration is implemented through an injectable Firebase Auth boundary with email, password, and confirmation validation; raw provider errors are mapped to fixed English messages and credentials remain transient `SecureField` state.
+- Successful registration routes directly to the authenticated Today tab state. UI-test auth is deterministic and never registers Firebase accounts; existing Today tests continue with an explicit test session.
+- Production workout, custom-exercise, and settings repositories are created only after authentication and are explicitly bound to the UID supplied by the auth session. UID-keyed content replacement releases prior user-scoped view models, snapshots, and listeners before the next UI state is retained.
+- New coverage: unit validation/success/sanitized-error tests plus registration UI tests for invalid email, mismatch, and direct Today empty-state routing.
+- Local verification: `git diff --check`, `scripts/verify_firestore_rules.ps1`, `scripts/verify_offline_contract.ps1`, and `scripts/verify_security_hygiene.ps1` all PASS. Xcode unit/UI verification remains pending macOS CI.
+- Required reviews: `product_spec_guardian` PASS; `security_privacy_agent` PASS after explicit UID binding; `test_ci_agent` PASS after validation coverage additions.
+
 ## Firebase/configuration state
 The Firebase development project, local plist, production-mode Firestore database, and non-production test account are available. Local Firebase configuration remains untracked and must not be printed or committed.
 
@@ -99,10 +107,10 @@ Later genuine external checkpoints may still require batched user action for Goo
 ## Blockers
 No current product or implementation blocker is known.
 
-MacOS capacity is available, but a real UI-test accessibility-query failure blocks CI reconciliation until the local correction is verified. Some live Firebase verification also remains pending.
+Focused UI verification for the selector-only correction is active. It has not reported a real failure and does not block safe M5.1 implementation. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Run `build` against the selector-only correction, then focused `ui` if compilation passes. Run `full` only after that UI layer passes; if it passes, reconcile M2.9–M3.9 and the CI portions of M4.1–M4.8 in order. Otherwise batch the reported same-layer failures before rerunning that layer.
+Checkpoint M5.1 as implementation-complete pending macOS CI, then immediately implement M5.2 email/password sign-in and logout using the same UID-scoped session boundary. Do not run historical CI reconciliation unless the active focused UI run reports a real failure that makes continuation unsafe.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

@@ -50,10 +50,12 @@ final class AuthenticationViewModel: ObservableObject {
     @Published private(set) var passwordResetMessage: String?
 
     private let service: AuthenticationService
+    private let analytics: AnalyticsTracking
     private var observation: AuthenticationObservation?
 
-    init(service: AuthenticationService) {
+    init(service: AuthenticationService, analytics: AnalyticsTracking = NoOpAnalyticsTracker()) {
         self.service = service
+        self.analytics = analytics
         observation = service.observeAuthentication { [weak self] user in
             let previousUserID = self?.currentUser?.id
             self?.currentUser = user
@@ -87,6 +89,7 @@ final class AuthenticationViewModel: ObservableObject {
         defer { isSubmitting = false }
         do {
             _ = try await service.register(email: trimmedEmail, password: password)
+            analytics.log(.signUp)
             return true
         } catch let error as RegistrationError {
             errorMessage = error.message
@@ -114,6 +117,7 @@ final class AuthenticationViewModel: ObservableObject {
         defer { isSubmitting = false }
         do {
             _ = try await service.signIn(email: trimmedEmail, password: password)
+            analytics.log(.login)
             return true
         } catch let error as RegistrationError {
             errorMessage = error.message

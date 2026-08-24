@@ -1137,7 +1137,7 @@ Provide only the approved MVP settings.
 
 ## Milestone 7 — Quality, analytics, privacy, and regression hardening
 
-### M7.1 `TODO` Add minimal Firebase Analytics events
+### M7.1 `IN PROGRESS` Add minimal Firebase Analytics events
 **Goal**
 Measure product funnel without collecting sensitive workout content.
 

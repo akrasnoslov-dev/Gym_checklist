@@ -8,7 +8,10 @@ struct ContentView: View {
 
     init() {
         _authenticationViewModel = StateObject(
-            wrappedValue: AuthenticationViewModel(service: AuthenticationServiceFactory.makeDefault())
+            wrappedValue: AuthenticationViewModel(
+                service: AuthenticationServiceFactory.makeDefault(),
+                analytics: AnalyticsTrackerFactory.makeDefault()
+            )
         )
     }
 

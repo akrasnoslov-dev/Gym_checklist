@@ -221,6 +221,18 @@ final class AuthenticationViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isSubmitting)
     }
 
+    func testRegistrationAndSignInLogOnlySuccessfulTransitions() async {
+        let analytics = AnalyticsRecorder()
+        let registration = AuthenticationViewModel(service: TestAuthenticationService(), analytics: analytics)
+        _ = await registration.register(email: "member@example.com", password: "password", confirmation: "password")
+        _ = await registration.signIn(email: "invalid", password: "password")
+
+        let signIn = AuthenticationViewModel(service: TestAuthenticationService(), analytics: analytics)
+        _ = await signIn.signIn(email: "member@example.com", password: "password")
+
+        XCTAssertEqual(analytics.events, [.signUp, .login])
+    }
+
     func testRegistrationFailureUsesSanitizedMessage() async {
         let service = TestAuthenticationService(result: .failure(RegistrationError.emailAlreadyInUse))
         let viewModel = AuthenticationViewModel(service: service)
@@ -383,6 +395,11 @@ private final class TestAuthenticationService: AuthenticationService {
     }
 
     func sendPasswordReset(email: String) async throws { resetCalls += 1 }
+}
+
+private final class AnalyticsRecorder: AnalyticsTracking {
+    private(set) var events: [AnalyticsEvent] = []
+    func log(_ event: AnalyticsEvent) { events.append(event) }
 }
 
 final class TodayContentStateTests: XCTestCase {

@@ -47,6 +47,23 @@ Batch equivalent compiler, unit-test, or UI-test diagnostics into one correction
 
 A milestone checkpoint that explicitly requires authoritative macOS verification cannot be marked `DONE` until that verification passes, even though implementation may continue provisionally where this policy allows it.
 
+## Asynchronous CI execution
+macOS CI is background verification. It must not become the foreground development loop.
+
+Rules:
+1. Dispatch one justified scope for one coherent checkpoint.
+2. Record the checkpoint SHA/scope/run when available.
+3. Immediately continue independent safe implementation.
+4. Do not wait, sleep, or repeatedly poll solely for CI while runnable implementation exists.
+5. Check active CI at natural checkpoints, when its result is needed for a dependent decision, or when no runnable implementation remains.
+6. If a run is `queued` or `in_progress`, record `PENDING CI` once and move on.
+7. `build -> unit -> ui` controls the order of CI dispatches, not the order of foreground work. Do not dispatch the next layer until the prior relevant layer is known green, but continue other implementation meanwhile.
+8. A CI result verifies the checkpoint SHA it actually ran against. Later unrelated commits do not force an immediate rerun.
+9. Do not rerun an identical failed scope until a code/configuration change addressing the failure exists, except a clearly transient infrastructure failure.
+10. `full` is not a debugging loop; use it only after lower layers are clean or at meaningful milestone/release reconciliation.
+
+Detailed scheduling and stop behavior is authoritative in `docs/desktop_continuation_policy.md`.
+
 ## CI waste controls
 Both CI workflows should use GitHub Actions concurrency with `cancel-in-progress: true`, so a newer run on the same ref cancels an obsolete in-progress run.
 
@@ -68,13 +85,14 @@ When GitHub-hosted macOS CI cannot start solely because the included Actions quo
 9. Keep focused checkpoint commits and `docs/progress.md` current so deferred verification can later be consolidated.
 
 ## Cross-milestone rule
-A milestone checkpoint may remain `IN PROGRESS (PENDING CI)` while implementation proceeds into the next milestone if:
-- all implementation/review work for the checkpoint is otherwise complete;
-- the only missing requirement is macOS CI blocked by exhausted included quota;
-- required agent reviews have no unresolved blocking findings; and
-- the next task can be implemented safely without evidence from the unavailable CI run.
+A milestone checkpoint may remain `IN PROGRESS (PENDING CI)` while safe implementation proceeds elsewhere when:
+- implementation/review work for the checkpoint is otherwise complete enough for the later work;
+- required agent reviews have no unresolved blocker that makes continuation unsafe; and
+- the next implementation task does not require the missing CI evidence.
 
-Do not use this rule to bypass product ambiguity, security blockers, required credentials/configuration, destructive decisions, or actual test failures.
+This applies whether CI is queued/running, intentionally deferred, or unavailable because of quota. It does not change the meaning of `DONE`.
+
+Do not use this rule to bypass product ambiguity, security/privacy ownership boundaries, destructive decisions, or an actual failure that makes later work unsafe.
 
 ## CI reset checkpoint
 When free GitHub Actions capacity becomes available again:

@@ -1,19 +1,26 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current execution position
-Milestone 6 settings verification is paused at the user's request while Milestone 5 Google Sign-In remains deferred on external configuration.
+Execution is **paused at the user's explicit request** while the documentation/execution policy is being corrected.
 
-This is intentional: a blocked individual task does not block the whole run when independent safe backlog work exists.
+The pause does not mean the backlog is blocked. It only means Codex must not resume implementation until the user explicitly starts/resumes development again.
 
 ## Current branch
 `dev`
 
-## Latest remote checkpoint
-`8ebe053` — `Complete settings account surface`
+## Repository checkpoints
+Latest repository head before the execution-policy correction:
+- `5eaa082` — `Record user-requested pause`
 
-Recent checkpoints:
+Previous execution-policy reconciliation:
+- `0ea95f5` — `Reconcile implementation plan and autonomy rules`
+
+Latest code checkpoints:
+- `8ebe053` — `Complete settings account surface`
 - `7ca1c6f` — `Implement weight unit setting`
 - `f9e5fcb` — `Implement appearance setting`
+
+Recent auth checkpoints:
 - `cfc8f5f` — `Record M5.4 continuation state`
 - `443e62f` — `Document Google sign-in setup blocker`
 - `708cf3a` — `Record M5.3 checkpoint`
@@ -23,6 +30,7 @@ Recent checkpoints:
 - `de39abf` — `Implement email registration routing`
 
 ## Runtime task status
+
 ### Verified DONE
 - Milestone 0 (`M0.1`–`M0.6`)
 - Milestone 1 (`M1.1`–`M1.6`)
@@ -31,28 +39,29 @@ Recent checkpoints:
 ### Implementation complete / pending authoritative verification
 - `M2.9`–`M2.11` — `IN PROGRESS (PENDING CI)`
 - `M3.1`–`M3.9` — `IN PROGRESS (PENDING CI)`
-- `M4.1`–`M4.8` — implementation complete with CI/live/deployment/offline verification still pending as applicable
-- `M5.1` email/password registration — `IN PROGRESS (PENDING CI)`
+- `M4.1`–`M4.8` — implementation complete with CI/live/deployment/offline verification pending as applicable
+- `M5.1` registration — `IN PROGRESS (PENDING CI)`
 - `M5.2` sign-in/logout/account routing — `IN PROGRESS (PENDING CI)`
 - `M5.3` password reset — `IN PROGRESS (PENDING CI)`
-- `M6.3` appearance setting — `IN PROGRESS (PENDING CI)`
-- `M6.4` kg/lb setting — `IN PROGRESS (PENDING CI)`
-- `M6.5` Settings/Account surface — `IN PROGRESS (PENDING CI)`; user-requested pause
+- `M6.3` appearance — `IN PROGRESS (PENDING CI)`
+- `M6.4` kg/lb — `IN PROGRESS (PENDING CI)`
+- `M6.5` Settings/Account — `IN PROGRESS (PENDING CI)`
 
 ### Deferred external work
 - `M5.4` Google Sign-In — `IN PROGRESS (PENDING EXTERNAL)`
 
-### Not yet complete
-- `M5.5` auth loading/error/account isolation hardening — some requirements are already covered by M5.2 work, but the task is not accepted as complete
+### Not yet accepted
+- `M5.5` auth loading/error/account isolation hardening
 - `M5.6` auth/security checkpoint
 - `M6.1` historical workout view
 - `M6.2` historical actual editing
 - `M6.6` product-surface checkpoint
 - Milestones 7–9
 
-If a status label in `docs/implementation_plan.md` disagrees with this runtime state, actual Git/code plus this file wins for current status. Task bodies and acceptance criteria in the implementation plan remain authoritative.
+Actual Git/code plus this file is authoritative for runtime status. Task bodies and acceptance criteria remain in `docs/implementation_plan.md`.
 
 ## Key implemented behavior
+
 ### Today / Program
 - Program planning, exercise selection, arbitrary sets, copy, repeat, and date navigation are implemented.
 - Today supports one-tap complete/undo, compact planned/actual editing, skip/restore, empty/rest states, completion popup, accessibility identifiers, local-date refresh, and stale-date mutation protection.
@@ -65,79 +74,91 @@ If a status label in `docs/implementation_plan.md` disagrees with this runtime s
 
 ### M5.1–M5.3 auth
 - Email/password registration, sign-in, logout, resolving-state routing, password reset, sanitized errors, and cross-account state isolation are implemented.
-- Production repositories are created only for the active UID and user-scoped UI/repository state is disposed/replaced on auth transitions.
+- Production repositories are created only for the active UID and user-scoped state is disposed/replaced on auth transitions.
 - Deterministic unit/UI coverage exists; authoritative macOS verification remains pending.
 
-### M6.3 appearance
+### M6.3–M6.5 Settings
 - System/Light/Dark is stored in user settings and applied at the authenticated app root.
-- Settings uses the approved native control and user-scoped settings observation.
-
-### M6.4 weight unit
-- Workout weights remain canonically stored in kilograms.
-- kg/lb is a display/input preference only.
-- Conversion uses one shared boundary; Today/Program display and editors use the selected unit.
-- Unit switching does not rewrite workout history.
-
-### M6.5 Settings/Account
-- Settings contains the approved MVP surface: Appearance, Weight unit, Account status, and Log out.
-- Account summary is privacy-preserving (`Signed in`) and does not expose email or UID.
+- Workout weights remain canonically stored in kilograms; kg/lb is display/input preference only.
+- Settings contains Appearance, Weight unit, privacy-preserving Account status, and Log out.
 
 ## CI / verification state
+
 The repository is public and free GitHub-hosted macOS capacity is available.
 
-CI strategy:
-- routine checkpoints: Linux static/platform-independent checks;
-- authoritative macOS: focused `build`, then `unit`, then `ui` while diagnosing;
-- `full` only after lower layers are clean or at a meaningful reconciliation/release checkpoint;
-- docs-only changes do not trigger routine CI;
-- paid CI is not approved.
+CI execution rule is defined in `docs/desktop_continuation_policy.md`:
+- CI runs asynchronously in the background;
+- Codex must not wait/poll while runnable implementation exists;
+- `build -> unit -> ui` is dispatch order, not a synchronous waiting sequence;
+- `full` is for clean milestone/release reconciliation;
+- a result verifies the checkpoint SHA it ran against.
 
-Important recent macOS evidence:
-- run `32711661052`: all-target `build-for-testing` passed
-- run `32712244156`: Today interaction tests passed; later accessibility/test-selector defects were exposed
-- run `32713654840`: all-target `build-for-testing` passed after accessibility correction
-- run `32714126343`: Today completion/interaction tests passed; remaining failures were stale Program selectors/assertions
-- run `32727119669`: reached unit-test target but current Xcode rejected six `await` calls embedded in XCTest autoclosures; correction was implemented
-- run `32728030697`: exposed two compile issues (`WorkoutViewModel` argument order and password-reset continuation type); both corrections are included in the current code checkpoint
+Latest known active run:
+- focused UI run `32729461891`
+- checkpoint SHA: `0ea95f5069b700abd0594c6623c24b05c0d87f4c`
+- status at last check: `in_progress`
+- this run may continue externally while Codex remains paused
 
-These are real CI findings, not quota failures. Do not mark affected checkpoints `DONE` until required authoritative verification passes.
+Important earlier macOS evidence:
+- `32711661052`: all-target `build-for-testing` passed
+- `32712244156`: Today interaction tests passed; later accessibility/test-selector defects were exposed
+- `32713654840`: all-target `build-for-testing` passed after accessibility correction
+- `32714126343`: Today completion/interaction tests passed; remaining failures were stale Program selectors/assertions
+- `32727119669`: reached unit-test target; current Xcode rejected six `await` calls inside XCTest autoclosures; correction implemented
+- `32728030697`: exposed two compile issues (`WorkoutViewModel` argument order and password-reset continuation type); both corrections are included in the current code checkpoint
+
+Required acceptance remains pending until authoritative verification passes.
 
 ## Firebase / external configuration state
+
 The Firebase development project exists.
 
-`GoogleService-Info.plist` and OAuth configuration are intentionally not tracked in Git. Their presence is local-environment-specific and must never be inferred from the repository or printed/committed.
+`GoogleService-Info.plist` and OAuth configuration are intentionally untracked and local-environment-specific. Never print or commit them.
 
-M5.4 still requires the remaining Google Sign-In integration/configuration/live-validation path described in `docs/google_signin_setup.md`.
+M5.4 still requires the Google Sign-In integration/configuration/live-validation path described in `docs/google_signin_setup.md`.
 
 ## USER ACTION REQUIRED QUEUE
-Deferred; **not currently a run-level stop** while other safe backlog work exists.
+
+Deferred; **not a technical run-level blocker** while other safe backlog work exists.
 
 ### M5.4 Google Sign-In
-When this task is resumed, the local environment may require:
+When resumed, the local environment may require:
 1. enable/configure the Google provider in Firebase/Google Console;
-2. provide the refreshed untracked `GoogleService-Info.plist` locally;
+2. provide the refreshed untracked `GoogleService-Info.plist`;
 3. configure the reversed-client-ID URL scheme;
-4. complete/verify the official Google Sign-In SDK integration and Firebase credential exchange;
-5. run the required live Google sign-in/cancel/failure validation.
+4. complete/verify official Google Sign-In SDK integration and Firebase credential exchange;
+5. run live Google sign-in/cancel/failure validation.
 
 Use `docs/google_signin_setup.md` for exact setup details. Never commit OAuth/Firebase credentials.
 
-Later release work may also require Apple Developer/App Store Connect actions, signing, TestFlight configuration, and GitHub release secrets. Batch those actions when they become the actual blocker.
+Later release work may require Apple Developer/App Store Connect actions, signing, TestFlight configuration, and GitHub release secrets. Batch them when they become the actual blocker.
 
 ## Current blockers
-- `M5.4` cannot be fully accepted without Google/Firebase external configuration and live verification.
+- M5.4 cannot be fully accepted without Google/Firebase external configuration and live verification.
 - M4 live/deployed-rules/offline-reconnect verification remains pending.
-- M6.3–M6.5 require authoritative macOS verification after the latest compiler corrections.
+- M6.3–M6.5 require authoritative macOS verification.
 
-Focused UI run `32729461891` was still `in_progress` when the user requested this pause.
+None of these establishes a technical run-level stop.
 
-## Exact next safe action
-On an explicit resume request, check UI run `32729461891`. If green, reconcile M6.3–M6.5; if failed, inspect its failed log and fix only the reported issue. Then continue the next technically safe backlog task.
+## Next runnable implementation — when the user resumes
+
+Do not turn CI back into the foreground task.
+
+1. Check focused UI run `32729461891` **once**.
+2. If it is still queued/running, record `PENDING CI` and immediately continue implementation.
+3. If it passed, reconcile the M6.3–M6.5 verification that the run actually covers, then continue implementation.
+4. If it failed, inspect the failure once, fix the reported issue if possible, dispatch one narrow rerun, then continue independent implementation instead of waiting.
+5. Inspect/finish the M5.5 hardening that does not depend on live Google Sign-In.
+6. Continue M6.1 historical viewing and M6.2 historical actual editing where implementation is safe without M5.4/M5.6 live evidence; record provisional dependency scheduling if used.
+7. At later natural checkpoints only, inspect pending CI and react once.
+8. If M5/M6 paths become blocked, scan the entire remaining plan for another independent safe implementation task before considering a final response.
 
 ## Stop condition
-`USER-REQUESTED PAUSE` — execution was explicitly stopped while focused UI run `32729461891` remained active. The same-chat continuation heartbeat is paused; resume only on a new explicit user instruction.
+`USER-REQUESTED PAUSE` — explicit current user instruction.
 
-A final response from Codex is not appropriate merely because M5.4 is externally blocked or because a checkpoint/CI layer completed. Stop only under the run-level terminal rules in `AGENTS.md` and `docs/desktop_continuation_policy.md`.
+This pause overrides autonomous execution. Do not resume merely because CI completes.
+
+A later explicit resume instruction or a fresh Desktop Codex task started with `docs/codex_master_prompt.md` clears this pause and activates the `Next runnable implementation` section above.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

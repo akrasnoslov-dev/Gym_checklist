@@ -38,85 +38,30 @@ Then inspect relevant source/tests, Git/worktree state, available CI state, and 
 
 If a task status label in `docs/implementation_plan.md` is stale, reconcile it to actual Git/code and `docs/progress.md`; never discard coherent implementation just to match an old label.
 
-## Desktop-only execution
-Normal autonomous development runs in Codex inside the ChatGPT desktop app.
+## Desktop execution mechanics
+`docs/desktop_continuation_policy.md` is the single authoritative execution scheduler.
 
-Do not require a CLI, PowerShell supervisor, Python watchdog, or scheduled-task heartbeat for normal execution.
+Non-negotiable summary:
+- work-first: runnable implementation outranks waiting;
+- CI is asynchronous background verification;
+- after dispatching CI, immediately continue independent safe work;
+- never busy-poll or sleep solely for CI while runnable work exists;
+- a blocked task is not a blocked run;
+- dependency `DONE` is strict for acceptance, while provisional implementation scheduling is allowed only under the safety rules in the desktop policy;
+- a final response is forbidden while safe executable backlog work remains.
 
-The intended mode is one master prompt, then continuous execution for as long as the Desktop Codex task itself can run.
-
-## Continuous execution contract
-A Codex implementation run is a continuous backlog-execution loop, not a one-task interaction.
-
-The following are **not** stopping points:
-- a task completed;
-- a milestone completed;
-- a commit or push completed;
-- `docs/progress.md` was updated;
-- required agent reviews completed;
-- a CI run completed or verification is pending;
-- a known `Next:` action exists;
-- one task is blocked by external configuration;
-- local Xcode is unavailable on Windows/Linux;
-- Codex wants to provide a progress summary.
-
-After every atomic checkpoint, immediately determine and begin the next technically safe backlog action.
-
-## Blocked task != blocked run
-If one task needs external configuration, credentials, live validation, or unavailable verification:
-1. finish every safe local part;
-2. keep it non-`DONE` with an accurate pending state;
-3. record the missing action in `docs/progress.md` under `USER ACTION REQUIRED QUEUE`;
-4. scan the entire remaining implementation plan;
-5. continue any other technically safe work.
-
-A task-level external dependency becomes run-level `USER_ACTION_REQUIRED` only when no technically safe work remains anywhere.
-
-For scheduling only, an implementation-complete dependency pending solely CI/live/external verification may be crossed provisionally when later implementation is safe without the missing evidence. This never makes it `DONE`.
-
-## Final-response gate
-Before producing any final response:
-1. inspect actual Git/worktree state and `docs/progress.md`;
-2. identify the exact next backlog action;
-3. if it is executable safely now, execute it instead of responding finally;
-4. otherwise scan the full remaining backlog for another safe action;
-5. only stop if no safe continuation remains or the platform/model/tool limit actually prevents continuation.
-
-Allowed genuine terminal reasons:
-- `USER_ACTION_REQUIRED`
-- `PRODUCT_DECISION_REQUIRED`
-- `DESTRUCTIVE_APPROVAL_REQUIRED`
-- `REAL_FAILURE_BLOCKS_CONTINUATION`
-- `REQUIRED_TOOL_UNAVAILABLE`
-- `MODEL_OR_TOOL_LIMIT`
-
-When stopping, record the exact reason, evidence, deferred user action if any, and exact resume action in `docs/progress.md`, checkpoint coherent work, then summarize.
-
-## Task lifecycle
-For every task:
-1. read the full task body and referenced Product/UX/Architecture sections;
-2. inspect dependencies and current verification state;
-3. apply required agents from `agents/routing.toml`;
-4. mark state accurately before substantial work;
-5. implement the smallest complete safe solution;
-6. add/update required tests;
-7. run the strongest verification actually available;
-8. self-review against acceptance criteria and product/UX/architecture/security/offline rules;
-9. fix established failures;
-10. mark `DONE` only when required acceptance and verification genuinely pass;
-11. otherwise use an accurate pending state such as `PENDING CI`, `PENDING LIVE`, or `PENDING EXTERNAL`;
-12. update `docs/progress.md` and make a focused checkpoint commit when possible;
-13. immediately continue to the next safe action.
+Do not reinterpret `docs/progress.md` as a synchronous CI queue. If it says `build -> unit -> ui`, that means CI layer order, not `run -> wait -> run -> wait`.
 
 ## CI policy
-The repository uses tiered no-cost CI.
-- Linux checks are routine, cheap, and non-authoritative for iOS.
+The repository uses tiered no-cost CI. Detailed cost/quota rules are in `docs/ci_free_quota_policy.md`; scheduling/waiting rules are in `docs/desktop_continuation_policy.md`.
+
+- Linux checks are routine and non-authoritative for iOS.
 - macOS/Xcode CI is authoritative and intentionally sparse.
-- Do not add `[macos-ci]` to routine commits.
-- Use focused `build`, then `unit`, then `ui` scopes while diagnosing Xcode failures.
-- Use `full` at meaningful reconciliation/checkpoints after lower layers are clean.
-- A real CI failure is engineering evidence and must be fixed when it blocks safe dependent work.
-- Quota exhaustion is verification unavailable, not a code failure; follow `docs/ci_free_quota_policy.md`.
+- Diagnostic layer order is `build -> unit -> ui`; `full` is for clean milestone/release reconciliation.
+- Layer order gates the next CI dispatch, not unrelated implementation.
+- Never wait/poll an active CI run while other safe implementation exists.
+- A CI result verifies the checkpoint SHA it ran against, not every later branch commit.
+- A real failure should be fixed and narrowly reverified; it blocks the whole run only if it makes all remaining safe work impossible.
 - Paid CI is not approved unless the user explicitly reverses that decision.
 
 ## Session continuity

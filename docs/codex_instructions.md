@@ -26,60 +26,19 @@ Do not assume `origin/dev` is newer than the local working repository. Never res
 
 Actual Git/code/tests plus `docs/progress.md` are authoritative for runtime status. If a task header in the plan is stale, repair it when convenient; never roll back correct work to match stale text.
 
-## Desktop-only execution
-Do not require a separate CLI, PowerShell runner, Python supervisor, or scheduled-task heartbeat for normal development.
+## Execution scheduler
+`docs/desktop_continuation_policy.md` is authoritative for continuation, CI waiting/polling, blocker routing, provisional dependency scheduling, and final-response rules.
 
-Repository instructions must be sufficient to keep the current Desktop Codex task working continuously for as long as the platform allows.
+Core behavior:
+1. prefer runnable implementation over waiting;
+2. treat CI as asynchronous background verification;
+3. after CI dispatch, continue independent safe work immediately;
+4. check active CI only at natural checkpoints, when its result is required for a dependent decision, or when no runnable implementation remains;
+5. never busy-poll or sleep solely for CI while work exists;
+6. scan the full backlog when one task is blocked;
+7. do not produce a final response while safe executable work remains.
 
-## Continuous-run contract
-After each implementation step, review, verification pass, documentation update, commit, or push:
-1. determine the exact next technically safe action;
-2. if it can be executed now, execute it immediately;
-3. do not produce a final response merely to report the checkpoint;
-4. repeat.
-
-The following are not stop conditions:
-- one task or milestone completed;
-- a commit/push completed;
-- progress docs updated;
-- agent reviews completed;
-- CI is pending or one focused CI layer completed;
-- a known next action exists;
-- local Xcode is unavailable on Windows/Linux;
-- one task needs external configuration;
-- the session is long but state can be reconstructed;
-- Codex wants to summarize progress.
-
-## Blocked-task routing
-When the active task is blocked by external configuration, credentials, live validation, or unavailable verification:
-1. finish every safe local/repository part;
-2. record an accurate pending state;
-3. add the missing external action to `USER ACTION REQUIRED QUEUE` in `docs/progress.md`;
-4. scan the entire remaining implementation plan for independent safe work;
-5. continue it;
-6. return to the deferred task when its prerequisite becomes available.
-
-For scheduling only, an implementation-complete dependency pending solely CI/live/external verification may be treated as provisionally satisfied when later implementation is safe without the missing evidence. Acceptance criteria remain unchanged.
-
-## Final-response gate
-A final response is forbidden while executable safe work remains.
-
-Before every final response:
-1. inspect actual Git/worktree state and `docs/progress.md`;
-2. identify the exact next backlog action;
-3. if it can be executed safely, execute it;
-4. otherwise scan the full remaining backlog for another safe action;
-5. stop only if no safe work remains or platform/model/tool limits actually prevent continuation.
-
-Allowed terminal reasons:
-- `USER_ACTION_REQUIRED`: external action is required and no other safe backlog work remains;
-- `PRODUCT_DECISION_REQUIRED`: material product ambiguity cannot be resolved from authoritative specs;
-- `DESTRUCTIVE_APPROVAL_REQUIRED`: destructive/irreversible action needs approval;
-- `REAL_FAILURE_BLOCKS_CONTINUATION`: unresolved real failure makes all safe dependent continuation impossible;
-- `REQUIRED_TOOL_UNAVAILABLE`: required tool/environment is unavailable and no other safe work remains;
-- `MODEL_OR_TOOL_LIMIT`: the platform/model/tool limit prevents further execution.
-
-When stopping, write the exact reason, evidence, queued user action, and exact resume action to `docs/progress.md`, checkpoint coherent work, then summarize.
+`docs/progress.md` is runtime state. It must not override this scheduler.
 
 ## Task lifecycle
 For each implementation item:
@@ -100,17 +59,21 @@ For each implementation item:
 ## CI operating mode
 Paid GitHub Actions usage is not approved unless the user explicitly changes that decision.
 
-Routine checkpoints:
-- rely on `.github/workflows/linux-checks.yml`;
-- do not use `[macos-ci]` routinely;
-- Linux success is non-authoritative for iOS.
+Routine checkpoints use Linux checks. Authoritative macOS CI is sparse.
 
-Authoritative macOS CI:
-- use at meaningful checkpoints or when Xcode-specific risk makes continuation unsafe;
-- while diagnosing failures, use `build` -> `unit` -> `ui` and batch equivalent failures;
-- run `full` only after lower layers are clean or for meaningful reconciliation/release checkpoints.
+For diagnostics, dispatch scopes in this order when needed:
 
-Quota exhaustion follows `docs/ci_free_quota_policy.md`: verification may remain pending while safe implementation continues. A real CI failure is different and must be fixed when it blocks safe dependent work.
+```text
+build -> unit -> ui
+```
+
+Use `full` only after lower layers are clean or for meaningful reconciliation/release checkpoints.
+
+Important: this is **dispatch order, not a waiting loop**. After dispatching a run, record it and continue independent implementation. Do not poll repeatedly. A queued/running CI status is `PENDING CI`, not the active foreground task.
+
+A result applies to the checkpoint SHA that ran. Do not rerun simply because later unrelated commits advanced `dev`.
+
+Quota exhaustion follows `docs/ci_free_quota_policy.md`. All CI scheduling/waiting behavior follows `docs/desktop_continuation_policy.md`.
 
 ## Windows/macOS reality
 The user's primary machine is Windows and has no local Xcode.

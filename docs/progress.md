@@ -6,7 +6,7 @@ Milestone 5 — Authentication and account routing.
 Earlier implementation checkpoints remain pending authoritative macOS/live verification. Public-repository macOS capacity is available; failure verification now uses build, unit, and UI layers before a consolidated full suite.
 
 ## Active task
-`M5.3` — Password reset (`IN PROGRESS (PENDING CI)`). M5.1 and M5.2 are implementation-complete and `IN PROGRESS (PENDING CI)`.
+`M5.4` — Google Sign-In (`IN PROGRESS`). M5.1–M5.3 are implementation-complete and `IN PROGRESS (PENDING CI)`.
 
 ## Current branch
 `dev`
@@ -116,12 +116,18 @@ None for current M5.1 implementation.
 Later genuine external checkpoints may still require batched user action for Google authentication configuration, Firebase deployment/validation, Apple Developer/App Store Connect, signing, or release secrets.
 
 ## Blockers
-No current product or implementation blocker is known.
+`USER_ACTION_REQUIRED` for M5.4 live Google Sign-In: the local workspace has
+no `GoogleService-Info.plist` and cannot safely derive the Google OAuth client
+or URL scheme. See `docs/google_signin_setup.md` for the required Firebase and
+Google Console setup. Do not commit the plist or OAuth credentials.
 
 Focused UI verification for the selector-only correction is active. It has not reported a real failure and does not block safe M5.1 implementation. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Implement M5.4 Google Sign-In configuration and routing, batching any required external configuration for the user.
+After the local Google Sign-In configuration is supplied, implement M5.4 SDK
+integration and deterministic test routing. M5.5 hardening is already partly
+implemented by resolving-state, UID-bound repository, and sanitized-error work,
+but M5.6 cannot pass until the Google flow is live-verified.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

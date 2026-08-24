@@ -1,7 +1,7 @@
 # No-Cost CI and Quota Continuation Policy
 
 ## Purpose
-This policy keeps iOS verification useful while minimizing GitHub Actions macOS usage for a private repository developed primarily from Windows/Codex.
+This policy keeps iOS verification useful while minimizing GitHub Actions macOS usage for a repository developed primarily from Windows/Codex.
 
 The project uses a two-tier CI model:
 - cheap Linux checks for normal code checkpoints;

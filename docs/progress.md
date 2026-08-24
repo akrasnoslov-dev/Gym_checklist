@@ -135,10 +135,16 @@ Latest macOS build:
 - final status: `completed / failure` (`build-for-testing`)
 - diagnosis: current Xcode rejected imperative conditional assignment inside `ProgramView.historySetRow`'s `@ViewBuilder`; the static expression correction is included in the next checkpoint and needs a narrow build rerun
 
-Current dispatched macOS build:
+Latest macOS build:
 - run `32746276031`
 - checkpoint SHA: `f8fb605`
-- scope: focused `build-for-testing` for the Program compiler correction, Crashlytics linkage, and M7.3 accessibility checkpoint; do not dispatch unit until it passes
+- final status: `completed / success` (`build-for-testing`)
+- scope: focused verification for the Program compiler correction, Crashlytics linkage, and M7.3 accessibility checkpoint
+
+Current dispatched macOS unit test:
+- run `32747162000`
+- checkpoint SHA: `5a26a4b`
+- scope: `GymChecklistTests`; it is the gated follow-up to the successful focused build
 
 Previous successful macOS build:
 - run `32734248577`
@@ -198,7 +204,7 @@ Do not turn CI back into the foreground task.
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
 3. Continue M7.4 offline/error/loading-state hardening using M7.1–M7.3 provisionally; keep their authoritative/manual verification pending.
-4. The focused macOS build for the Program compiler correction plus Crashlytics/accessibility checkpoint is dispatched; do not dispatch unit until it is green.
+4. The focused macOS build for the Program compiler correction plus Crashlytics/accessibility checkpoint passed. The gated unit run is dispatched for the M7.4 checkpoint; do not dispatch UI until it is green.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

@@ -1137,7 +1137,7 @@ Provide only the approved MVP settings.
 
 ## Milestone 7 — Quality, analytics, privacy, and regression hardening
 
-### M7.1 `IN PROGRESS` Add minimal Firebase Analytics events
+### M7.1 `IN PROGRESS (PENDING CI)` Add minimal Firebase Analytics events
 **Goal**
 Measure product funnel without collecting sensitive workout content.
 
@@ -1166,7 +1166,7 @@ Measure product funnel without collecting sensitive workout content.
 
 ---
 
-### M7.2 `TODO` Add Crashlytics
+### M7.2 `IN PROGRESS (PENDING CI/LIVE)` Add Crashlytics
 **Goal**
 Capture production crashes/non-fatal critical failures safely.
 

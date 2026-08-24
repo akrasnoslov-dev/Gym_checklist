@@ -97,6 +97,11 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - Successful registration/sign-in and all approved workout mutations emit only the approved event names; failed, duplicate, unchanged, and render paths do not emit events.
 - Tracker never includes user IDs, emails, workout content, dates, or free-form parameters.
 
+### M7.2 Crashlytics
+- `IN PROGRESS (PENDING CI/LIVE)`: FirebaseCrashlytics is linked and starts only after Firebase has a valid local configuration.
+- The app target generates dSYMs in Debug and Release and conditionally uploads them only when the built app includes the untracked Firebase plist; this keeps configuration-free CI/test builds safe.
+- Crash reports use no app-supplied user IDs, custom keys, logs, or raw errors. A non-production crash-report and dSYM-console check remains required before acceptance.
+
 ## CI / verification state
 
 The repository is public and free GitHub-hosted macOS capacity is available.
@@ -161,6 +166,7 @@ Later release work may require Apple Developer/App Store Connect actions, signin
 - M6.3–M6.5 require authoritative macOS verification.
 - M5.5, M6.1, and M6.2 require authoritative macOS verification.
 - M6.6 remains pending Google Sign-In, later approved telemetry/crash work, and authoritative CI.
+- M7.2 needs non-production Crashlytics console validation after a signed/configured build; see `docs/crashlytics_setup.md`.
 
 None of these establishes a technical run-level stop.
 
@@ -170,8 +176,8 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Continue M7.2 Crashlytics using the implementation-complete M7.1 dependency provisionally; keep M7.1 pending authoritative CI.
-4. Dispatch one focused macOS build for the current M6/M7 corrective checkpoint, then return to implementation; do not dispatch unit until that build is green.
+3. Continue M7.3 accessibility using M7.1/M7.2 provisionally; keep M7.1/M7.2 pending authoritative CI.
+4. After the active macOS build is known green, dispatch one focused macOS build for the Crashlytics checkpoint; do not dispatch unit until that build is green.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

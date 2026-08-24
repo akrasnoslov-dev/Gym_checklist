@@ -2,10 +2,10 @@
 
 The Firebase bootstrap hook intentionally contains no Firebase project
 configuration or other credentials. M4.1 links FirebaseCore,
-FirebaseAuth, FirebaseFirestore, and FirebaseAnalytics from the official
-Firebase Apple SDK. M7.1 uses FirebaseAnalytics only through a parameter-free
-event tracker. Crashlytics product linkage and dSYM upload remain deferred to
-M7.2.
+FirebaseAuth, FirebaseFirestore, FirebaseAnalytics, and FirebaseCrashlytics
+from the official Firebase Apple SDK. M7.1 uses FirebaseAnalytics only through
+a parameter-free event tracker. M7.2 configuration and symbol-upload guidance
+is in `docs/crashlytics_setup.md`.
 
 ## Required console setup before Firebase-backed features
 

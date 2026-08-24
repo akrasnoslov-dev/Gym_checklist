@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseCore
+import FirebaseCrashlytics
 
 enum FirebaseBootstrap {
     enum Status: Equatable {
@@ -12,7 +13,10 @@ enum FirebaseBootstrap {
     /// Callers can treat a non-configured status as a development setup error
     /// without exposing Firebase project values in UI or logs.
     static func configureIfAvailable(in bundle: Bundle = .main) -> Status {
-        guard FirebaseApp.app() == nil else { return .configured }
+        if FirebaseApp.app() != nil {
+            startCrashReporting()
+            return .configured
+        }
         guard let configurationURL = bundle.url(forResource: "GoogleService-Info", withExtension: "plist") else {
             return .missingConfiguration
         }
@@ -20,7 +24,13 @@ enum FirebaseBootstrap {
             return .invalidConfiguration
         }
         FirebaseApp.configure(options: options)
+        startCrashReporting()
         return .configured
+    }
+
+    private static func startCrashReporting() {
+        guard FirebaseApp.app() != nil else { return }
+        _ = Crashlytics.crashlytics()
     }
 
     static func isRunningTests(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {

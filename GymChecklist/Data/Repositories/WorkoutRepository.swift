@@ -22,6 +22,15 @@ enum WorkoutCreationResult {
     }
 }
 
+/// A provider-neutral indication of whether the workout snapshot can be used.
+/// It deliberately carries no provider error details so UI can give concise,
+/// safe feedback while Firestore reconnects in the background.
+enum WorkoutLoadState: Equatable {
+    case loading
+    case available
+    case unavailable(hasUsableSnapshot: Bool)
+}
+
 @MainActor
 protocol WorkoutObservation: AnyObject {
     func cancel()
@@ -31,9 +40,9 @@ protocol WorkoutObservation: AnyObject {
 protocol WorkoutRepository: AnyObject {
     var userID: UserID { get }
     var workouts: [Workout] { get }
-    /// Registers a main-actor consumer for locally available snapshots. The
-    /// returned observation owns its cancellation lifecycle.
-    func observeWorkouts(_ observer: @escaping @MainActor ([Workout]) -> Void) -> WorkoutObservation
+    /// Registers a main-actor consumer for locally available snapshots and
+    /// their availability state. The returned observation owns cancellation.
+    func observeWorkouts(_ observer: @escaping @MainActor ([Workout], WorkoutLoadState) -> Void) -> WorkoutObservation
 
     func workout(on date: LocalDate) -> Workout?
     @discardableResult func createEmptyWorkout(on date: LocalDate, at timestamp: Date) -> WorkoutCreationResult

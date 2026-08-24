@@ -107,6 +107,10 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - Today sets and skipped-exercise restoration retain practical target sizes; picker results use a 44pt minimum target. UI coverage now checks Today modal isolation, Program date semantics, and authentication at AX-XXXL.
 - Manual VoiceOver/Accessibility Inspector review remains required for focus order, light/dark contrast, picker/Settings segmented controls, and Program calendar behavior at large text sizes.
 
+### M7.4 Offline/error/loading state
+- `IN PROGRESS (PENDING CI/LIVE)`: workout repositories now publish a provider-neutral availability state. Cold loads show a compact loading state; an unavailable first load is distinct from an empty plan; cached snapshots remain interactive with passive sync feedback and no manual Sync control.
+- Firestore listener/write failures are mapped only to that neutral state; provider errors are neither displayed nor logged. The expanded offline plan covers first-load, unavailable-cache, rejected-write, and reconnect behavior. Live cache/reconnect evidence remains required.
+
 ## CI / verification state
 
 The repository is public and free GitHub-hosted macOS capacity is available.
@@ -130,6 +134,11 @@ Latest macOS build:
 - checkpoint SHA: `f34ca11c3410817adb67d2c2e49beb16d6aeed99`
 - final status: `completed / failure` (`build-for-testing`)
 - diagnosis: current Xcode rejected imperative conditional assignment inside `ProgramView.historySetRow`'s `@ViewBuilder`; the static expression correction is included in the next checkpoint and needs a narrow build rerun
+
+Current dispatched macOS build:
+- run `32746276031`
+- checkpoint SHA: `f8fb605`
+- scope: focused `build-for-testing` for the Program compiler correction, Crashlytics linkage, and M7.3 accessibility checkpoint; do not dispatch unit until it passes
 
 Previous successful macOS build:
 - run `32734248577`
@@ -189,7 +198,7 @@ Do not turn CI back into the foreground task.
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
 3. Continue M7.4 offline/error/loading-state hardening using M7.1–M7.3 provisionally; keep their authoritative/manual verification pending.
-4. Dispatch one focused macOS build for the Program compiler correction plus Crashlytics/accessibility checkpoint; do not dispatch unit until that build is green.
+4. The focused macOS build for the Program compiler correction plus Crashlytics/accessibility checkpoint is dispatched; do not dispatch unit until it is green.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

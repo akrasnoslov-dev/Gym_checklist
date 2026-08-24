@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 final class InMemoryWorkoutRepository: WorkoutRepository {
     let userID: UserID
-    private var observers: [UUID: @MainActor ([Workout]) -> Void] = [:]
+    private var observers: [UUID: @MainActor ([Workout], WorkoutLoadState) -> Void] = [:]
     private var storage: [WorkoutDateKey: Workout] = [:]
     private let makeWorkoutID: () -> WorkoutID
 #if DEBUG
@@ -24,10 +24,10 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
         }
     }
 
-    func observeWorkouts(_ observer: @escaping @MainActor ([Workout]) -> Void) -> WorkoutObservation {
+    func observeWorkouts(_ observer: @escaping @MainActor ([Workout], WorkoutLoadState) -> Void) -> WorkoutObservation {
         let id = UUID()
         observers[id] = observer
-        observer(workouts)
+        observer(workouts, .available)
         return InMemoryWorkoutObservation { [weak self] in
             self?.observers.removeValue(forKey: id)
         }
@@ -106,7 +106,7 @@ final class InMemoryWorkoutRepository: WorkoutRepository {
 
     private func publishSnapshot() {
         let snapshot = workouts
-        observers.values.forEach { $0(snapshot) }
+        observers.values.forEach { $0(snapshot, .available) }
     }
 }
 

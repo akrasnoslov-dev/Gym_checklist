@@ -435,6 +435,26 @@ final class TodayContentStateTests: XCTestCase {
             TodayContentState.resolve(workouts: [otherDateWorkout, currentDateWorkout], currentDate: currentDate),
             .activeWorkout
         )
+        XCTAssertEqual(
+            TodayContentState.resolve(workouts: [], currentDate: currentDate, loadState: .loading),
+            .loading
+        )
+        XCTAssertEqual(
+            TodayContentState.resolve(
+                workouts: [],
+                currentDate: currentDate,
+                loadState: .unavailable(hasUsableSnapshot: false)
+            ),
+            .unavailable
+        )
+        XCTAssertEqual(
+            TodayContentState.resolve(
+                workouts: [otherDateWorkout],
+                currentDate: currentDate,
+                loadState: .unavailable(hasUsableSnapshot: true)
+            ),
+            .restDay
+        )
     }
 }
 
@@ -520,7 +540,10 @@ final class UserDataRepositoryTests: XCTestCase {
     func testWorkoutRepositoryPublishesItsLocalSnapshotAfterMutation() {
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "owner"))
         let recorder = SnapshotRecorder()
-        let observation = repository.observeWorkouts { recorder.snapshots.append($0) }
+        let observation = repository.observeWorkouts { workouts, state in
+            recorder.snapshots.append(workouts)
+            XCTAssertEqual(state, .available)
+        }
 
         _ = repository.createEmptyWorkout(on: LocalDate(year: 2026, month: 8, day: 14), at: .distantPast)
 
@@ -2138,7 +2161,7 @@ private final class FailingOnceWorkoutRepository: WorkoutRepository {
 
     var userID: UserID { backing.userID }
     var workouts: [Workout] { backing.workouts }
-    func observeWorkouts(_ observer: @escaping @MainActor ([Workout]) -> Void) -> WorkoutObservation {
+    func observeWorkouts(_ observer: @escaping @MainActor ([Workout], WorkoutLoadState) -> Void) -> WorkoutObservation {
         backing.observeWorkouts(observer)
     }
 

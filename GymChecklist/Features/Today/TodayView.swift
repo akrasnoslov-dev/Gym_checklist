@@ -5,8 +5,16 @@ enum TodayContentState: Equatable {
     case activeWorkout
     case noProgram
     case restDay
+    case loading
+    case unavailable
 
-    static func resolve(workouts: [Workout], currentDate: LocalDate) -> TodayContentState {
+    static func resolve(
+        workouts: [Workout],
+        currentDate: LocalDate,
+        loadState: WorkoutLoadState = .available
+    ) -> TodayContentState {
+        if loadState == .loading { return .loading }
+        if loadState == .unavailable(hasUsableSnapshot: false) { return .unavailable }
         guard !workouts.contains(where: { $0.localDate == currentDate }) else { return .activeWorkout }
         return workouts.isEmpty ? .noProgram : .restDay
     }
@@ -35,7 +43,15 @@ struct TodayView: View {
             LazyVStack(alignment: .leading, spacing: 24) {
                 header
 
-                switch TodayContentState.resolve(workouts: viewModel.workouts, currentDate: currentDate) {
+                if viewModel.workoutLoadState == .unavailable(hasUsableSnapshot: true) {
+                    syncUnavailableMessage
+                }
+
+                switch TodayContentState.resolve(
+                    workouts: viewModel.workouts,
+                    currentDate: currentDate,
+                    loadState: viewModel.workoutLoadState
+                ) {
                 case .activeWorkout:
                     if let workout = viewModel.workout(on: currentDate) {
                         if workout.exercises.isEmpty {
@@ -52,6 +68,10 @@ struct TodayView: View {
                     noProgramState
                 case .restDay:
                     restDayState
+                case .loading:
+                    loadingState
+                case .unavailable:
+                    unavailableState
                 }
             }
             .padding(.horizontal)
@@ -119,6 +139,29 @@ struct TodayView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("todayNoProgramState")
+    }
+
+    private var loadingState: some View {
+        ProgressView("Loading workout")
+            .accessibilityIdentifier("todayLoadingState")
+    }
+
+    private var unavailableState: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Workout unavailable right now.")
+                .font(.title3.weight(.semibold))
+            Text("Check your connection. The app will retry automatically.")
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("todayUnavailableState")
+    }
+
+    private var syncUnavailableMessage: some View {
+        Label("Saved workout data is available. Changes will sync when possible.", systemImage: "icloud.slash")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("todaySyncUnavailableMessage")
     }
 
     private var restDayState: some View {

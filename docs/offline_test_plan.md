@@ -41,6 +41,21 @@ Expected result: all changes apply against the local Firestore cache without a
 blocking network error. Any retry feedback must be neutral and must not prevent
 continued workout interaction when cached data exists.
 
+## First-load and unavailable states
+
+1. Launch online with a signed-in test user before their first workout snapshot
+   arrives. Confirm Today and Program show only their compact loading state, not
+   an empty-program or rest-day conclusion.
+2. With no usable cached workout snapshot, disable networking before launch.
+   Confirm both screens say the workout is unavailable and that they retry
+   automatically; neither screen must expose Firebase/provider error text or a
+   manual Sync action.
+3. After cache priming, induce a listener or rejected-write failure. Confirm
+   cached rows remain usable and a passive saved-data message is visible. Set
+   completion, actual editing, skip/restore, and Program changes must remain
+   available while Firestore reconnects.
+4. Reconnect and confirm the passive message clears after a valid snapshot.
+
 ## Reconnect and duplicate-safety flow
 
 1. Re-enable connectivity, leave the app foregrounded for a documented waiting
@@ -58,7 +73,8 @@ continued workout interaction when cached data exists.
    in the non-production project (for example, remove that user's rule
    permission after cache priming). Reconnect and confirm the local snapshot
    reconciles without blocking workout interaction; any user feedback is
-   neutral and contains no Firebase error details.
+   neutral and contains no Firebase error details; cached workout interaction
+   must remain usable.
 6. Sign out, then sign in as a different test user while offline and after
    reconnect. Confirm the first user's cached workout, custom exercises, and
    settings are cleared before the second user's Today is shown.

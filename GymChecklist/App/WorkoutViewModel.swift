@@ -27,6 +27,7 @@ struct WorkoutRepeatResult: Equatable {
 final class WorkoutViewModel: ObservableObject {
     @Published private(set) var selectedDate: LocalDate
     @Published private(set) var workouts: [Workout]
+    @Published private(set) var workoutLoadState: WorkoutLoadState
     @Published private(set) var exerciseLibrary: LocalExerciseLibrary
 
     @Published private(set) var currentDate: LocalDate
@@ -76,8 +77,10 @@ final class WorkoutViewModel: ObservableObject {
         self.makeWorkoutExerciseID = makeWorkoutExerciseID
         self.makeWorkoutSetID = makeWorkoutSetID
         self.workouts = repository.workouts
-        self.workoutObservation = repository.observeWorkouts { [weak self] workouts in
+        self.workoutLoadState = .loading
+        self.workoutObservation = repository.observeWorkouts { [weak self] workouts, loadState in
             self?.workouts = workouts
+            self?.workoutLoadState = loadState
         }
         if let customExerciseRepository {
             self.customExerciseObservation = customExerciseRepository.observeCustomExercises { [weak self] exercises in

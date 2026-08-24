@@ -15,8 +15,10 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     private let currentUserID: () -> UserID?
     private var boundUserID: UserID?
     private var listener: ListenerRegistration?
-    private var observers: [UUID: @MainActor ([Workout]) -> Void] = [:]
+    private var observers: [UUID: @MainActor ([Workout], WorkoutLoadState) -> Void] = [:]
     private(set) var workouts: [Workout] = []
+    private var loadState: WorkoutLoadState = .loading
+    private var hasUsableSnapshot = false
 
     var userID: UserID {
         guard let boundUserID else { preconditionFailure("Firestore repository requires an authenticated user") }
@@ -42,14 +44,16 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         listener = nil
         boundUserID = validatedCurrentUserID()
         workouts = []
+        loadState = .loading
+        hasUsableSnapshot = false
         publish()
         startListening()
     }
 
-    func observeWorkouts(_ observer: @escaping @MainActor ([Workout]) -> Void) -> WorkoutObservation {
+    func observeWorkouts(_ observer: @escaping @MainActor ([Workout], WorkoutLoadState) -> Void) -> WorkoutObservation {
         let id = UUID()
         observers[id] = observer
-        observer(workouts)
+        observer(workouts, loadState)
         return FirestoreWorkoutObservation { [weak self] in self?.observers.removeValue(forKey: id) }
     }
 
@@ -63,6 +67,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         if let existing = workout(on: date) { return .existing(existing) }
         let workout = Workout(id: WorkoutID(), userID: userID, localDate: date, exercises: [], createdAt: timestamp, updatedAt: timestamp)
         workouts.append(workout)
+        markLocalSnapshotAvailable()
         publish()
         persist(workout)
         return .created(workout)
@@ -74,6 +79,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         if let existing = self.workout(on: workout.localDate), existing.id != workout.id { throw Error.duplicateDate }
         workouts.removeAll { $0.localDate == workout.localDate }
         workouts.append(workout)
+        markLocalSnapshotAvailable()
         publish()
         persist(workout)
     }
@@ -82,8 +88,13 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         _ = try authenticatedUserID()
         guard workout(on: date) != nil else { throw Error.workoutNotFound }
         workouts.removeAll { $0.localDate == date }
+        markLocalSnapshotAvailable()
         publish()
-        document(for: date).delete()
+        document(for: date).delete { [weak self] error in
+            Task { @MainActor in
+                self?.recordWriteCompletion(error)
+            }
+        }
     }
 
     private func authenticatedUserID() throws -> UserID {
@@ -96,13 +107,27 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     }
 
     private func persist(_ workout: Workout) {
-        try? document(for: workout.localDate).setData(from: FirestoreWorkoutPayload(workout: workout))
+        do {
+            try document(for: workout.localDate).setData(from: FirestoreWorkoutPayload(workout: workout)) { [weak self] error in
+                Task { @MainActor in
+                    self?.recordWriteCompletion(error)
+                }
+            }
+        } catch {
+            recordUnavailable()
+        }
     }
 
     private func startListening() {
         guard let userID = boundUserID else { return }
-        listener = store.collection("users").document(userID.rawValue).collection("workouts").addSnapshotListener { [weak self] snapshot, _ in
-            guard let snapshot else { return }
+        listener = store.collection("users").document(userID.rawValue).collection("workouts").addSnapshotListener { [weak self] snapshot, error in
+            guard error == nil, let snapshot else {
+                Task { @MainActor in
+                    guard let self, self.boundUserID == userID else { return }
+                    self.recordUnavailable()
+                }
+                return
+            }
             let decoded: [Workout] = snapshot.documents.compactMap { document -> Workout? in
                 guard let date = FirestoreWorkoutDocument.localDate(document.documentID),
                       let payload = try? document.data(as: FirestoreWorkoutPayload.self),
@@ -110,15 +135,40 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                 else { return nil }
                 return workout
             }
+            let isFromCache = snapshot.metadata.isFromCache
             Task { @MainActor in
                 guard let self, self.boundUserID == userID else { return }
                 self.workouts = decoded.sorted { $0.localDate < $1.localDate }
+                self.hasUsableSnapshot = self.hasUsableSnapshot || !isFromCache || !decoded.isEmpty
+                self.loadState = isFromCache
+                    ? .unavailable(hasUsableSnapshot: self.hasUsableSnapshot)
+                    : .available
                 self.publish()
             }
         }
     }
 
-    private func publish() { observers.values.forEach { $0(workouts) } }
+    private func markLocalSnapshotAvailable() {
+        hasUsableSnapshot = true
+        loadState = .available
+    }
+
+    private func recordWriteCompletion(_ error: Swift.Error?) {
+        if error == nil {
+            if hasUsableSnapshot { loadState = .available }
+        } else {
+            recordUnavailable()
+            return
+        }
+        publish()
+    }
+
+    private func recordUnavailable() {
+        loadState = .unavailable(hasUsableSnapshot: hasUsableSnapshot)
+        publish()
+    }
+
+    private func publish() { observers.values.forEach { $0(workouts, loadState) } }
 
     private func validatedCurrentUserID() -> UserID? {
         guard let userID = currentUserID(), !userID.rawValue.isEmpty, !userID.rawValue.contains("/") else { return nil }

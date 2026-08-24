@@ -1201,7 +1201,7 @@ Apply baseline iOS accessibility across all screens.
 
 ---
 
-### M7.4 `TODO` Offline/error/loading state pass
+### M7.4 `IN PROGRESS (PENDING CI/LIVE)` Offline/error/loading state pass
 **Goal**
 Make network/storage failures non-disruptive.
 

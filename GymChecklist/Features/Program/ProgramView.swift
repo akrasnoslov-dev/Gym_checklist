@@ -249,6 +249,29 @@ struct ProgramView: View {
                 .accessibilityIdentifier("programSelectedDate")
         }
 
+        if viewModel.workoutLoadState == .loading {
+            Section {
+                ProgressView("Loading workout")
+                    .accessibilityIdentifier("programLoadingState")
+            }
+        } else if viewModel.workoutLoadState == .unavailable(hasUsableSnapshot: false) {
+            Section {
+                Text("Workout unavailable right now.")
+                    .font(.headline)
+                Text("Check your connection. The app will retry automatically.")
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("programUnavailableState")
+            }
+        } else {
+            if viewModel.workoutLoadState == .unavailable(hasUsableSnapshot: true) {
+                Section {
+                    Label("Saved workout data is available. Changes will sync when possible.", systemImage: "icloud.slash")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("programSyncUnavailableMessage")
+                }
+            }
+
         switch calendarState.selectedDayState {
         case .empty:
             Section {
@@ -304,6 +327,7 @@ struct ProgramView: View {
                     .accessibilityIdentifier("programAddExercise")
                 }
             }
+        }
         }
     }
 

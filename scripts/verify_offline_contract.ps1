@@ -34,7 +34,8 @@ if ($saveBody.IndexOf('workouts.append(workout)') -gt $saveBody.IndexOf('publish
     throw 'Workout saves must publish their local snapshot before persistence is queued'
 }
 
-if ($deleteBody.IndexOf('workouts.removeAll') -gt $deleteBody.IndexOf('publish()') -or $deleteBody.IndexOf('publish()') -gt $deleteBody.IndexOf('document(for: date).delete()')) {
+$deleteQueueIndex = $deleteBody.IndexOf('document(for: date).delete')
+if ($deleteBody.IndexOf('workouts.removeAll') -gt $deleteBody.IndexOf('publish()') -or $deleteBody.IndexOf('publish()') -gt $deleteQueueIndex) {
     throw 'Workout deletes must publish their local snapshot before deletion is queued'
 }
 

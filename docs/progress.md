@@ -44,6 +44,7 @@ Recent auth checkpoints:
 - `M5.3` password reset — `IN PROGRESS (PENDING CI)`
 - `M5.5` auth loading/error/account-isolation hardening — `IN PROGRESS (PENDING CI)`
 - `M6.1` historical workout view — `IN PROGRESS (PENDING CI)`
+- `M6.2` historical actual editing — `IN PROGRESS (PENDING CI)`
 - `M6.3` appearance — `IN PROGRESS (PENDING CI)`
 - `M6.4` kg/lb — `IN PROGRESS (PENDING CI)`
 - `M6.5` Settings/Account — `IN PROGRESS (PENDING CI)`
@@ -53,7 +54,6 @@ Recent auth checkpoints:
 
 ### Not yet accepted
 - `M5.6` auth/security checkpoint
-- `M6.2` historical actual editing
 - `M6.6` product-surface checkpoint
 - Milestones 7–9
 
@@ -82,9 +82,10 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - Workout weights remain canonically stored in kilograms; kg/lb is display/input preference only.
 - Settings contains Appearance, Weight unit, privacy-preserving Account status, and Log out.
 
-### M6.1 history
+### M6.1–M6.2 history
 - Program keeps history in calendar navigation. Past workouts show each exercise and its completed/incomplete/skipped state; completed rows explicitly show actual values.
-- Past workouts are read-only in M6.1: planning and destructive controls are hidden pending the dedicated M6.2 actual-value editor.
+- Past workouts hide planning and destructive controls. Completed sets use a dedicated actual-value editor; incomplete rows remain read-only.
+- Historical edits change only actual values and preserve the plan, completion state, and completion timestamp through the existing owner-scoped aggregate repository path.
 - M6.1 is provisionally scheduled despite M5.6 pending Google/live verification: it uses existing owner-scoped repository data and does not alter auth or persistence boundaries.
 
 ## CI / verification state
@@ -104,6 +105,12 @@ Latest focused UI run:
 - final status: `completed / cancelled`
 - the cancelled run provides no new pass/fail evidence and must not be treated as a code failure
 - M6.3–M6.5 focused UI verification therefore remains `PENDING CI`
+
+Latest macOS build:
+- run `32734248577`
+- checkpoint SHA: `3ec41af`
+- final status: `completed / success` (`build-for-testing`)
+- it verifies M5.5/M6.1 checkpoint compilation only; later M6.2 code still needs a new build then unit/UI layers
 
 Important earlier macOS evidence:
 - `32711661052`: all-target `build-for-testing` passed
@@ -143,7 +150,7 @@ Later release work may require Apple Developer/App Store Connect actions, signin
 - M5.4 cannot be fully accepted without Google/Firebase external configuration and live verification.
 - M4 live/deployed-rules/offline-reconnect verification remains pending.
 - M6.3–M6.5 require authoritative macOS verification.
-- M5.5 and M6.1 require authoritative macOS verification.
+- M5.5, M6.1, and M6.2 require authoritative macOS verification.
 
 None of these establishes a technical run-level stop.
 
@@ -152,9 +159,9 @@ None of these establishes a technical run-level stop.
 Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
-2. Continue M6.2 historical actual editing, retaining read-only history for incomplete/skipped rows and existing owner-scoped offline persistence.
-3. At a natural checkpoint, dispatch one focused macOS build for the M5.5/M6.1 checkpoint if no newer relevant macOS verification is queued; record it and immediately return to implementation.
-5. At later natural checkpoints only, inspect pending CI once and react:
+2. Continue M6.6 product-surface review after committing M6.2; retain the documented provisional dependency on M5.6's external Google/live verification.
+3. Dispatch one focused macOS build for the M6.2 checkpoint, then return to implementation; do not dispatch unit until that build is green.
+4. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;
    - queued/running -> keep `PENDING CI`, return to implementation.

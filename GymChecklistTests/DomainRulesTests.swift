@@ -1485,6 +1485,92 @@ final class WorkoutViewModelTests: XCTestCase {
         }
     }
 
+    func testHistoricalActualEditPersistsOnlyCompletedPastSet() throws {
+        let currentDate = LocalDate(year: 2026, month: 8, day: 14)
+        let pastDate = LocalDate(year: 2026, month: 8, day: 7)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: pastDate, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID()
+        let completedSetID = WorkoutSetID()
+        let incompleteSetID = WorkoutSetID()
+        var completedSet = WorkoutSet(id: completedSetID, order: 0, reps: 8, weight: 60, timeSeconds: 0)
+        completedSet.complete(at: Date(timeIntervalSince1970: 123))
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [
+                completedSet,
+                WorkoutSet(id: incompleteSetID, order: 1, reps: 12, weight: 0, timeSeconds: 0)
+            ]
+        )]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: pastDate,
+            currentDate: currentDate,
+            calendar: mondayCalendar(),
+            now: { Date(timeIntervalSince1970: 456) }
+        )
+
+        try viewModel.editHistoricalActual(
+            completedSetID,
+            in: exerciseID,
+            on: pastDate,
+            reps: 7,
+            weight: 65,
+            timeSeconds: 0
+        )
+
+        let persisted = try XCTUnwrap(repository.workout(on: pastDate)?.exercises.first?.sets.first)
+        XCTAssertEqual(persisted.reps, 8)
+        XCTAssertEqual(persisted.weight, 60)
+        XCTAssertEqual(persisted.timeSeconds, 0)
+        XCTAssertEqual(persisted.actualReps, 7)
+        XCTAssertEqual(persisted.actualWeight, 65)
+        XCTAssertEqual(persisted.actualTimeSeconds, 0)
+        XCTAssertTrue(persisted.isCompleted)
+        XCTAssertEqual(persisted.completedAt, Date(timeIntervalSince1970: 123))
+        XCTAssertEqual(repository.workout(on: pastDate)?.updatedAt, Date(timeIntervalSince1970: 456))
+        let reopened = WorkoutViewModel(repository: repository, initialDate: pastDate, currentDate: currentDate, calendar: mondayCalendar())
+        XCTAssertEqual(reopened.orderedSets(for: exerciseID, on: pastDate).first?.actualWeight, 65)
+
+        let beforeRejectedEdits = repository.workout(on: pastDate)
+        XCTAssertThrowsError(try viewModel.editHistoricalActual(
+            incompleteSetID,
+            in: exerciseID,
+            on: pastDate,
+            reps: 1,
+            weight: 1,
+            timeSeconds: 1
+        )) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .workoutSetNotCompleted(incompleteSetID))
+        }
+        XCTAssertThrowsError(try viewModel.editHistoricalActual(
+            completedSetID,
+            in: exerciseID,
+            on: currentDate,
+            reps: 1,
+            weight: 1,
+            timeSeconds: 1
+        )) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .historicalActualEditRequiresPastDate(currentDate))
+        }
+        XCTAssertThrowsError(try viewModel.editHistoricalActual(
+            completedSetID,
+            in: exerciseID,
+            on: pastDate,
+            reps: -1,
+            weight: 1,
+            timeSeconds: 1
+        )) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .invalidSetValues)
+        }
+        XCTAssertEqual(repository.workout(on: pastDate), beforeRejectedEdits)
+    }
+
     func testDeleteAndReorderSetsPersistOnlyOnSelectedDate() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let otherDate = LocalDate(year: 2026, month: 8, day: 15)

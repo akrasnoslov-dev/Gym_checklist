@@ -10,7 +10,9 @@ enum ProgramPlanningError: Error, Equatable {
     case workoutExerciseNotFound(WorkoutExerciseID)
     case workoutExerciseSkipped(WorkoutExerciseID)
     case todayActionRequiresCurrentDate(LocalDate)
+    case historicalActualEditRequiresPastDate(LocalDate)
     case workoutSetNotFound(WorkoutSetID)
+    case workoutSetNotCompleted(WorkoutSetID)
     case invalidExerciseOrder
     case invalidSetOrder
     case invalidSetValues
@@ -315,6 +317,31 @@ final class WorkoutViewModel: ObservableObject {
             } else {
                 exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds)
             }
+        }
+    }
+
+    func editHistoricalActual(
+        _ setID: WorkoutSetID,
+        in exerciseID: WorkoutExerciseID,
+        on workoutDate: LocalDate,
+        reps: Int,
+        weight: Double,
+        timeSeconds: Int
+    ) throws {
+        guard workoutDate < currentDate else {
+            throw ProgramPlanningError.historicalActualEditRequiresPastDate(workoutDate)
+        }
+        guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
+            throw ProgramPlanningError.invalidSetValues
+        }
+        try mutateExercise(exerciseID, on: workoutDate) { exercise in
+            guard let setIndex = exercise.sets.firstIndex(where: { $0.id == setID }) else {
+                throw ProgramPlanningError.workoutSetNotFound(setID)
+            }
+            guard exercise.sets[setIndex].isCompleted else {
+                throw ProgramPlanningError.workoutSetNotCompleted(setID)
+            }
+            exercise.sets[setIndex].editActual(reps: reps, weight: weight, timeSeconds: timeSeconds)
         }
     }
 

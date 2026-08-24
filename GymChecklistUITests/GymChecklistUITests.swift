@@ -219,6 +219,37 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertFalse(app.buttons["programCopyWorkout"].exists)
         XCTAssertFalse(app.buttons["programRepeatWorkout"].exists)
     }
+
+    func testProgramEditsCompletedHistoricalActualAndRetainsItAfterReopen() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        app.launch()
+
+        app.tabBars.buttons["Program"].tap()
+        app.buttons["programPreviousWeek"].tap()
+        app.buttons["programDate-2026-08-07"].tap()
+        let completedSet = app.buttons["programHistorySet-90000000-0000-4000-8000-000000000401"]
+        XCTAssertTrue(completedSet.waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["programHistorySet-90000000-0000-4000-8000-000000000402"].exists)
+
+        completedSet.tap()
+        XCTAssertTrue(app.navigationBars["Edit actual"].waitForExistence(timeout: 2))
+        replaceText(in: app.textFields["programHistoryActualEditorReps"], with: "9")
+        app.buttons["programHistoryActualEditorSave"].tap()
+        XCTAssertTrue(app.staticTexts["Completed · Actual: 9 reps × 65 kg"].waitForExistence(timeout: 2))
+
+        app.buttons["programDate-2026-08-06"].tap()
+        app.buttons["programDate-2026-08-07"].tap()
+        XCTAssertTrue(app.staticTexts["Completed · Actual: 9 reps × 65 kg"].waitForExistence(timeout: 2))
+    }
+
+    private func replaceText(in field: XCUIElement, with value: String) {
+        field.tap()
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
+        field.typeText(value)
+    }
 }
 
 final class TodayInteractionUITests: XCTestCase {

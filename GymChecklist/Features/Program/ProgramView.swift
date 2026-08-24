@@ -6,6 +6,7 @@ struct ProgramView: View {
     let weightUnit: WeightUnit
     @State private var exercisePickerRoute: ExercisePickerRoute?
     @State private var setEditorRoute: SetEditorRoute?
+    @State private var historicalActualEditorRoute: HistoricalActualEditorRoute?
     @State private var copyWorkoutRoute: CopyWorkoutRoute?
     @State private var repeatWorkoutRoute: RepeatWorkoutRoute?
     @State private var pendingDeletion: PendingExerciseDeletion?
@@ -85,6 +86,22 @@ struct ProgramView: View {
                             set.id,
                             from: route.exercise.id,
                             on: route.workoutDate
+                        )
+                    }
+                )
+            }
+            .sheet(item: $historicalActualEditorRoute) { route in
+                HistoricalActualEditorSheet(
+                    route: route,
+                    weightUnit: weightUnit,
+                    onSave: { reps, weight, timeSeconds in
+                        try viewModel.editHistoricalActual(
+                            route.workoutSet.id,
+                            in: route.exercise.id,
+                            on: route.workoutDate,
+                            reps: reps,
+                            weight: weight,
+                            timeSeconds: timeSeconds
                         )
                     }
                 )
@@ -303,17 +320,23 @@ struct ProgramView: View {
                 }
             }
             ForEach(Array(sets.enumerated()), id: \.element.id) { setIndex, set in
-                historySetRow(set, setIndex: setIndex, exerciseIsSkipped: exercise.isSkipped, exerciseName: name)
+                historySetRow(
+                    set,
+                    setIndex: setIndex,
+                    exercise: exercise,
+                    exerciseName: name
+                )
             }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("programHistoryExercise-\(exercise.id.rawValue.uuidString)")
     }
 
+    @ViewBuilder
     private func historySetRow(
         _ set: WorkoutSet,
         setIndex: Int,
-        exerciseIsSkipped: Bool,
+        exercise: WorkoutExercise,
         exerciseName: String
     ) -> some View {
         let value = SetDisplayFormatter(unit: weightUnit).string(
@@ -321,9 +344,14 @@ struct ProgramView: View {
             weightInKilograms: set.displayedWeight,
             timeSeconds: set.displayedTimeSeconds
         )
-        let state = exerciseIsSkipped ? "Skipped" : (set.isCompleted ? "Completed" : "Incomplete")
+        let state: String
+        if exercise.isSkipped {
+            state = set.isCompleted ? "Skipped · Completed" : "Skipped"
+        } else {
+            state = set.isCompleted ? "Completed" : "Incomplete"
+        }
         let valueKind = set.isCompleted ? "Actual" : "Planned"
-        return HStack(spacing: 8) {
+        let row = HStack(spacing: 8) {
             Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(set.isCompleted ? Color.accentColor : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
@@ -335,10 +363,29 @@ struct ProgramView: View {
             Spacer()
         }
         .frame(minHeight: 44)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Set \(setIndex + 1) for \(exerciseName)")
-        .accessibilityValue("\(state), \(valueKind.lowercased()) \(value)")
-        .accessibilityIdentifier("programHistorySet-\(set.id.rawValue.uuidString)")
+
+        if set.isCompleted {
+            Button {
+                historicalActualEditorRoute = HistoricalActualEditorRoute(
+                    workoutDate: calendarState.selectedDate,
+                    exercise: exercise,
+                    workoutSet: set
+                )
+            } label: {
+                row
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Set \(setIndex + 1) for \(exerciseName)")
+            .accessibilityValue("\(state), \(valueKind.lowercased()) \(value)")
+            .accessibilityHint("Edit actual results")
+            .accessibilityIdentifier("programHistorySet-\(set.id.rawValue.uuidString)")
+        } else {
+            row
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Set \(setIndex + 1) for \(exerciseName)")
+                .accessibilityValue("\(state), \(valueKind.lowercased()) \(value)")
+                .accessibilityIdentifier("programHistorySet-\(set.id.rawValue.uuidString)")
+        }
     }
 
     private func exerciseRow(_ exercise: WorkoutExercise, index: Int) -> some View {
@@ -553,6 +600,14 @@ struct ProgramView: View {
 private struct ExercisePickerRoute: Identifiable {
     let workoutDate: LocalDate
     var id: LocalDate { workoutDate }
+}
+
+private struct HistoricalActualEditorRoute: Identifiable {
+    let workoutDate: LocalDate
+    let exercise: WorkoutExercise
+    let workoutSet: WorkoutSet
+
+    var id: WorkoutSetID { workoutSet.id }
 }
 
 private struct PendingExerciseDeletion {
@@ -921,6 +976,83 @@ private struct ProgramSetEditorSheet: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("Enter valid reps, weight, and time values.")
+            }
+        }
+    }
+}
+
+private struct HistoricalActualEditorSheet: View {
+    let route: HistoricalActualEditorRoute
+    let weightUnit: WeightUnit
+    let onSave: (Int, Double, Int) throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var reps: Int
+    @State private var weight: Double
+    @State private var timeSeconds: Int
+    @State private var showsValidationError = false
+    @State private var showsSaveError = false
+
+    init(
+        route: HistoricalActualEditorRoute,
+        weightUnit: WeightUnit,
+        onSave: @escaping (Int, Double, Int) throws -> Void
+    ) {
+        self.route = route
+        self.weightUnit = weightUnit
+        self.onSave = onSave
+        _reps = State(initialValue: route.workoutSet.displayedReps)
+        _weight = State(initialValue: weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight))
+        _timeSeconds = State(initialValue: route.workoutSet.displayedTimeSeconds)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Actual results") {
+                    TextField("Reps", value: $reps, format: .number)
+                        .keyboardType(.numberPad)
+                        .accessibilityIdentifier("programHistoryActualEditorReps")
+                    TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
+                        .keyboardType(.decimalPad)
+                        .accessibilityIdentifier("programHistoryActualEditorWeight")
+                    TextField("Time (seconds)", value: $timeSeconds, format: .number)
+                        .keyboardType(.numberPad)
+                        .accessibilityIdentifier("programHistoryActualEditorTime")
+                }
+            }
+            .navigationTitle("Edit actual")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .accessibilityIdentifier("programHistoryActualEditorCancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        do {
+                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
+                            dismiss()
+                        } catch {
+                            if let planningError = error as? ProgramPlanningError,
+                               planningError == .invalidSetValues {
+                                showsValidationError = true
+                            } else {
+                                showsSaveError = true
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("programHistoryActualEditorSave")
+                }
+            }
+            .alert("Set values must be non-negative", isPresented: $showsValidationError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Enter valid reps, weight, and time values.")
+            }
+            .alert("Couldn't confirm this change", isPresented: $showsSaveError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Check your workout before trying again.")
             }
         }
     }

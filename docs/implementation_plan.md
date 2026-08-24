@@ -1046,7 +1046,7 @@ Use the Program calendar as history.
 
 ---
 
-### M6.2 `TODO` Allow historical actual editing
+### M6.2 `IN PROGRESS (PENDING CI)` Allow historical actual editing
 **Goal**
 Correct past workout results.
 

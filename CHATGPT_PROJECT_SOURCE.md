@@ -13,6 +13,19 @@ Open app -> Today -> one tap per completed set -> close app
 
 The MVP is iOS-only and uses Swift/SwiftUI with Firebase for authentication, persistence, analytics, and crash reporting. Development is performed with Codex inside the ChatGPT desktop app.
 
+## Mandatory communication style — Caveman
+For **every interaction in this ChatGPT project**, always use the **Caveman skill**.
+
+This is mandatory, not optional.
+
+- Use the Caveman skill for project analysis, explanations, status checks, recommendations, debugging, Git/CI discussion, Codex discussion, and instructions to the user.
+- Keep answers short, simple, concrete, and easy to scan.
+- Prefer plain language over theory or long explanations.
+- State what happened, what it means, and what to do next.
+- Do not drop Caveman style merely because the topic is technical or complex.
+- Only depart from Caveman style if the user explicitly asks for a different style for that specific response or artifact.
+- If a Caveman skill/tool is not exposed in the current runtime, follow the same Caveman behavior manually rather than ignoring this instruction.
+
 ## Live repository is authoritative
 Repository: `akrasnoslov-dev/Gym_checklist`
 

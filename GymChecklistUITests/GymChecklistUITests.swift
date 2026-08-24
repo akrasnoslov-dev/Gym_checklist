@@ -197,6 +197,28 @@ final class GymChecklistUITests: XCTestCase {
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.staticTexts["8 reps × 60 kg"].waitForExistence(timeout: 2))
     }
+
+    func testProgramShowsReadOnlyHistoryWithActualIncompleteAndSkippedStates() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        app.launch()
+
+        app.tabBars.buttons["Program"].tap()
+        app.buttons["programPreviousWeek"].tap()
+        app.buttons["programDate-2026-08-07"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["programHistoryWorkout"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Completed · Actual: 7 reps × 65 kg"].exists)
+        XCTAssertTrue(app.staticTexts["Incomplete · Planned: 12 reps"].exists)
+        XCTAssertTrue(app.staticTexts["Skipped"].exists)
+        XCTAssertFalse(app.buttons["programAddExercise"].exists)
+        XCTAssertFalse(app.buttons["programDeleteWorkout"].exists)
+        XCTAssertFalse(app.buttons["programEditExercises"].exists)
+        XCTAssertFalse(app.buttons["programCopyWorkout"].exists)
+        XCTAssertFalse(app.buttons["programRepeatWorkout"].exists)
+    }
 }
 
 final class TodayInteractionUITests: XCTestCase {

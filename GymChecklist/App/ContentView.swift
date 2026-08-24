@@ -44,6 +44,10 @@ struct ContentView: View {
         in repository: InMemoryWorkoutRepository,
         on date: LocalDate
     ) {
+        if ProcessInfo.processInfo.environment["UITEST_SEED_HISTORY_WORKOUT"] == "1" {
+            seedHistoryWorkoutForUITests(in: repository, currentDate: date)
+            return
+        }
         if ProcessInfo.processInfo.environment["UITEST_SEED_COMPLETION_WORKOUT"] == "1" {
             seedCompletionWorkoutForUITests(in: repository, on: date)
             return
@@ -146,6 +150,62 @@ struct ContentView: View {
             try repository.save(workout)
         } catch {
             preconditionFailure("Could not seed the UI-test completion workout: \(error)")
+        }
+    }
+
+    fileprivate static func seedHistoryWorkoutForUITests(
+        in repository: InMemoryWorkoutRepository,
+        currentDate: LocalDate
+    ) {
+        precondition(currentDate == LocalDate(year: 2026, month: 8, day: 14), "History UI test requires its fixed reference date")
+        let historyDate = LocalDate(year: 2026, month: 8, day: 7)
+        var workout = repository.createEmptyWorkout(on: historyDate, at: .distantPast).workout
+        var completedSet = WorkoutSet(
+            id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000401")!),
+            order: 0,
+            reps: 8,
+            weight: 60,
+            timeSeconds: 0
+        )
+        completedSet.complete(at: .distantPast)
+        completedSet.editActual(reps: 7, weight: 65, timeSeconds: 0)
+        workout.exercises = [
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000004")!),
+                exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil,
+                order: 0,
+                isSkipped: false,
+                sets: [
+                    completedSet,
+                    WorkoutSet(
+                        id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000402")!),
+                        order: 1,
+                        reps: 12,
+                        weight: 0,
+                        timeSeconds: 0
+                    )
+                ]
+            ),
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000005")!),
+                exerciseID: SystemExerciseCatalog.all[6].id,
+                customName: nil,
+                order: 1,
+                isSkipped: true,
+                sets: [WorkoutSet(
+                    id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000403")!),
+                    order: 0,
+                    reps: 10,
+                    weight: 20,
+                    timeSeconds: 0
+                )]
+            )
+        ]
+        do {
+            try repository.save(workout)
+        } catch {
+            preconditionFailure("Could not seed the UI-test history workout: \(error)")
         }
     }
 }

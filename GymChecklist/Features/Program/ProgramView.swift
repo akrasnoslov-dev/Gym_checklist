@@ -25,11 +25,11 @@ struct ProgramView: View {
             .navigationTitle("Program")
             .accessibilityIdentifier("programScreen")
             .toolbar {
-                if !orderedExercises.isEmpty {
+                if !isHistorical && !orderedExercises.isEmpty {
                     EditButton()
                         .accessibilityIdentifier("programEditExercises")
                 }
-                if let workout = calendarState.selectedWorkout {
+                if !isHistorical, let workout = calendarState.selectedWorkout {
                     Button {
                         copyWorkoutRoute = CopyWorkoutRoute(
                             sourceDate: workout.localDate,
@@ -47,7 +47,7 @@ struct ProgramView: View {
                     }
                     .accessibilityIdentifier("programRepeatWorkout")
                 }
-                if calendarState.selectedWorkout != nil {
+                if !isHistorical && calendarState.selectedWorkout != nil {
                     Button("Delete workout", role: .destructive) {
                         pendingWorkoutDeletion = calendarState.selectedDate
                     }
@@ -249,6 +249,12 @@ struct ProgramView: View {
                 Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("programWorkoutState")
+                if isHistorical {
+                    Text("History")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("programHistoryWorkout")
+                }
             }
 
             Section("Exercises") {
@@ -257,23 +263,82 @@ struct ProgramView: View {
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("programEmptyWorkout")
                 }
-                ForEach(orderedExercises) { exercise in
-                    exerciseRow(
-                        exercise,
-                        index: orderedExercises.firstIndex(where: { $0.id == exercise.id }) ?? 0
-                    )
-                }
-                .onDelete(perform: deleteExercises)
-                .onMove(perform: moveExercises)
+                if isHistorical {
+                    ForEach(orderedExercises) { exercise in
+                        historyExerciseRow(exercise)
+                    }
+                } else {
+                    ForEach(orderedExercises) { exercise in
+                        exerciseRow(
+                            exercise,
+                            index: orderedExercises.firstIndex(where: { $0.id == exercise.id }) ?? 0
+                        )
+                    }
+                    .onDelete(perform: deleteExercises)
+                    .onMove(perform: moveExercises)
 
-                Button {
-                    exercisePickerRoute = ExercisePickerRoute(workoutDate: calendarState.selectedDate)
-                } label: {
-                    Label("Add exercise", systemImage: "plus")
+                    Button {
+                        exercisePickerRoute = ExercisePickerRoute(workoutDate: calendarState.selectedDate)
+                    } label: {
+                        Label("Add exercise", systemImage: "plus")
+                    }
+                    .accessibilityIdentifier("programAddExercise")
                 }
-                .accessibilityIdentifier("programAddExercise")
             }
         }
+    }
+
+    private func historyExerciseRow(_ exercise: WorkoutExercise) -> some View {
+        let name = viewModel.exerciseName(for: exercise)
+        let sets = viewModel.orderedSets(for: exercise.id, on: calendarState.selectedDate)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(name)
+                Spacer()
+                if exercise.isSkipped {
+                    Text("Skipped")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("programHistoryExerciseSkipped-\(exercise.id.rawValue.uuidString)")
+                }
+            }
+            ForEach(Array(sets.enumerated()), id: \.element.id) { setIndex, set in
+                historySetRow(set, setIndex: setIndex, exerciseIsSkipped: exercise.isSkipped, exerciseName: name)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("programHistoryExercise-\(exercise.id.rawValue.uuidString)")
+    }
+
+    private func historySetRow(
+        _ set: WorkoutSet,
+        setIndex: Int,
+        exerciseIsSkipped: Bool,
+        exerciseName: String
+    ) -> some View {
+        let value = SetDisplayFormatter(unit: weightUnit).string(
+            reps: set.displayedReps,
+            weightInKilograms: set.displayedWeight,
+            timeSeconds: set.displayedTimeSeconds
+        )
+        let state = exerciseIsSkipped ? "Skipped" : (set.isCompleted ? "Completed" : "Incomplete")
+        let valueKind = set.isCompleted ? "Actual" : "Planned"
+        return HStack(spacing: 8) {
+            Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(set.isCompleted ? Color.accentColor : Color.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Set \(setIndex + 1)")
+                Text("\(state) · \(valueKind): \(value)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Set \(setIndex + 1) for \(exerciseName)")
+        .accessibilityValue("\(state), \(valueKind.lowercased()) \(value)")
+        .accessibilityIdentifier("programHistorySet-\(set.id.rawValue.uuidString)")
     }
 
     private func exerciseRow(_ exercise: WorkoutExercise, index: Int) -> some View {
@@ -390,6 +455,7 @@ struct ProgramView: View {
     private var orderedExercises: [WorkoutExercise] {
         viewModel.orderedExercises(on: calendarState.selectedDate)
     }
+    private var isHistorical: Bool { calendarState.selectedDate < viewModel.currentDate }
 
     private func deleteExercises(at offsets: IndexSet) {
         let exercises = offsets.compactMap {

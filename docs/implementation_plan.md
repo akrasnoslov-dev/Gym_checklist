@@ -1027,7 +1027,7 @@ Make auth reliable without adding visual complexity.
 
 ## Milestone 6 — History and Settings completion
 
-### M6.1 `TODO` Implement historical workout view in Program
+### M6.1 `IN PROGRESS (PENDING CI)` Implement historical workout view in Program
 **Goal**
 Use the Program calendar as history.
 

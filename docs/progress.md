@@ -6,7 +6,7 @@ Milestone 5 — Authentication and account routing.
 Earlier implementation checkpoints remain pending authoritative macOS/live verification. Public-repository macOS capacity is available; failure verification now uses build, unit, and UI layers before a consolidated full suite.
 
 ## Active task
-`M5.1` — Email/password registration (`IN PROGRESS (PENDING CI)`).
+`M5.2` — Email/password sign-in and logout (`IN PROGRESS`). M5.1 is implementation-complete and `IN PROGRESS (PENDING CI)`.
 
 ## Current branch
 `dev`
@@ -79,6 +79,13 @@ These verification gaps do not block safe M5 implementation under `docs/ci_free_
 - Local verification: `git diff --check`, `scripts/verify_firestore_rules.ps1`, `scripts/verify_offline_contract.ps1`, and `scripts/verify_security_hygiene.ps1` all PASS. Xcode unit/UI verification remains pending macOS CI.
 - Required reviews: `product_spec_guardian` PASS; `security_privacy_agent` PASS after explicit UID binding; `test_ci_agent` PASS after validation coverage additions.
 
+## Latest M5.2 implementation
+- Auth root now remains resolving until Firebase reports an initial session, preventing cached workout UI from rendering during session resolution.
+- The auth screen supports email/password sign-in and a compact switch back to registration. Sign-in errors remain fixed, English, and credential-nonrevealing.
+- Settings exposes Account → Log out. Auth-state callbacks, rather than optimistic routing, remove the active UID-bound content; successful sign-out returns to the auth screen.
+- Unit and UI coverage includes sign-in validation/credential failure, sign-in/logout routing, and an A → logout → B test ensuring A's seeded workout does not appear in B's empty Today state.
+- Local static verification remains PASS; macOS unit/UI verification is pending.
+
 ## Firebase/configuration state
 The Firebase development project, local plist, production-mode Firestore database, and non-production test account are available. Local Firebase configuration remains untracked and must not be printed or committed.
 
@@ -110,7 +117,7 @@ No current product or implementation blocker is known.
 Focused UI verification for the selector-only correction is active. It has not reported a real failure and does not block safe M5.1 implementation. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Checkpoint M5.1 as implementation-complete pending macOS CI, then immediately implement M5.2 email/password sign-in and logout using the same UID-scoped session boundary. Do not run historical CI reconciliation unless the active focused UI run reports a real failure that makes continuation unsafe.
+Review M5.2 implementation, checkpoint it pending macOS CI, then implement M5.3 password reset. Do not run historical CI reconciliation unless the active focused UI run reports a real failure that makes continuation unsafe.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

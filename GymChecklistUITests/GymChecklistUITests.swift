@@ -463,6 +463,45 @@ final class TodayEmptyStateUITests: XCTestCase {
 }
 
 final class RegistrationUITests: XCTestCase {
+    func testLogoutThenSignInDoesNotShowPriorUsersWorkout() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["authLogout"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+        app.buttons["authShowSignIn"].tap()
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.buttons["authSignIn"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayNoProgramState"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Bench Press"].exists)
+    }
+
+    func testSignInAndLogoutReturnToAuthScreen() {
+        let app = launchRegistration()
+
+        app.buttons["authShowSignIn"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authSignInScreen"].waitForExistence(timeout: 2))
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.buttons["authSignIn"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["authLogout"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+    }
+
     func testRegistrationScreenShowsInvalidEmailInline() {
         let app = launchRegistration()
 

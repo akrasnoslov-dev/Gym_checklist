@@ -207,7 +207,7 @@ final class AuthenticationViewModelTests: XCTestCase {
         XCTAssertEqual(service.registrationCalls, 1)
         XCTAssertEqual(viewModel.currentUser, expectedUser)
         XCTAssertNil(viewModel.errorMessage)
-        XCTAssertFalse(viewModel.isRegistering)
+        XCTAssertFalse(viewModel.isSubmitting)
     }
 
     func testRegistrationFailureUsesSanitizedMessage() async {
@@ -222,7 +222,43 @@ final class AuthenticationViewModelTests: XCTestCase {
 
         XCTAssertFalse(registered)
         XCTAssertEqual(viewModel.errorMessage, "An account already uses this email.")
-        XCTAssertFalse(viewModel.isRegistering)
+        XCTAssertFalse(viewModel.isSubmitting)
+    }
+
+    func testSignInValidatesInputAndPublishesUser() async {
+        let expectedUser = AuthenticatedUser(id: UserID(rawValue: "returning-user"))
+        let service = TestAuthenticationService(result: .success(expectedUser))
+        let viewModel = AuthenticationViewModel(service: service)
+
+        XCTAssertFalse(await viewModel.signIn(email: "not-an-email", password: "password"))
+        XCTAssertEqual(service.registrationCalls, 0)
+        XCTAssertEqual(viewModel.errorMessage, "Enter a valid email address.")
+
+        XCTAssertTrue(await viewModel.signIn(email: "member@example.com", password: "password"))
+        XCTAssertEqual(viewModel.currentUser, expectedUser)
+        XCTAssertFalse(viewModel.isSubmitting)
+    }
+
+    func testSignInRejectsEmptyPasswordAndUsesGenericCredentialError() async {
+        let service = TestAuthenticationService(result: .failure(.invalidCredentials))
+        let viewModel = AuthenticationViewModel(service: service)
+
+        XCTAssertFalse(await viewModel.signIn(email: "member@example.com", password: ""))
+        XCTAssertEqual(service.registrationCalls, 0)
+        XCTAssertEqual(viewModel.errorMessage, "Enter your password.")
+
+        XCTAssertFalse(await viewModel.signIn(email: "member@example.com", password: "password"))
+        XCTAssertEqual(viewModel.errorMessage, "Email or password is incorrect.")
+    }
+
+    func testLogoutPublishesUnauthenticatedState() async {
+        let service = TestAuthenticationService(result: .success(AuthenticatedUser(id: UserID(rawValue: "member"))))
+        let viewModel = AuthenticationViewModel(service: service)
+        _ = await viewModel.signIn(email: "member@example.com", password: "password")
+
+        viewModel.signOut()
+
+        XCTAssertNil(viewModel.currentUser)
     }
 }
 
@@ -230,10 +266,13 @@ final class AuthenticationViewModelTests: XCTestCase {
 private final class TestAuthenticationService: AuthenticationService {
     @MainActor
     private final class Observation: AuthenticationObservation {
-        func cancel() {}
+        private var handler: (() -> Void)?
+        init(_ handler: @escaping () -> Void) { self.handler = handler }
+        func cancel() { handler?(); handler = nil }
     }
 
     private let result: Result<AuthenticatedUser, RegistrationError>
+    private var observers: [UUID: @MainActor (AuthenticatedUser?) -> Void] = [:]
     private(set) var currentUser: AuthenticatedUser?
     private(set) var registrationCalls = 0
 
@@ -242,15 +281,27 @@ private final class TestAuthenticationService: AuthenticationService {
     }
 
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation {
+        let id = UUID()
+        observers[id] = observer
         observer(currentUser)
-        return Observation()
+        return Observation { [weak self] in self?.observers.removeValue(forKey: id) }
     }
 
     func register(email: String, password: String) async throws -> AuthenticatedUser {
         registrationCalls += 1
         let user = try result.get()
         currentUser = user
+        observers.values.forEach { $0(user) }
         return user
+    }
+
+    func signIn(email: String, password: String) async throws -> AuthenticatedUser {
+        try await register(email: email, password: password)
+    }
+
+    func signOut() throws {
+        currentUser = nil
+        observers.values.forEach { $0(nil) }
     }
 }
 

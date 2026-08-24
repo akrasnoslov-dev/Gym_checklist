@@ -14,8 +14,14 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if let user = authenticationViewModel.currentUser {
-                AuthenticatedContentView(userID: user.id)
+            if authenticationViewModel.isResolving {
+                ProgressView()
+            } else if let user = authenticationViewModel.currentUser {
+                AuthenticatedContentView(
+                    userID: user.id,
+                    onLogout: authenticationViewModel.signOut,
+                    authenticationError: authenticationViewModel.errorMessage
+                )
                     .id(user.id.rawValue)
             } else {
                 RegistrationView(viewModel: authenticationViewModel)
@@ -150,8 +156,12 @@ private struct AuthenticatedContentView: View {
     @State private var selectedTab = AppTab.today
     @StateObject private var workoutViewModel: WorkoutViewModel
     @State private var userSettingsRepository: UserSettingsRepository?
+    private let onLogout: () -> Void
+    private let authenticationError: String?
 
-    init(userID: UserID) {
+    init(userID: UserID, onLogout: @escaping () -> Void, authenticationError: String?) {
+        self.onLogout = onLogout
+        self.authenticationError = authenticationError
         let calendar = Calendar.autoupdatingCurrent
         let currentDateProvider = { ContentView.localCurrentDate(calendar: calendar) }
         let today = currentDateProvider()
@@ -161,7 +171,9 @@ private struct AuthenticatedContentView: View {
 #if DEBUG
         if FirebaseBootstrap.isRunningTests() {
             let inMemoryRepository = InMemoryWorkoutRepository(userID: userID)
-            ContentView.seedTodayWorkoutForUITests(in: inMemoryRepository, on: today)
+            if userID.rawValue == "ui-test-user" {
+                ContentView.seedTodayWorkoutForUITests(in: inMemoryRepository, on: today)
+            }
             repository = inMemoryRepository
             customExerciseRepository = nil
             settingsRepository = nil
@@ -216,7 +228,10 @@ private struct AuthenticatedContentView: View {
                 }
                 .tag(AppTab.program)
 
-            SettingsView()
+            SettingsView(
+                onLogout: onLogout,
+                errorMessage: authenticationError
+            )
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
                 }

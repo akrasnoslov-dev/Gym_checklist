@@ -10,6 +10,7 @@ enum RegistrationError: Error, Equatable {
     case emailAlreadyInUse
     case invalidEmail
     case weakPassword
+    case invalidCredentials
     case networkUnavailable
     case unavailable
 
@@ -18,7 +19,8 @@ enum RegistrationError: Error, Equatable {
         case .emailAlreadyInUse: return "An account already uses this email."
         case .invalidEmail: return "Enter a valid email address."
         case .weakPassword: return "Use a password with at least 6 characters."
-        case .networkUnavailable: return "Registration needs an internet connection."
+        case .invalidCredentials: return "Email or password is incorrect."
+        case .networkUnavailable: return "An internet connection is needed to continue."
         case .unavailable: return "We could not create your account. Please try again."
         }
     }
@@ -34,22 +36,25 @@ protocol AuthenticationService: AnyObject {
     var currentUser: AuthenticatedUser? { get }
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation
     func register(email: String, password: String) async throws -> AuthenticatedUser
+    func signIn(email: String, password: String) async throws -> AuthenticatedUser
+    func signOut() throws
 }
 
 @MainActor
 final class AuthenticationViewModel: ObservableObject {
     @Published private(set) var currentUser: AuthenticatedUser?
     @Published private(set) var errorMessage: String?
-    @Published private(set) var isRegistering = false
+    @Published private(set) var isSubmitting = false
+    @Published private(set) var isResolving = true
 
     private let service: AuthenticationService
     private var observation: AuthenticationObservation?
 
     init(service: AuthenticationService) {
         self.service = service
-        currentUser = service.currentUser
         observation = service.observeAuthentication { [weak self] user in
             self?.currentUser = user
+            self?.isResolving = false
         }
     }
 
@@ -71,12 +76,11 @@ final class AuthenticationViewModel: ObservableObject {
             return false
         }
 
-        isRegistering = true
+        isSubmitting = true
         errorMessage = nil
-        defer { isRegistering = false }
+        defer { isSubmitting = false }
         do {
-            let user = try await service.register(email: trimmedEmail, password: password)
-            currentUser = user
+            _ = try await service.register(email: trimmedEmail, password: password)
             return true
         } catch let error as RegistrationError {
             errorMessage = error.message
@@ -86,6 +90,43 @@ final class AuthenticationViewModel: ObservableObject {
             return false
         }
     }
+
+    @discardableResult
+    func signIn(email: String, password: String) async -> Bool {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidEmail(trimmedEmail) else {
+            errorMessage = "Enter a valid email address."
+            return false
+        }
+        guard !password.isEmpty else {
+            errorMessage = "Enter your password."
+            return false
+        }
+
+        isSubmitting = true
+        errorMessage = nil
+        defer { isSubmitting = false }
+        do {
+            _ = try await service.signIn(email: trimmedEmail, password: password)
+            return true
+        } catch let error as RegistrationError {
+            errorMessage = error.message
+            return false
+        } catch {
+            errorMessage = RegistrationError.unavailable.message
+            return false
+        }
+    }
+
+    func signOut() {
+        do {
+            try service.signOut()
+        } catch {
+            errorMessage = "We could not sign you out. Please try again."
+        }
+    }
+
+    func clearError() { errorMessage = nil }
 
     private func isValidEmail(_ email: String) -> Bool {
         let parts = email.split(separator: "@", omittingEmptySubsequences: false)
@@ -141,6 +182,22 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         }
     }
 
+    func signIn(email: String, password: String) async throws -> AuthenticatedUser {
+        try await withCheckedThrowingContinuation { continuation in
+            auth.signIn(withEmail: email, password: password) { result, error in
+                if let error {
+                    continuation.resume(throwing: Self.map(error))
+                } else if let user = result?.user {
+                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid)))
+                } else {
+                    continuation.resume(throwing: RegistrationError.unavailable)
+                }
+            }
+        }
+    }
+
+    func signOut() throws { try auth.signOut() }
+
     private static func map(_ error: Error) -> RegistrationError {
         guard let code = AuthErrorCode(rawValue: (error as NSError).code) else { return .unavailable }
         switch code {
@@ -148,6 +205,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         case .invalidEmail: return .invalidEmail
         case .weakPassword: return .weakPassword
         case .networkError: return .networkUnavailable
+        case .wrongPassword, .userNotFound, .invalidCredential: return .invalidCredentials
         default: return .unavailable
         }
     }
@@ -188,6 +246,15 @@ private final class UITestAuthenticationService: AuthenticationService {
         currentUser = user
         observers.values.forEach { $0(user) }
         return user
+    }
+
+    func signIn(email: String, password: String) async throws -> AuthenticatedUser {
+        try await register(email: email, password: password)
+    }
+
+    func signOut() throws {
+        currentUser = nil
+        observers.values.forEach { $0(nil) }
     }
 }
 #endif

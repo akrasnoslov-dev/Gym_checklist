@@ -6,6 +6,7 @@ struct RegistrationView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var confirmation = ""
+    @State private var isSignIn = false
 
     var body: some View {
         NavigationStack {
@@ -18,15 +19,17 @@ struct RegistrationView: View {
                         .autocorrectionDisabled()
                         .accessibilityIdentifier("authEmail")
                     SecureField("Password", text: $password)
-                        .textContentType(.newPassword)
+                        .textContentType(isSignIn ? .password : .newPassword)
                         .accessibilityIdentifier("authPassword")
-                    SecureField("Confirm password", text: $confirmation)
-                        .textContentType(.newPassword)
-                        .accessibilityIdentifier("authConfirmPassword")
+                    if !isSignIn {
+                        SecureField("Confirm password", text: $confirmation)
+                            .textContentType(.newPassword)
+                            .accessibilityIdentifier("authConfirmPassword")
+                    }
                 } header: {
-                    Text("Create your account")
+                    Text(isSignIn ? "Sign in" : "Create your account")
                 } footer: {
-                    Text("Use at least 6 characters for your password.")
+                    Text(isSignIn ? "" : "Use at least 6 characters for your password.")
                 }
 
                 if let errorMessage = viewModel.errorMessage {
@@ -38,23 +41,40 @@ struct RegistrationView: View {
                 }
 
                 Section {
-                    Button(viewModel.isRegistering ? "Creating account…" : "Create account") {
+                    Button(buttonTitle) {
                         Task {
-                            _ = await viewModel.register(email: email, password: password, confirmation: confirmation)
+                            if isSignIn {
+                                _ = await viewModel.signIn(email: email, password: password)
+                            } else {
+                                _ = await viewModel.register(email: email, password: password, confirmation: confirmation)
+                            }
                             password = ""
                             confirmation = ""
                         }
                     }
-                    .disabled(viewModel.isRegistering)
-                    .accessibilityIdentifier("authRegister")
+                    .disabled(viewModel.isSubmitting)
+                    .accessibilityIdentifier(isSignIn ? "authSignIn" : "authRegister")
+
+                    Button(isSignIn ? "Create an account" : "Already have an account? Sign in") {
+                        isSignIn.toggle()
+                        password = ""
+                        confirmation = ""
+                        viewModel.clearError()
+                    }
+                    .accessibilityIdentifier(isSignIn ? "authShowRegistration" : "authShowSignIn")
                 }
             }
             .navigationTitle("Gym Checklist")
-            .accessibilityIdentifier("authRegistrationScreen")
+            .accessibilityIdentifier(isSignIn ? "authSignInScreen" : "authRegistrationScreen")
         }
         .onDisappear {
             password = ""
             confirmation = ""
         }
+    }
+
+    private var buttonTitle: String {
+        if viewModel.isSubmitting { return isSignIn ? "Signing in…" : "Creating account…" }
+        return isSignIn ? "Sign in" : "Create account"
     }
 }

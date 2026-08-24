@@ -155,6 +155,11 @@ Latest macOS unit test:
 - final status: `completed / success` (`GymChecklistTests`)
 - scope: gated follow-up to the successful focused build; it validates the M7.4 offline-state checkpoint but not later M7.5/M7.6 edits
 
+Current dispatched macOS build:
+- run `32748151516`
+- checkpoint SHA: `b82e96f`
+- scope: focused `build-for-testing` for the M7.5 regression additions, M7.6 release-safety/data-integrity fixes, and CI workflow edits; do not dispatch its unit layer until it passes
+
 Previous successful macOS build:
 - run `32734248577`
 - checkpoint SHA: `3ec41af`

@@ -251,6 +251,7 @@ final class FirestoreMappingTests: XCTestCase {
     }
 }
 
+@MainActor
 final class UserDataRepositoryTests: XCTestCase {
     func testWorkoutRepositoryPublishesItsLocalSnapshotAfterMutation() {
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "owner"))
@@ -566,6 +567,7 @@ final class ProgramCalendarStateTests: XCTestCase {
     }
 }
 
+@MainActor
 final class InMemoryWorkoutRepositoryTests: XCTestCase {
     func testCreateIsOwnerScopedEmptyAndImmediatelyReadable() {
         let userID = UserID(rawValue: "user-a")

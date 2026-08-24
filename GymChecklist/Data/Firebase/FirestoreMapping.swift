@@ -42,6 +42,13 @@ struct FirestoreWorkoutDocument: Codable, Equatable {
         updatedAt = workout.updatedAt
     }
 
+    init(id: String, localDate: String, createdAt: Date, updatedAt: Date) {
+        self.id = id
+        self.localDate = localDate
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
     func workout(userID: UserID, documentDate: LocalDate, exercises: [WorkoutExercise]) throws -> Workout {
         guard localDate == documentDate.description, let id = UUID(uuidString: id), Self.localDate(localDate) == documentDate else {
             throw FirestoreMappingError.invalidLocalDate
@@ -147,6 +154,30 @@ struct FirestoreWorkoutSetDocument: Codable, Equatable {
         actualWeight = set.actualWeight
         actualTimeSeconds = set.actualTimeSeconds
         completedAt = set.completedAt
+    }
+
+    init(
+        id: String,
+        order: Int,
+        reps: Int,
+        weight: Double,
+        timeSeconds: Int,
+        isCompleted: Bool,
+        actualReps: Int?,
+        actualWeight: Double?,
+        actualTimeSeconds: Int?,
+        completedAt: Date?
+    ) {
+        self.id = id
+        self.order = order
+        self.reps = reps
+        self.weight = weight
+        self.timeSeconds = timeSeconds
+        self.isCompleted = isCompleted
+        self.actualReps = actualReps
+        self.actualWeight = actualWeight
+        self.actualTimeSeconds = actualTimeSeconds
+        self.completedAt = completedAt
     }
 
     func workoutSet() throws -> WorkoutSet {

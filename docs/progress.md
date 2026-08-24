@@ -88,6 +88,10 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - Historical edits change only actual values and preserve the plan, completion state, and completion timestamp through the existing owner-scoped aggregate repository path.
 - M6.1 is provisionally scheduled despite M5.6 pending Google/live verification: it uses existing owner-scoped repository data and does not alter auth or persistence boundaries.
 
+### M6.6 product-surface review
+- Fixed local review findings: Today now explains zero-exercise workouts with a Program CTA; past empty Program dates cannot create workouts; exercise headers have a practical long-press target.
+- M6.6 remains pending: Google Sign-In needs external configuration/live validation, M7 telemetry/crash work is not yet implemented, and current UI changes need macOS CI.
+
 ## CI / verification state
 
 The repository is public and free GitHub-hosted macOS capacity is available.
@@ -151,6 +155,7 @@ Later release work may require Apple Developer/App Store Connect actions, signin
 - M4 live/deployed-rules/offline-reconnect verification remains pending.
 - M6.3–M6.5 require authoritative macOS verification.
 - M5.5, M6.1, and M6.2 require authoritative macOS verification.
+- M6.6 remains pending Google Sign-In, later approved telemetry/crash work, and authoritative CI.
 
 None of these establishes a technical run-level stop.
 
@@ -159,8 +164,8 @@ None of these establishes a technical run-level stop.
 Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
-2. Continue M6.6 product-surface review after committing M6.2; retain the documented provisional dependency on M5.6's external Google/live verification.
-3. Dispatch one focused macOS build for the M6.2 checkpoint, then return to implementation; do not dispatch unit until that build is green.
+2. Start M7.1 minimal privacy-safe Analytics implementation; it is independent from deferred Google/live validation.
+3. Dispatch one focused macOS build for the current M6 corrective checkpoint, then return to implementation; do not dispatch unit until that build is green.
 4. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

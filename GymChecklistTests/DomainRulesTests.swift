@@ -991,6 +991,23 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertEqual(repository.workouts.count, 1)
     }
 
+    func testCreateSelectedWorkoutDoesNotCreateHistoricalWorkout() {
+        let currentDate = LocalDate(year: 2026, month: 8, day: 14)
+        let historicalDate = LocalDate(year: 2026, month: 8, day: 13)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: historicalDate,
+            currentDate: currentDate,
+            calendar: mondayCalendar()
+        )
+
+        viewModel.createSelectedWorkout()
+
+        XCTAssertFalse(viewModel.hasWorkout(on: historicalDate))
+        XCTAssertTrue(viewModel.workouts.isEmpty)
+    }
+
     func testSearchCreateAndReuseCustomExercisesFromLongLivedLibrary() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))

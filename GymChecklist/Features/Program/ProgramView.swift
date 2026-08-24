@@ -252,14 +252,16 @@ struct ProgramView: View {
         switch calendarState.selectedDayState {
         case .empty:
             Section {
-                Text("No workout planned for this date.")
+                Text(isHistorical ? "No recorded workout for this date." : "No workout planned for this date.")
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("programEmptyState")
-                Button("Create workout") {
-                    viewModel.createSelectedWorkout()
+                if !isHistorical {
+                    Button("Create workout") {
+                        viewModel.createSelectedWorkout()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("programCreateWorkout")
                 }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("programCreateWorkout")
             }
         case let .workout(status):
             Section {

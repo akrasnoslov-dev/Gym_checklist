@@ -1121,7 +1121,7 @@ Provide only the approved MVP settings.
 
 ---
 
-### M6.6 `TODO` Product-surface checkpoint
+### M6.6 `IN PROGRESS (PENDING EXTERNAL/CI)` Product-surface checkpoint
 **Required reviews**
 - `ios_ux_guardian`
 - `product_spec_guardian`

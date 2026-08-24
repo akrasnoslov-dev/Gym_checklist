@@ -245,6 +245,36 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Completed · Actual: 9 reps × 65 kg"].waitForExistence(timeout: 2))
     }
 
+    func testEmptyWorkoutTodayStateOffersProgramNavigation() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launch()
+
+        app.tabBars.buttons["Program"].tap()
+        app.buttons["programCreateWorkout"].tap()
+        app.tabBars.buttons["Today"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayEmptyWorkoutState"].waitForExistence(timeout: 2))
+        app.buttons["todayEmptyWorkoutViewProgram"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["programScreen"].exists)
+    }
+
+    func testProgramDoesNotOfferCreationForPastEmptyDate() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        app.launch()
+
+        app.tabBars.buttons["Program"].tap()
+        app.buttons["programPreviousWeek"].tap()
+        app.buttons["programDate-2026-08-06"].tap()
+
+        XCTAssertTrue(app.staticTexts["No recorded workout for this date."].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["programCreateWorkout"].exists)
+    }
+
     private func replaceText(in field: XCUIElement, with value: String) {
         field.tap()
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))

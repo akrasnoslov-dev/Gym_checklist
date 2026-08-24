@@ -111,6 +111,7 @@ final class WorkoutViewModel: ObservableObject {
     }
 
     func createSelectedWorkout() {
+        guard selectedDate >= currentDate else { return }
         _ = repository.createEmptyWorkout(on: selectedDate, at: now())
         workouts = repository.workouts
     }

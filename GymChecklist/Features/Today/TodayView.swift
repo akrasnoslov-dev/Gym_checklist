@@ -34,12 +34,16 @@ struct TodayView: View {
 
                 switch TodayContentState.resolve(workouts: viewModel.workouts, currentDate: currentDate) {
                 case .activeWorkout:
-                    if let workout = viewModel.workout(on: currentDate), !workout.exercises.isEmpty {
-                        let exercises = orderedExercises(in: workout)
-                        ForEach(exercises.filter { !$0.isSkipped }) { exercise in
-                            exerciseSection(exercise)
+                    if let workout = viewModel.workout(on: currentDate) {
+                        if workout.exercises.isEmpty {
+                            emptyWorkoutState
+                        } else {
+                            let exercises = orderedExercises(in: workout)
+                            ForEach(exercises.filter { !$0.isSkipped }) { exercise in
+                                exerciseSection(exercise)
+                            }
+                            restoreSkippedExercisesMenu(exercises.filter(\.isSkipped))
                         }
-                        restoreSkippedExercisesMenu(exercises.filter(\.isSkipped))
                     }
                 case .noProgram:
                     noProgramState
@@ -122,6 +126,18 @@ struct TodayView: View {
         .accessibilityIdentifier("todayRestDayState")
     }
 
+    private var emptyWorkoutState: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("No exercises added yet.")
+                .foregroundStyle(.secondary)
+            Button("View program", action: onOpenProgram)
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("todayEmptyWorkoutViewProgram")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("todayEmptyWorkoutState")
+    }
+
     private func exerciseSection(_ exercise: WorkoutExercise) -> some View {
         let sets = orderedSets(in: exercise)
         let exerciseName = viewModel.exerciseName(for: exercise)
@@ -129,6 +145,8 @@ struct TodayView: View {
         return VStack(alignment: .leading, spacing: 8) {
             Text(exerciseName)
                 .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
                 .contextMenu {
                     Button("Skip exercise", role: .destructive) {
                         skip(exercise)

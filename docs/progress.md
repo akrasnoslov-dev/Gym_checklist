@@ -1,7 +1,7 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current execution position
-Milestone 6 — History and Settings completion is in active implementation/verification while Milestone 5 Google Sign-In remains deferred on external configuration.
+Milestone 6 settings verification is paused at the user's request while Milestone 5 Google Sign-In remains deferred on external configuration.
 
 This is intentional: a blocked individual task does not block the whole run when independent safe backlog work exists.
 
@@ -37,7 +37,7 @@ Recent checkpoints:
 - `M5.3` password reset — `IN PROGRESS (PENDING CI)`
 - `M6.3` appearance setting — `IN PROGRESS (PENDING CI)`
 - `M6.4` kg/lb setting — `IN PROGRESS (PENDING CI)`
-- `M6.5` Settings/Account surface — `IN PROGRESS (PENDING CI)`
+- `M6.5` Settings/Account surface — `IN PROGRESS (PENDING CI)`; user-requested pause
 
 ### Deferred external work
 - `M5.4` Google Sign-In — `IN PROGRESS (PENDING EXTERNAL)`
@@ -129,19 +129,13 @@ Later release work may also require Apple Developer/App Store Connect actions, s
 - M4 live/deployed-rules/offline-reconnect verification remains pending.
 - M6.3–M6.5 require authoritative macOS verification after the latest compiler corrections.
 
-None of these currently proves that all remaining safe backlog work is blocked.
+Focused UI run `32729461891` was still `in_progress` when the user requested this pause.
 
 ## Exact next safe action
-1. Run/confirm local static checks for the current M6.3–M6.5 checkpoint.
-2. Trigger the narrow authoritative macOS `build` scope.
-3. If build is clean, run `unit`, then focused `ui`.
-4. Batch/fix same-layer failures before rerunning; do not jump to repeated full-suite runs.
-5. Reconcile M6.3–M6.5 when required verification passes.
-6. Keep M5.4 deferred if external Google setup is still unavailable.
-7. Continue the next technically safe backlog work instead of stopping — first inspect remaining M5.5 hardening, then M6.1/M6.2 where their implementation is safe without M5.4 live evidence.
+On an explicit resume request, check UI run `32729461891`. If green, reconcile M6.3–M6.5; if failed, inspect its failed log and fix only the reported issue. Then continue the next technically safe backlog task.
 
 ## Stop condition
-None currently established.
+`USER-REQUESTED PAUSE` — execution was explicitly stopped while focused UI run `32729461891` remained active. The same-chat continuation heartbeat is paused; resume only on a new explicit user instruction.
 
 A final response from Codex is not appropriate merely because M5.4 is externally blocked or because a checkpoint/CI layer completed. Stop only under the run-level terminal rules in `AGENTS.md` and `docs/desktop_continuation_policy.md`.
 

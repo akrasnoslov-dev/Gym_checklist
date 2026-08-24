@@ -122,7 +122,8 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 
 ### M8.1 App Store authentication compliance
 - Apple Guideline 4.8 was verified on 2026-08-24: Google Sign-In for the primary Gym Checklist account requires an equivalent private-email login. Sign in with Apple is now mandatory before external TestFlight/App Store release; email/password is not claimed as the equivalent route.
-- `docs/app_store_auth_compliance.md` records the implementation, Firebase/Apple setup, App Review demo, and separate in-app account-deletion requirements. Google + Apple provider configuration and signed-device validation remain external blockers.
+- A local native Sign in with Apple implementation is now present: the system button requests name/email, a secure nonce binds the Firebase Apple credential exchange, cancellation is quiet, and provider failures are sanitized. The app target declares the Apple sign-in entitlement; unit/UI regression coverage exercises deterministic success and cancellation behavior.
+- `docs/app_store_auth_compliance.md` records remaining Firebase/Apple setup, App Review demo, and separate in-app account-deletion requirements. Google + Apple provider configuration and signed-device validation remain external blockers.
 
 ### M8.2 Release metadata baseline
 - `docs/release_metadata.md` records the current app identity (`dev.akrasnoslov.GymChecklist`, `1.0` / build `1`, iOS 17, iPhone, Health & Fitness) and the required monotonically increasing build convention. There is no tracked app-icon asset catalog yet, so final icon supply/validation and Apple identifier ownership remain pending.
@@ -236,6 +237,7 @@ Later release work may require Apple Developer/App Store Connect actions, signin
 - M6.6 remains pending Google Sign-In, later approved telemetry/crash work, and authoritative CI.
 - M7.2 needs non-production Crashlytics console validation after a signed/configured build; see `docs/crashlytics_setup.md`.
 - M7.3 needs manual VoiceOver/Accessibility Inspector review on a macOS/iPhone environment after the UI checkpoint builds.
+- M8.1 needs Apple Developer/Firebase provider configuration, the App ID capability/profile refresh, signed-device validation, and in-app account-deletion implementation before release acceptance.
 
 None of these establishes a technical run-level stop.
 
@@ -245,8 +247,8 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Continue M7.4 offline/error/loading-state hardening using M7.1–M7.3 provisionally; keep their authoritative/manual verification pending.
-4. Focused M7.3 build and M7.4 unit verification passed. Build the next M7.5/M7.6 checkpoint before its unit/UI layers; do not dispatch UI until its matching unit run is green.
+3. Continue the M8.1 account-deletion design/implementation locally using the existing owner-scoped repositories; preserve a separate external signed-device verification state.
+4. After the current macOS build result is known, dispatch the gated focused unit layer only if it passes; do not dispatch UI until its matching unit run is green.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

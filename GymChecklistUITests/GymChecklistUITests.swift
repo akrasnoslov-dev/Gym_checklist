@@ -609,6 +609,14 @@ final class TodayEmptyStateUITests: XCTestCase {
 }
 
 final class RegistrationUITests: XCTestCase {
+    func testAppleSignInRoutesToToday() {
+        let app = launchRegistration()
+
+        app.buttons["authSignInWithApple"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+    }
+
     func testPasswordResetShowsNeutralConfirmationWithoutSigningIn() {
         let app = launchRegistration()
         app.buttons["authShowSignIn"].tap()

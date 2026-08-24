@@ -16,4 +16,16 @@ foreach ($file in $trackedFiles) {
     }
 }
 
+$projectFile = 'GymChecklist.xcodeproj/project.pbxproj'
+$entitlementsFile = 'GymChecklist/GymChecklist.entitlements'
+if (-not (Test-Path -LiteralPath $entitlementsFile -PathType Leaf)) {
+    throw 'Missing Sign in with Apple entitlement file'
+}
+if ((Get-Content -Raw -LiteralPath $projectFile) -notmatch 'CODE_SIGN_ENTITLEMENTS\s*=\s*GymChecklist/GymChecklist\.entitlements') {
+    throw 'GymChecklist target does not declare its entitlement file'
+}
+if ((Get-Content -Raw -LiteralPath $entitlementsFile) -notmatch '<key>com\.apple\.developer\.applesignin</key>') {
+    throw 'Sign in with Apple entitlement is missing'
+}
+
 Write-Output 'Firebase security hygiene: PASS'

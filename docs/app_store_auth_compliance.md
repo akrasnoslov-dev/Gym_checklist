@@ -21,16 +21,23 @@ Sources, verified 2026-08-24:
 
 ## Required implementation and external setup
 
-1. Add a Sign in with Apple authentication path beside email/password and
-   Google, with an Apple-approved button and cancellation/failure handling.
+1. A tracked native Sign in with Apple path now appears beside email/password
+   in both account-creation and sign-in presentations. It uses Apple's system
+   button, requests name/email, hashes a cryptographically secure nonce, and
+   exchanges the resulting identity token with Firebase Auth. Cancellation
+   leaves the auth screen unchanged; provider failures use a neutral message.
+   The test-only path is deterministic and does not invoke the system sheet.
 2. Enable Sign in with Apple for the app identifier and Firebase Apple provider;
    configure the required Apple/Firebase identifiers and redirect details
    without committing credentials or signing material.
-3. Validate account/session routing, cancellation, and provider failure on a
+3. The app target declares the Sign in with Apple entitlement. Account
+   Holder/Admin action is still required to enable the matching explicit App ID
+   capability and regenerate any affected provisioning profiles.
+4. Validate account/session routing, cancellation, and provider failure on a
    signed device against a non-production Firebase project.
-4. Before external TestFlight, provide App Review test information and a valid
+5. Before external TestFlight, provide App Review test information and a valid
    non-personal demo account path when login is required.
-5. Implement and verify in-app account-deletion initiation and backend data
+6. Implement and verify in-app account-deletion initiation and backend data
    handling before beta/release; this is separate from logout and needs its
    own deletion/data-retention design.
 

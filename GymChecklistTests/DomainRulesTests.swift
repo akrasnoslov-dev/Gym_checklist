@@ -230,7 +230,22 @@ final class AuthenticationViewModelTests: XCTestCase {
         let signIn = AuthenticationViewModel(service: TestAuthenticationService(), analytics: analytics)
         _ = await signIn.signIn(email: "member@example.com", password: "password")
 
-        XCTAssertEqual(analytics.events, [.signUp, .login])
+        _ = await signIn.signInWithApple(identityToken: "token", rawNonce: "nonce")
+
+        XCTAssertEqual(analytics.events, [.signUp, .login, .login])
+    }
+
+    func testAppleSignInCancellationDoesNotShowErrorOrLogAnalytics() async {
+        let analytics = AnalyticsRecorder()
+        let service = TestAuthenticationService(appleResult: .failure(.signInCancelled))
+        let viewModel = AuthenticationViewModel(service: service, analytics: analytics)
+
+        let signedIn = await viewModel.signInWithApple(identityToken: "token", rawNonce: "nonce")
+
+        XCTAssertFalse(signedIn)
+        XCTAssertEqual(service.appleSignInCalls, 1)
+        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertTrue(analytics.events.isEmpty)
     }
 
     func testRegistrationFailureUsesSanitizedMessage() async {
@@ -346,19 +361,23 @@ private final class TestAuthenticationService: AuthenticationService {
     private let result: Result<AuthenticatedUser, RegistrationError>
     private let deliversInitialObservation: Bool
     private let notifiesOnSignOut: Bool
+    private let appleResult: Result<AuthenticatedUser, RegistrationError>?
     private var observers: [UUID: @MainActor (AuthenticatedUser?) -> Void] = [:]
     private(set) var currentUser: AuthenticatedUser?
     private(set) var registrationCalls = 0
     private(set) var resetCalls = 0
+    private(set) var appleSignInCalls = 0
 
     init(
         result: Result<AuthenticatedUser, RegistrationError> = .success(AuthenticatedUser(id: UserID(rawValue: "test-user"))),
         deliversInitialObservation: Bool = true,
-        notifiesOnSignOut: Bool = true
+        notifiesOnSignOut: Bool = true,
+        appleResult: Result<AuthenticatedUser, RegistrationError>? = nil
     ) {
         self.result = result
         self.deliversInitialObservation = deliversInitialObservation
         self.notifiesOnSignOut = notifiesOnSignOut
+        self.appleResult = appleResult
     }
 
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation {
@@ -385,6 +404,14 @@ private final class TestAuthenticationService: AuthenticationService {
 
     func signIn(email: String, password: String) async throws -> AuthenticatedUser {
         try await register(email: email, password: password)
+    }
+
+    func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthenticatedUser {
+        appleSignInCalls += 1
+        let user = try (appleResult ?? result).get()
+        currentUser = user
+        observers.values.forEach { $0(user) }
+        return user
     }
 
     func signOut() throws {

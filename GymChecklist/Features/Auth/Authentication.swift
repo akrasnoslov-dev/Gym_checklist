@@ -1,12 +1,16 @@
+import AuthenticationServices
 import Combine
+import CryptoKit
 import FirebaseAuth
 import Foundation
+import Security
 
 struct AuthenticatedUser: Equatable {
     let id: UserID
 }
 
 enum RegistrationError: Error, Equatable {
+    case signInCancelled
     case emailAlreadyInUse
     case invalidEmail
     case weakPassword
@@ -16,6 +20,7 @@ enum RegistrationError: Error, Equatable {
 
     var message: String {
         switch self {
+        case .signInCancelled: return ""
         case .emailAlreadyInUse: return "An account already uses this email."
         case .invalidEmail: return "Enter a valid email address."
         case .weakPassword: return "Use a password with at least 6 characters."
@@ -37,6 +42,7 @@ protocol AuthenticationService: AnyObject {
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation
     func register(email: String, password: String) async throws -> AuthenticatedUser
     func signIn(email: String, password: String) async throws -> AuthenticatedUser
+    func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthenticatedUser
     func sendPasswordReset(email: String) async throws
     func signOut() throws
 }
@@ -126,6 +132,29 @@ final class AuthenticationViewModel: ObservableObject {
             errorMessage = RegistrationError.unavailable.message
             return false
         }
+    }
+
+    @discardableResult
+    func signInWithApple(identityToken: String, rawNonce: String) async -> Bool {
+        isSubmitting = true
+        errorMessage = nil
+        defer { isSubmitting = false }
+        do {
+            _ = try await service.signInWithApple(identityToken: identityToken, rawNonce: rawNonce)
+            analytics.log(.login)
+            return true
+        } catch RegistrationError.signInCancelled {
+            return false
+        } catch {
+            errorMessage = "We could not sign you in with Apple. Please try again."
+            return false
+        }
+    }
+
+    func handleAppleSignInFailure(_ error: Error) {
+        errorMessage = AppleSignInRequest.isCancellation(error)
+            ? nil
+            : "We could not sign you in with Apple. Please try again."
     }
 
     func signOut() {
@@ -235,6 +264,25 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         }
     }
 
+    func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthenticatedUser {
+        let credential = OAuthProvider.credential(
+            withProviderID: "apple.com",
+            idToken: identityToken,
+            rawNonce: rawNonce
+        )
+        return try await withCheckedThrowingContinuation { continuation in
+            auth.signIn(with: credential) { result, error in
+                if let error {
+                    continuation.resume(throwing: Self.map(error))
+                } else if let user = result?.user {
+                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid)))
+                } else {
+                    continuation.resume(throwing: RegistrationError.unavailable)
+                }
+            }
+        }
+    }
+
     func signOut() throws { try auth.signOut() }
 
     func sendPasswordReset(email: String) async throws {
@@ -256,6 +304,46 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         case .wrongPassword, .userNotFound, .invalidCredential: return .invalidCredentials
         default: return .unavailable
         }
+    }
+}
+
+enum AppleSignInRequest {
+    static func configure(_ request: ASAuthorizationAppleIDRequest) -> String {
+        let rawNonce = randomNonce()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = Self.sha256(rawNonce)
+        return rawNonce
+    }
+
+    static func identityToken(from authorization: ASAuthorization) -> String? {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken else { return nil }
+        return String(data: tokenData, encoding: .utf8)
+    }
+
+    static func isCancellation(_ error: Error) -> Bool {
+        (error as? ASAuthorizationError)?.code == .canceled
+    }
+
+    private static func randomNonce(length: Int = 32) -> String {
+        let alphabet = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var nonce = ""
+        var remainingLength = length
+        while remainingLength > 0 {
+            var random: UInt8 = 0
+            guard SecRandomCopyBytes(kSecRandomDefault, 1, &random) == errSecSuccess else {
+                preconditionFailure("Unable to generate a secure Sign in with Apple nonce.")
+            }
+            if random < alphabet.count {
+                nonce.append(alphabet[Int(random)])
+                remainingLength -= 1
+            }
+        }
+        return nonce
+    }
+
+    private static func sha256(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }
 
@@ -298,6 +386,10 @@ private final class UITestAuthenticationService: AuthenticationService {
 
     func signIn(email: String, password: String) async throws -> AuthenticatedUser {
         try await register(email: email, password: password)
+    }
+
+    func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthenticatedUser {
+        try await register(email: "apple-ui-test@example.com", password: "not-used")
     }
 
     func signOut() throws {

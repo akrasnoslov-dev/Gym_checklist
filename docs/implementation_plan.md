@@ -992,7 +992,7 @@ Add the approved secondary auth method.
 
 ---
 
-### M5.5 `TODO` Harden auth loading/error/account isolation
+### M5.5 `IN PROGRESS (PENDING CI)` Harden auth loading/error/account isolation
 **Goal**
 Make auth reliable without adding visual complexity.
 

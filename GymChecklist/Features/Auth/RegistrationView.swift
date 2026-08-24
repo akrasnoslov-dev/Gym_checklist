@@ -60,14 +60,14 @@ struct RegistrationView: View {
                     .disabled(viewModel.isSubmitting)
                     .accessibilityIdentifier(isResettingPassword ? "authSendReset" : (isSignIn ? "authSignIn" : "authRegister"))
 
-                    if isSignIn && !isResettingPassword { Button("Forgot password?") { isResettingPassword = true; viewModel.clearError() }.accessibilityIdentifier("authForgotPassword") }
+                    if isSignIn && !isResettingPassword { Button("Forgot password?") { isResettingPassword = true; viewModel.clearFeedback() }.accessibilityIdentifier("authForgotPassword") }
                     Button(isResettingPassword ? "Back to sign in" : (isSignIn ? "Create an account" : "Already have an account? Sign in")) {
                         if isResettingPassword { isResettingPassword = false; isSignIn = true } else {
                         isSignIn.toggle()
                         }
                         password = ""
                         confirmation = ""
-                        viewModel.clearError()
+                        viewModel.clearFeedback()
                     }
                     .accessibilityIdentifier(isResettingPassword ? "authBackToSignIn" : (isSignIn ? "authShowRegistration" : "authShowSignIn"))
                 }

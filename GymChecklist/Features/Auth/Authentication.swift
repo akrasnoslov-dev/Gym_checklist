@@ -55,8 +55,12 @@ final class AuthenticationViewModel: ObservableObject {
     init(service: AuthenticationService) {
         self.service = service
         observation = service.observeAuthentication { [weak self] user in
+            let previousUserID = self?.currentUser?.id
             self?.currentUser = user
             self?.isResolving = false
+            if previousUserID != user?.id {
+                self?.clearFeedback()
+            }
         }
     }
 
@@ -123,12 +127,20 @@ final class AuthenticationViewModel: ObservableObject {
     func signOut() {
         do {
             try service.signOut()
+            currentUser = nil
+            isResolving = false
+            clearFeedback()
         } catch {
             errorMessage = "We could not sign you out. Please try again."
         }
     }
 
     func clearError() { errorMessage = nil }
+
+    func clearFeedback() {
+        errorMessage = nil
+        passwordResetMessage = nil
+    }
 
     @discardableResult
     func sendPasswordReset(email: String) async -> Bool {

@@ -1,9 +1,8 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current execution position
-Execution is **paused at the user's explicit request** while the documentation/execution policy is being corrected.
-
-The pause does not mean the backlog is blocked. It only means Codex must not resume implementation until the user explicitly starts/resumes development again.
+Autonomous implementation is active. The fresh master-prompt start superseded
+the prior user-requested pause.
 
 ## Current branch
 `dev`
@@ -43,6 +42,7 @@ Recent auth checkpoints:
 - `M5.1` registration — `IN PROGRESS (PENDING CI)`
 - `M5.2` sign-in/logout/account routing — `IN PROGRESS (PENDING CI)`
 - `M5.3` password reset — `IN PROGRESS (PENDING CI)`
+- `M5.5` auth loading/error/account-isolation hardening — `IN PROGRESS (PENDING CI)`
 - `M6.3` appearance — `IN PROGRESS (PENDING CI)`
 - `M6.4` kg/lb — `IN PROGRESS (PENDING CI)`
 - `M6.5` Settings/Account — `IN PROGRESS (PENDING CI)`
@@ -51,7 +51,6 @@ Recent auth checkpoints:
 - `M5.4` Google Sign-In — `IN PROGRESS (PENDING EXTERNAL)`
 
 ### Not yet accepted
-- `M5.5` auth loading/error/account isolation hardening
 - `M5.6` auth/security checkpoint
 - `M6.1` historical workout view
 - `M6.2` historical actual editing
@@ -72,9 +71,10 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - Firestore rules and static security/offline checks exist.
 - Live deployed-rules, emulator/two-user, cache/reconnect, and some macOS verification remain pending.
 
-### M5.1–M5.3 auth
+### M5.1–M5.5 auth
 - Email/password registration, sign-in, logout, resolving-state routing, password reset, sanitized errors, and cross-account state isolation are implemented.
 - Production repositories are created only for the active UID and user-scoped state is disposed/replaced on auth transitions.
+- Auth feedback clears at session/mode transitions; sign-out clears observable user state without waiting for an auth-listener callback.
 - Deterministic unit/UI coverage exists; authoritative macOS verification remains pending.
 
 ### M6.3–M6.5 Settings
@@ -141,26 +141,18 @@ Later release work may require Apple Developer/App Store Connect actions, signin
 
 None of these establishes a technical run-level stop.
 
-## Next runnable implementation — when the user resumes
+## Next runnable implementation
 
 Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
-2. Inspect/finish the M5.5 hardening that does not depend on live Google Sign-In.
-3. Continue M6.1 historical viewing and M6.2 historical actual editing where implementation is safe without M5.4/M5.6 live evidence; record provisional dependency scheduling if used.
-4. At a natural checkpoint, dispatch one focused M6.3–M6.5 UI rerun if that verification is still needed; record it and immediately return to implementation.
+2. Continue M6.1 historical viewing and M6.2 historical actual editing where implementation is safe without M5.4/M5.6 live evidence; record provisional dependency scheduling.
+3. At a natural checkpoint, dispatch one focused M5.5 unit rerun if no newer relevant macOS verification is queued; record it and immediately return to implementation.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;
    - queued/running -> keep `PENDING CI`, return to implementation.
 6. If M5/M6 paths become blocked, scan the entire remaining plan for another independent safe implementation task before considering a final response.
-
-## Stop condition
-`USER-REQUESTED PAUSE` — explicit current user instruction.
-
-This pause overrides autonomous execution. Do not resume merely because CI completes.
-
-A later explicit resume instruction or a fresh Desktop Codex task started with `docs/codex_master_prompt.md` clears this pause and activates the `Next runnable implementation` section above.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

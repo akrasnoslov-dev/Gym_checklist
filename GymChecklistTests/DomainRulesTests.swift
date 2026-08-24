@@ -267,13 +267,45 @@ final class AuthenticationViewModelTests: XCTestCase {
     }
 
     func testLogoutPublishesUnauthenticatedState() async {
-        let service = TestAuthenticationService(result: .success(AuthenticatedUser(id: UserID(rawValue: "member"))))
+        let service = TestAuthenticationService(
+            result: .success(AuthenticatedUser(id: UserID(rawValue: "member"))),
+            notifiesOnSignOut: false
+        )
         let viewModel = AuthenticationViewModel(service: service)
         _ = await viewModel.signIn(email: "member@example.com", password: "password")
 
         viewModel.signOut()
 
         XCTAssertNil(viewModel.currentUser)
+    }
+
+    func testDelayedAuthenticationResolutionKeepsContentUnavailableUntilUserArrives() {
+        let service = TestAuthenticationService(deliversInitialObservation: false)
+        let viewModel = AuthenticationViewModel(service: service)
+
+        XCTAssertTrue(viewModel.isResolving)
+        XCTAssertNil(viewModel.currentUser)
+
+        let user = AuthenticatedUser(id: UserID(rawValue: "resolved-user"))
+        service.emitAuthentication(user)
+
+        XCTAssertFalse(viewModel.isResolving)
+        XCTAssertEqual(viewModel.currentUser, user)
+    }
+
+    func testSessionChangeClearsTransientAuthFeedback() async {
+        let service = TestAuthenticationService()
+        let viewModel = AuthenticationViewModel(service: service)
+
+        _ = await viewModel.sendPasswordReset(email: "member@example.com")
+        _ = await viewModel.signIn(email: "invalid", password: "password")
+        XCTAssertNotNil(viewModel.passwordResetMessage)
+        XCTAssertNotNil(viewModel.errorMessage)
+
+        service.emitAuthentication(AuthenticatedUser(id: UserID(rawValue: "different-user")))
+
+        XCTAssertNil(viewModel.passwordResetMessage)
+        XCTAssertNil(viewModel.errorMessage)
     }
 
     func testPasswordResetValidatesAndKeepsSessionUnchanged() async {
@@ -300,20 +332,35 @@ private final class TestAuthenticationService: AuthenticationService {
     }
 
     private let result: Result<AuthenticatedUser, RegistrationError>
+    private let deliversInitialObservation: Bool
+    private let notifiesOnSignOut: Bool
     private var observers: [UUID: @MainActor (AuthenticatedUser?) -> Void] = [:]
     private(set) var currentUser: AuthenticatedUser?
     private(set) var registrationCalls = 0
     private(set) var resetCalls = 0
 
-    init(result: Result<AuthenticatedUser, RegistrationError> = .success(AuthenticatedUser(id: UserID(rawValue: "test-user")))) {
+    init(
+        result: Result<AuthenticatedUser, RegistrationError> = .success(AuthenticatedUser(id: UserID(rawValue: "test-user"))),
+        deliversInitialObservation: Bool = true,
+        notifiesOnSignOut: Bool = true
+    ) {
         self.result = result
+        self.deliversInitialObservation = deliversInitialObservation
+        self.notifiesOnSignOut = notifiesOnSignOut
     }
 
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation {
         let id = UUID()
         observers[id] = observer
-        observer(currentUser)
+        if deliversInitialObservation {
+            observer(currentUser)
+        }
         return Observation { [weak self] in self?.observers.removeValue(forKey: id) }
+    }
+
+    func emitAuthentication(_ user: AuthenticatedUser?) {
+        currentUser = user
+        observers.values.forEach { $0(user) }
     }
 
     func register(email: String, password: String) async throws -> AuthenticatedUser {
@@ -330,7 +377,9 @@ private final class TestAuthenticationService: AuthenticationService {
 
     func signOut() throws {
         currentUser = nil
-        observers.values.forEach { $0(nil) }
+        if notifiesOnSignOut {
+            observers.values.forEach { $0(nil) }
+        }
     }
 
     func sendPasswordReset(email: String) async throws { resetCalls += 1 }

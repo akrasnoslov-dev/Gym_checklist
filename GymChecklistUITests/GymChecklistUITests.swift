@@ -522,6 +522,9 @@ final class RegistrationUITests: XCTestCase {
         app.buttons["authSendReset"].tap()
         XCTAssertTrue(app.staticTexts["If an account matches this email, we’ll send reset instructions."].waitForExistence(timeout: 2))
         XCTAssertTrue(app.descendants(matching: .any)["authPasswordResetScreen"].exists)
+        app.buttons["authBackToSignIn"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authSignInScreen"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authResetMessage"].exists)
     }
 
     func testLogoutThenSignInDoesNotShowPriorUsersWorkout() {

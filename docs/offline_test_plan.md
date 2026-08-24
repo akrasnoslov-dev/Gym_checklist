@@ -14,6 +14,15 @@ manual Sync control.
 4. Capture the workout date, exercise IDs, set IDs, and planned values before
    going offline.
 
+## Auth-session boundary
+
+Firebase Auth restores only its own cached authenticated session. Until that
+session resolves, the app shows no user-scoped workout content. If no valid
+cached session is available offline, show the sign-in screen; never infer an
+authenticated user from cached Firestore data. On sign-out or a UID change,
+dispose the prior user-scoped repository/view-model state before showing the
+next user's Today content.
+
 ## Airplane-mode flow
 
 1. Disable both Wi-Fi and cellular networking.

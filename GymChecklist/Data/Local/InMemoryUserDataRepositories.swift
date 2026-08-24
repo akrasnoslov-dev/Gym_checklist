@@ -48,7 +48,7 @@ final class InMemoryCustomExerciseRepository: CustomExerciseRepository {
     private var handler: (() -> Void)?
     init(_ handler: @escaping () -> Void) { self.handler = handler }
     func cancel() { handler?(); handler = nil }
-    deinit { cancel() }
+    deinit { MainActor.assumeIsolated { cancel() } }
 }
 
 @MainActor
@@ -88,5 +88,5 @@ final class InMemoryUserSettingsRepository: UserSettingsRepository {
     private var handler: (() -> Void)?
     init(_ handler: @escaping () -> Void) { self.handler = handler }
     func cancel() { handler?(); handler = nil }
-    deinit { cancel() }
+    deinit { MainActor.assumeIsolated { cancel() } }
 }

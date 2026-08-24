@@ -35,7 +35,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         startListening()
     }
 
-    deinit { listener?.remove() }
+    deinit { MainActor.assumeIsolated { listener?.remove() } }
 
     func refreshAuthentication() {
         listener?.remove()
@@ -129,5 +129,6 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
 
 @MainActor private final class FirestoreWorkoutObservation: WorkoutObservation {
     private var handler: (() -> Void)?; init(_ handler: @escaping () -> Void) { self.handler = handler }
-    func cancel() { handler?(); handler = nil }; deinit { cancel() }
+    func cancel() { handler?(); handler = nil }
+    deinit { MainActor.assumeIsolated { cancel() } }
 }

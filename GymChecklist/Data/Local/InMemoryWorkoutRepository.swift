@@ -124,7 +124,9 @@ private final class InMemoryWorkoutObservation: WorkoutObservation {
     }
 
     deinit {
-        cancel()
+        MainActor.assumeIsolated {
+            cancel()
+        }
     }
 }
 

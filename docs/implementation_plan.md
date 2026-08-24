@@ -1182,7 +1182,7 @@ Capture production crashes/non-fatal critical failures safely.
 
 ---
 
-### M7.3 `TODO` Accessibility pass
+### M7.3 `IN PROGRESS (PENDING CI/MANUAL AX)` Accessibility pass
 **Goal**
 Apply baseline iOS accessibility across all screens.
 

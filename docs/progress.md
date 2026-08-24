@@ -102,6 +102,11 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - The app target generates dSYMs in Debug and Release and conditionally uploads them only when the built app includes the untracked Firebase plist; this keeps configuration-free CI/test builds safe.
 - Crash reports use no app-supplied user IDs, custom keys, logs, or raw errors. A non-production crash-report and dSYM-console check remains required before acceptance.
 
+### M7.3 Accessibility
+- `IN PROGRESS (PENDING CI/MANUAL AX)`: completion modal focus is explicitly moved to the overlay and restored after dismissal; inline errors are visibly and semantically marked, then focused for VoiceOver.
+- Today sets and skipped-exercise restoration retain practical target sizes; picker results use a 44pt minimum target. UI coverage now checks Today modal isolation, Program date semantics, and authentication at AX-XXXL.
+- Manual VoiceOver/Accessibility Inspector review remains required for focus order, light/dark contrast, picker/Settings segmented controls, and Program calendar behavior at large text sizes.
+
 ## CI / verification state
 
 The repository is public and free GitHub-hosted macOS capacity is available.
@@ -121,6 +126,12 @@ Latest focused UI run:
 - M6.3–M6.5 focused UI verification therefore remains `PENDING CI`
 
 Latest macOS build:
+- run `32745167880`
+- checkpoint SHA: `f34ca11c3410817adb67d2c2e49beb16d6aeed99`
+- final status: `completed / failure` (`build-for-testing`)
+- diagnosis: current Xcode rejected imperative conditional assignment inside `ProgramView.historySetRow`'s `@ViewBuilder`; the static expression correction is included in the next checkpoint and needs a narrow build rerun
+
+Previous successful macOS build:
 - run `32734248577`
 - checkpoint SHA: `3ec41af`
 - final status: `completed / success` (`build-for-testing`)
@@ -167,6 +178,7 @@ Later release work may require Apple Developer/App Store Connect actions, signin
 - M5.5, M6.1, and M6.2 require authoritative macOS verification.
 - M6.6 remains pending Google Sign-In, later approved telemetry/crash work, and authoritative CI.
 - M7.2 needs non-production Crashlytics console validation after a signed/configured build; see `docs/crashlytics_setup.md`.
+- M7.3 needs manual VoiceOver/Accessibility Inspector review on a macOS/iPhone environment after the UI checkpoint builds.
 
 None of these establishes a technical run-level stop.
 
@@ -176,8 +188,8 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Continue M7.3 accessibility using M7.1/M7.2 provisionally; keep M7.1/M7.2 pending authoritative CI.
-4. After the active macOS build is known green, dispatch one focused macOS build for the Crashlytics checkpoint; do not dispatch unit until that build is green.
+3. Continue M7.4 offline/error/loading-state hardening using M7.1–M7.3 provisionally; keep their authoritative/manual verification pending.
+4. Dispatch one focused macOS build for the Program compiler correction plus Crashlytics/accessibility checkpoint; do not dispatch unit until that build is green.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

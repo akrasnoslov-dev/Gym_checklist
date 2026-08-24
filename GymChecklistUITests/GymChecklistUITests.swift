@@ -393,6 +393,20 @@ final class TodayInteractionUITests: XCTestCase {
         assert(set, hasValue: "Completed")
     }
 
+    func testProgramDateCommunicatesFullDateStateAndSelection() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launch()
+
+        app.tabBars.buttons["Program"].tap()
+        let date = app.buttons["programDate-2026-08-14"]
+        XCTAssertTrue(date.waitForExistence(timeout: 2))
+        XCTAssertEqual(date.label, "Friday, August 14, 2026")
+        assert(date, hasValue: "Empty")
+        XCTAssertTrue(date.isSelected)
+    }
+
     func testTodayCompletesSetsInArbitraryExerciseAndSetOrder() {
         let app = launchSeededToday()
         let first = app.buttons[firstBenchSet]
@@ -664,6 +678,27 @@ final class RegistrationUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].exists)
     }
 
+    func testRegistrationControlsRemainUsableAtAccessibilityTextSize() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_AUTH_MODE"] = "registration"
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+
+        let email = app.textFields["authEmail"]
+        let password = app.secureTextFields["authPassword"]
+        let confirmation = app.secureTextFields["authConfirmPassword"]
+        let submit = app.buttons["authRegister"]
+        XCTAssertTrue(email.waitForExistence(timeout: 5))
+        XCTAssertTrue(password.isHittable)
+        XCTAssertTrue(confirmation.isHittable)
+        for _ in 0..<3 where !submit.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(submit.isHittable)
+        XCTAssertGreaterThanOrEqual(submit.frame.height, 44)
+    }
+
     func testRegistrationScreenShowsPasswordMismatchInline() {
         let app = launchRegistration()
 
@@ -717,8 +752,12 @@ final class TodayCompletionUITests: XCTestCase {
         rowSet.tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
         XCTAssertFalse(rowSet.exists)
-        app.buttons["todayCompletionDismiss"].tap()
+        let dismiss = app.buttons["todayCompletionDismiss"]
+        XCTAssertTrue(dismiss.isHittable)
+        XCTAssertFalse(benchSet.isHittable)
+        dismiss.tap()
         XCTAssertTrue(rowSet.waitForExistence(timeout: 2))
+        XCTAssertTrue(rowSet.isHittable)
     }
 
     func testLastRemainingSetShowsDismissibleCompletionPopupOncePerTransition() {

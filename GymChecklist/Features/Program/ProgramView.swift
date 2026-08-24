@@ -346,12 +346,9 @@ struct ProgramView: View {
             weightInKilograms: set.displayedWeight,
             timeSeconds: set.displayedTimeSeconds
         )
-        let state: String
-        if exercise.isSkipped {
-            state = set.isCompleted ? "Skipped · Completed" : "Skipped"
-        } else {
-            state = set.isCompleted ? "Completed" : "Incomplete"
-        }
+        let state = exercise.isSkipped
+            ? (set.isCompleted ? "Skipped · Completed" : "Skipped")
+            : (set.isCompleted ? "Completed" : "Incomplete")
         let valueKind = set.isCompleted ? "Actual" : "Planned"
         let row = HStack(spacing: 8) {
             Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")

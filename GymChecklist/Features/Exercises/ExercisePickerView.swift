@@ -5,6 +5,7 @@ struct ExercisePickerView: View {
     @State private var query = ""
     @State private var showsCustomExercise = false
     @State private var errorMessage: String?
+    @AccessibilityFocusState private var accessibilityFocus: AccessibilityFocusTarget?
 
     let search: (String) -> [Exercise]
     let createCustom: (String) throws -> Exercise
@@ -53,8 +54,10 @@ struct ExercisePickerView: View {
                 }
 
                 if let errorMessage {
-                    Text(errorMessage)
+                    Label(errorMessage, systemImage: "exclamationmark.circle")
                         .foregroundStyle(.red)
+                        .accessibilityLabel("Error: \(errorMessage)")
+                        .accessibilityFocused($accessibilityFocus, equals: .error)
                         .accessibilityIdentifier("exercisePickerError")
                 }
             }
@@ -62,6 +65,9 @@ struct ExercisePickerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $query, prompt: "Search exercises")
             .accessibilityIdentifier("exercisePicker")
+            .onChange(of: errorMessage) { _, newValue in
+                if newValue != nil { accessibilityFocus = .error }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -100,6 +106,7 @@ struct ExercisePickerView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -108,10 +115,15 @@ struct ExercisePickerView: View {
     }
 }
 
+private enum AccessibilityFocusTarget: Hashable {
+    case error
+}
+
 private struct CustomExerciseView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
     @State private var errorMessage: String?
+    @AccessibilityFocusState private var isErrorFocused: Bool
 
     let onSave: (String) throws -> Void
 
@@ -131,14 +143,19 @@ private struct CustomExerciseView: View {
             }
 
             if let errorMessage {
-                Text(errorMessage)
+                Label(errorMessage, systemImage: "exclamationmark.circle")
                     .foregroundStyle(.red)
+                    .accessibilityLabel("Error: \(errorMessage)")
+                    .accessibilityFocused($isErrorFocused)
                     .accessibilityIdentifier("customExerciseError")
             }
         }
         .navigationTitle("Custom exercise")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("customExerciseScreen")
+        .onChange(of: errorMessage) { _, newValue in
+            if newValue != nil { isErrorFocused = true }
+        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }

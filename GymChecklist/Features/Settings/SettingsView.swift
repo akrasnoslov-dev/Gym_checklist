@@ -51,6 +51,7 @@ struct SettingsView: View {
     @ObservedObject var viewModel: SettingsViewModel
     let onLogout: () -> Void
     let errorMessage: String?
+    @AccessibilityFocusState private var isErrorFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -74,8 +75,10 @@ struct SettingsView: View {
                     .accessibilityValue(viewModel.settings.appearance.rawValue)
 
                     if let settingsError = viewModel.errorMessage {
-                        Text(settingsError)
+                        Label(settingsError, systemImage: "exclamationmark.circle")
                             .foregroundStyle(.red)
+                            .accessibilityLabel("Error: \(settingsError)")
+                            .accessibilityFocused($isErrorFocused)
                             .accessibilityIdentifier("settingsAppearanceError")
                     }
                 }
@@ -108,14 +111,22 @@ struct SettingsView: View {
                 }
                 if let errorMessage {
                     Section {
-                        Text(errorMessage)
+                        Label(errorMessage, systemImage: "exclamationmark.circle")
                             .foregroundStyle(.red)
+                            .accessibilityLabel("Error: \(errorMessage)")
+                            .accessibilityFocused($isErrorFocused)
                             .accessibilityIdentifier("authLogoutError")
                     }
                 }
             }
             .navigationTitle("Settings")
             .accessibilityIdentifier("settingsPlaceholder")
+            .onChange(of: viewModel.errorMessage) { _, newValue in
+                if newValue != nil { isErrorFocused = true }
+            }
+            .onChange(of: errorMessage) { _, newValue in
+                if newValue != nil { isErrorFocused = true }
+            }
         }
     }
 }

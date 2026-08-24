@@ -8,6 +8,7 @@ struct RegistrationView: View {
     @State private var confirmation = ""
     @State private var isSignIn = false
     @State private var isResettingPassword = false
+    @AccessibilityFocusState private var isErrorFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -36,8 +37,10 @@ struct RegistrationView: View {
 
                 if let errorMessage = viewModel.errorMessage {
                     Section {
-                        Text(errorMessage)
+                        Label(errorMessage, systemImage: "exclamationmark.circle")
                             .foregroundStyle(.red)
+                            .accessibilityLabel("Error: \(errorMessage)")
+                            .accessibilityFocused($isErrorFocused)
                             .accessibilityIdentifier("authRegistrationError")
                     }
                 }
@@ -74,6 +77,9 @@ struct RegistrationView: View {
             }
             .navigationTitle("Gym Checklist")
             .accessibilityIdentifier(isResettingPassword ? "authPasswordResetScreen" : (isSignIn ? "authSignInScreen" : "authRegistrationScreen"))
+            .onChange(of: viewModel.errorMessage) { _, newValue in
+                if newValue != nil { isErrorFocused = true }
+            }
         }
         .onDisappear {
             password = ""

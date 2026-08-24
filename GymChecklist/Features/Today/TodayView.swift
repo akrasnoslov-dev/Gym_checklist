@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 enum TodayContentState: Equatable {
@@ -26,6 +27,8 @@ struct TodayView: View {
     @State private var editorRoute: TodaySetEditorRoute?
     @State private var showsCompletionPopup = false
     @State private var mutationError: TodayMutationError?
+    @AccessibilityFocusState private var accessibilityFocus: AccessibilityFocusTarget?
+    @State private var completionRestoreFocus: AccessibilityFocusTarget?
 
     var body: some View {
         ScrollView {
@@ -60,6 +63,8 @@ struct TodayView: View {
             editorRoute = nil
             showsCompletionPopup = false
             mutationError = nil
+            accessibilityFocus = nil
+            completionRestoreFocus = nil
         }
         .sheet(item: $editorRoute) { route in
             TodaySetEditorSheet(route: route, weightUnit: weightUnit) { reps, weight, timeSeconds in
@@ -77,7 +82,10 @@ struct TodayView: View {
             if showsCompletionPopup {
                 TodayCompletionOverlay {
                     showsCompletionPopup = false
+                    accessibilityFocus = completionRestoreFocus ?? .header
+                    completionRestoreFocus = nil
                 }
+                .accessibilityFocused($accessibilityFocus, equals: .completionOverlay)
             }
         }
         .alert(item: $mutationError) { error in
@@ -98,6 +106,7 @@ struct TodayView: View {
                 .foregroundStyle(.secondary)
         }
         .accessibilityIdentifier("todayHeader")
+        .accessibilityFocused($accessibilityFocus, equals: .header)
     }
 
     private var noProgramState: some View {
@@ -172,6 +181,7 @@ struct TodayView: View {
                     .accessibilityValue(set.isCompleted ? "Completed" : "Incomplete")
                     .accessibilityHint("Double tap to toggle completion. Actions available to edit this set.")
                     .accessibilityAddTraits(set.isCompleted ? .isSelected : [])
+                    .accessibilityFocused($accessibilityFocus, equals: .set(set.id))
                     .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
                         editorRoute = TodaySetEditorRoute(exercise: exercise, workoutSet: set)
                     })
@@ -219,6 +229,7 @@ struct TodayView: View {
                     .foregroundStyle(.secondary)
             }
             .accessibilityIdentifier("todayRestoreSkippedExercises")
+            .frame(minHeight: 44)
         }
     }
 
@@ -253,7 +264,7 @@ struct TodayView: View {
         let statusBeforeMutation = viewModel.workout(on: currentDate)?.completionStatus ?? .planned
         do {
             try viewModel.toggleCompletion(of: set.id, in: exercise.id, on: currentDate)
-            presentCompletionIfNeeded(after: statusBeforeMutation)
+            presentCompletionIfNeeded(after: statusBeforeMutation, restoreFocus: .set(set.id))
         } catch {
             showMutationError()
         }
@@ -263,7 +274,7 @@ struct TodayView: View {
         let statusBeforeMutation = viewModel.workout(on: currentDate)?.completionStatus ?? .planned
         do {
             try viewModel.skipTodayExercise(exercise.id, on: currentDate)
-            presentCompletionIfNeeded(after: statusBeforeMutation)
+            presentCompletionIfNeeded(after: statusBeforeMutation, restoreFocus: .header)
         } catch {
             showMutationError()
         }
@@ -281,13 +292,27 @@ struct TodayView: View {
         mutationError = .saveFailed
     }
 
-    private func presentCompletionIfNeeded(after statusBeforeMutation: WorkoutStatus) {
+    private func presentCompletionIfNeeded(
+        after statusBeforeMutation: WorkoutStatus,
+        restoreFocus: AccessibilityFocusTarget
+    ) {
         let statusAfterMutation = viewModel.workout(on: currentDate)?.completionStatus ?? .planned
         showsCompletionPopup = WorkoutCompletionTrigger.shouldPresent(
             before: statusBeforeMutation,
             after: statusAfterMutation
         )
+        guard showsCompletionPopup else { return }
+        completionRestoreFocus = restoreFocus
+        DispatchQueue.main.async {
+            accessibilityFocus = .completionOverlay
+        }
     }
+}
+
+private enum AccessibilityFocusTarget: Hashable {
+    case header
+    case set(WorkoutSetID)
+    case completionOverlay
 }
 
 enum TodayMutationError: Identifiable {

@@ -6,7 +6,7 @@ Milestone 5 — Authentication and account routing.
 Earlier implementation checkpoints remain pending authoritative macOS/live verification. Public-repository macOS capacity is available; failure verification now uses build, unit, and UI layers before a consolidated full suite.
 
 ## Active task
-`M5.2` — Email/password sign-in and logout (`IN PROGRESS`). M5.1 is implementation-complete and `IN PROGRESS (PENDING CI)`.
+`M5.2` — Email/password sign-in and logout (`IN PROGRESS (PENDING CI)`). M5.1 is implementation-complete and `IN PROGRESS (PENDING CI)`.
 
 ## Current branch
 `dev`
@@ -117,7 +117,10 @@ No current product or implementation blocker is known.
 Focused UI verification for the selector-only correction is active. It has not reported a real failure and does not block safe M5.1 implementation. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Review M5.2 implementation, checkpoint it pending macOS CI, then implement M5.3 password reset. Do not run historical CI reconciliation unless the active focused UI run reports a real failure that makes continuation unsafe.
+Implement M5.3 password reset using the existing injectable auth boundary, then add deterministic unit/UI coverage. Run macOS `unit` then focused `ui` for the combined M5.1/M5.2 checkpoint when a coherent auth checkpoint is ready; do not run historical full reconciliation first.
+
+## Stop condition
+`MODEL_OR_TOOL_LIMIT` — this run reached its available execution budget after checkpointing M5.1 (`de39abf`) and M5.2 (`b0b3cac`). Resume directly at M5.3 using the exact next action above; the worktree is clean and M5.1/M5.2 remain pending macOS unit/UI verification.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

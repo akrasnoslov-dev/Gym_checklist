@@ -12,7 +12,7 @@ The policy also defines how implementation continues if the included GitHub Acti
 ## User decision
 - Paid GitHub Actions usage is not approved.
 - Do not ask the user to add a payment method, increase an Actions budget, buy GitHub Pro, rent a macOS runner, or pay for another CI provider merely to continue normal implementation.
-- Keep the repository private unless the user explicitly decides otherwise.
+- The repository is public by the user's explicit 2026-08-24 decision so free GitHub-hosted macOS Actions are available; do not make it private without further instruction.
 
 ## Normal no-cost CI strategy
 ### Linux checks — default checkpoint CI
@@ -36,6 +36,14 @@ Preferred cadence during normal MVP development:
 - run Linux checks continuously on code checkpoints;
 - run one consolidated macOS build/unit/UI-test verification at milestone checkpoints;
 - run macOS earlier only when a change is unsafe to continue without Xcode evidence (for example Xcode project configuration, build-system changes, dependency integration, signing/release plumbing, or a suspected compile/UI-test regression).
+
+When diagnosing a real Xcode failure, use the narrowest manual `verification_scope` before spending a consolidated run:
+- `build` runs `build-for-testing` to compile the app and both test bundles without executing tests;
+- `unit` runs only `GymChecklistTests` after compilation is clean;
+- `ui` runs only `GymChecklistUITests` after the relevant build/lower test evidence is clean;
+- `full` runs the complete suite only for milestone reconciliation or after the preceding layers pass.
+
+Batch equivalent compiler, unit-test, or UI-test diagnostics into one correction before rerunning the matching layer. A UI-test-only edit does not require rerunning unaffected unit tests that already passed; it still requires an authoritative test-bundle compile before focused UI execution.
 
 A milestone checkpoint that explicitly requires authoritative macOS verification cannot be marked `DONE` until that verification passes, even though implementation may continue provisionally where this policy allows it.
 

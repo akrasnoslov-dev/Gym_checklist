@@ -14,6 +14,17 @@ on:
       - 'docs/**'
       - '**/*.md'
   workflow_dispatch:
+    inputs:
+      verification_scope:
+        description: "Authoritative verification layer"
+        required: true
+        default: full
+        type: choice
+        options:
+          - build
+          - unit
+          - ui
+          - full
 
 permissions:
   contents: read
@@ -30,6 +41,8 @@ jobs:
       contains(github.event.head_commit.message, '[macos-ci]')
     runs-on: macos-latest
     timeout-minutes: 20
+    env:
+      VERIFICATION_SCOPE: ${{ inputs.verification_scope || 'full' }}
 
     steps:
       - name: Checkout
@@ -60,7 +73,7 @@ jobs:
           test -f agents/routing.toml
           echo "Bootstrap repository validation passed."
 
-      - name: Build and test GymChecklist
+      - name: Verify GymChecklist
         if: steps.detect.outputs.project_found == 'true'
         shell: bash
         run: |
@@ -98,11 +111,29 @@ jobs:
           if [ -f "GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" ]; then
             git diff --exit-code -- GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           fi
-          xcodebuild \
-            -project "$PROJECT" \
-            -scheme "$SCHEME" \
-            -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,id=$DESTINATION_UDID" \
-            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY" \
-            CODE_SIGNING_ALLOWED=NO \
-            test
+          XCODE_ARGS=(
+            -project "$PROJECT"
+            -scheme "$SCHEME"
+            -sdk iphonesimulator
+            -destination "platform=iOS Simulator,id=$DESTINATION_UDID"
+            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY"
+            CODE_SIGNING_ALLOWED=NO
+          )
+          case "$VERIFICATION_SCOPE" in
+            build)
+              xcodebuild "${XCODE_ARGS[@]}" build-for-testing
+              ;;
+            unit)
+              xcodebuild "${XCODE_ARGS[@]}" test -only-testing:GymChecklistTests
+              ;;
+            ui)
+              xcodebuild "${XCODE_ARGS[@]}" test -only-testing:GymChecklistUITests
+              ;;
+            full)
+              xcodebuild "${XCODE_ARGS[@]}" test
+              ;;
+            *)
+              echo "Unsupported verification scope: $VERIFICATION_SCOPE" >&2
+              exit 2
+              ;;
+          esac

@@ -1055,7 +1055,7 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.workouts.isEmpty)
     }
 
-    func testWorkoutAvailabilityPropagatesWithoutHidingCachedToday() {
+    func testWorkoutAvailabilityPropagatesWithoutHidingCachedToday() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let userID = UserID(rawValue: "user")
         let repository = ControllableWorkoutRepository(userID: userID)
@@ -2325,5 +2325,5 @@ private final class ControllableWorkoutObservation: WorkoutObservation {
         onCancel = nil
     }
 
-    deinit { cancel() }
+    deinit { MainActor.assumeIsolated { cancel() } }
 }

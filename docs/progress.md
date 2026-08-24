@@ -169,7 +169,8 @@ Latest macOS unit test:
 Current dispatched macOS build:
 - run `32748151516`
 - checkpoint SHA: `b82e96f`
-- scope: focused `build-for-testing` for the M7.5 regression additions, M7.6 release-safety/data-integrity fixes, and CI workflow edits; do not dispatch its unit layer until it passes
+- final status: `completed / failure` (`build-for-testing`)
+- diagnosis: two compile-only issues in the new controllable test helper (missing `throws` and a main-actor deinitializer call); the narrow correction is queued for a build retry
 
 Previous successful macOS build:
 - run `32734248577`

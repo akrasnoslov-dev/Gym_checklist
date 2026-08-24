@@ -21,6 +21,7 @@ Before doing anything, read in full:
 - docs/implementation_plan.md
 - docs/progress.md
 - docs/ci_free_quota_policy.md if present
+- docs/desktop_continuation_policy.md
 - agents/routing.toml
 
 Then inspect:
@@ -30,6 +31,23 @@ Then inspect:
 - relevant source/tests;
 - available CI state;
 - required agent TOML files.
+
+DESKTOP CONTINUATION HEARTBEAT — REQUIRED
+You are running in Codex inside the ChatGPT desktop app.
+
+At startup, create or update (do not duplicate) one scheduled task attached to THIS SAME CHAT named:
+`Gym Checklist continuation heartbeat`
+
+Schedule it every 5 minutes and keep it attached to this same local project.
+
+Heartbeat prompt/behavior:
+- if another implementation turn is actively modifying the checkout, do not make conflicting edits; wait for the next heartbeat;
+- otherwise re-read Git state, docs/progress.md, and docs/implementation_plan.md;
+- if technically safe backlog work remains, continue implementation immediately;
+- if the current task is blocked by external configuration/credentials/live verification, finish its safe local part, mark it PENDING EXTERNAL/LIVE as appropriate, add the missing action to USER ACTION REQUIRED QUEUE, then scan the ENTIRE remaining implementation plan and continue any other safe task;
+- pause/disable this heartbeat only when all implementation-plan tasks are complete, or when no technically safe work remains anywhere and a genuine terminal condition requires user/tool/platform action.
+
+This heartbeat is the recovery mechanism if a normal Codex turn ends prematurely. Do not require the user to type `continue`.
 
 STATE RECONCILIATION
 Do not assume docs/progress.md or origin/dev is newer than the local repository.
@@ -42,6 +60,8 @@ If docs/progress.md disagrees with actual coherent Git/code state:
 3. continue from the true next action.
 
 If AGENTS.md or docs/codex_instructions.md in the working repository do not yet contain a strong continuous-execution/final-response gate, update those durable instruction files before continuing product implementation so future checkpoints preserve this operating mode. The required behavior is defined below and takes priority for this run even if the local copies are older.
+
+If generic autonomous-execution wording in docs/implementation_plan.md conflicts with docs/desktop_continuation_policy.md (for example by treating one external blocker as a run-level stop), treat the desktop continuation policy as authoritative for execution mechanics and repair the generic execution wording when doing so is safe. Do not weaken task acceptance criteria.
 
 CONTINUOUS EXECUTION OBJECTIVE
 Maximize technically safe completed MVP backlog work within this single run.
@@ -91,7 +111,7 @@ ALLOWED TERMINAL REASONS
 A final response is allowed only for one of these genuine terminal conditions:
 
 1. USER_ACTION_REQUIRED
-   External credentials/configuration/account action is required and cannot be completed from the repository or available tools.
+   External credentials/configuration/account action is required and cannot be completed from the repository or available tools, and a scan of the entire remaining implementation plan found no other technically safe work.
 
 2. PRODUCT_DECISION_REQUIRED
    A material product/UX ambiguity cannot be resolved from authoritative specifications.
@@ -169,9 +189,16 @@ Do not discard local commits merely because the remote branch is older.
 EXTERNAL CONFIGURATION
 Firebase console setup, Google auth configuration, Apple Developer signing, App Store Connect, GitHub release secrets, or similar external steps may eventually require the user.
 
-Batch genuine external actions into one clear USER ACTION REQUIRED checkpoint whenever possible.
+A blocked task is not a blocked run.
 
-Before stopping, still apply the Final-response gate. Stop only when the active dependency genuinely needs external action and no other technically safe work permitted by the backlog can proceed.
+When external action is needed:
+1. finish every safe local/repository part of that task;
+2. keep it non-DONE with an accurate pending state such as PENDING EXTERNAL;
+3. batch the missing action under USER ACTION REQUIRED QUEUE in docs/progress.md;
+4. scan the ENTIRE remaining implementation plan, not only the next task;
+5. continue any other technically safe work.
+
+Stop as USER_ACTION_REQUTIRED only when that global scan finds no technically safe backlog work remaining.
 
 SESSION / CONTEXT CONTINUITY
 Do not rely on me to monitor context-window usage.
@@ -206,7 +233,7 @@ SOURCE-OF-TRUTH PRIORITY
 3. docs/ux_spec.md.
 4. docs/architecture.md.
 5. docs/implementation_plan.md.
-6. AGENTS.md / docs/codex_instructions.md / docs/ci_free_quota_policy.md for execution mechanics.
+6. docs/desktop_continuation_policy.md / AGENTS.md / docs/codex_instructions.md / docs/ci_free_quota_policy.md for execution mechanics.
 
 Do not silently change product behavior to make implementation easier.
 

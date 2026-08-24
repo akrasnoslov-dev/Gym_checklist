@@ -14,12 +14,22 @@ For every new Codex session:
 5. Read `docs/implementation_plan.md`.
 6. Read `docs/progress.md`.
 7. Read `docs/ci_free_quota_policy.md` when it exists.
-8. Read `agents/routing.toml` and required agent files.
-9. Inspect git status/branch, recent commits/diff, relevant source/tests, and available CI state.
-10. Reconcile documentation with actual Git/code state. If `docs/progress.md` is stale, repair it before continuing.
-11. Resume the active task from repository state.
+8. Read `docs/desktop_continuation_policy.md` when it exists.
+9. Read `agents/routing.toml` and required agent files.
+10. Inspect git status/branch, recent commits/diff, relevant source/tests, and available CI state.
+11. Reconcile documentation with actual Git/code state. If `docs/progress.md` is stale, repair it before continuing.
+12. Resume the active task from repository state.
 
 Do not assume `origin/dev` is newer than the local working repository. During Codex Local runs, coherent local commits may legitimately be ahead of GitHub. Never reset or discard them merely because remote state is older.
+
+## ChatGPT Desktop continuation
+This project is intended to run in Codex inside the ChatGPT desktop app.
+
+When `docs/desktop_continuation_policy.md` exists, use its thread-automation heartbeat as the recovery mechanism for premature turn endings. Do not require the user to launch a separate CLI/PowerShell supervisor.
+
+If the active task is blocked by external configuration, credentials, live validation, or unavailable verification, that does not automatically end the run. Finish the safe local portion, record the accurate pending state and batched user action, scan the entire remaining implementation plan for independent safe work, and continue it.
+
+Use run-level `USER_ACTION_REQUIRED` only when no technically safe backlog work remains anywhere.
 
 ## Continuous-run contract
 Run the backlog as a loop, not as a sequence of separate chat turns.
@@ -208,9 +218,11 @@ git diff --check
 Add deterministic source/test checks appropriate to the active task. Static checks do not prove Swift compilation or UI-test success.
 
 ## External configuration checkpoints
-When real external action is required, batch it in `docs/progress.md` under `USER ACTION REQUIRED` with exact steps, values/secrets, and follow-up verification. Avoid piecemeal interruptions.
+When real external action is required, batch it in `docs/progress.md` under `USER ACTION REQUIRED QUEUE` with exact steps, values/secrets, and follow-up verification.
 
-Before stopping at an external configuration checkpoint, still apply the Final-response gate: stop only when the current dependency genuinely requires that external action and no other technically safe permitted work remains.
+Do not stop merely because the active task needs that action. Finish every safe local part, keep the task non-`DONE` with an accurate pending state, scan the entire remaining implementation plan for another technically safe task, and continue it.
+
+Stop as run-level `USER_ACTION_REQUIRED` only when that global scan finds no technically safe work anywhere.
 
 ## Progress continuity
 `docs/progress.md` is mandatory and must be updated after every meaningful checkpoint. If it disagrees with actual coherent commits/code, repair it immediately rather than trusting stale text.

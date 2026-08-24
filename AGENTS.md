@@ -21,6 +21,7 @@ Before any non-trivial task, read:
 - `docs/implementation_plan.md`
 - `docs/progress.md`
 - `docs/ci_free_quota_policy.md` when present
+- `docs/desktop_continuation_policy.md` when present
 - `agents/routing.toml`
 
 Then inspect relevant source/tests, Git state, available CI state, and applicable `agents/*.toml` instructions.
@@ -32,9 +33,22 @@ Then inspect relevant source/tests, Git state, available CI state, and applicabl
 4. `docs/architecture.md` for technical boundaries.
 5. `docs/implementation_plan.md` for ordered execution.
 6. `docs/progress.md` for current checkpoint/state.
-7. `docs/ci_free_quota_policy.md` for the user-approved no-paid-CI continuation exception.
+7. `docs/desktop_continuation_policy.md` for ChatGPT Desktop Codex continuation/heartbeat mechanics when present.
+8. `docs/ci_free_quota_policy.md` for the user-approved no-paid-CI continuation exception.
 
 Do not silently change product behavior to make implementation easier.
+
+## Desktop continuation
+Normal autonomous development for this project runs in Codex inside the ChatGPT desktop app.
+
+When `docs/desktop_continuation_policy.md` is present:
+- use Codex thread automation/heartbeat behavior described there;
+- do not require a CLI or external supervisor for normal execution;
+- a blocked individual task is not a blocked run;
+- if an external/config/live prerequisite blocks one task, finish its safe local work, record the pending user action, scan the entire remaining implementation plan, and continue any other technically safe work;
+- `USER_ACTION_REQUIRED` is a run-level stop only when that full backlog scan finds no technically safe work remaining.
+
+This changes execution scheduling only. It does not weaken acceptance criteria or the meaning of `DONE`.
 
 ## Continuous execution contract
 A Codex implementation run is a continuous backlog-execution loop, not a one-task interaction.

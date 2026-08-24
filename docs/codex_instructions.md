@@ -14,28 +14,12 @@ For every new Codex session:
 5. Read `docs/implementation_plan.md`.
 6. Read `docs/progress.md`.
 7. Read `docs/ci_free_quota_policy.md` when it exists.
-8. Read `docs/autonomous_execution_policy.md`.
-9. Read `agents/routing.toml` and required agent files.
-10. Inspect git status/branch, recent commits/diff, relevant source/tests, and available CI state.
-11. Reconcile documentation with actual Git/code state. If `docs/progress.md` is stale, repair it before continuing.
-12. Resume the active task from repository state.
+8. Read `agents/routing.toml` and required agent files.
+9. Inspect git status/branch, recent commits/diff, relevant source/tests, and available CI state.
+10. Reconcile documentation with actual Git/code state. If `docs/progress.md` is stale, repair it before continuing.
+11. Resume the active task from repository state.
 
 Do not assume `origin/dev` is newer than the local working repository. During Codex Local runs, coherent local commits may legitimately be ahead of GitHub. Never reset or discard them merely because remote state is older.
-
-## Supervisor-backed execution
-The normal operating mode is supervised non-interactive Codex execution.
-
-The external PowerShell supervisor runs Codex, captures its thread ID, checks the repository after each Codex turn, and automatically resumes the same thread if `scripts/codex_final_gate.py` says `CONTINUE`.
-
-This means:
-- do not treat your own final message as authoritative termination;
-- before a genuine terminal response, run `python scripts/codex_final_gate.py`;
-- create `.codex/stop_state.json` only through `scripts/write_codex_stop_state.py` and only for a genuine run-level terminal condition;
-- never create terminal stop state merely because the current task needs external setup;
-- if a task is externally blocked, finish its safe local work, mark it `PENDING EXTERNAL`, queue the user action, scan the entire remaining plan, and continue another safe task;
-- pending CI/live/external work may be provisionally crossed for scheduling when safe; acceptance criteria and `DONE` remain strict.
-
-Read `docs/autonomous_execution_policy.md` for the complete protocol.
 
 ## Continuous-run contract
 Run the backlog as a loop, not as a sequence of separate chat turns.
@@ -224,18 +208,9 @@ git diff --check
 Add deterministic source/test checks appropriate to the active task. Static checks do not prove Swift compilation or UI-test success.
 
 ## External configuration checkpoints
-When real external action is required, batch it in `docs/progress.md` under `USER ACTION REQUIRED QUEUE` with exact steps, values/secrets, and follow-up verification.
+When real external action is required, batch it in `docs/progress.md` under `USER ACTION REQUIRED` with exact steps, values/secrets, and follow-up verification. Avoid piecemeal interruptions.
 
-Do not stop merely because the active task is waiting for that action.
-
-Instead:
-1. finish every safe repository-side part;
-2. mark the task `IN PROGRESS (PENDING EXTERNAL)` or the appropriate combined pending state;
-3. scan the entire remaining implementation plan for another technically safe task;
-4. continue;
-5. return to the deferred task when configuration becomes available.
-
-Use run-level `USER_ACTION_REQUIRED` only when the full backlog scan finds no technically safe work anywhere. Before the terminal response, write the validated runtime stop state and run `scripts/codex_final_gate.py`.
+Before stopping at an external configuration checkpoint, still apply the Final-response gate: stop only when the current dependency genuinely requires that external action and no other technically safe permitted work remains.
 
 ## Progress continuity
 `docs/progress.md` is mandatory and must be updated after every meaningful checkpoint. If it disagrees with actual coherent commits/code, repair it immediately rather than trusting stale text.

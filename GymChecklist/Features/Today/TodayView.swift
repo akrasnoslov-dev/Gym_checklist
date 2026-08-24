@@ -123,7 +123,7 @@ struct TodayView: View {
         let sets = orderedSets(in: exercise)
         let exerciseName = viewModel.exerciseName(for: exercise)
 
-        VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 8) {
             Text(exerciseName)
                 .font(.headline)
                 .contextMenu {

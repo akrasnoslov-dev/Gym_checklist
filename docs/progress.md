@@ -41,7 +41,7 @@ The completed Today flow includes:
 
 Required M3.9 reviews passed with no blocking findings from `ios_ux_guardian`, `product_spec_guardian`, `architecture_guardian`, `code_quality_agent`, and `test_ci_agent`. Simulator lifecycle execution remains pending macOS CI.
 
-M3.9 is additionally `IN PROGRESS (REAL CI FAILURE)`: macOS run `32705517082` identified an unterminated interpolation in `TodayView.swift` and a `set`-accessor parse collision in `TodaySetEditorRoute`. Commit `6592990` corrected both, and commit `a9b326c` corrected the next main-actor observation teardown failure. Commit `45ff91c` then corrected three Firestore workout repository compiler errors. Commit `8c3ff39` corrected a malformed mutation loop; the next test compilation exposed unavailable Firestore document fixture constructors and missing main-actor isolation on local-repository test classes. The focused mapping/test correction is staged locally and must pass the next macOS run before any dependent CI acceptance can be reconciled.
+M3.9 is additionally `IN PROGRESS (REAL CI FAILURE)`: macOS run `32705517082` identified an unterminated interpolation in `TodayView.swift` and a `set`-accessor parse collision in `TodaySetEditorRoute`. Commit `6592990` corrected both, and commit `a9b326c` corrected the next main-actor observation teardown failure. Commit `45ff91c` then corrected three Firestore workout repository compiler errors. Commit `8c3ff39` corrected a malformed mutation loop; commit `a361099` added Firestore document fixtures and main-actor isolation to local-repository test classes. The next run then exposed one missing explicit return in a Today view helper; that correction is staged locally and must pass the next macOS run before any dependent CI acceptance can be reconciled.
 
 ### Milestone 4
 - `M4.1` Firebase dependency/configuration bootstrap — implementation-complete, `IN PROGRESS (PENDING CI)`.
@@ -100,7 +100,7 @@ No current product or implementation blocker is known.
 MacOS capacity is available, but a real compile failure blocks CI reconciliation until the local correction is verified. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Commit the Firestore fixture/main-actor test correction, then rerun consolidated authoritative macOS CI. If it passes, reconcile M2.9–M3.9 and the CI portions of M4.1–M4.8 in order; otherwise fix the reported real failure before starting dependent implementation.
+Commit the Today helper return correction, then rerun consolidated authoritative macOS CI. If it passes, reconcile M2.9–M3.9 and the CI portions of M4.1–M4.8 in order; otherwise fix the reported real failure before starting dependent implementation.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

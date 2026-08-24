@@ -1576,7 +1576,8 @@ final class WorkoutViewModelTests: XCTestCase {
             { try viewModel.editTodaySet(setID, in: exerciseID, on: yesterday, reps: 7, weight: 60, timeSeconds: 0) },
             { try viewModel.skipTodayExercise(exerciseID, on: yesterday) },
             { try viewModel.restoreTodayExercise(exerciseID, on: yesterday) }
-        ] {
+        ]
+        for mutation in mutations {
             XCTAssertThrowsError(try mutation()) { error in
                 XCTAssertEqual(error as? ProgramPlanningError, .todayActionRequiresCurrentDate(yesterday))
             }

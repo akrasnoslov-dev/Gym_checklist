@@ -4,11 +4,11 @@ This is the execution backlog for Codex. It is intentionally detailed enough to 
 
 Codex must not implement tasks from titles alone. For every task, read the full task body and all referenced sections of `docs/product_spec.md`, `docs/ux_spec.md`, and `docs/architecture.md` before editing code.
 
-Status legend: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
+Status legend: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`. Pending qualifiers such as `IN PROGRESS (PENDING CI)`, `IN PROGRESS (PENDING LIVE)`, and `IN PROGRESS (PENDING EXTERNAL)` are allowed and are not equivalent to `DONE`.
 
 Task completion rule: a task may be marked `DONE` only when all listed acceptance criteria and verification steps pass, or when an explicitly documented environment limitation prevents only non-authoritative local verification and authoritative CI passes instead.
 
-Continuity rule: after each completed task, update `docs/progress.md` with the completed task ID, verification performed, relevant subagents/review notes, blockers, and exact next task.
+Continuity rule: after each meaningful checkpoint, update `docs/progress.md` with verification, relevant review notes, blockers/deferred external actions, and the exact next safe action. Runtime status in `docs/progress.md` plus actual Git/code state is authoritative if a task header in this plan is stale.
 
 ---
 
@@ -918,7 +918,7 @@ Review persistence before adding auth UI.
 
 ## Milestone 5 — Authentication and account routing
 
-### M5.1 `TODO` Implement email/password registration
+### M5.1 `IN PROGRESS (PENDING CI)` Implement email/password registration
 **Goal**
 Create accounts using Firebase Auth.
 
@@ -937,7 +937,7 @@ Create accounts using Firebase Auth.
 
 ---
 
-### M5.2 `TODO` Implement email/password sign-in and logout
+### M5.2 `IN PROGRESS (PENDING CI)` Implement email/password sign-in and logout
 **Goal**
 Support returning users and account exit.
 
@@ -956,7 +956,7 @@ Support returning users and account exit.
 
 ---
 
-### M5.3 `TODO` Implement password reset
+### M5.3 `IN PROGRESS (PENDING CI)` Implement password reset
 **Goal**
 Provide standard recovery for email accounts.
 
@@ -973,7 +973,7 @@ Provide standard recovery for email accounts.
 
 ---
 
-### M5.4 `TODO` Implement Google Sign-In
+### M5.4 `IN PROGRESS (PENDING EXTERNAL)` Implement Google Sign-In
 **Goal**
 Add the approved secondary auth method.
 
@@ -1311,7 +1311,7 @@ Obtain the external account/signing prerequisites for device/TestFlight distribu
 **Codex behavior**
 - Batch all user actions into one checklist.
 - Do not ask piecemeal questions across multiple tasks.
-- Record exact blocker in `docs/progress.md` and stop only if credentials/configuration are genuinely required.
+- Record the exact blocker in `docs/progress.md`. Stop only if the full remaining backlog scan finds no technically safe work without the external action; otherwise defer this task and continue safe work elsewhere.
 
 **Acceptance criteria**
 - Team/signing/provisioning path is known and available.
@@ -1490,20 +1490,20 @@ Prepare stable/release integration only after explicit user approval.
 
 ## Autonomous execution rules
 
-1. Select the first `TODO` task whose dependencies are `DONE`.
-2. Mark it `IN PROGRESS` before implementation.
-3. Read the task body plus referenced Product/UX/Architecture sections.
-4. Read and apply required agents from `agents/routing.toml`.
-5. Implement only that task plus strictly required supporting changes.
-6. Add/update tests listed in the task.
-7. Run strongest available verification; authoritative Xcode verification is macOS CI.
-8. Self-review against acceptance criteria.
-9. Fix failures before marking `DONE`.
-10. Mark the task `DONE` in this file.
-11. Update `docs/progress.md` with concise checkpoint information.
-12. Continue to the next eligible task automatically.
-13. Stop only for a genuine user-action blocker, destructive/irreversible decision, unavailable external credentials/configuration, or tool/model usage limit.
-14. On a later user message `continue`, re-read `AGENTS.md`, this file, and `docs/progress.md`, then resume from the first eligible incomplete task. Do not ask the user to restate context.
+1. Reconstruct actual state from Git/code/tests and `docs/progress.md` before selecting work.
+2. Prefer the active `IN PROGRESS` task. If it is blocked, scan the entire remaining plan for another technically safe task instead of stopping at the first dependency chain.
+3. Task bodies, acceptance criteria, and dependencies in this file remain authoritative. Runtime task status in `docs/progress.md` plus actual Git/code state wins if a header status here is stale.
+4. For scheduling only, an implementation-complete dependency pending solely CI/live/external verification may be treated as provisionally satisfied when later implementation is safe without that missing evidence. This never makes the dependency `DONE` and never waives its acceptance criteria.
+5. Read the full task body plus referenced Product/UX/Architecture sections and apply required agents from `agents/routing.toml`.
+6. Mark active work accurately before substantial implementation.
+7. Implement the smallest complete safe solution, add/update required tests, and run the strongest available verification.
+8. Self-review against acceptance criteria, product scope, Today UX, architecture, security/privacy, offline behavior, and release rules. Fix established failures that can be resolved with available tools.
+9. Mark `DONE` only when all required acceptance and verification genuinely pass. Otherwise keep an accurate pending state such as `PENDING CI`, `PENDING LIVE`, or `PENDING EXTERNAL`.
+10. Update `docs/progress.md` after each meaningful checkpoint and make a focused commit when possible.
+11. Immediately continue to the next technically safe action. A task completion, milestone completion, commit, push, review, CI result, progress update, or known `Next:` action is not a stopping point.
+12. If the current task needs credentials, external configuration, live validation, or unavailable verification, finish every safe local part, record the deferred action, scan the full remaining backlog, and continue independent safe work.
+13. Stop only when all planned work is complete, the platform/model/tool limit actually ends execution, or no technically safe backlog work remains anywhere and one genuine terminal condition from `AGENTS.md` applies.
+14. Do not wait for or request a routine user `continue` message. A later fresh Desktop Codex task, if the platform itself forces an interruption, must reconstruct state from Git/docs and resume without asking the user to restate context.
 
 ## Future candidates — never implement automatically
 - Exercise images/videos/instructions.

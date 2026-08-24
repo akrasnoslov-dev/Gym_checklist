@@ -127,6 +127,9 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 ### M8.2 Release metadata baseline
 - `docs/release_metadata.md` records the current app identity (`dev.akrasnoslov.GymChecklist`, `1.0` / build `1`, iOS 17, iPhone, Health & Fitness) and the required monotonically increasing build convention. There is no tracked app-icon asset catalog yet, so final icon supply/validation and Apple identifier ownership remain pending.
 
+### M8.3 Apple signing checkpoint
+- `docs/apple_signing_checklist.md` consolidates the Apple Developer, App ID, Sign in with Apple capability, App Store Connect record, distribution signing, icon/privacy, and TestFlight prerequisites. It requires Account Holder/Admin action but no credential sharing.
+
 ## CI / verification state
 
 The repository is public and free GitHub-hosted macOS capacity is available.

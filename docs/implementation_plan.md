@@ -1305,7 +1305,7 @@ Prepare signing/build identity.
 
 ---
 
-### M8.3 `TODO` Apple Developer account/signing checkpoint — USER ACTION MAY BE REQUIRED
+### M8.3 `IN PROGRESS (PENDING EXTERNAL)` Apple Developer account/signing checkpoint — USER ACTION MAY BE REQUIRED
 **Goal**
 Obtain the external account/signing prerequisites for device/TestFlight distribution.
 

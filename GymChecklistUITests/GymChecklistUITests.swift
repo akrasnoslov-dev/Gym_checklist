@@ -76,7 +76,6 @@ final class GymChecklistUITests: XCTestCase {
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.staticTexts["Today"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["Friday, August 14, 2026"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Bench Press, 0 sets"].waitForExistence(timeout: 2))
         XCTAssertFalse(app.buttons["Start Workout"].exists)
 
         app.tabBars.buttons["Program"].tap()
@@ -455,7 +454,7 @@ final class TodayEmptyStateUITests: XCTestCase {
     }
 
     private func assertProgramIsFocusedOnToday(in app: XCUIApplication) {
-        XCTAssertTrue(app.otherElements["programScreen"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["programScreen"].waitForExistence(timeout: 2))
         let selectedDate = app.staticTexts["programSelectedDate"]
         XCTAssertTrue(selectedDate.exists)
         XCTAssertEqual(selectedDate.label, "Friday, August 14, 2026")

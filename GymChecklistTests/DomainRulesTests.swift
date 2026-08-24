@@ -260,6 +260,17 @@ final class AuthenticationViewModelTests: XCTestCase {
 
         XCTAssertNil(viewModel.currentUser)
     }
+
+    func testPasswordResetValidatesAndKeepsSessionUnchanged() async {
+        let service = TestAuthenticationService()
+        let viewModel = AuthenticationViewModel(service: service)
+        XCTAssertFalse(await viewModel.sendPasswordReset(email: "bad"))
+        XCTAssertEqual(service.resetCalls, 0)
+        XCTAssertTrue(await viewModel.sendPasswordReset(email: " member@example.com "))
+        XCTAssertEqual(service.resetCalls, 1)
+        XCTAssertNil(viewModel.currentUser)
+        XCTAssertEqual(viewModel.passwordResetMessage, "If an account matches this email, we’ll send reset instructions.")
+    }
 }
 
 @MainActor
@@ -275,6 +286,7 @@ private final class TestAuthenticationService: AuthenticationService {
     private var observers: [UUID: @MainActor (AuthenticatedUser?) -> Void] = [:]
     private(set) var currentUser: AuthenticatedUser?
     private(set) var registrationCalls = 0
+    private(set) var resetCalls = 0
 
     init(result: Result<AuthenticatedUser, RegistrationError> = .success(AuthenticatedUser(id: UserID(rawValue: "test-user")))) {
         self.result = result
@@ -303,6 +315,8 @@ private final class TestAuthenticationService: AuthenticationService {
         currentUser = nil
         observers.values.forEach { $0(nil) }
     }
+
+    func sendPasswordReset(email: String) async throws { resetCalls += 1 }
 }
 
 final class TodayContentStateTests: XCTestCase {

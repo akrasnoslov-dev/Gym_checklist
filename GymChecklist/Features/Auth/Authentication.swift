@@ -37,6 +37,7 @@ protocol AuthenticationService: AnyObject {
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation
     func register(email: String, password: String) async throws -> AuthenticatedUser
     func signIn(email: String, password: String) async throws -> AuthenticatedUser
+    func sendPasswordReset(email: String) async throws
     func signOut() throws
 }
 
@@ -46,6 +47,7 @@ final class AuthenticationViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var isSubmitting = false
     @Published private(set) var isResolving = true
+    @Published private(set) var passwordResetMessage: String?
 
     private let service: AuthenticationService
     private var observation: AuthenticationObservation?
@@ -128,6 +130,27 @@ final class AuthenticationViewModel: ObservableObject {
 
     func clearError() { errorMessage = nil }
 
+    @discardableResult
+    func sendPasswordReset(email: String) async -> Bool {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidEmail(trimmedEmail) else { errorMessage = "Enter a valid email address."; return false }
+        isSubmitting = true
+        errorMessage = nil
+        passwordResetMessage = nil
+        defer { isSubmitting = false }
+        do {
+            try await service.sendPasswordReset(email: trimmedEmail)
+            passwordResetMessage = "If an account matches this email, we’ll send reset instructions."
+            return true
+        } catch let error as RegistrationError where error == .networkUnavailable {
+            errorMessage = "An internet connection is needed to continue."
+            return false
+        } catch {
+            errorMessage = "We could not send reset instructions. Please try again."
+            return false
+        }
+    }
+
     private func isValidEmail(_ email: String) -> Bool {
         let parts = email.split(separator: "@", omittingEmptySubsequences: false)
         return parts.count == 2 && !parts[0].isEmpty && parts[1].contains(".") && !email.contains(where: \.isWhitespace)
@@ -198,6 +221,15 @@ private final class FirebaseAuthenticationService: AuthenticationService {
 
     func signOut() throws { try auth.signOut() }
 
+    func sendPasswordReset(email: String) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            auth.sendPasswordReset(withEmail: email) { error in
+                if let error { continuation.resume(throwing: Self.map(error)) }
+                else { continuation.resume() }
+            }
+        }
+    }
+
     private static func map(_ error: Error) -> RegistrationError {
         guard let code = AuthErrorCode(rawValue: (error as NSError).code) else { return .unavailable }
         switch code {
@@ -256,5 +288,7 @@ private final class UITestAuthenticationService: AuthenticationService {
         currentUser = nil
         observers.values.forEach { $0(nil) }
     }
+
+    func sendPasswordReset(email: String) async throws {}
 }
 #endif

@@ -6,7 +6,7 @@ Milestone 5 — Authentication and account routing.
 Earlier implementation checkpoints remain pending authoritative macOS/live verification. Public-repository macOS capacity is available; failure verification now uses build, unit, and UI layers before a consolidated full suite.
 
 ## Active task
-`M5.2` — Email/password sign-in and logout (`IN PROGRESS (PENDING CI)`). M5.1 is implementation-complete and `IN PROGRESS (PENDING CI)`.
+`M5.3` — Password reset (`IN PROGRESS`). M5.1 and M5.2 are implementation-complete and `IN PROGRESS (PENDING CI)`.
 
 ## Current branch
 `dev`
@@ -86,6 +86,10 @@ These verification gaps do not block safe M5 implementation under `docs/ci_free_
 - Unit and UI coverage includes sign-in validation/credential failure, sign-in/logout routing, and an A → logout → B test ensuring A's seeded workout does not appear in B's empty Today state.
 - Local static verification remains PASS; macOS unit/UI verification is pending.
 
+## Latest M5.3 implementation
+- Sign-in exposes a compact Forgot password? flow that submits only a validated email through Firebase Auth’s password-reset API. It stays unauthenticated and gives non-enumerating success feedback.
+- Reset errors are fixed English messages; no reset URL, token, or provider detail is displayed or logged. Unit coverage validates input, trims a valid email, and confirms the session is unchanged.
+
 ## Firebase/configuration state
 The Firebase development project, local plist, production-mode Firestore database, and non-production test account are available. Local Firebase configuration remains untracked and must not be printed or committed.
 
@@ -117,10 +121,7 @@ No current product or implementation blocker is known.
 Focused UI verification for the selector-only correction is active. It has not reported a real failure and does not block safe M5.1 implementation. Some live Firebase verification also remains pending.
 
 ## Exact next action
-Implement M5.3 password reset using the existing injectable auth boundary, then add deterministic unit/UI coverage. Run macOS `unit` then focused `ui` for the combined M5.1/M5.2 checkpoint when a coherent auth checkpoint is ready; do not run historical full reconciliation first.
-
-## Stop condition
-`MODEL_OR_TOOL_LIMIT` — this run reached its available execution budget after checkpointing M5.1 (`de39abf`) and M5.2 (`b0b3cac`). Resume directly at M5.3 using the exact next action above; the worktree is clean and M5.1/M5.2 remain pending macOS unit/UI verification.
+Add the focused deterministic M5.3 password-reset UI test, then run static checks and checkpoint M5.3 pending macOS unit/UI verification.
 
 Preserve the M4 privacy requirement: repository/session teardown and user-scoped UI state clearing must be part of authentication composition, not deferred beyond M5.
 

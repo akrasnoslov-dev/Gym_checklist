@@ -463,6 +463,18 @@ final class TodayEmptyStateUITests: XCTestCase {
 }
 
 final class RegistrationUITests: XCTestCase {
+    func testPasswordResetShowsNeutralConfirmationWithoutSigningIn() {
+        let app = launchRegistration()
+        app.buttons["authShowSignIn"].tap()
+        app.buttons["authForgotPassword"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authPasswordResetScreen"].waitForExistence(timeout: 2))
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.buttons["authSendReset"].tap()
+        XCTAssertTrue(app.staticTexts["If an account matches this email, we’ll send reset instructions."].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["authPasswordResetScreen"].exists)
+    }
+
     func testLogoutThenSignInDoesNotShowPriorUsersWorkout() {
         let app = XCUIApplication()
         app.launchEnvironment["UITESTING"] = "1"

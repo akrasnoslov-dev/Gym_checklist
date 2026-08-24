@@ -7,6 +7,7 @@ struct RegistrationView: View {
     @State private var password = ""
     @State private var confirmation = ""
     @State private var isSignIn = false
+    @State private var isResettingPassword = false
 
     var body: some View {
         NavigationStack {
@@ -18,16 +19,17 @@ struct RegistrationView: View {
                         .keyboardType(.emailAddress)
                         .autocorrectionDisabled()
                         .accessibilityIdentifier("authEmail")
-                    SecureField("Password", text: $password)
+                    if !isResettingPassword { SecureField("Password", text: $password)
                         .textContentType(isSignIn ? .password : .newPassword)
                         .accessibilityIdentifier("authPassword")
-                    if !isSignIn {
+                    }
+                    if !isSignIn && !isResettingPassword {
                         SecureField("Confirm password", text: $confirmation)
                             .textContentType(.newPassword)
                             .accessibilityIdentifier("authConfirmPassword")
                     }
                 } header: {
-                    Text(isSignIn ? "Sign in" : "Create your account")
+                    Text(isResettingPassword ? "Reset password" : (isSignIn ? "Sign in" : "Create your account"))
                 } footer: {
                     Text(isSignIn ? "" : "Use at least 6 characters for your password.")
                 }
@@ -39,11 +41,14 @@ struct RegistrationView: View {
                             .accessibilityIdentifier("authRegistrationError")
                     }
                 }
+                if let message = viewModel.passwordResetMessage { Section { Text(message).accessibilityIdentifier("authResetMessage") } }
 
                 Section {
                     Button(buttonTitle) {
                         Task {
-                            if isSignIn {
+                            if isResettingPassword {
+                                _ = await viewModel.sendPasswordReset(email: email)
+                            } else if isSignIn {
                                 _ = await viewModel.signIn(email: email, password: password)
                             } else {
                                 _ = await viewModel.register(email: email, password: password, confirmation: confirmation)
@@ -53,19 +58,22 @@ struct RegistrationView: View {
                         }
                     }
                     .disabled(viewModel.isSubmitting)
-                    .accessibilityIdentifier(isSignIn ? "authSignIn" : "authRegister")
+                    .accessibilityIdentifier(isResettingPassword ? "authSendReset" : (isSignIn ? "authSignIn" : "authRegister"))
 
-                    Button(isSignIn ? "Create an account" : "Already have an account? Sign in") {
+                    if isSignIn && !isResettingPassword { Button("Forgot password?") { isResettingPassword = true; viewModel.clearError() }.accessibilityIdentifier("authForgotPassword") }
+                    Button(isResettingPassword ? "Back to sign in" : (isSignIn ? "Create an account" : "Already have an account? Sign in")) {
+                        if isResettingPassword { isResettingPassword = false; isSignIn = true } else {
                         isSignIn.toggle()
+                        }
                         password = ""
                         confirmation = ""
                         viewModel.clearError()
                     }
-                    .accessibilityIdentifier(isSignIn ? "authShowRegistration" : "authShowSignIn")
+                    .accessibilityIdentifier(isResettingPassword ? "authBackToSignIn" : (isSignIn ? "authShowRegistration" : "authShowSignIn"))
                 }
             }
             .navigationTitle("Gym Checklist")
-            .accessibilityIdentifier(isSignIn ? "authSignInScreen" : "authRegistrationScreen")
+            .accessibilityIdentifier(isResettingPassword ? "authPasswordResetScreen" : (isSignIn ? "authSignInScreen" : "authRegistrationScreen"))
         }
         .onDisappear {
             password = ""
@@ -74,7 +82,8 @@ struct RegistrationView: View {
     }
 
     private var buttonTitle: String {
-        if viewModel.isSubmitting { return isSignIn ? "Signing in…" : "Creating account…" }
+        if viewModel.isSubmitting { return isResettingPassword ? "Sending…" : (isSignIn ? "Signing in…" : "Creating account…") }
+        if isResettingPassword { return "Send reset instructions" }
         return isSignIn ? "Sign in" : "Create account"
     }
 }

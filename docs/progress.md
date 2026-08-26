@@ -15,6 +15,7 @@ User pause checkpoint:
 - `5eaa082` — `Record user-requested pause`
 
 Latest code checkpoints:
+- `2df48bb` — `Add secure account deletion release path`
 - `8ebe053` — `Complete settings account surface`
 - `7ca1c6f` — `Implement weight unit setting`
 - `f9e5fcb` — `Implement appearance setting`
@@ -187,7 +188,12 @@ Latest macOS unit test:
 Current dispatched macOS UI test:
 - run `32948438598`
 - checkpoint SHA: `417bb6d`
-- scope: gated focused UI verification after successful `32755392773` unit layer; this new local account-deletion work is not included in that checkpoint
+- scope: gated focused UI verification after successful `32755392773` unit layer; this newer `2df48bb` checkpoint supersedes it for current-head verification
+
+Current dispatched macOS build:
+- run `32949106276`
+- checkpoint SHA: `2df48bb`
+- scope: focused `build-for-testing` verification for the Account deletion/Apple token-revocation path, Firebase Functions linkage, release workflow, and expanded deterministic tests; do not dispatch the matching unit layer until it passes
 
 Previous macOS build:
 - run `32748151516`
@@ -269,14 +275,13 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Review the completed local M8.1 account-deletion/Apple revocation boundary against the required same-user, owner-derived deletion sequence; do not issue client-side deletion writes that could leave owner data stranded.
-4. At a later natural checkpoint, inspect the current `32948438598` UI run once; do not treat it as evidence for later uncommitted account-deletion work.
-5. Continue safe M8.1 documentation/test hardening while Google provider configuration and non-production Firebase/Apple live validation remain deferred.
-6. At later natural checkpoints only, inspect pending CI once and react:
+3. M8.1 local implementation is checkpointed at `2df48bb`; Google provider reauthentication and non-production Firebase/Apple validation remain external/deferred.
+4. At a later natural checkpoint, inspect the current `32949106276` build once; dispatch its matching unit layer only if it passed.
+5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;
    - queued/running -> keep `PENDING CI`, return to implementation.
-7. If M5/M6 paths become blocked, scan the entire remaining plan for another independent safe implementation task before considering a final response.
+6. If the build is pending and no external setup arrives, preserve it as background verification; do not manufacture a client-side Google deletion path without the configured Google SDK/provider.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

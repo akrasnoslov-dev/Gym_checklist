@@ -2,10 +2,11 @@ import Foundation
 
 extension Workout {
     var completionStatus: WorkoutStatus {
-        let activeSets = exercises.filter { !$0.isSkipped }.flatMap(\.sets)
+        let activeExercises = exercises.filter { !$0.isSkipped }
+        let activeSets = activeExercises.flatMap(\.sets)
         let completedCount = activeSets.filter(\.isCompleted).count
         if !exercises.isEmpty && exercises.allSatisfy(\.isSkipped) { return .completed }
-        if !activeSets.isEmpty && activeSets.allSatisfy(\.isCompleted) { return .completed }
+        if !activeExercises.isEmpty && activeExercises.allSatisfy({ !$0.sets.isEmpty && $0.sets.allSatisfy(\.isCompleted) }) { return .completed }
         if completedCount > 0 { return .partial }
         return .planned
     }

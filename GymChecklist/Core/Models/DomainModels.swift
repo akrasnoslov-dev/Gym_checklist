@@ -149,6 +149,9 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         if isCompleted && (actualReps == nil || actualWeight == nil || actualTimeSeconds == nil || completedAt == nil) {
             throw DecodingError.dataCorruptedError(forKey: .isCompleted, in: container, debugDescription: "Completed sets require actual values and a completion timestamp")
         }
+        if !isCompleted && (actualReps != nil || actualWeight != nil || actualTimeSeconds != nil || completedAt != nil) {
+            throw DecodingError.dataCorruptedError(forKey: .isCompleted, in: container, debugDescription: "Incomplete sets cannot contain actual values or a completion timestamp")
+        }
     }
 }
 

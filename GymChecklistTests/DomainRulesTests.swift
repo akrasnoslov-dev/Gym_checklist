@@ -117,6 +117,14 @@ final class WorkoutSetSemanticsTests: XCTestCase {
         object["isCompleted"] = true
         XCTAssertThrowsError(try JSONDecoder().decode(WorkoutSet.self, from: JSONSerialization.data(withJSONObject: object)))
     }
+
+    func testInvalidIncompleteEncodingWithActualValuesIsRejected() throws {
+        var set = WorkoutSet(order: 0, reps: 5)
+        set.complete(at: .distantPast)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(set)) as? [String: Any])
+        object["isCompleted"] = false
+        XCTAssertThrowsError(try JSONDecoder().decode(WorkoutSet.self, from: JSONSerialization.data(withJSONObject: object)))
+    }
 }
 
 final class WorkoutStatusTests: XCTestCase {
@@ -128,6 +136,8 @@ final class WorkoutStatusTests: XCTestCase {
         XCTAssertEqual(workout(exercises: [exercise(completed: [true, true])]).completionStatus, .completed)
         XCTAssertEqual(workout(exercises: [exercise(completed: [false], skipped: true)]).completionStatus, .completed)
         XCTAssertEqual(workout(exercises: [exercise(completed: [false], skipped: true), exercise(completed: [false])]).completionStatus, .planned)
+        XCTAssertEqual(workout(exercises: [exercise(completed: [true]), exercise(completed: [])]).completionStatus, .partial)
+        XCTAssertEqual(workout(exercises: [exercise(completed: [true]), exercise(completed: [], skipped: true)]).completionStatus, .completed)
     }
 
     func testPastPlannedWorkoutIsIncomplete() {
@@ -1396,6 +1406,50 @@ final class WorkoutViewModelTests: XCTestCase {
             .workoutCompleted,
             .setActualEdited
         ])
+    }
+
+    func testActiveZeroSetExercisePreventsCompletionUntilExplicitlySkipped() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        let analytics = AnalyticsRecorder()
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let setExerciseID = WorkoutExerciseID()
+        let zeroSetExerciseID = WorkoutExerciseID()
+        let setID = WorkoutSetID()
+        workout.exercises = [
+            WorkoutExercise(
+                id: setExerciseID,
+                exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil,
+                order: 0,
+                isSkipped: false,
+                sets: [WorkoutSet(id: setID, order: 0, reps: 8, weight: 60, timeSeconds: 0)]
+            ),
+            WorkoutExercise(
+                id: zeroSetExerciseID,
+                exerciseID: SystemExerciseCatalog.all[1].id,
+                customName: nil,
+                order: 1,
+                isSkipped: false,
+                sets: []
+            )
+        ]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: date,
+            currentDate: date,
+            calendar: mondayCalendar(),
+            analytics: analytics
+        )
+
+        try viewModel.toggleCompletion(of: setID, in: setExerciseID, on: date)
+        XCTAssertEqual(viewModel.workout(on: date)?.completionStatus, .partial)
+        XCTAssertEqual(analytics.events, [.setCompleted])
+
+        try viewModel.skipTodayExercise(zeroSetExerciseID, on: date)
+        XCTAssertEqual(viewModel.workout(on: date)?.completionStatus, .completed)
+        XCTAssertEqual(analytics.events, [.setCompleted, .exerciseSkipped, .workoutCompleted])
     }
 
     func testSearchCreateAndReuseCustomExercisesFromLongLivedLibrary() throws {

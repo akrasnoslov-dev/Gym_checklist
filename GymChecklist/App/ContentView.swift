@@ -24,6 +24,9 @@ struct ContentView: View {
                     userID: user.id,
                     onLogout: authenticationViewModel.signOut,
                     onDeleteAccount: authenticationViewModel.deleteAccount,
+                    requiresAppleTokenRevocationForAccountDeletion: authenticationViewModel.requiresAppleTokenRevocationForAccountDeletion,
+                    onDeleteAccountWithAppleReauthentication: authenticationViewModel.deleteAccountWithAppleReauthentication,
+                    onAppleAccountDeletionVerificationFailure: authenticationViewModel.handleAppleAccountDeletionVerificationFailure,
                     authenticationError: authenticationViewModel.errorMessage
                 )
                     .id(user.id.rawValue)
@@ -222,16 +225,25 @@ private struct AuthenticatedContentView: View {
     @StateObject private var settingsViewModel: SettingsViewModel
     private let onLogout: () -> Void
     private let onDeleteAccount: () async -> Bool
+    private let requiresAppleTokenRevocationForAccountDeletion: Bool
+    private let onDeleteAccountWithAppleReauthentication: (String, String, String) async -> Bool
+    private let onAppleAccountDeletionVerificationFailure: () -> Void
     private let authenticationError: String?
 
     init(
         userID: UserID,
         onLogout: @escaping () -> Void,
         onDeleteAccount: @escaping () async -> Bool,
+        requiresAppleTokenRevocationForAccountDeletion: Bool,
+        onDeleteAccountWithAppleReauthentication: @escaping (String, String, String) async -> Bool,
+        onAppleAccountDeletionVerificationFailure: @escaping () -> Void,
         authenticationError: String?
     ) {
         self.onLogout = onLogout
         self.onDeleteAccount = onDeleteAccount
+        self.requiresAppleTokenRevocationForAccountDeletion = requiresAppleTokenRevocationForAccountDeletion
+        self.onDeleteAccountWithAppleReauthentication = onDeleteAccountWithAppleReauthentication
+        self.onAppleAccountDeletionVerificationFailure = onAppleAccountDeletionVerificationFailure
         self.authenticationError = authenticationError
         let calendar = Calendar.autoupdatingCurrent
         let currentDateProvider = { ContentView.localCurrentDate(calendar: calendar) }
@@ -311,9 +323,9 @@ private struct AuthenticatedContentView: View {
                 viewModel: settingsViewModel,
                 onLogout: onLogout,
                 onDeleteAccount: onDeleteAccount,
-                requiresAppleTokenRevocationForAccountDeletion: authenticationViewModel.requiresAppleTokenRevocationForAccountDeletion,
-                onDeleteAccountWithAppleReauthentication: authenticationViewModel.deleteAccountWithAppleReauthentication,
-                onAppleAccountDeletionVerificationFailure: authenticationViewModel.handleAppleAccountDeletionVerificationFailure,
+                requiresAppleTokenRevocationForAccountDeletion: requiresAppleTokenRevocationForAccountDeletion,
+                onDeleteAccountWithAppleReauthentication: onDeleteAccountWithAppleReauthentication,
+                onAppleAccountDeletionVerificationFailure: onAppleAccountDeletionVerificationFailure,
                 errorMessage: authenticationError
             )
                 .tabItem {

@@ -428,7 +428,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
 
 private struct FirebaseAccountDeletionCallable {
     func deleteCurrentAccount() async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Functions.functions().httpsCallable("deleteAccount").call { _, error in
                 if let error {
                     continuation.resume(throwing: Self.map(error))

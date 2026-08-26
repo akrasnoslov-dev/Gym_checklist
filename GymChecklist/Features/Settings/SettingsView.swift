@@ -186,6 +186,7 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder
     private var appleDeletionButton: some View {
 #if DEBUG
         if FirebaseBootstrap.isRunningTests() {

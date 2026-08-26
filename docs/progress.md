@@ -193,8 +193,8 @@ Current dispatched macOS UI test:
 Current dispatched macOS build:
 - run `32949106276`
 - checkpoint SHA: `2df48bb`
-- current status: `pending` (checked once after dispatch; do not poll while external setup remains outstanding)
-- scope: focused `build-for-testing` verification for the Account deletion/Apple token-revocation path, Firebase Functions linkage, release workflow, and expanded deterministic tests; do not dispatch the matching unit layer until it passes
+- final status: `completed / failure` (`build-for-testing`)
+- diagnosis: three compile-only issues—new Apple-deletion closures were referenced from the wrong view scope, conditional opaque-view branches needed `@ViewBuilder`, and the deletion callable continuation needed an explicit `Void` type. The focused correction is unstaged locally; do not dispatch unit until its build retry passes.
 
 Previous macOS build:
 - run `32748151516`
@@ -276,8 +276,8 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. M8.1 local implementation is checkpointed at `2df48bb`; Google provider reauthentication and non-production Firebase/Apple validation remain external/deferred.
-4. At a later natural checkpoint, inspect the current `32949106276` build once; dispatch its matching unit layer only if it passed.
+3. Commit the focused correction for the `32949106276` compile failure, run the static contract checks, then dispatch one build retry. Google provider reauthentication and non-production Firebase/Apple validation remain external/deferred.
+4. Dispatch the matching unit layer only if that build retry passes.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

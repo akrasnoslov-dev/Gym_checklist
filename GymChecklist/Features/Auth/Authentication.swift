@@ -526,12 +526,16 @@ private final class FirebaseAuthenticationService: AuthenticationService {
             )
         } catch let error as NSError
             where error.domain == kGIDSignInErrorDomain
-                && error.code == GIDSignInErrorCode.canceled.rawValue {
+                && error.code == Self.googleSignInCancellationErrorCode {
             throw RegistrationError.signInCancelled
         } catch {
             throw RegistrationError.unavailable
         }
     }
+
+    // Google Sign-In documents cancellation as kGIDSignInErrorCodeCanceled (-5).
+    // The Swift enum is not exported by the SDK package's module interface.
+    private static let googleSignInCancellationErrorCode = -5
 
     @MainActor
     private static func activePresentationController() -> UIViewController? {

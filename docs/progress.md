@@ -210,11 +210,11 @@ Earlier dispatched macOS unit test:
 - checkpoint SHA: `32c1b81`
 - scope: gated `GymChecklistTests` verification after successful `32951109298` build; it is superseded for current-head evidence by the Google Sign-In package change.
 
-Current dispatched macOS build:
+Latest macOS build:
 - run `32953583375`
 - checkpoint SHA: `d097cfe`
-- current status: `pending` (do not poll while other safe work exists)
-- scope: focused `build-for-testing` verification for the pinned Google Sign-In package, app redirect handler, Firebase credential exchange, and provider-bound account-deletion reauthentication. Do not dispatch unit until this build passes.
+- final status: `completed / failure` (`build-for-testing`)
+- diagnosis: two compile-only Google Sign-In integration issues—the redirect handler was attached to `WindowGroup` rather than the contained view, and the package does not export the cancellation enum under the expected Swift symbol. The correction moves the handler into the app view tree and checks Google's documented cancellation code only in the Google Sign-In error domain. Re-run the focused build after this checkpoint is committed; do not dispatch unit until it passes.
 
 Previous macOS build:
 - run `32949106276`
@@ -302,8 +302,8 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Build verification `32953583375` is pending for `d097cfe`; Google provider console setup and non-production Firebase/Apple validation remain external/deferred.
-4. Dispatch the matching unit layer only if that build run passes.
+3. Commit the narrow correction for failed build `32953583375`, then dispatch a focused macOS build; Google provider console setup and non-production Firebase/Apple validation remain external/deferred.
+4. Dispatch the matching unit layer only if that new build run passes.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

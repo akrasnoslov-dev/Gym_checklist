@@ -18,14 +18,16 @@ struct GymChecklistApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if Self.canComposeFirebaseServices(status: firebaseStatus, isRunningTests: isRunningTests) {
-                ContentView()
-            } else {
-                FirebaseConfigurationUnavailableView()
+            Group {
+                if Self.canComposeFirebaseServices(status: firebaseStatus, isRunningTests: isRunningTests) {
+                    ContentView()
+                } else {
+                    FirebaseConfigurationUnavailableView()
+                }
             }
-        }
-        .onOpenURL { url in
-            _ = GIDSignIn.sharedInstance.handle(url)
+            .onOpenURL { url in
+                _ = GIDSignIn.sharedInstance.handle(url)
+            }
         }
     }
 

@@ -225,8 +225,9 @@ struct SettingsView: View {
             Button("Verify with Apple") {
                 Task {
                     isDeletingAccount = true
-                    _ = await onDeleteAccountWithAppleReauthentication("ui-test-token", "ui-test-nonce", "ui-test-code")
+                    let didDelete = await onDeleteAccountWithAppleReauthentication("ui-test-token", "ui-test-nonce", "ui-test-code")
                     isDeletingAccount = false
+                    if didDelete { isAppleAccountDeletionReauthenticationPresented = false }
                 }
             }
             .disabled(isDeletingAccount)
@@ -256,8 +257,9 @@ struct SettingsView: View {
                     return
                 }
                 isDeletingAccount = true
-                _ = await onDeleteAccountWithAppleReauthentication(token, nonce, code)
+                let didDelete = await onDeleteAccountWithAppleReauthentication(token, nonce, code)
                 isDeletingAccount = false
+                if didDelete { isAppleAccountDeletionReauthenticationPresented = false }
                 appleDeletionNonce = nil
             }
         }
@@ -274,8 +276,9 @@ struct SettingsView: View {
             Button("Verify with Google") {
                 Task {
                     isDeletingAccount = true
-                    _ = await onDeleteAccountWithGoogleReauthentication()
+                    let didDelete = await onDeleteAccountWithGoogleReauthentication()
                     isDeletingAccount = false
+                    if didDelete { isGoogleAccountDeletionReauthenticationPresented = false }
                 }
             }
             .disabled(isDeletingAccount)
@@ -292,8 +295,9 @@ struct SettingsView: View {
         GoogleSignInButton {
             Task {
                 isDeletingAccount = true
-                _ = await onDeleteAccountWithGoogleReauthentication()
+                let didDelete = await onDeleteAccountWithGoogleReauthentication()
                 isDeletingAccount = false
+                if didDelete { isGoogleAccountDeletionReauthenticationPresented = false }
             }
         }
         .frame(minHeight: 44)

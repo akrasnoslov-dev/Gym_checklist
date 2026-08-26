@@ -1,15 +1,8 @@
 name: iOS macOS CI (authoritative)
 
 on:
-  push:
-    branches:
-      - dev
-      - 'feature/**'
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
   pull_request:
-    branches: [main]
+    branches: [dev, main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -30,18 +23,14 @@ permissions:
   contents: read
 
 # Manual diagnostic/full runs must not cancel another manual run that is already
-# producing useful evidence. Automatic runs may still replace obsolete automatic
-# work on the same ref.
+# producing useful evidence. Pull-request runs may replace obsolete PR work on the
+# same ref. Normal pushes intentionally do not create macOS workflow runs.
 concurrency:
   group: ios-macos-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   build-and-test:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request' ||
-      contains(github.event.head_commit.message, '[macos-ci]')
     runs-on: macos-latest
     timeout-minutes: 45
     env:

@@ -79,6 +79,8 @@ Paid CI is not approved. The public repository uses free GitHub-hosted runners.
 
 Linux checks are routine feedback. macOS/Xcode CI is authoritative for iOS.
 
+The macOS workflow is intentionally **not triggered by normal pushes**. Normal pushes should create only the lightweight Linux run; macOS verification is started explicitly with `workflow_dispatch` at a justified checkpoint, or by a pull request. Do not re-add a push trigger to the macOS workflow merely to make it automatic: that creates misleading skipped workflow records and obscures the real verification history.
+
 ### Normal macOS strategy
 Use **one `full` macOS run at a coherent checkpoint** as the normal authoritative path.
 

@@ -749,7 +749,9 @@ final class RegistrationUITests: XCTestCase {
         app.tabBars.buttons["Settings"].tap()
         app.buttons["accountDelete"].tap()
         app.alerts["Delete account?"].buttons["Delete account"].tap()
-        app.buttons["accountDeleteVerifyApple"].tap()
+        let verifyApple = app.buttons["accountDeleteVerifyApple"]
+        XCTAssertTrue(verifyApple.waitForExistence(timeout: 5))
+        verifyApple.tap()
 
         XCTAssertTrue(app.descendants(matching: .any)["accountDeleteVerificationError"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)

@@ -9,12 +9,12 @@
 
 ## Verification
 - Local checks pass: whitespace, Firebase security hygiene, Firestore rules, account-deletion, offline, and Google Sign-In configuration contracts.
-- Authoritative macOS full run `32986107333` is queued for app checkpoint `09b1053`; prior queued run `32985688991` targets pre-fix `3e2e0cd` and is not current evidence.
+- Authoritative macOS full run `32986107333` failed only in nine timing-sensitive UI assertions after build/unit coverage completed. The narrow fix makes Program date and slow simulator UI waits explicit; it needs a `ui` diagnostic run, then a new current-head `full` run.
 
 ## External/deferred
 - Real device validation remains required for Google sign-in/cancel/failure, Firestore owner isolation/offline reconnect, Crashlytics, accessibility, account deletion, and the physical-iPhone MVP pass.
 - Paid Apple membership, App Store Connect/TestFlight, release signing/secrets, final icon, and paid-release Apple configuration remain deferred.
 
 ## Next action
-1. Reconcile macOS `full` run `32986107333` for `09b1053` under `AGENTS.md`.
-2. If it passes, continue only the remaining external/device validation; if it fails, diagnose its narrow failing surface before a new `full` run.
+1. Run macOS `ui` verification for the current timing-fix checkpoint.
+2. If it passes, dispatch one current-head macOS `full` run; otherwise fix only the reported UI surface.

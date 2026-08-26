@@ -216,6 +216,12 @@ Latest macOS build:
 - final status: `completed / failure` (`build-for-testing`)
 - diagnosis: two compile-only Google Sign-In integration issues—the redirect handler was attached to `WindowGroup` rather than the contained view, and the package does not export the cancellation enum under the expected Swift symbol. The correction moves the handler into the app view tree and checks Google's documented cancellation code only in the Google Sign-In error domain. Re-run the focused build after this checkpoint is committed; do not dispatch unit until it passes.
 
+Current dispatched macOS build:
+- run `32954303610`
+- checkpoint SHA: `5438dc4`
+- current status: `queued`
+- scope: focused `build-for-testing` retry for the two `32953583375` Google Sign-In compile corrections. Do not dispatch unit until it passes.
+
 Previous macOS build:
 - run `32949106276`
 - checkpoint SHA: `2df48bb`
@@ -302,7 +308,7 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Commit the narrow correction for failed build `32953583375`, then dispatch a focused macOS build; Google provider console setup and non-production Firebase/Apple validation remain external/deferred.
+3. Build verification `32954303610` is queued for `5438dc4`; Google provider console setup and non-production Firebase/Apple validation remain external/deferred.
 4. Dispatch the matching unit layer only if that new build run passes.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;

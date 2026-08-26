@@ -12,9 +12,12 @@ the protected `testflight-internal` GitHub environment exactly as described in
    `dev`.
 3. Enter the build number. Use `artifact` for the first signing/export check;
    download the short-lived IPA only through the restricted workflow artifact.
-4. After that succeeds, run again with `destination: testflight`. This archives
-   the same source revision and uploads directly to App Store Connect without
-   retaining the IPA as an Actions artifact.
+4. Record the immutable source revision printed by the workflow's **Validate
+   and record source revision** step. After the artifact check succeeds, run
+   again with `destination: testflight` and enter that SHA as `source_revision`.
+   This archives the same source revision and uploads directly to App Store
+   Connect without retaining the IPA as an Actions artifact. Leave
+   `source_revision` blank only when a same-revision retry is not needed.
 5. Wait for Apple processing. When it completes, open App Store Connect →
    TestFlight, add the build to the Internal Testing group, then install or
    update it through the TestFlight app on the iPhone.

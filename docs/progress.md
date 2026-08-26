@@ -135,7 +135,7 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - `docs/apple_signing_checklist.md` consolidates the Apple Developer, App ID, Sign in with Apple capability, App Store Connect record, distribution signing, icon/privacy, and TestFlight prerequisites. It requires Account Holder/Admin action but no credential sharing.
 
 ### M8.4–M8.7 release plumbing
-- `docs/github_release_secrets.md` defines only protected-environment secrets and non-sensitive variables. The manual-only `testflight-release.yml` workflow is restricted to `dev`, imports ephemeral signing material, verifies the profile's team/bundle binding, archives/exports with a caller-supplied monotonic build number, and uploads only on the explicit `testflight` destination.
+- `docs/github_release_secrets.md` defines only protected-environment secrets and non-sensitive variables. The manual-only `testflight-release.yml` workflow rejects non-`dev` dispatches, validates an optional immutable `dev` source revision, imports ephemeral signing material, verifies the profile's team/bundle binding, archives/exports with a caller-supplied monotonic build number, and uploads only on the explicit `testflight` destination. Its certificate import uses the documented protected-environment password name.
 - `docs/testflight_beta_workflow.md` provides the internal-beta update and bug-report workflow. No signing material, protected environment, App Store Connect record, or uploaded build exists yet, so M8.4–M8.7 remain pending external/live proof.
 - `docs/account_deletion_design.md` records the required authenticated backend erasure job and client confirmation/reauth flow. This is a release blocker; do not substitute an unsafe client-side Auth-first deletion sequence.
 

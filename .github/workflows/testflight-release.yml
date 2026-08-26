@@ -15,6 +15,10 @@ on:
         options:
           - artifact
           - testflight
+      source_revision:
+        description: "Optional immutable commit SHA already reachable from dev; blank uses this dispatch's SHA"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -24,8 +28,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-source:
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+    steps:
+      - name: Require a dev-branch dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/dev"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.source_revision || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate and record source revision
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin dev
+          git merge-base --is-ancestor HEAD origin/dev
+          SOURCE_SHA=$(git rev-parse HEAD)
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "### Release source" >> "$GITHUB_STEP_SUMMARY"
+          echo "Immutable source revision: \`$SOURCE_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
   archive:
-    if: github.ref == 'refs/heads/dev'
+    needs: validate-source
     runs-on: macos-latest
     timeout-minutes: 30
     environment: testflight-internal
@@ -47,6 +80,8 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ needs.validate-source.outputs.source_sha }}
+          fetch-depth: 1
           persist-credentials: false
 
       - name: Validate release configuration
@@ -96,7 +131,7 @@ jobs:
           security create-keychain -p "$CI_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$CI_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$TEMP_DIRECTORY/certificate.p12" -P "$APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security import "$TEMP_DIRECTORY/certificate.p12" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple: -k "$CI_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
 

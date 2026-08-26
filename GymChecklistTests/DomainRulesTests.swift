@@ -1836,7 +1836,7 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.workout(on: date)?.exercises.first?.isSkipped == true)
     }
 
-    func testRestoreTodayExerciseKeepsSkippedExerciseIncompleteAndRequiresCurrentDate() throws {
+    func testRestoreTodayExercisePreservesOriginalSetCompletionStateAndRequiresCurrentDate() throws {
         let date = LocalDate(year: 2026, month: 8, day: 14)
         let otherDate = LocalDate(year: 2026, month: 8, day: 15)
         let timestamp = Date(timeIntervalSince1970: 123_456)
@@ -1887,10 +1887,17 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertFalse(restored.isSkipped)
         XCTAssertEqual(restored.id, exerciseID)
         XCTAssertEqual(restored.order, 1)
-        XCTAssertTrue(restored.sets.allSatisfy { !$0.isCompleted })
-        XCTAssertTrue(restored.sets.allSatisfy { $0.actualReps == nil && $0.actualWeight == nil && $0.actualTimeSeconds == nil })
+        let restoredPlanned = try XCTUnwrap(restored.sets.first { $0.id == plannedSetID })
+        XCTAssertFalse(restoredPlanned.isCompleted)
+        XCTAssertNil(restoredPlanned.actualReps)
+        let restoredCompleted = try XCTUnwrap(restored.sets.first { $0.id == completedSetID })
+        XCTAssertTrue(restoredCompleted.isCompleted)
+        XCTAssertEqual(restoredCompleted.actualReps, 6)
+        XCTAssertEqual(restoredCompleted.actualWeight, 55)
+        XCTAssertEqual(restoredCompleted.actualTimeSeconds, 0)
+        XCTAssertEqual(restoredCompleted.completedAt, .distantPast)
         XCTAssertEqual(restoredWorkout.exercises.map(\.id), [leadingExerciseID, exerciseID])
-        XCTAssertEqual(restoredWorkout.completionStatus, .planned)
+        XCTAssertEqual(restoredWorkout.completionStatus, .partial)
         XCTAssertEqual(restoredWorkout, viewModel.workout(on: date))
 
         let afterRestore = try XCTUnwrap(repository.workout(on: date))

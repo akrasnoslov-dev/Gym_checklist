@@ -510,7 +510,7 @@ final class TodayInteractionUITests: XCTestCase {
         assert(app.buttons[rowSet], hasValue: "Incomplete")
     }
 
-    func testTodayRestoresSkippedExerciseAsIncomplete() {
+    func testTodayRestoresSkippedExerciseWithItsOriginalCompletionState() {
         let app = launchSeededToday()
         let benchPressHeader = app.staticTexts[benchPress]
         let benchSet = app.buttons[firstBenchSet]
@@ -530,7 +530,7 @@ final class TodayInteractionUITests: XCTestCase {
         restoreBench.tap()
 
         XCTAssertTrue(benchPressHeader.waitForExistence(timeout: 2))
-        assert(benchSet, hasValue: "Incomplete")
+        assert(benchSet, hasValue: "Completed")
         XCTAssertTrue(app.buttons[rowSet].exists)
         XCTAssertFalse(app.buttons["todayRestoreSkippedExercises"].exists)
     }

@@ -14,8 +14,11 @@ is in `docs/crashlytics_setup.md`.
 2. Enable Authentication. Create Cloud Firestore in **production mode** so it
    denies access by default; do not use test mode. Do not add Firestore client
    calls until M4.7 has committed and verified owner-scoped rules.
-3. Download `GoogleService-Info.plist` and add it only to the app target in
-   your local Xcode project. Do not commit it; `.gitignore` excludes it.
+3. Download `GoogleService-Info.plist` to `GymChecklist/GoogleService-Info.plist`.
+   Do not commit it; `.gitignore` excludes it. The tracked build phase copies
+   this local file into configured app builds and derives the Google callback
+   URL scheme from its `REVERSED_CLIENT_ID`; CI has no such file and remains
+   configuration-free.
 4. Resolve packages and build the `GymChecklist` scheme. The Firebase bootstrap
    returns a clear development failure until a valid plist is present; XCTest
    and UI-test processes intentionally bypass configuration so CI never needs a

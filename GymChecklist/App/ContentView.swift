@@ -23,6 +23,7 @@ struct ContentView: View {
                 AuthenticatedContentView(
                     userID: user.id,
                     onLogout: authenticationViewModel.signOut,
+                    onDeleteAccount: authenticationViewModel.deleteAccount,
                     authenticationError: authenticationViewModel.errorMessage
                 )
                     .id(user.id.rawValue)
@@ -220,10 +221,17 @@ private struct AuthenticatedContentView: View {
     @StateObject private var workoutViewModel: WorkoutViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
     private let onLogout: () -> Void
+    private let onDeleteAccount: () async -> Bool
     private let authenticationError: String?
 
-    init(userID: UserID, onLogout: @escaping () -> Void, authenticationError: String?) {
+    init(
+        userID: UserID,
+        onLogout: @escaping () -> Void,
+        onDeleteAccount: @escaping () async -> Bool,
+        authenticationError: String?
+    ) {
         self.onLogout = onLogout
+        self.onDeleteAccount = onDeleteAccount
         self.authenticationError = authenticationError
         let calendar = Calendar.autoupdatingCurrent
         let currentDateProvider = { ContentView.localCurrentDate(calendar: calendar) }
@@ -302,6 +310,10 @@ private struct AuthenticatedContentView: View {
             SettingsView(
                 viewModel: settingsViewModel,
                 onLogout: onLogout,
+                onDeleteAccount: onDeleteAccount,
+                requiresAppleTokenRevocationForAccountDeletion: authenticationViewModel.requiresAppleTokenRevocationForAccountDeletion,
+                onDeleteAccountWithAppleReauthentication: authenticationViewModel.deleteAccountWithAppleReauthentication,
+                onAppleAccountDeletionVerificationFailure: authenticationViewModel.handleAppleAccountDeletionVerificationFailure,
                 errorMessage: authenticationError
             )
                 .tabItem {

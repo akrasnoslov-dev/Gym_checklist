@@ -1,0 +1,172 @@
+name: TestFlight release (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "New positive integer build number (must exceed every uploaded build)"
+        required: true
+        type: string
+      destination:
+        description: "Keep the signed IPA as an artifact or upload it to TestFlight"
+        required: true
+        default: artifact
+        type: choice
+        options:
+          - artifact
+          - testflight
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-release
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    environment: testflight-internal
+    permissions:
+      contents: read
+    env:
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      IOS_PROVISIONING_PROFILE_NAME: ${{ vars.IOS_PROVISIONING_PROFILE_NAME }}
+      APPSTORE_CONNECT_KEY_ID: ${{ vars.APPSTORE_CONNECT_KEY_ID }}
+      APPSTORE_CONNECT_ISSUER_ID: ${{ vars.APPSTORE_CONNECT_ISSUER_ID }}
+      IOS_DISTRIBUTION_CERTIFICATE_P12_B64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_B64 }}
+      IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+      CI_KEYCHAIN_PASSWORD: ${{ secrets.CI_KEYCHAIN_PASSWORD }}
+      APPSTORE_CONNECT_API_PRIVATE_KEY_B64: ${{ secrets.APPSTORE_CONNECT_API_PRIVATE_KEY_B64 }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+      DESTINATION: ${{ inputs.destination }}
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate release configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          for value in \
+            "$APPLE_TEAM_ID" \
+            "$IOS_PROVISIONING_PROFILE_NAME" \
+            "$IOS_DISTRIBUTION_CERTIFICATE_P12_B64" \
+            "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" \
+            "$IOS_PROVISIONING_PROFILE_B64" \
+            "$CI_KEYCHAIN_PASSWORD"; do
+            if [ -z "$value" ]; then
+              echo "Missing required release configuration. See docs/github_release_secrets.md." >&2
+              exit 1
+            fi
+          done
+          if [ "$DESTINATION" = "testflight" ]; then
+            for value in "$APPSTORE_CONNECT_KEY_ID" "$APPSTORE_CONNECT_ISSUER_ID" "$APPSTORE_CONNECT_API_PRIVATE_KEY_B64"; do
+              if [ -z "$value" ]; then
+                echo "Missing App Store Connect upload configuration. See docs/github_release_secrets.md." >&2
+                exit 1
+              fi
+            done
+          fi
+
+      - name: Install signing material
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEMP_DIRECTORY="$RUNNER_TEMP/signing"
+          KEYCHAIN_PATH="$RUNNER_TEMP/gym-checklist-release.keychain-db"
+          PROFILE_SOURCE="$TEMP_DIRECTORY/GymChecklist.mobileprovision"
+          PROFILE_PLIST="$TEMP_DIRECTORY/profile.plist"
+          umask 077
+          mkdir -p "$TEMP_DIRECTORY" "$HOME/Library/MobileDevice/Provisioning Profiles"
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_P12_B64" | base64 -D > "$TEMP_DIRECTORY/certificate.p12"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_B64" | base64 -D > "$PROFILE_SOURCE"
+          security cms -D -i "$PROFILE_SOURCE" > "$PROFILE_PLIST"
+          PROFILE_TEAM_ID=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$PROFILE_PLIST")
+          PROFILE_APPLICATION_IDENTIFIER=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$PROFILE_PLIST")
+          test "$PROFILE_TEAM_ID" = "$APPLE_TEAM_ID"
+          test "$PROFILE_APPLICATION_IDENTIFIER" = "$APPLE_TEAM_ID.dev.akrasnoslov.GymChecklist"
+          cp "$PROFILE_SOURCE" "$HOME/Library/MobileDevice/Provisioning Profiles/GymChecklist.mobileprovision"
+          security create-keychain -p "$CI_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$CI_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$TEMP_DIRECTORY/certificate.p12" -P "$APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$CI_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Archive and export IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE_PATH="$RUNNER_TEMP/GymChecklist.xcarchive"
+          EXPORT_PATH="$RUNNER_TEMP/export"
+          EXPORT_OPTIONS="$RUNNER_TEMP/ExportOptions.plist"
+          cat > "$EXPORT_OPTIONS" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>provisioningProfiles</key><dict>
+              <key>dev.akrasnoslov.GymChecklist</key><string>$IOS_PROVISIONING_PROFILE_NAME</string>
+            </dict>
+          </dict></plist>
+          PLIST
+          xcodebuild -resolvePackageDependencies -project GymChecklist.xcodeproj -scheme GymChecklist
+          xcodebuild archive \
+            -project GymChecklist.xcodeproj \
+            -scheme GymChecklist \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$ARCHIVE_PATH" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$IOS_PROVISIONING_PROFILE_NAME" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "$EXPORT_OPTIONS"
+          test -f "$EXPORT_PATH/GymChecklist.ipa"
+          cp "$EXPORT_PATH/GymChecklist.ipa" "$RUNNER_TEMP/GymChecklist-$BUILD_NUMBER.ipa"
+
+      - name: Upload signed IPA artifact
+        if: inputs.destination == 'artifact'
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        with:
+          name: GymChecklist-${{ inputs.build_number }}
+          path: ${{ runner.temp }}/GymChecklist-${{ inputs.build_number }}.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to TestFlight
+        if: inputs.destination == 'testflight'
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY_DIRECTORY="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$KEY_DIRECTORY"
+          umask 077
+          printf '%s' "$APPSTORE_CONNECT_API_PRIVATE_KEY_B64" | base64 -D > "$KEY_DIRECTORY/AuthKey_$APPSTORE_CONNECT_KEY_ID.p8"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$RUNNER_TEMP/GymChecklist-$BUILD_NUMBER.ipa" \
+            --apiKey "$APPSTORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APPSTORE_CONNECT_ISSUER_ID"
+
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          security delete-keychain "$RUNNER_TEMP/gym-checklist-release.keychain-db"
+          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/GymChecklist.mobileprovision"
+          rm -rf "$RUNNER_TEMP/signing" "$HOME/.appstoreconnect/private_keys"

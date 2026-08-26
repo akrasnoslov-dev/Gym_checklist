@@ -1,4 +1,5 @@
 import Combine
+import AuthenticationServices
 import SwiftUI
 
 @MainActor
@@ -50,7 +51,15 @@ final class SettingsViewModel: ObservableObject {
 struct SettingsView: View {
     @ObservedObject var viewModel: SettingsViewModel
     let onLogout: () -> Void
+    let onDeleteAccount: () async -> Bool
+    let requiresAppleTokenRevocationForAccountDeletion: Bool
+    let onDeleteAccountWithAppleReauthentication: (String, String, String) async -> Bool
+    let onAppleAccountDeletionVerificationFailure: () -> Void
     let errorMessage: String?
+    @State private var isDeleteAccountConfirmationPresented = false
+    @State private var isAppleAccountDeletionReauthenticationPresented = false
+    @State private var isDeletingAccount = false
+    @State private var appleDeletionNonce: String?
     @AccessibilityFocusState private var isErrorFocused: Bool
 
     var body: some View {
@@ -108,6 +117,11 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settingsAccountSummary")
                     Button("Log out", role: .destructive, action: onLogout)
                         .accessibilityIdentifier("authLogout")
+                    Button("Delete account", role: .destructive) {
+                        isDeleteAccountConfirmationPresented = true
+                    }
+                    .disabled(isDeletingAccount)
+                    .accessibilityIdentifier("accountDelete")
                 }
                 if let errorMessage {
                     Section {
@@ -121,6 +135,48 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .accessibilityIdentifier("settingsPlaceholder")
+            .alert("Delete account?", isPresented: $isDeleteAccountConfirmationPresented) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete account", role: .destructive) {
+                    Task {
+                        if requiresAppleTokenRevocationForAccountDeletion {
+                            isAppleAccountDeletionReauthenticationPresented = true
+                        } else {
+                            isDeletingAccount = true
+                            _ = await onDeleteAccount()
+                            isDeletingAccount = false
+                        }
+                    }
+                }
+            } message: {
+                Text("This permanently deletes your workouts, custom exercises, settings, and account. This can’t be undone.")
+            }
+            .sheet(isPresented: $isAppleAccountDeletionReauthenticationPresented) {
+                NavigationStack {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Verify with Apple")
+                            .font(.title2.bold())
+                        Text("For security, verify the same Apple account before permanently deleting your data.")
+                            .foregroundStyle(.secondary)
+                        if let errorMessage {
+                            Label(errorMessage, systemImage: "exclamationmark.circle")
+                                .foregroundStyle(.red)
+                                .accessibilityLabel("Error: \(errorMessage)")
+                                .accessibilityIdentifier("accountDeleteVerificationError")
+                        }
+                        appleDeletionButton
+                        Spacer()
+                    }
+                    .padding()
+                    .navigationTitle("Delete account")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { isAppleAccountDeletionReauthenticationPresented = false }
+                        }
+                    }
+                }
+                .interactiveDismissDisabled(isDeletingAccount)
+            }
             .onChange(of: viewModel.errorMessage) { _, newValue in
                 if newValue != nil { isErrorFocused = true }
             }
@@ -128,6 +184,54 @@ struct SettingsView: View {
                 if newValue != nil { isErrorFocused = true }
             }
         }
+    }
+
+    private var appleDeletionButton: some View {
+#if DEBUG
+        if FirebaseBootstrap.isRunningTests() {
+            Button("Verify with Apple") {
+                Task {
+                    isDeletingAccount = true
+                    _ = await onDeleteAccountWithAppleReauthentication("ui-test-token", "ui-test-nonce", "ui-test-code")
+                    isDeletingAccount = false
+                }
+            }
+            .disabled(isDeletingAccount)
+            .accessibilityIdentifier("accountDeleteVerifyApple")
+        } else {
+            nativeAppleDeletionButton
+        }
+#else
+        nativeAppleDeletionButton
+#endif
+    }
+
+    private var nativeAppleDeletionButton: some View {
+        SignInWithAppleButton(.continue) { request in
+            appleDeletionNonce = AppleSignInRequest.configure(request)
+        } onCompletion: { result in
+            Task {
+                guard case .success(let authorization) = result else {
+                    appleDeletionNonce = nil
+                    return
+                }
+                guard let nonce = appleDeletionNonce,
+                      let token = AppleSignInRequest.identityToken(from: authorization),
+                      let code = AppleSignInRequest.authorizationCode(from: authorization) else {
+                    onAppleAccountDeletionVerificationFailure()
+                    appleDeletionNonce = nil
+                    return
+                }
+                isDeletingAccount = true
+                _ = await onDeleteAccountWithAppleReauthentication(token, nonce, code)
+                isDeletingAccount = false
+                appleDeletionNonce = nil
+            }
+        }
+        .signInWithAppleButtonStyle(.black)
+        .frame(minHeight: 44)
+        .disabled(isDeletingAccount)
+        .accessibilityIdentifier("accountDeleteVerifyApple")
     }
 }
 

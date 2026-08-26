@@ -35,6 +35,7 @@ AuthKey_*.p8
 *.log
 .tmp/
 tmp/
+functions/node_modules/
 
 # Fastlane generated artifacts (if added later)
 fastlane/report.xml

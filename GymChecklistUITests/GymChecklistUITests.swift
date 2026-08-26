@@ -609,6 +609,83 @@ final class TodayEmptyStateUITests: XCTestCase {
 }
 
 final class RegistrationUITests: XCTestCase {
+    func testAccountDeletionCancellationKeepsTheUserSignedIn() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        XCTAssertTrue(app.alerts["Delete account?"].waitForExistence(timeout: 2))
+        app.alerts["Delete account?"].buttons["Cancel"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testConfirmedAccountDeletionRoutesToAuthScreen() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+    }
+
+    func testAccountDeletionReauthenticationRequirementKeepsTheSession() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_ERROR"] = "recentAuthentication"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+
+        XCTAssertTrue(app.staticTexts["For security, sign in again and then retry account deletion."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testAppleAccountDeletionVerifiesBeforeRoutingToAuthScreen() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_PROVIDER"] = "apple"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+        app.buttons["accountDeleteVerifyApple"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+    }
+
+    func testAppleAccountDeletionVerificationFailureKeepsTheSession() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_PROVIDER"] = "apple"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_ERROR"] = "recentAuthentication"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+        app.buttons["accountDeleteVerifyApple"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["accountDeleteVerificationError"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
     func testAppleSignInRoutesToToday() {
         let app = launchRegistration()
 

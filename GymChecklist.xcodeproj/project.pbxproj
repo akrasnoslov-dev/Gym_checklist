@@ -35,6 +35,7 @@
 		M10000000000000000000003 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = M20000000000000000000003 /* FirebaseFirestore */; };
 		M10000000000000000000004 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = M20000000000000000000004 /* FirebaseAnalytics */; };
 		M10000000000000000000005 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = M20000000000000000000005 /* FirebaseCrashlytics */; };
+		M10000000000000000000006 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = M20000000000000000000006 /* FirebaseFunctions */; };
 		N10000000000000000000001 /* FirestoreMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = N20000000000000000000001 /* FirestoreMapping.swift */; };
 		N10000000000000000000002 /* InMemoryUserDataRepositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = N20000000000000000000002 /* InMemoryUserDataRepositories.swift */; };
 		O10000000000000000000001 /* FirestoreWorkoutRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = O20000000000000000000001 /* FirestoreWorkoutRepository.swift */; };
@@ -84,7 +85,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A60000000000000000000001 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (M10000000000000000000001 /* FirebaseCore in Frameworks */, M10000000000000000000002 /* FirebaseAuth in Frameworks */, M10000000000000000000003 /* FirebaseFirestore in Frameworks */, M10000000000000000000004 /* FirebaseAnalytics in Frameworks */, M10000000000000000000005 /* FirebaseCrashlytics in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000001 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (M10000000000000000000001 /* FirebaseCore in Frameworks */, M10000000000000000000002 /* FirebaseAuth in Frameworks */, M10000000000000000000003 /* FirebaseFirestore in Frameworks */, M10000000000000000000004 /* FirebaseAnalytics in Frameworks */, M10000000000000000000005 /* FirebaseCrashlytics in Frameworks */, M10000000000000000000006 /* FirebaseFunctions in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
 		A60000000000000000000002 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* XCTest.framework in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
 		A60000000000000000000003 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000006 /* XCTest.framework in Frameworks */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
@@ -115,7 +116,7 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A50000000000000000000001 /* GymChecklist */ = {isa = PBXNativeTarget; buildConfigurationList = A80000000000000000000002; buildPhases = (A90000000000000000000001 /* Sources */, A60000000000000000000001 /* Frameworks */, AA0000000000000000000001 /* Resources */, M40000000000000000000001 /* Upload Crashlytics dSYMs */,); buildRules = (); dependencies = (); name = GymChecklist; packageProductDependencies = (M20000000000000000000001 /* FirebaseCore */, M20000000000000000000002 /* FirebaseAuth */, M20000000000000000000003 /* FirebaseFirestore */, M20000000000000000000004 /* FirebaseAnalytics */, M20000000000000000000005 /* FirebaseCrashlytics */,); productName = GymChecklist; productReference = A20000000000000000000005 /* GymChecklist.app */; productType = "com.apple.product-type.application"; };
+		A50000000000000000000001 /* GymChecklist */ = {isa = PBXNativeTarget; buildConfigurationList = A80000000000000000000002; buildPhases = (A90000000000000000000001 /* Sources */, A60000000000000000000001 /* Frameworks */, AA0000000000000000000001 /* Resources */, M40000000000000000000001 /* Upload Crashlytics dSYMs */,); buildRules = (); dependencies = (); name = GymChecklist; packageProductDependencies = (M20000000000000000000001 /* FirebaseCore */, M20000000000000000000002 /* FirebaseAuth */, M20000000000000000000003 /* FirebaseFirestore */, M20000000000000000000004 /* FirebaseAnalytics */, M20000000000000000000005 /* FirebaseCrashlytics */, M20000000000000000000006 /* FirebaseFunctions */,); productName = GymChecklist; productReference = A20000000000000000000005 /* GymChecklist.app */; productType = "com.apple.product-type.application"; };
 		A50000000000000000000002 /* GymChecklistTests */ = {isa = PBXNativeTarget; buildConfigurationList = A80000000000000000000003; buildPhases = (A90000000000000000000002 /* Sources */, A60000000000000000000002 /* Frameworks */, AA0000000000000000000002 /* Resources */,); buildRules = (); dependencies = (AB0000000000000000000001 /* PBXTargetDependency */,); name = GymChecklistTests; productName = GymChecklistTests; productReference = A20000000000000000000007 /* GymChecklistTests.xctest */; productType = "com.apple.product-type.bundle.unit-test"; };
 		A50000000000000000000003 /* GymChecklistUITests */ = {isa = PBXNativeTarget; buildConfigurationList = A80000000000000000000004; buildPhases = (A90000000000000000000003 /* Sources */, A60000000000000000000003 /* Frameworks */, AA0000000000000000000003 /* Resources */,); buildRules = (); dependencies = (AB0000000000000000000002 /* PBXTargetDependency */,); name = GymChecklistUITests; productName = GymChecklistUITests; productReference = A20000000000000000000008 /* GymChecklistUITests.xctest */; productType = "com.apple.product-type.bundle.ui-testing"; };
 /* End PBXNativeTarget section */
@@ -173,6 +174,7 @@
 		M20000000000000000000003 /* FirebaseFirestore */ = {isa = XCSwiftPackageProductDependency; package = M30000000000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */; productName = FirebaseFirestore; };
 		M20000000000000000000004 /* FirebaseAnalytics */ = {isa = XCSwiftPackageProductDependency; package = M30000000000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */; productName = FirebaseAnalytics; };
 		M20000000000000000000005 /* FirebaseCrashlytics */ = {isa = XCSwiftPackageProductDependency; package = M30000000000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */; productName = FirebaseCrashlytics; };
+		M20000000000000000000006 /* FirebaseFunctions */ = {isa = XCSwiftPackageProductDependency; package = M30000000000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */; productName = FirebaseFunctions; };
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A40000000000000000000001 /* Project object */;

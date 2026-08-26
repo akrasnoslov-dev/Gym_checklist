@@ -347,6 +347,66 @@ final class AuthenticationViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.currentUser)
         XCTAssertEqual(viewModel.passwordResetMessage, "If an account matches this email, we’ll send reset instructions.")
     }
+
+    func testAccountDeletionClearsTheSessionOnlyAfterSuccess() async {
+        let user = AuthenticatedUser(id: UserID(rawValue: "member"))
+        let service = TestAuthenticationService(deleteAccountResult: .success(()))
+        let viewModel = AuthenticationViewModel(service: service)
+        service.emitAuthentication(user)
+
+        let deleted = await viewModel.deleteAccount()
+
+        XCTAssertTrue(deleted)
+        XCTAssertEqual(service.deleteAccountCalls, 1)
+        XCTAssertNil(viewModel.currentUser)
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
+    func testAccountDeletionFailureKeepsTheSessionAndShowsNeutralError() async {
+        let user = AuthenticatedUser(id: UserID(rawValue: "member"))
+        let service = TestAuthenticationService(deleteAccountResult: .failure(.unavailable))
+        let viewModel = AuthenticationViewModel(service: service)
+        service.emitAuthentication(user)
+
+        let deleted = await viewModel.deleteAccount()
+
+        XCTAssertFalse(deleted)
+        XCTAssertEqual(service.deleteAccountCalls, 1)
+        XCTAssertEqual(viewModel.currentUser, user)
+        XCTAssertEqual(viewModel.errorMessage, "Couldn’t delete your account. You’re still signed in. Try again.")
+    }
+
+    func testAccountDeletionRequiresRecentAuthenticationAndKeepsTheSession() async {
+        let user = AuthenticatedUser(id: UserID(rawValue: "member"))
+        let service = TestAuthenticationService(deleteAccountResult: .failure(.requiresRecentAuthentication))
+        let viewModel = AuthenticationViewModel(service: service)
+        service.emitAuthentication(user)
+
+        let deleted = await viewModel.deleteAccount()
+
+        XCTAssertFalse(deleted)
+        XCTAssertEqual(service.deleteAccountCalls, 1)
+        XCTAssertEqual(viewModel.currentUser, user)
+        XCTAssertEqual(viewModel.errorMessage, "For security, sign in again and then retry account deletion.")
+    }
+
+    func testAppleAccountDeletionUsesReauthenticationPathBeforeClearingTheSession() async {
+        let user = AuthenticatedUser(id: UserID(rawValue: "member"))
+        let service = TestAuthenticationService(requiresAppleTokenRevocation: true)
+        let viewModel = AuthenticationViewModel(service: service)
+        service.emitAuthentication(user)
+
+        let deleted = await viewModel.deleteAccountWithAppleReauthentication(
+            identityToken: "fresh-token",
+            rawNonce: "fresh-nonce",
+            authorizationCode: "fresh-code"
+        )
+
+        XCTAssertTrue(deleted)
+        XCTAssertEqual(service.appleAccountDeletionCalls, 1)
+        XCTAssertEqual(service.deleteAccountCalls, 1)
+        XCTAssertNil(viewModel.currentUser)
+    }
 }
 
 @MainActor
@@ -362,22 +422,30 @@ private final class TestAuthenticationService: AuthenticationService {
     private let deliversInitialObservation: Bool
     private let notifiesOnSignOut: Bool
     private let appleResult: Result<AuthenticatedUser, RegistrationError>?
+    private let deleteAccountResult: Result<Void, AccountDeletionError>
+    private let requiresAppleTokenRevocation: Bool
     private var observers: [UUID: @MainActor (AuthenticatedUser?) -> Void] = [:]
     private(set) var currentUser: AuthenticatedUser?
     private(set) var registrationCalls = 0
     private(set) var resetCalls = 0
     private(set) var appleSignInCalls = 0
+    private(set) var deleteAccountCalls = 0
+    private(set) var appleAccountDeletionCalls = 0
 
     init(
         result: Result<AuthenticatedUser, RegistrationError> = .success(AuthenticatedUser(id: UserID(rawValue: "test-user"))),
         deliversInitialObservation: Bool = true,
         notifiesOnSignOut: Bool = true,
-        appleResult: Result<AuthenticatedUser, RegistrationError>? = nil
+        appleResult: Result<AuthenticatedUser, RegistrationError>? = nil,
+        deleteAccountResult: Result<Void, AccountDeletionError> = .success(()),
+        requiresAppleTokenRevocation: Bool = false
     ) {
         self.result = result
         self.deliversInitialObservation = deliversInitialObservation
         self.notifiesOnSignOut = notifiesOnSignOut
         self.appleResult = appleResult
+        self.deleteAccountResult = deleteAccountResult
+        self.requiresAppleTokenRevocation = requiresAppleTokenRevocation
     }
 
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation {
@@ -387,6 +455,10 @@ private final class TestAuthenticationService: AuthenticationService {
             observer(currentUser)
         }
         return Observation { [weak self] in self?.observers.removeValue(forKey: id) }
+    }
+
+    var requiresAppleTokenRevocationForAccountDeletion: Bool {
+        requiresAppleTokenRevocation
     }
 
     func emitAuthentication(_ user: AuthenticatedUser?) {
@@ -412,6 +484,25 @@ private final class TestAuthenticationService: AuthenticationService {
         currentUser = user
         observers.values.forEach { $0(user) }
         return user
+    }
+
+    func deleteAccount() async throws {
+        deleteAccountCalls += 1
+        try deleteAccountResult.get()
+        currentUser = nil
+        observers.values.forEach { $0(nil) }
+    }
+
+    func deleteAccountWithAppleReauthentication(
+        identityToken: String,
+        rawNonce: String,
+        authorizationCode: String
+    ) async throws {
+        appleAccountDeletionCalls += 1
+        guard !identityToken.isEmpty, !rawNonce.isEmpty, !authorizationCode.isEmpty else {
+            throw AccountDeletionError.unavailable
+        }
+        try await deleteAccount()
     }
 
     func signOut() throws {

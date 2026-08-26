@@ -23,6 +23,12 @@ is in `docs/crashlytics_setup.md`.
 5. Before live Firestore verification, deploy `firestore.rules` as documented
    in `docs/firestore_security.md`, then validate owner isolation with two
    non-production test users. Do not use Firestore test mode.
+6. Before external release, deploy the authenticated `deleteAccount` callable
+   from `functions/` to a non-production project and validate its recent-auth,
+   owner-only erase, retry, and provider reauthentication paths as described in
+   `docs/account_deletion_design.md`. This backend deployment may require
+   Firebase/Google Cloud billing/runtime configuration; do not configure it
+   with credentials in the repository.
 
 `GoogleService-Info.plist` contains project identifiers rather than a service
 account key, but it remains local to avoid publishing project configuration.

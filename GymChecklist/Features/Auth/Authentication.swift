@@ -2,6 +2,7 @@ import AuthenticationServices
 import Combine
 import CryptoKit
 import FirebaseAuth
+import FirebaseFunctions
 import Foundation
 import Security
 
@@ -31,6 +32,20 @@ enum RegistrationError: Error, Equatable {
     }
 }
 
+enum AccountDeletionError: Error, Equatable {
+    case requiresRecentAuthentication
+    case unavailable
+
+    var message: String {
+        switch self {
+        case .requiresRecentAuthentication:
+            return "For security, sign in again and then retry account deletion."
+        case .unavailable:
+            return "Couldn’t delete your account. You’re still signed in. Try again."
+        }
+    }
+}
+
 @MainActor
 protocol AuthenticationObservation: AnyObject {
     func cancel()
@@ -39,11 +54,18 @@ protocol AuthenticationObservation: AnyObject {
 @MainActor
 protocol AuthenticationService: AnyObject {
     var currentUser: AuthenticatedUser? { get }
+    var requiresAppleTokenRevocationForAccountDeletion: Bool { get }
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation
     func register(email: String, password: String) async throws -> AuthenticatedUser
     func signIn(email: String, password: String) async throws -> AuthenticatedUser
     func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthenticatedUser
     func sendPasswordReset(email: String) async throws
+    func deleteAccount() async throws
+    func deleteAccountWithAppleReauthentication(
+        identityToken: String,
+        rawNonce: String,
+        authorizationCode: String
+    ) async throws
     func signOut() throws
 }
 
@@ -157,6 +179,54 @@ final class AuthenticationViewModel: ObservableObject {
             : "We could not sign you in with Apple. Please try again."
     }
 
+    func handleAppleAccountDeletionVerificationFailure() {
+        errorMessage = "We couldn’t verify your Apple account. You’re still signed in. Try again."
+    }
+
+    @discardableResult
+    func deleteAccount() async -> Bool {
+        return await performAccountDeletion { try await service.deleteAccount() }
+    }
+
+    @discardableResult
+    func deleteAccountWithAppleReauthentication(
+        identityToken: String,
+        rawNonce: String,
+        authorizationCode: String
+    ) async -> Bool {
+        return await performAccountDeletion {
+            try await service.deleteAccountWithAppleReauthentication(
+                identityToken: identityToken,
+                rawNonce: rawNonce,
+                authorizationCode: authorizationCode
+            )
+        }
+    }
+
+    var requiresAppleTokenRevocationForAccountDeletion: Bool {
+        service.requiresAppleTokenRevocationForAccountDeletion
+    }
+
+    @discardableResult
+    private func performAccountDeletion(_ operation: () async throws -> Void) async -> Bool {
+        isSubmitting = true
+        errorMessage = nil
+        defer { isSubmitting = false }
+        do {
+            try await operation()
+            currentUser = nil
+            isResolving = false
+            clearFeedback()
+            return true
+        } catch let error as AccountDeletionError {
+            errorMessage = error.message
+            return false
+        } catch {
+            errorMessage = AccountDeletionError.unavailable.message
+            return false
+        }
+    }
+
     func signOut() {
         do {
             try service.signOut()
@@ -226,6 +296,10 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         auth.currentUser.map { AuthenticatedUser(id: UserID(rawValue: $0.uid)) }
     }
 
+    var requiresAppleTokenRevocationForAccountDeletion: Bool {
+        auth.currentUser?.providerData.contains(where: { $0.providerID == "apple.com" }) == true
+    }
+
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation {
         let handle = auth.addStateDidChangeListener { _, user in
             let authenticatedUser = user.map { AuthenticatedUser(id: UserID(rawValue: $0.uid)) }
@@ -237,7 +311,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
     }
 
     func register(email: String, password: String) async throws -> AuthenticatedUser {
-        try await withCheckedThrowingContinuation { continuation in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<AuthenticatedUser, Error>) in
             auth.createUser(withEmail: email, password: password) { result, error in
                 if let error {
                     continuation.resume(throwing: Self.map(error))
@@ -294,6 +368,51 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         }
     }
 
+    func deleteAccount() async throws {
+        guard !requiresAppleTokenRevocationForAccountDeletion else {
+            throw AccountDeletionError.requiresRecentAuthentication
+        }
+        try await FirebaseAccountDeletionCallable().deleteCurrentAccount()
+    }
+
+    func deleteAccountWithAppleReauthentication(
+        identityToken: String,
+        rawNonce: String,
+        authorizationCode: String
+    ) async throws {
+        guard let user = auth.currentUser,
+              user.providerData.contains(where: { $0.providerID == "apple.com" }) else {
+            throw AccountDeletionError.unavailable
+        }
+        let expectedUserID = user.uid
+        let credential = OAuthProvider.credential(
+            withProviderID: "apple.com",
+            idToken: identityToken,
+            rawNonce: rawNonce
+        )
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            user.reauthenticate(with: credential) { _, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+        guard auth.currentUser?.uid == expectedUserID else {
+            throw AccountDeletionError.unavailable
+        }
+        try await auth.revokeToken(withAuthorizationCode: authorizationCode)
+        guard auth.currentUser?.uid == expectedUserID else {
+            throw AccountDeletionError.unavailable
+        }
+        _ = try await user.getIDToken(forcingRefresh: true)
+        guard auth.currentUser?.uid == expectedUserID else {
+            throw AccountDeletionError.unavailable
+        }
+        try await FirebaseAccountDeletionCallable().deleteCurrentAccount()
+    }
+
     private static func map(_ error: Error) -> RegistrationError {
         guard let code = AuthErrorCode(rawValue: (error as NSError).code) else { return .unavailable }
         switch code {
@@ -304,6 +423,29 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         case .wrongPassword, .userNotFound, .invalidCredential: return .invalidCredentials
         default: return .unavailable
         }
+    }
+}
+
+private struct FirebaseAccountDeletionCallable {
+    func deleteCurrentAccount() async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            Functions.functions().httpsCallable("deleteAccount").call { _, error in
+                if let error {
+                    continuation.resume(throwing: Self.map(error))
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    private static func map(_ error: Error) -> AccountDeletionError {
+        let nsError = error as NSError
+        guard nsError.domain == FunctionsErrorDomain,
+              let code = FunctionsErrorCode(rawValue: nsError.code) else {
+            return .unavailable
+        }
+        return code == .failedPrecondition ? .requiresRecentAuthentication : .unavailable
     }
 }
 
@@ -319,6 +461,12 @@ enum AppleSignInRequest {
         guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
               let tokenData = credential.identityToken else { return nil }
         return String(data: tokenData, encoding: .utf8)
+    }
+
+    static func authorizationCode(from authorization: ASAuthorization) -> String? {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let codeData = credential.authorizationCode else { return nil }
+        return String(data: codeData, encoding: .utf8)
     }
 
     static func isCancellation(_ error: Error) -> Bool {
@@ -361,9 +509,15 @@ private final class UITestAuthenticationService: AuthenticationService {
     private var observers: [UUID: @MainActor (AuthenticatedUser?) -> Void] = [:]
     private(set) var currentUser: AuthenticatedUser?
     private let registrationError: RegistrationError?
+    private let accountDeletionError: AccountDeletionError?
+    private let requiresAppleTokenRevocation: Bool
 
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         registrationError = environment["UITEST_REGISTRATION_ERROR"] == "emailInUse" ? .emailAlreadyInUse : nil
+        accountDeletionError = environment["UITEST_ACCOUNT_DELETION_ERROR"] == "recentAuthentication"
+            ? .requiresRecentAuthentication
+            : nil
+        requiresAppleTokenRevocation = environment["UITEST_ACCOUNT_DELETION_PROVIDER"] == "apple"
         if environment["UITEST_AUTH_MODE"] != "registration" {
             currentUser = AuthenticatedUser(id: UserID(rawValue: "ui-test-user"))
         }
@@ -374,6 +528,10 @@ private final class UITestAuthenticationService: AuthenticationService {
         observers[id] = observer
         observer(currentUser)
         return FirebaseAuthenticationObservation { [weak self] in self?.observers.removeValue(forKey: id) }
+    }
+
+    var requiresAppleTokenRevocationForAccountDeletion: Bool {
+        requiresAppleTokenRevocation
     }
 
     func register(email: String, password: String) async throws -> AuthenticatedUser {
@@ -390,6 +548,26 @@ private final class UITestAuthenticationService: AuthenticationService {
 
     func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthenticatedUser {
         try await register(email: "apple-ui-test@example.com", password: "not-used")
+    }
+
+    func deleteAccount() async throws {
+        if requiresAppleTokenRevocation { throw AccountDeletionError.requiresRecentAuthentication }
+        if let accountDeletionError { throw accountDeletionError }
+        currentUser = nil
+        observers.values.forEach { $0(nil) }
+    }
+
+    func deleteAccountWithAppleReauthentication(
+        identityToken: String,
+        rawNonce: String,
+        authorizationCode: String
+    ) async throws {
+        guard !identityToken.isEmpty, !rawNonce.isEmpty, !authorizationCode.isEmpty else {
+            throw AccountDeletionError.unavailable
+        }
+        if let accountDeletionError { throw accountDeletionError }
+        currentUser = nil
+        observers.values.forEach { $0(nil) }
     }
 
     func signOut() throws {

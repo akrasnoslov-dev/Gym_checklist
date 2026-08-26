@@ -1322,7 +1322,7 @@ Obtain the external account/signing prerequisites for device/TestFlight distribu
 
 ---
 
-### M8.4 `TODO` Configure GitHub release secrets safely — USER ACTION MAY BE REQUIRED
+### M8.4 `IN PROGRESS (PENDING EXTERNAL)` Configure GitHub release secrets safely — USER ACTION MAY BE REQUIRED
 **Goal**
 Provide CI with only the secrets needed for signed archive/TestFlight upload.
 
@@ -1339,7 +1339,7 @@ Provide CI with only the secrets needed for signed archive/TestFlight upload.
 
 ---
 
-### M8.5 `TODO` Add signed archive/export workflow
+### M8.5 `IN PROGRESS (PENDING EXTERNAL/CI)` Add signed archive/export workflow
 **Goal**
 Build a distributable beta on macOS CI.
 
@@ -1357,7 +1357,7 @@ Build a distributable beta on macOS CI.
 
 ---
 
-### M8.6 `TODO` Automate TestFlight upload
+### M8.6 `IN PROGRESS (PENDING EXTERNAL/CI)` Automate TestFlight upload
 **Goal**
 Allow the user to get current beta builds on their iPhone without App Store publication.
 
@@ -1375,7 +1375,7 @@ Allow the user to get current beta builds on their iPhone without App Store publ
 
 ---
 
-### M8.7 `TODO` Document iPhone beta update workflow
+### M8.7 `IN PROGRESS (PENDING EXTERNAL)` Document iPhone beta update workflow
 **Goal**
 Make recurring physical-device testing trivial for the user.
 

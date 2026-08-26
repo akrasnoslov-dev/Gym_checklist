@@ -37,9 +37,18 @@ Sources, verified 2026-08-24:
    signed device against a non-production Firebase project.
 5. Before external TestFlight, provide App Review test information and a valid
    non-personal demo account path when login is required.
-6. Implement and verify in-app account-deletion initiation and backend data
-   handling before beta/release; this is separate from logout and needs its
-   own deletion/data-retention design.
+6. The tracked Settings confirmation and authenticated `deleteAccount` callable
+   implement the local account-deletion boundary. Apple-backed accounts are
+   reauthenticated as the same Firebase user, revoke the fresh Apple
+   authorization code, refresh the Firebase ID token, and only then call the
+   server-side erase. Deploy and verify the backend and every provider's
+   reauthentication path before beta/release; this is separate from logout and
+   has the data-retention design in `docs/account_deletion_design.md`.
+
+Account-deletion/token-revocation sources, verified 2026-08-26:
+
+- [Apple account deletion guidance](https://developer.apple.com/support/offering-account-deletion-in-your-app/)
+- [Firebase Sign in with Apple: token revocation](https://firebase.google.com/docs/auth/ios/apple#token-revocation)
 
 Apple review also applies to external TestFlight builds. Internal testing can
 help validate integration but is not release-compliance evidence.

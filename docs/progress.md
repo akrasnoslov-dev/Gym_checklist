@@ -123,13 +123,19 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 ### M8.1 App Store authentication compliance
 - Apple Guideline 4.8 was verified on 2026-08-24: Google Sign-In for the primary Gym Checklist account requires an equivalent private-email login. Sign in with Apple is now mandatory before external TestFlight/App Store release; email/password is not claimed as the equivalent route.
 - A local native Sign in with Apple implementation is now present: the system button requests name/email, a secure nonce binds the Firebase Apple credential exchange, cancellation is quiet, and provider failures are sanitized. The app target declares the Apple sign-in entitlement; unit/UI regression coverage exercises deterministic success and cancellation behavior.
-- `docs/app_store_auth_compliance.md` records remaining Firebase/Apple setup, App Review demo, and separate in-app account-deletion requirements. Google + Apple provider configuration and signed-device validation remain external blockers.
+- Account deletion now routes through an authenticated, owner-derived callable; it retains the session on failure, and an Apple account must reauthenticate as the same Firebase user, revoke a fresh Apple authorization code, refresh its Firebase token, then invoke the server erase. Focused unit/UI coverage includes confirmation, cancellation, retryable/recent-auth failure, success, and the Apple reauthentication route. The callable rejects stale and implausibly future `auth_time` values; its Node dependencies are package-lock pinned.
+- `docs/app_store_auth_compliance.md` records remaining Firebase/Apple setup, App Review demo, Google-provider reauthentication, and the required live account-deletion proof. Google + Apple provider configuration and signed-device validation remain external blockers.
 
 ### M8.2 Release metadata baseline
 - `docs/release_metadata.md` records the current app identity (`dev.akrasnoslov.GymChecklist`, `1.0` / build `1`, iOS 17, iPhone, Health & Fitness) and the required monotonically increasing build convention. There is no tracked app-icon asset catalog yet, so final icon supply/validation and Apple identifier ownership remain pending.
 
 ### M8.3 Apple signing checkpoint
 - `docs/apple_signing_checklist.md` consolidates the Apple Developer, App ID, Sign in with Apple capability, App Store Connect record, distribution signing, icon/privacy, and TestFlight prerequisites. It requires Account Holder/Admin action but no credential sharing.
+
+### M8.4–M8.7 release plumbing
+- `docs/github_release_secrets.md` defines only protected-environment secrets and non-sensitive variables. The manual-only `testflight-release.yml` workflow is restricted to `dev`, imports ephemeral signing material, verifies the profile's team/bundle binding, archives/exports with a caller-supplied monotonic build number, and uploads only on the explicit `testflight` destination.
+- `docs/testflight_beta_workflow.md` provides the internal-beta update and bug-report workflow. No signing material, protected environment, App Store Connect record, or uploaded build exists yet, so M8.4–M8.7 remain pending external/live proof.
+- `docs/account_deletion_design.md` records the required authenticated backend erasure job and client confirmation/reauth flow. This is a release blocker; do not substitute an unsafe client-side Auth-first deletion sequence.
 
 ## CI / verification state
 
@@ -171,6 +177,17 @@ Current dispatched macOS build:
 - run `32748702328`
 - checkpoint SHA: `413c765`
 - scope: focused retry after the `32748151516` compile-only test-helper correction; do not dispatch unit until it passes
+
+Latest macOS unit test:
+- run `32755392773`
+- checkpoint SHA: `417bb6d`
+- final status: `completed / success` (`GymChecklistTests`)
+- scope: gated focused verification after successful `32748702328` build
+
+Current dispatched macOS UI test:
+- run `32948438598`
+- checkpoint SHA: `417bb6d`
+- scope: gated focused UI verification after successful `32755392773` unit layer; this new local account-deletion work is not included in that checkpoint
 
 Previous macOS build:
 - run `32748151516`
@@ -222,10 +239,14 @@ Before external TestFlight/App Store release:
 
 1. enable the Apple capability and Firebase Apple provider using non-committed
    Apple/Firebase configuration;
-2. implement and signed-device-test Sign in with Apple alongside Google;
-3. implement and validate in-app account-deletion initiation plus its backend
-   workout/custom-exercise/settings deletion semantics;
-4. provide current App Review test information and a non-personal demo path.
+2. signed-device-test Sign in with Apple and its account-deletion token
+   revocation alongside Google;
+3. configure the Google SDK/provider then implement its same-user
+   reauthentication route; never route deletion through general sign-in;
+4. deploy and validate the in-app account-deletion backend's
+   workout/custom-exercise/settings deletion semantics in a non-production
+   project;
+5. provide current App Review test information and a non-personal demo path.
 
 Later release work may require Apple Developer/App Store Connect actions, signing, TestFlight configuration, and GitHub release secrets. Batch them when they become the actual blocker.
 
@@ -237,7 +258,8 @@ Later release work may require Apple Developer/App Store Connect actions, signin
 - M6.6 remains pending Google Sign-In, later approved telemetry/crash work, and authoritative CI.
 - M7.2 needs non-production Crashlytics console validation after a signed/configured build; see `docs/crashlytics_setup.md`.
 - M7.3 needs manual VoiceOver/Accessibility Inspector review on a macOS/iPhone environment after the UI checkpoint builds.
-- M8.1 needs Apple Developer/Firebase provider configuration, the App ID capability/profile refresh, signed-device validation, and in-app account-deletion implementation before release acceptance.
+- M8.1 needs Apple Developer/Firebase provider configuration, the App ID capability/profile refresh, Google provider reauthentication, deployment/emulator proof of owner-only erase, and signed-device validation before release acceptance.
+- M8.4–M8.7 need the protected GitHub environment, least-privilege credentials, a real manually-triggered signed archive/upload, and TestFlight processing/installation proof.
 
 None of these establishes a technical run-level stop.
 
@@ -247,13 +269,14 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Continue the M8.1 account-deletion design/implementation locally using the existing owner-scoped repositories; preserve a separate external signed-device verification state.
-4. After the current macOS build result is known, dispatch the gated focused unit layer only if it passes; do not dispatch UI until its matching unit run is green.
-5. At later natural checkpoints only, inspect pending CI once and react:
+3. Review the completed local M8.1 account-deletion/Apple revocation boundary against the required same-user, owner-derived deletion sequence; do not issue client-side deletion writes that could leave owner data stranded.
+4. At a later natural checkpoint, inspect the current `32948438598` UI run once; do not treat it as evidence for later uncommitted account-deletion work.
+5. Continue safe M8.1 documentation/test hardening while Google provider configuration and non-production Firebase/Apple live validation remain deferred.
+6. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;
    - queued/running -> keep `PENDING CI`, return to implementation.
-6. If M5/M6 paths become blocked, scan the entire remaining plan for another independent safe implementation task before considering a final response.
+7. If M5/M6 paths become blocked, scan the entire remaining plan for another independent safe implementation task before considering a final response.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

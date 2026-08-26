@@ -82,6 +82,10 @@ jobs:
         shell: pwsh
         run: ./scripts/verify_security_hygiene.ps1
 
+      - name: Verify account-deletion contract
+        shell: pwsh
+        run: ./scripts/verify_account_deletion_contract.ps1
+
       - name: Run Swift package tests when available
         shell: bash
         run: |

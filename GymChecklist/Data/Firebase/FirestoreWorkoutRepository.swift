@@ -120,17 +120,17 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                 }
                 return
             }
-            let decoded: [Workout?] = snapshot.documents.map { document -> Workout? in
-                guard let date = FirestoreWorkoutDocument.localDate(document.documentID),
-                      let payload = try? document.data(as: FirestoreWorkoutPayload.self),
-                      let workout = try? payload.domainWorkout(userID: userID, documentDate: date)
-                else { return nil }
-                return workout
+            let entries = snapshot.documents.map { document in
+                FirestoreWorkoutSnapshotEntry(
+                    documentDate: FirestoreWorkoutDocument.localDate(document.documentID),
+                    payload: try? document.data(as: FirestoreWorkoutPayload.self)
+                )
             }
+            let decoded = FirestoreWorkoutSnapshotDecoder.decode(entries, userID: userID)
             let isFromCache = snapshot.metadata.isFromCache
             Task { @MainActor in
                 guard let self, self.boundUserID == userID else { return }
-                guard decoded.allSatisfy({ $0 != nil }) else {
+                guard entries.isEmpty || decoded.discardedEntryCount < entries.count else {
                     if self.hasUsableSnapshot {
                         self.recordUnavailable()
                     } else {
@@ -139,9 +139,8 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                     }
                     return
                 }
-                let validWorkouts = decoded.compactMap { $0 }
-                self.workouts = validWorkouts.sorted { $0.localDate < $1.localDate }
-                self.hasUsableSnapshot = self.hasUsableSnapshot || !isFromCache || !validWorkouts.isEmpty
+                self.workouts = decoded.workouts
+                self.hasUsableSnapshot = self.hasUsableSnapshot || !isFromCache || !decoded.workouts.isEmpty
                 self.loadState = isFromCache
                     ? .unavailable(hasUsableSnapshot: self.hasUsableSnapshot)
                     : .available

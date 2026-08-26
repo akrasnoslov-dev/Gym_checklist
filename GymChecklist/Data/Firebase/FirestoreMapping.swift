@@ -29,6 +29,39 @@ enum FirestoreMappingError: Error, Equatable {
     case systemExerciseCannotBeMapped
 }
 
+struct FirestoreWorkoutSnapshotEntry {
+    let documentDate: LocalDate?
+    let payload: FirestoreWorkoutPayload?
+}
+
+struct DecodedFirestoreWorkoutSnapshot: Equatable {
+    let workouts: [Workout]
+    let discardedEntryCount: Int
+}
+
+enum FirestoreWorkoutSnapshotDecoder {
+    static func decode(_ entries: [FirestoreWorkoutSnapshotEntry], userID: UserID) -> DecodedFirestoreWorkoutSnapshot {
+        var workouts: [Workout] = []
+        var discardedEntryCount = 0
+
+        for entry in entries {
+            guard let documentDate = entry.documentDate,
+                  let payload = entry.payload,
+                  let workout = try? payload.domainWorkout(userID: userID, documentDate: documentDate)
+            else {
+                discardedEntryCount += 1
+                continue
+            }
+            workouts.append(workout)
+        }
+
+        return DecodedFirestoreWorkoutSnapshot(
+            workouts: workouts.sorted { $0.localDate < $1.localDate },
+            discardedEntryCount: discardedEntryCount
+        )
+    }
+}
+
 struct FirestoreWorkoutDocument: Codable, Equatable {
     let id: String
     let localDate: String

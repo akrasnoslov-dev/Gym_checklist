@@ -4,6 +4,7 @@
 - Branch: `dev`; autonomous MVP work remains active.
 - Current coherent changes preserve completed-set actual values/timestamps across Today skip → restore and correct the corresponding unit/UI regressions.
 - Local Firebase configuration is now copied from the ignored `GymChecklist/GoogleService-Info.plist` only for configured app builds; its Google callback URL scheme is derived at build time without tracking or printing configuration.
+- Firestore snapshot handling now retains valid workouts when a sibling document is malformed, while an entirely invalid non-empty snapshot remains unavailable.
 - Product, UX, architecture, Firebase/persistence, security/privacy, code-quality, and CI reviews completed. The only fixed P1 finding was skip → restore data loss.
 
 ## Verification

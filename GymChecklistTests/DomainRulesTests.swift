@@ -716,6 +716,29 @@ final class FirestoreMappingTests: XCTestCase {
         XCTAssertThrowsError(try negativeWeight.workoutSet())
     }
 
+    func testSnapshotDecoderKeepsValidWorkoutsWhenOneEntryIsMalformed() {
+        let validDate = LocalDate(year: 2028, month: 2, day: 29)
+        let validWorkout = Workout(
+            id: WorkoutID(),
+            userID: userID,
+            localDate: validDate,
+            exercises: [],
+            createdAt: .distantPast,
+            updatedAt: .distantPast
+        )
+
+        let decoded = FirestoreWorkoutSnapshotDecoder.decode([
+            FirestoreWorkoutSnapshotEntry(documentDate: nil, payload: nil),
+            FirestoreWorkoutSnapshotEntry(
+                documentDate: validDate,
+                payload: FirestoreWorkoutPayload(workout: validWorkout)
+            )
+        ], userID: userID)
+
+        XCTAssertEqual(decoded.workouts, [validWorkout])
+        XCTAssertEqual(decoded.discardedEntryCount, 1)
+    }
+
     func testCustomExerciseAndSettingsMappingsStayUserScoped() throws {
         let exercise = Exercise(id: ExerciseID(), name: "Cable Press", category: "Chest", isSystem: false, createdByUserID: userID)
         XCTAssertEqual(try FirestoreCustomExerciseDocument(exercise: exercise).exercise(userID: userID), exercise)

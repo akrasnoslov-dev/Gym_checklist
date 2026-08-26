@@ -193,6 +193,7 @@ Current dispatched macOS UI test:
 Current dispatched macOS build:
 - run `32949106276`
 - checkpoint SHA: `2df48bb`
+- current status: `pending` (checked once after dispatch; do not poll while external setup remains outstanding)
 - scope: focused `build-for-testing` verification for the Account deletion/Apple token-revocation path, Firebase Functions linkage, release workflow, and expanded deterministic tests; do not dispatch the matching unit layer until it passes
 
 Previous macOS build:

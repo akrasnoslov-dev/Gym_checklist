@@ -96,11 +96,33 @@ A CI result proves the checkpoint SHA it actually ran against.
 CI is background verification. After dispatching a run, continue other safe implementation immediately.
 
 ### CI when nothing else is runnable
-If no independent safe work exists and the only next action depends on an already-running CI job, Codex may stay in the same task and wait for that CI result.
+If no independent safe work exists and the only next action depends on an already-running CI job, Codex must stay in the same task without burning reasoning turns or user-visible narration on unchanged CI status.
 
-Use low-frequency bounded checks, approximately once every 60–90 seconds. This waiting is explicitly allowed only in this no-other-work state and is not a reason to produce a premature final response.
+Do **not** run model-driven polling loops such as repeated `gh run view`, API/status checks, or `Ran commands` every 60–90 seconds. Do not repeatedly narrate that the job is queued, healthy, running, or still within timeout.
 
-Do not create an external watchdog, scheduled task, daemon, or separate heartbeat process. If the platform/model/tool itself prevents further waiting or execution, record `MODEL_OR_TOOL_LIMIT` and stop only because of that actual limit.
+Use this order instead:
+1. check the run once to confirm the exact run ID and checkpoint SHA;
+2. start **one foreground blocking wait** for that exact run, with routine progress output suppressed;
+3. give that command the longest available timeout, preferably longer than the workflow timeout;
+4. when the blocking wait returns, inspect the completed result once and immediately continue with diagnosis/fix or the next runnable action.
+
+Preferred GitHub CLI wait:
+
+PowerShell:
+```powershell
+gh run watch <RUN_ID> --repo akrasnoslov-dev/Gym_checklist --exit-status --interval 60 *> $null
+```
+
+Bash:
+```bash
+gh run watch <RUN_ID> --repo akrasnoslov-dev/Gym_checklist --exit-status --interval 60 >/dev/null 2>&1
+```
+
+The command may internally refresh GitHub state; that is acceptable because it does not require repeated model turns. It is a foreground wait, not an external watchdog, daemon, scheduled task, or heartbeat process.
+
+If `gh run watch` is unavailable, use one equivalent foreground shell loop that sleeps internally and emits only the final state. If the execution tool imposes a shorter hard timeout than the CI run, wait in the largest practical silent chunks, **never more frequently than once every 5 minutes**, and perform at most one status check between chunks. Do not emit commentary for unchanged state.
+
+If the platform/model/tool itself prevents any further foreground waiting or execution, record `MODEL_OR_TOOL_LIMIT` and stop only because of that actual limit.
 
 When CI completes:
 - green -> reconcile what it proves and continue;
@@ -112,7 +134,7 @@ Before a final response:
 1. inspect Git/worktree, `docs/progress.md`, active backlog, and relevant CI;
 2. identify the exact next safe action;
 3. if it is executable now, execute it instead of stopping;
-4. if CI is running and no other work exists, wait/check under the CI rule above;
+4. if CI is running and no other work exists, remain in the task using the silent foreground-wait rule above instead of polling or summarizing;
 5. if a task is externally blocked, scan the rest of the active backlog;
 6. stop only when no technically safe active work remains and the remaining blocker is genuinely external/user-required, destructive approval/product decision is required, a real failure blocks all continuation, a required tool is unavailable, or the platform/model/tool limit actually ends execution.
 

@@ -219,7 +219,7 @@ Latest macOS build:
 Current dispatched macOS build:
 - run `32954303610`
 - checkpoint SHA: `5438dc4`
-- current status: `queued`
+- current status: `in_progress`
 - scope: focused `build-for-testing` retry for the two `32953583375` Google Sign-In compile corrections. Do not dispatch unit until it passes.
 
 Previous macOS build:
@@ -300,21 +300,28 @@ Later release work may require Apple Developer/App Store Connect actions, signin
 - M8.1 needs Apple Developer/Firebase provider configuration, the App ID capability/profile refresh, Google provider reauthentication, deployment/emulator proof of owner-only erase, and signed-device validation before release acceptance.
 - M8.4–M8.7 need the protected GitHub environment, least-privilege credentials, a real manually-triggered signed archive/upload, and TestFlight processing/installation proof.
 
-None of these establishes a technical run-level stop.
+No further technically safe repository work remains. The run is at
+`USER_ACTION_REQUIRED`: Google/Firebase and Apple provider configuration,
+signed-device validation, non-production backend-erasure proof, protected
+release environment/signing setup, and final TestFlight evidence require
+external account access or a product decision (the final app icon). Build
+`32954303610` remains background verification; if it passes, resume with its
+gated unit layer, then UI/full reconciliation. If it fails, inspect and correct
+the reported surface before continuing.
 
 ## Next runnable implementation
 
-Do not turn CI back into the foreground task.
+No repository action is runnable until the active build completes or the
+external prerequisites above are supplied.
 
-1. Do **not** make CI the first foreground task.
-2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Build verification `32954303610` is queued for `5438dc4`; Google provider console setup and non-production Firebase/Apple validation remain external/deferred.
-4. Dispatch the matching unit layer only if that new build run passes.
-5. At later natural checkpoints only, inspect pending CI once and react:
+1. M7.1 implementation is complete; its acceptance remains pending macOS CI.
+2. Build verification `32954303610` is in progress for `5438dc4`; Google provider console setup and non-production Firebase/Apple validation remain external/deferred.
+3. Dispatch the matching unit layer only if that build run passes.
+4. At the next natural checkpoint, inspect the active run once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;
    - queued/running -> keep `PENDING CI`, return to implementation.
-6. If the build is pending and no external setup arrives, preserve it as background verification; do not bypass provider-bound reauthentication or the configured Google callback URL scheme.
+5. Do not bypass provider-bound reauthentication or the configured Google callback URL scheme.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

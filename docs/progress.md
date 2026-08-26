@@ -15,6 +15,7 @@ User pause checkpoint:
 - `5eaa082` — `Record user-requested pause`
 
 Latest code checkpoints:
+- `3c0af4c` — `Harden workout completion invariants`
 - `d097cfe` — `Implement Google sign-in flow`
 - `2abdcf3` — `Fix account deletion build errors`
 - `2df48bb` — `Add secure account deletion release path`
@@ -118,6 +119,7 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 
 ### M7.5 Regression coverage
 - `IN PROGRESS (PENDING CI)`: the existing focused unit/UI suite covers dates/day boundaries, display and kg/lb conversion, completion/undo and popup transitions, actual/history edits, skip/restore, planning mutations, copy/repeat independence, and auth isolation. A deterministic repository test now also proves loading/unavailable/cached availability reaches the view model without hiding cached Today data.
+- The current domain hardening rejects malformed incomplete sets that retain actual values or a completion timestamp. A visible zero-set exercise now keeps a workout partial until it is explicitly skipped or receives/completes a set, preventing an early completion popup or `workout_completed` event.
 - The broad UI launch flow remains intentionally unchanged in this checkpoint; future UI edits should split it before adding more responsibilities. macOS verification gates milestone/release checkpoints by the documented no-cost policy, while Linux checks remain routine feedback for `dev` work.
 
 ### M7.6 Broad review
@@ -216,11 +218,22 @@ Latest macOS build:
 - final status: `completed / failure` (`build-for-testing`)
 - diagnosis: two compile-only Google Sign-In integration issues—the redirect handler was attached to `WindowGroup` rather than the contained view, and the package does not export the cancellation enum under the expected Swift symbol. The correction moves the handler into the app view tree and checks Google's documented cancellation code only in the Google Sign-In error domain. Re-run the focused build after this checkpoint is committed; do not dispatch unit until it passes.
 
-Current dispatched macOS build:
+Latest macOS build:
 - run `32954303610`
 - checkpoint SHA: `5438dc4`
-- current status: `in_progress`
-- scope: focused `build-for-testing` retry for the two `32953583375` Google Sign-In compile corrections. Do not dispatch unit until it passes.
+- final status: `completed / success` (`build-for-testing`)
+- scope: focused retry for the two `32953583375` Google Sign-In compile corrections.
+
+Latest macOS unit test:
+- run `32960219106`
+- checkpoint SHA: `3495b93`
+- final status: `completed / success` (`GymChecklistTests`)
+- scope: gated unit verification after successful Google Sign-In build.
+
+Current dispatched macOS UI test:
+- run `32983365190`
+- checkpoint SHA: `3495b93`
+- scope: gated focused UI verification after successful `32960219106` unit layer. It does not verify later code checkpoint `3c0af4c`.
 
 Previous macOS build:
 - run `32949106276`
@@ -292,36 +305,31 @@ Later release work may require Apple Developer/App Store Connect actions, signin
 ## Current blockers
 - M5.4 cannot be fully accepted without Google/Firebase external configuration and live verification.
 - M4 live/deployed-rules/offline-reconnect verification remains pending.
-- M6.3–M6.5 require authoritative macOS verification.
-- M5.5, M6.1, and M6.2 require authoritative macOS verification.
-- M6.6 remains pending Google Sign-In, later approved telemetry/crash work, and authoritative CI.
+- M5–M7 implementation checkpoints require authoritative macOS verification; the focused UI layer for `3495b93` is currently running and later checkpoint `3c0af4c` needs a narrow build before its changes can be accepted.
+- M6.6 remains pending Google Sign-In, telemetry/crash live checks, and authoritative CI.
 - M7.2 needs non-production Crashlytics console validation after a signed/configured build; see `docs/crashlytics_setup.md`.
 - M7.3 needs manual VoiceOver/Accessibility Inspector review on a macOS/iPhone environment after the UI checkpoint builds.
 - M8.1 needs Apple Developer/Firebase provider configuration, the App ID capability/profile refresh, Google provider reauthentication, deployment/emulator proof of owner-only erase, and signed-device validation before release acceptance.
 - M8.4–M8.7 need the protected GitHub environment, least-privilege credentials, a real manually-triggered signed archive/upload, and TestFlight processing/installation proof.
 
-No further technically safe repository work remains. The run is at
-`USER_ACTION_REQUIRED`: Google/Firebase and Apple provider configuration,
-signed-device validation, non-production backend-erasure proof, protected
-release environment/signing setup, and final TestFlight evidence require
-external account access or a product decision (the final app icon). Build
-`32954303610` remains background verification; if it passes, resume with its
-gated unit layer, then UI/full reconciliation. If it fails, inspect and correct
-the reported surface before continuing.
+No further independent implementation is currently safe. The run is at
+`USER_ACTION_REQUIRED` once the in-flight UI result has been recorded: Google/Firebase
+and Apple provider configuration, signed-device validation, non-production
+backend-erasure proof, protected release environment/signing setup, and final
+TestFlight evidence require external account access or a product decision (the
+final app icon). The later `3c0af4c` code checkpoint also needs a narrow build
+before acceptance; dispatch it after the current UI layer finishes so the
+diagnostic order remains explicit.
 
 ## Next runnable implementation
 
-No repository action is runnable until the active build completes or the
-external prerequisites above are supplied.
+No independent repository action is runnable while the focused UI test is in
+flight and the remaining work needs external configuration/evidence.
 
-1. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-2. Build verification `32954303610` is in progress for `5438dc4`; Google provider console setup and non-production Firebase/Apple validation remain external/deferred.
-3. Dispatch the matching unit layer only if that build run passes.
-4. At the next natural checkpoint, inspect the active run once and react:
-   - pass -> reconcile only the acceptance the run actually proves;
-   - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;
-   - queued/running -> keep `PENDING CI`, return to implementation.
-5. Do not bypass provider-bound reauthentication or the configured Google callback URL scheme.
+1. Record the result of UI verification `32983365190` for `3495b93` once at a natural checkpoint.
+2. If it passes, dispatch a narrow `build` for `3c0af4c`; if it fails, inspect and fix only its reported surface before re-verifying.
+3. Do not bypass provider-bound reauthentication or the configured Google callback URL scheme.
+4. Batch the remaining Google/Apple/Firebase, privacy, signing, TestFlight, and final-icon actions from the user-action queue before attempting release acceptance.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

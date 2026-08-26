@@ -1459,7 +1459,7 @@ Resolve only issues that block approved MVP quality.
 
 ---
 
-### M9.3 `TODO` Produce MVP release notes and known limitations
+### M9.3 `IN PROGRESS (PENDING CI/EXTERNAL)` Produce MVP release notes and known limitations
 **Goal**
 Document what the beta/release does and deliberately does not do.
 

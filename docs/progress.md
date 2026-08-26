@@ -144,6 +144,9 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 ### M9.1 acceptance preparation
 - `docs/mvp_acceptance_checklist.md` maps every approved MVP scenario to its deterministic coverage and remaining macOS/live/manual evidence. It is a pending release-readiness matrix, not an acceptance claim.
 
+### M9.3 release-note draft
+- `docs/beta_release_notes.md` provides concise internal-beta notes and known limitations without claiming that a signed TestFlight build exists.
+
 ## CI / verification state
 
 The repository is public and free GitHub-hosted macOS capacity is available.

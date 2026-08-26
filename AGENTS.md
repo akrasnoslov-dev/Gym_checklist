@@ -1,112 +1,161 @@
 # AGENTS.md
 
 ## Project
-Gym Checklist (`akrasnoslov-dev/Gym_checklist`). Native iOS app for executing pre-planned gym workouts with minimal interaction.
+Gym Checklist (`akrasnoslov-dev/Gym_checklist`) is a native iOS app for executing a pre-planned gym workout with minimal interaction.
 
-Core product invariant:
+Protected product invariant:
 
 ```text
 Open app -> Today -> one tap per completed set -> close app
 ```
 
-Do not add friction, analytics, coaching, timers, social features, or other unapproved scope to the workout flow.
+Do not add unapproved dashboards, statistics, timers, coaching, social features, calories, PRs, recommendations, exercise media, or other friction to Today.
 
-## Mandatory context
-Before any non-trivial task, read:
+## Read at the start of a Codex task
+Read only the core context first:
 - `AGENTS.md`
-- `docs/codex_instructions.md`
+- `docs/progress.md`
+- `docs/implementation_plan.md` for the active/relevant task sections
 - `docs/product_spec.md`
 - `docs/ux_spec.md`
 - `docs/architecture.md`
-- `docs/implementation_plan.md`
-- `docs/progress.md`
-- `docs/ci_free_quota_policy.md` when present
-- `docs/desktop_continuation_policy.md` when present
 - `agents/routing.toml`
 
-Then inspect relevant source/tests, Git/worktree state, available CI state, and applicable `agents/*.toml` instructions.
+Then inspect Git/worktree state, recent commits/diffs, relevant source/tests, and current CI.
+
+Do **not** preload the whole `docs/` directory. Setup, Firebase, security, offline, acceptance, and release documents are reference material; read them only when the current task needs them.
+
+`docs/codex_instructions.md` is a small compatibility/command reference, not a second scheduler.
 
 ## Source of truth
-1. Explicit current user instruction.
-2. `docs/product_spec.md` for approved behavior.
-3. `docs/ux_spec.md` for approved UX.
-4. `docs/architecture.md` for technical boundaries.
-5. `docs/implementation_plan.md` for task definitions, dependencies, and acceptance criteria.
-6. Actual Git/code/tests plus `docs/progress.md` for current runtime status/checkpoint.
-7. `docs/desktop_continuation_policy.md` for ChatGPT Desktop execution mechanics.
-8. `docs/ci_free_quota_policy.md` for the user-approved no-paid-CI policy.
+Priority:
+1. explicit current user instruction;
+2. `docs/product_spec.md` for product behavior;
+3. `docs/ux_spec.md` for UX;
+4. `docs/architecture.md` for technical boundaries;
+5. `docs/implementation_plan.md` for task definitions and acceptance criteria;
+6. actual Git/code/tests plus `docs/progress.md` for current runtime state.
 
-If a task status label in `docs/implementation_plan.md` is stale, reconcile it to actual Git/code and `docs/progress.md`; never discard coherent implementation just to match an old label.
+The repository is durable memory. Chat history is not.
 
-## Desktop execution mechanics
-`docs/desktop_continuation_policy.md` is the single authoritative execution scheduler.
+Never discard coherent local work merely because `origin/dev` is older. Never reset or overwrite uncommitted user work.
 
-Non-negotiable summary:
-- work-first: runnable implementation outranks waiting;
-- CI is asynchronous background verification;
-- after dispatching CI, immediately continue independent safe work;
-- never busy-poll or sleep solely for CI while runnable work exists;
-- a blocked task is not a blocked run;
-- dependency `DONE` is strict for acceptance, while provisional implementation scheduling is allowed only under the safety rules in the desktop policy;
-- a final response is forbidden while safe executable backlog work remains.
+## Current release-scope decision
+Until the user explicitly reactivates release work:
+- paid Apple Developer membership is deferred;
+- App Store Connect is deferred;
+- TestFlight is deferred;
+- release signing/secrets are deferred;
+- final App Store icon decision is deferred;
+- live Sign in with Apple release configuration is deferred where it requires the paid Apple path.
 
-Do not reinterpret `docs/progress.md` as a synchronous CI queue. If it says `build -> unit -> ui`, that means CI layer order, not `run -> wait -> run -> wait`.
+These items may remain documented in the long-term implementation plan, but they are **not current blockers and not runnable backlog**.
+
+Current goal: finish and verify the MVP as far as possible, then get a development build onto the user's own iPhone for real-device evaluation. Only after that does the user decide whether to pay for Apple distribution.
+
+Google/Firebase development configuration and non-production validation are still relevant because they are part of the app itself, not only App Store release.
+
+## Autonomous work loop
+Repeat until a real stop condition exists:
+1. reconstruct current Git/code/test/CI state;
+2. select the highest-priority technically safe runnable action anywhere in the active backlog;
+3. implement the smallest coherent solution;
+4. add/update tests;
+5. run useful local/static checks;
+6. self-review against product, UX, architecture, security/privacy, offline behavior, and acceptance criteria;
+7. fix established issues;
+8. checkpoint coherent work and keep `docs/progress.md` current;
+9. run authoritative CI when justified;
+10. continue.
+
+A task, milestone, commit, push, review, documentation update, CI dispatch, CI completion, or known `Next:` action is never by itself a reason to stop.
+
+If one task is blocked, scan the full active backlog and continue independent safe work.
+
+Dependencies remain strict for final acceptance/DONE. For implementation scheduling, a dependency pending only isolated CI/live/external evidence may be treated provisionally as satisfied when later work is clearly safe. Never use this to bypass security, ownership, data-integrity, destructive-action, or product-decision boundaries.
 
 ## CI policy
-The repository uses tiered no-cost CI. Detailed cost/quota rules are in `docs/ci_free_quota_policy.md`; scheduling/waiting rules are in `docs/desktop_continuation_policy.md`.
+Paid CI is not approved. The public repository uses free GitHub-hosted runners.
 
-- Linux checks are routine and non-authoritative for iOS.
-- macOS/Xcode CI is authoritative and intentionally sparse.
-- Diagnostic layer order is `build -> unit -> ui`; `full` is for clean milestone/release reconciliation.
-- Layer order gates the next CI dispatch, not unrelated implementation.
-- Never wait/poll an active CI run while other safe implementation exists.
-- A CI result verifies the checkpoint SHA it ran against, not every later branch commit.
-- A real failure should be fixed and narrowly reverified; it blocks the whole run only if it makes all remaining safe work impossible.
-- Paid CI is not approved unless the user explicitly reverses that decision.
+Linux checks are routine feedback. macOS/Xcode CI is authoritative for iOS.
 
-## Session continuity
-The repository, not chat history, is durable project memory.
+### Normal macOS strategy
+Use **one `full` macOS run at a coherent checkpoint** as the normal authoritative path.
 
-`docs/progress.md` must contain enough current state for a brand-new Desktop Codex task to resume safely: branch, active/deferred work, pending verification, blockers/user-action queue, latest meaningful CI evidence, and exact next safe action.
+Do not use `build -> unit -> ui` as the normal foreground scheduler. Narrow scopes exist for diagnosis:
+- use `build` when diagnosing compilation/project/dependency failures;
+- use `unit` when a full run points to unit-test failures;
+- use `ui` when a full run points to UI-test failures;
+- after a narrow fix is clean, return to a `full` run for current-head reconciliation.
 
-If context is compacted or a fresh task is required by platform limits, reconstruct from Git plus the mandatory docs and continue without asking the user to restate context.
+Do not dispatch duplicate identical runs without a code/config change or clear infrastructure reason.
+
+A CI result proves the checkpoint SHA it actually ran against.
+
+### CI while implementation exists
+CI is background verification. After dispatching a run, continue other safe implementation immediately.
+
+### CI when nothing else is runnable
+If no independent safe work exists and the only next action depends on an already-running CI job, Codex may stay in the same task and wait for that CI result.
+
+Use low-frequency bounded checks, approximately once every 60–90 seconds. This waiting is explicitly allowed only in this no-other-work state and is not a reason to produce a premature final response.
+
+Do not create an external watchdog, scheduled task, daemon, or separate heartbeat process. If the platform/model/tool itself prevents further waiting or execution, record `MODEL_OR_TOOL_LIMIT` and stop only because of that actual limit.
+
+When CI completes:
+- green -> reconcile what it proves and continue;
+- failure -> inspect once, fix the narrow reported surface, use narrow CI if useful, then run `full` again;
+- cancelled/infrastructure failure -> record no pass/fail evidence and rerun only when justified.
+
+## Final-response gate
+Before a final response:
+1. inspect Git/worktree, `docs/progress.md`, active backlog, and relevant CI;
+2. identify the exact next safe action;
+3. if it is executable now, execute it instead of stopping;
+4. if CI is running and no other work exists, wait/check under the CI rule above;
+5. if a task is externally blocked, scan the rest of the active backlog;
+6. stop only when no technically safe active work remains and the remaining blocker is genuinely external/user-required, destructive approval/product decision is required, a real failure blocks all continuation, a required tool is unavailable, or the platform/model/tool limit actually ends execution.
+
+Do not stop merely because Codex wants to summarize.
+
+## Progress-file discipline
+`docs/progress.md` is a **short live checkpoint**, not project history.
+
+Keep only:
+- current branch/code checkpoint;
+- current implementation state;
+- current/latest meaningful CI evidence;
+- current external/deferred items;
+- exact next action.
+
+Do not accumulate old superseded CI runs, old fixed compiler failures, or historical checkpoint archaeology. Git history already stores that.
 
 ## Product rules
 - English only for MVP.
 - Top-level navigation: Today / Program / Settings.
 - Today opens first after authentication.
-- One tap completes a set; tapping again undoes completion.
+- One tap completes a set; tapping again undoes it.
 - No Start Workout flow.
 - Sets/exercises may be completed in any order.
 - Long press opens compact set editing.
-- Skip/restore exercise must remain available without cluttering Today.
-- One workout maximum per concrete local calendar date.
-- Copy and weekly repeat create independent workouts.
-- History lives in Program and historical actual values may be edited.
-- No historical planned-vs-actual analytics snapshot model in MVP.
+- Skip/restore must remain available without cluttering Today.
+- One workout maximum per concrete local date.
+- Copy/repeat create independent workouts.
+- History lives in Program; completed historical actual values may be edited.
 - Offline workout execution is mandatory.
 - kg/lb supported.
-- System/Light/Dark use one design system.
-- Completion motivation appears only after the whole workout finishes as a dismissible overlay/popup.
+- System/Light/Dark share one design system.
+- Completion motivation appears only after the whole workout finishes as a dismissible overlay.
 
-## Today UX invariant
-Today must remain visually quiet. Do not add charts, statistics, progress dashboards, PRs, calories, timers, recommendations, muscle diagrams, feeds, or other secondary information.
-
-## Architecture/security guardrails
+## Architecture/security
 Target stack: Swift + SwiftUI, feature-oriented MVVM, repository/service boundaries, Firebase Auth/Firestore/Analytics/Crashlytics, bundled system exercise catalog.
 
-User cloud data must be owner-scoped. Never log or commit passwords, auth tokens, signing secrets, service-account material, or unnecessary private workout content. Never weaken security to make tests pass.
+User cloud data must be owner-scoped. Never log or commit passwords, auth tokens, signing secrets, service-account material, `GoogleService-Info.plist`, or unnecessary private workout content. Never weaken security to make tests pass.
 
 ## Branching
 - `main`: stable/release only.
 - `dev`: integration/default development branch.
-- `feature/*`: focused implementation when useful.
+- focused `feature/*` branches are optional.
 - PRs target `dev` by default.
-- `dev -> main` only for explicit release.
-- Do not auto-merge unless explicitly requested.
-- Never delete or overwrite uncommitted user work.
-
-## Documentation discipline
-Update docs when behavior, architecture, setup, verification, CI, Firebase contracts, or release process changes.
-
-`docs/progress.md` is the live continuity checkpoint. `docs/implementation_plan.md` remains the detailed backlog/acceptance source and must not be weakened to match temporary environment limitations.
+- `dev -> main` only after explicit user approval.
+- do not auto-merge without explicit instruction.

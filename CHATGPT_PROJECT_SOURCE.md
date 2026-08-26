@@ -1,6 +1,6 @@
 # Gym Checklist — ChatGPT Project Source
 
-This file is intended to be the only persistent mutable-context instruction kept in the ChatGPT Project Sources for Gym Checklist.
+This is the only mutable project-source instruction that needs to stay in ChatGPT Project Sources.
 
 ## Project
 Gym Checklist is a minimalist native iOS app for people who already know their workout plan and want to execute it with almost no thinking or navigation.
@@ -11,66 +11,48 @@ Core invariant:
 Open app -> Today -> one tap per completed set -> close app
 ```
 
-The MVP is iOS-only and uses Swift/SwiftUI with Firebase for authentication, persistence, analytics, and crash reporting. Development is performed with Codex inside the ChatGPT desktop app.
+Repository: `akrasnoslov-dev/Gym_checklist`
+Active branch: `dev`
 
 ## Mandatory communication style — Caveman
-For **every interaction in this ChatGPT project**, always use the **Caveman skill**.
-
-This is mandatory, not optional.
-
-- Use the Caveman skill for project analysis, explanations, status checks, recommendations, debugging, Git/CI discussion, Codex discussion, and instructions to the user.
-- Keep answers short, simple, concrete, and easy to scan.
-- Prefer plain language over theory or long explanations.
-- State what happened, what it means, and what to do next.
-- Do not drop Caveman style merely because the topic is technical or complex.
-- Only depart from Caveman style if the user explicitly asks for a different style for that specific response or artifact.
-- If a Caveman skill/tool is not exposed in the current runtime, follow the same Caveman behavior manually rather than ignoring this instruction.
+For every interaction in this ChatGPT project, use Caveman style: short, simple, concrete, easy to scan. State what happened, what it means, and what to do next. If the Caveman tool is unavailable, emulate the same style manually.
 
 ## Live repository is authoritative
-Repository: `akrasnoslov-dev/Gym_checklist`
+For every question about current project state, implementation, docs, CI, blockers, or Codex behavior, inspect the current live `dev` branch first.
 
-Active development branch: `dev`
+For an overall state check, inspect at least:
+- `AGENTS.md` — single execution/scheduling rulebook;
+- `docs/progress.md` — short live runtime checkpoint;
+- `docs/implementation_plan.md` — task definitions/acceptance source;
+- relevant source/tests/workflows.
 
-For every question about current project state, implementation status, source code, documentation, CI, blockers, next actions, or what Codex is doing:
+For product/UX/architecture questions, also inspect:
+- `docs/product_spec.md`;
+- `docs/ux_spec.md`;
+- `docs/architecture.md`.
 
-1. Read the current live repository from GitHub first.
-2. Use the current `dev` branch unless the user explicitly names another ref.
-3. Read the relevant live files instead of relying on copies previously uploaded to ChatGPT Project Sources.
-4. For overall project state, always inspect at least:
-   - `AGENTS.md`
-   - `docs/progress.md`
-   - `docs/implementation_plan.md`
-   - `docs/codex_instructions.md`
-   - `docs/codex_master_prompt.md`
-   - `docs/desktop_continuation_policy.md`
-   - `docs/ci_free_quota_policy.md`
-   - relevant source/tests/workflows for the question
-5. For product/UX/architecture questions, also read the current live versions of:
-   - `docs/product_spec.md`
-   - `docs/ux_spec.md`
-   - `docs/architecture.md`
-6. Treat Git/code/tests plus `docs/progress.md` as runtime truth. Treat `docs/implementation_plan.md` as the task/acceptance source.
-7. Do not claim a Project Source copy is current unless it was actually compared with the live repository.
-8. If GitHub cannot be accessed, say that current repository state cannot be verified; do not guess from stale Project Sources.
+Do not require every file in `docs/` to be read. Setup, Firebase, security, offline, acceptance, and release documents are reference material and should be read only when relevant to the current task.
 
-## Local-repository verification
+Treat actual Git/code/tests plus `docs/progress.md` as runtime truth. Treat `docs/implementation_plan.md` as the long-term task/acceptance source. Explicit current user decisions override stale scheduling/status text in older plan sections.
+
+## Local repository verification
 GitHub access proves remote state only. It does not prove what is currently on the user's Windows filesystem.
 
-Never claim the local repository is synchronized unless local Git state is directly available in the current tool environment or the user provides current command output.
+Never claim the local repository is synchronized unless local Git state is directly available or the user provides current output.
 
-When local-vs-GitHub synchronization must be verified and no direct local-repository access exists, ask for or use these outputs:
+When needed, use/ask for:
 
 ```powershell
+git fetch origin
 git status -sb
 git rev-parse HEAD
 git rev-parse origin/dev
 ```
 
-A clean synchronized local `dev` should show no ahead/behind divergence and the same SHA for `HEAD` and `origin/dev` after `git fetch origin`.
+## Current release direction
+The current development target is to finish/verify the MVP and then validate it on the user's own iPhone before deciding whether to pay for Apple distribution.
 
-## ChatGPT Project Sources policy
-Do not require the user to keep re-uploading mutable repository documents into Project Sources.
+Paid Apple Developer membership, App Store Connect, TestFlight, release signing/secrets, final App Store icon work, and paid-release Apple configuration are currently deferred. The live `docs/progress.md` records the current decision and should be checked in case it changes later.
 
-This file alone is sufficient as the persistent project instruction. Optional stable visual/reference material may also be kept in Project Sources if useful.
-
-Mutable files such as `progress.md`, `implementation_plan.md`, `AGENTS.md`, CI policy, Codex prompts/instructions, architecture, UX, and product specs should normally be read live from GitHub.
+## Project Sources policy
+Do not ask the user to keep re-uploading mutable repository files into ChatGPT Project Sources. Read mutable project files live from GitHub.

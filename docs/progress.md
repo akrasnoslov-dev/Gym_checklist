@@ -52,7 +52,7 @@ Recent auth checkpoints:
 - `M6.5` Settings/Account — `IN PROGRESS (PENDING CI)`
 
 ### Deferred external work
-- `M5.4` Google Sign-In — `IN PROGRESS (PENDING EXTERNAL)`
+- `M5.4` Google Sign-In — `IN PROGRESS (PENDING CI/EXTERNAL)`
 - `M8.1` App Store auth compliance — `IN PROGRESS (PENDING IMPLEMENTATION/EXTERNAL)`
 
 ### Not yet accepted
@@ -75,7 +75,8 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - Live deployed-rules, emulator/two-user, cache/reconnect, and some macOS verification remain pending.
 
 ### M5.1–M5.5 auth
-- Email/password registration, sign-in, logout, resolving-state routing, password reset, sanitized errors, and cross-account state isolation are implemented.
+- Email/password and Google registration/sign-in, Sign in with Apple, logout, resolving-state routing, password reset, sanitized errors, and cross-account state isolation are implemented.
+- Google Sign-In uses the official pinned SDK, its branded SwiftUI button, scene URL handling, Firebase client ID, and Firebase credential exchange. Cancellation stays on the auth screen and provider tokens/profile data are not logged. Console configuration, URL scheme installation, and signed-device validation remain external.
 - Production repositories are created only for the active UID and user-scoped state is disposed/replaced on auth transitions.
 - Auth feedback clears at session/mode transitions; sign-out clears observable user state without waiting for an auth-listener callback.
 - Deterministic unit/UI coverage exists; authoritative macOS verification remains pending.
@@ -125,7 +126,7 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 ### M8.1 App Store authentication compliance
 - Apple Guideline 4.8 was verified on 2026-08-24: Google Sign-In for the primary Gym Checklist account requires an equivalent private-email login. Sign in with Apple is now mandatory before external TestFlight/App Store release; email/password is not claimed as the equivalent route.
 - A local native Sign in with Apple implementation is now present: the system button requests name/email, a secure nonce binds the Firebase Apple credential exchange, cancellation is quiet, and provider failures are sanitized. The app target declares the Apple sign-in entitlement; unit/UI regression coverage exercises deterministic success and cancellation behavior.
-- Account deletion now routes through an authenticated, owner-derived callable; it retains the session on failure, and an Apple account must reauthenticate as the same Firebase user, revoke a fresh Apple authorization code, refresh its Firebase token, then invoke the server erase. Focused unit/UI coverage includes confirmation, cancellation, retryable/recent-auth failure, success, and the Apple reauthentication route. The callable rejects stale and implausibly future `auth_time` values; its Node dependencies are package-lock pinned.
+- Account deletion now routes through an authenticated, owner-derived callable; it retains the session on failure. Apple and Google accounts must reauthenticate as the same Firebase user before the server erase; Apple additionally revokes a fresh authorization code. Both routes refresh the Firebase token and retain the session if verification fails. Focused unit/UI coverage includes confirmation, cancellation, retryable/recent-auth failure, success, and provider reauthentication routes. The callable rejects stale and implausibly future `auth_time` values; its Node dependencies are package-lock pinned.
 - `docs/app_store_auth_compliance.md` records remaining Firebase/Apple setup, App Review demo, Google-provider reauthentication, and the required live account-deletion proof. Google + Apple provider configuration and signed-device validation remain external blockers.
 
 ### M8.2 Release metadata baseline
@@ -138,6 +139,9 @@ Actual Git/code plus this file is authoritative for runtime status. Task bodies 
 - `docs/github_release_secrets.md` defines only protected-environment secrets and non-sensitive variables. The manual-only `testflight-release.yml` workflow rejects non-`dev` dispatches, validates an optional immutable `dev` source revision, imports ephemeral signing material, verifies the profile's team/bundle binding, archives/exports with a caller-supplied monotonic build number, and uploads only on the explicit `testflight` destination. Its certificate import uses the documented protected-environment password name.
 - `docs/testflight_beta_workflow.md` provides the internal-beta update and bug-report workflow. No signing material, protected environment, App Store Connect record, or uploaded build exists yet, so M8.4–M8.7 remain pending external/live proof.
 - `docs/account_deletion_design.md` records the required authenticated backend erasure job and client confirmation/reauth flow. This is a release blocker; do not substitute an unsafe client-side Auth-first deletion sequence.
+
+### M9.1 acceptance preparation
+- `docs/mvp_acceptance_checklist.md` maps every approved MVP scenario to its deterministic coverage and remaining macOS/live/manual evidence. It is a pending release-readiness matrix, not an acceptance claim.
 
 ## CI / verification state
 
@@ -191,11 +195,17 @@ Current dispatched macOS UI test:
 - checkpoint SHA: `417bb6d`
 - scope: gated focused UI verification after successful `32755392773` unit layer; this newer `2df48bb` checkpoint supersedes it for current-head verification
 
-Current dispatched macOS build:
+Latest macOS build:
 - run `32951109298`
 - checkpoint SHA: `2abdcf3`
-- current status: `pending` (do not poll while other safe work exists)
-- scope: focused `build-for-testing` retry for the three `32949106276` compile-only fixes. The remaining OAuth-provider API diagnostics are deprecation warnings, not known blockers; do not dispatch unit until this build passes.
+- final status: `completed / success` (`build-for-testing`)
+- scope: focused retry for the three `32949106276` compile-only fixes. The remaining OAuth-provider API diagnostics are deprecation warnings, not known blockers.
+
+Current dispatched macOS unit test:
+- run `32952236689`
+- checkpoint SHA: `32c1b81`
+- current status: `pending` (do not poll while runnable acceptance work exists)
+- scope: gated `GymChecklistTests` verification after successful `32951109298` build. Do not dispatch the focused UI layer until this unit run passes.
 
 Previous macOS build:
 - run `32949106276`
@@ -231,7 +241,7 @@ The Firebase development project exists.
 
 `GoogleService-Info.plist` and OAuth configuration are intentionally untracked and local-environment-specific. Never print or commit them.
 
-M5.4 still requires the Google Sign-In integration/configuration/live-validation path described in `docs/google_signin_setup.md`.
+M5.4 still requires the Google provider/configuration/live-validation path described in `docs/google_signin_setup.md`.
 
 ## USER ACTION REQUIRED QUEUE
 
@@ -242,7 +252,7 @@ When resumed, the local environment may require:
 1. enable/configure the Google provider in Firebase/Google Console;
 2. provide the refreshed untracked `GoogleService-Info.plist`;
 3. configure the reversed-client-ID URL scheme;
-4. complete/verify official Google Sign-In SDK integration and Firebase credential exchange;
+4. resolve the tracked Google Sign-In package in Xcode and run the authoritative macOS build;
 5. run live Google sign-in/cancel/failure validation.
 
 Use `docs/google_signin_setup.md` for exact setup details. Never commit OAuth/Firebase credentials.
@@ -255,7 +265,7 @@ Before external TestFlight/App Store release:
    Apple/Firebase configuration;
 2. signed-device-test Sign in with Apple and its account-deletion token
    revocation alongside Google;
-3. configure the Google SDK/provider then implement its same-user
+3. configure the Google SDK/provider and validate its tracked same-user
    reauthentication route; never route deletion through general sign-in;
 4. deploy and validate the in-app account-deletion backend's
    workout/custom-exercise/settings deletion semantics in a non-production
@@ -283,8 +293,8 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Build retry `32951109298` is pending for `2abdcf3`; Google provider reauthentication and non-production Firebase/Apple validation remain external/deferred.
-4. Dispatch the matching unit layer only if that build retry passes.
+3. Unit verification `32952236689` is pending for `32c1b81`; Google provider reauthentication and non-production Firebase/Apple validation remain external/deferred.
+4. Dispatch the matching focused UI layer only if that unit run passes.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;

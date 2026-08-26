@@ -41,9 +41,11 @@ Sources, verified 2026-08-24:
    implement the local account-deletion boundary. Apple-backed accounts are
    reauthenticated as the same Firebase user, revoke the fresh Apple
    authorization code, refresh the Firebase ID token, and only then call the
-   server-side erase. Deploy and verify the backend and every provider's
-   reauthentication path before beta/release; this is separate from logout and
-   has the data-retention design in `docs/account_deletion_design.md`.
+   server-side erase; Google-backed accounts likewise require a fresh Google
+   credential, same-UID verification, and token refresh. Deploy and verify the
+   backend and every provider's reauthentication path before beta/release; this
+   is separate from logout and has the data-retention design in
+   `docs/account_deletion_design.md`.
 
 Account-deletion/token-revocation sources, verified 2026-08-26:
 

@@ -1,3 +1,4 @@
+import GoogleSignIn
 import SwiftUI
 
 @main
@@ -22,6 +23,9 @@ struct GymChecklistApp: App {
             } else {
                 FirebaseConfigurationUnavailableView()
             }
+        }
+        .onOpenURL { url in
+            _ = GIDSignIn.sharedInstance.handle(url)
         }
     }
 

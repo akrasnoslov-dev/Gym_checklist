@@ -1,5 +1,6 @@
 import Combine
 import AuthenticationServices
+import GoogleSignInSwift
 import SwiftUI
 
 @MainActor
@@ -53,11 +54,14 @@ struct SettingsView: View {
     let onLogout: () -> Void
     let onDeleteAccount: () async -> Bool
     let requiresAppleTokenRevocationForAccountDeletion: Bool
+    let requiresGoogleReauthenticationForAccountDeletion: Bool
     let onDeleteAccountWithAppleReauthentication: (String, String, String) async -> Bool
+    let onDeleteAccountWithGoogleReauthentication: () async -> Bool
     let onAppleAccountDeletionVerificationFailure: () -> Void
     let errorMessage: String?
     @State private var isDeleteAccountConfirmationPresented = false
     @State private var isAppleAccountDeletionReauthenticationPresented = false
+    @State private var isGoogleAccountDeletionReauthenticationPresented = false
     @State private var isDeletingAccount = false
     @State private var appleDeletionNonce: String?
     @AccessibilityFocusState private var isErrorFocused: Bool
@@ -141,6 +145,8 @@ struct SettingsView: View {
                     Task {
                         if requiresAppleTokenRevocationForAccountDeletion {
                             isAppleAccountDeletionReauthenticationPresented = true
+                        } else if requiresGoogleReauthenticationForAccountDeletion {
+                            isGoogleAccountDeletionReauthenticationPresented = true
                         } else {
                             isDeletingAccount = true
                             _ = await onDeleteAccount()
@@ -172,6 +178,32 @@ struct SettingsView: View {
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Cancel") { isAppleAccountDeletionReauthenticationPresented = false }
+                        }
+                    }
+                }
+                .interactiveDismissDisabled(isDeletingAccount)
+            }
+            .sheet(isPresented: $isGoogleAccountDeletionReauthenticationPresented) {
+                NavigationStack {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Verify with Google")
+                            .font(.title2.bold())
+                        Text("For security, verify the same Google account before permanently deleting your data.")
+                            .foregroundStyle(.secondary)
+                        if let errorMessage {
+                            Label(errorMessage, systemImage: "exclamationmark.circle")
+                                .foregroundStyle(.red)
+                                .accessibilityLabel("Error: \(errorMessage)")
+                                .accessibilityIdentifier("accountDeleteVerificationError")
+                        }
+                        googleDeletionButton
+                        Spacer()
+                    }
+                    .padding()
+                    .navigationTitle("Delete account")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { isGoogleAccountDeletionReauthenticationPresented = false }
                         }
                     }
                 }
@@ -233,6 +265,40 @@ struct SettingsView: View {
         .frame(minHeight: 44)
         .disabled(isDeletingAccount)
         .accessibilityIdentifier("accountDeleteVerifyApple")
+    }
+
+    @ViewBuilder
+    private var googleDeletionButton: some View {
+#if DEBUG
+        if FirebaseBootstrap.isRunningTests() {
+            Button("Verify with Google") {
+                Task {
+                    isDeletingAccount = true
+                    _ = await onDeleteAccountWithGoogleReauthentication()
+                    isDeletingAccount = false
+                }
+            }
+            .disabled(isDeletingAccount)
+            .accessibilityIdentifier("accountDeleteVerifyGoogle")
+        } else {
+            nativeGoogleDeletionButton
+        }
+#else
+        nativeGoogleDeletionButton
+#endif
+    }
+
+    private var nativeGoogleDeletionButton: some View {
+        GoogleSignInButton {
+            Task {
+                isDeletingAccount = true
+                _ = await onDeleteAccountWithGoogleReauthentication()
+                isDeletingAccount = false
+            }
+        }
+        .frame(minHeight: 44)
+        .disabled(isDeletingAccount)
+        .accessibilityIdentifier("accountDeleteVerifyGoogle")
     }
 }
 

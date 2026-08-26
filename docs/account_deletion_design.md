@@ -21,9 +21,10 @@ all-or-nothing deletion across an expiring/re-authenticated Auth session.
   UID's `users/{uid}` document tree, then deletes the Auth user. It neither
   logs user data nor allows cross-user input.
 - The iOS client maps the callable's recent-authentication failure to a
-  retryable prompt. Before release, that prompt must lead to reauthentication
-  of the same Firebase user with its active provider; it must not use the
-  ordinary sign-in route, which could switch the deletion target.
+  retryable prompt. Apple and Google accounts use fresh provider credentials
+  to reauthenticate the same Firebase UID, refresh its Firebase token, and
+  only then invoke the callable; neither route uses ordinary sign-in, which
+  could switch the deletion target.
 - For a Sign in with Apple user, the reauthentication flow must collect a fresh
   authorization code and call `Auth.auth().revokeToken(withAuthorizationCode:)`
   before the deletion callable. Firebase does not retain that token. This
@@ -68,7 +69,8 @@ Cloud Functions may require Firebase/Google Cloud account configuration.
   success, retryable failure, and cross-account isolation.
 - Emulator/non-production Firebase integration proof that one user can erase
   only their data and no documents remain for that UID.
-- Signed-device validation for email/password, Apple, and Google accounts.
+- Signed-device validation for email/password, Apple, and Google accounts,
+  including Google cancellation/failure and a mismatched-account attempt.
 - Manual VoiceOver/Dynamic Type validation for the destructive flow.
 
 This design follows Apple's [Offering account deletion in your

@@ -25,7 +25,9 @@ struct ContentView: View {
                     onLogout: authenticationViewModel.signOut,
                     onDeleteAccount: authenticationViewModel.deleteAccount,
                     requiresAppleTokenRevocationForAccountDeletion: authenticationViewModel.requiresAppleTokenRevocationForAccountDeletion,
+                    requiresGoogleReauthenticationForAccountDeletion: authenticationViewModel.requiresGoogleReauthenticationForAccountDeletion,
                     onDeleteAccountWithAppleReauthentication: authenticationViewModel.deleteAccountWithAppleReauthentication,
+                    onDeleteAccountWithGoogleReauthentication: authenticationViewModel.deleteAccountWithGoogleReauthentication,
                     onAppleAccountDeletionVerificationFailure: authenticationViewModel.handleAppleAccountDeletionVerificationFailure,
                     authenticationError: authenticationViewModel.errorMessage
                 )
@@ -226,7 +228,9 @@ private struct AuthenticatedContentView: View {
     private let onLogout: () -> Void
     private let onDeleteAccount: () async -> Bool
     private let requiresAppleTokenRevocationForAccountDeletion: Bool
+    private let requiresGoogleReauthenticationForAccountDeletion: Bool
     private let onDeleteAccountWithAppleReauthentication: (String, String, String) async -> Bool
+    private let onDeleteAccountWithGoogleReauthentication: () async -> Bool
     private let onAppleAccountDeletionVerificationFailure: () -> Void
     private let authenticationError: String?
 
@@ -235,14 +239,18 @@ private struct AuthenticatedContentView: View {
         onLogout: @escaping () -> Void,
         onDeleteAccount: @escaping () async -> Bool,
         requiresAppleTokenRevocationForAccountDeletion: Bool,
+        requiresGoogleReauthenticationForAccountDeletion: Bool,
         onDeleteAccountWithAppleReauthentication: @escaping (String, String, String) async -> Bool,
+        onDeleteAccountWithGoogleReauthentication: @escaping () async -> Bool,
         onAppleAccountDeletionVerificationFailure: @escaping () -> Void,
         authenticationError: String?
     ) {
         self.onLogout = onLogout
         self.onDeleteAccount = onDeleteAccount
         self.requiresAppleTokenRevocationForAccountDeletion = requiresAppleTokenRevocationForAccountDeletion
+        self.requiresGoogleReauthenticationForAccountDeletion = requiresGoogleReauthenticationForAccountDeletion
         self.onDeleteAccountWithAppleReauthentication = onDeleteAccountWithAppleReauthentication
+        self.onDeleteAccountWithGoogleReauthentication = onDeleteAccountWithGoogleReauthentication
         self.onAppleAccountDeletionVerificationFailure = onAppleAccountDeletionVerificationFailure
         self.authenticationError = authenticationError
         let calendar = Calendar.autoupdatingCurrent
@@ -324,7 +332,9 @@ private struct AuthenticatedContentView: View {
                 onLogout: onLogout,
                 onDeleteAccount: onDeleteAccount,
                 requiresAppleTokenRevocationForAccountDeletion: requiresAppleTokenRevocationForAccountDeletion,
+                requiresGoogleReauthenticationForAccountDeletion: requiresGoogleReauthenticationForAccountDeletion,
                 onDeleteAccountWithAppleReauthentication: onDeleteAccountWithAppleReauthentication,
+                onDeleteAccountWithGoogleReauthentication: onDeleteAccountWithGoogleReauthentication,
                 onAppleAccountDeletionVerificationFailure: onAppleAccountDeletionVerificationFailure,
                 errorMessage: authenticationError
             )

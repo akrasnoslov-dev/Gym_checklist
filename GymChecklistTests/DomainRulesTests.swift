@@ -231,8 +231,9 @@ final class AuthenticationViewModelTests: XCTestCase {
         _ = await signIn.signIn(email: "member@example.com", password: "password")
 
         _ = await signIn.signInWithApple(identityToken: "token", rawNonce: "nonce")
+        _ = await signIn.signInWithGoogle()
 
-        XCTAssertEqual(analytics.events, [.signUp, .login, .login])
+        XCTAssertEqual(analytics.events, [.signUp, .login, .login, .login])
     }
 
     func testAppleSignInCancellationDoesNotShowErrorOrLogAnalytics() async {
@@ -245,6 +246,32 @@ final class AuthenticationViewModelTests: XCTestCase {
         XCTAssertFalse(signedIn)
         XCTAssertEqual(service.appleSignInCalls, 1)
         XCTAssertNil(viewModel.errorMessage)
+        XCTAssertTrue(analytics.events.isEmpty)
+    }
+
+    func testGoogleSignInCancellationDoesNotShowErrorOrLogAnalytics() async {
+        let analytics = AnalyticsRecorder()
+        let service = TestAuthenticationService(googleResult: .failure(.signInCancelled))
+        let viewModel = AuthenticationViewModel(service: service, analytics: analytics)
+
+        let signedIn = await viewModel.signInWithGoogle()
+
+        XCTAssertFalse(signedIn)
+        XCTAssertEqual(service.googleSignInCalls, 1)
+        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertTrue(analytics.events.isEmpty)
+    }
+
+    func testGoogleSignInFailureUsesNeutralErrorAndDoesNotLogAnalytics() async {
+        let analytics = AnalyticsRecorder()
+        let service = TestAuthenticationService(googleResult: .failure(.unavailable))
+        let viewModel = AuthenticationViewModel(service: service, analytics: analytics)
+
+        let signedIn = await viewModel.signInWithGoogle()
+
+        XCTAssertFalse(signedIn)
+        XCTAssertEqual(service.googleSignInCalls, 1)
+        XCTAssertEqual(viewModel.errorMessage, "We could not sign you in with Google. Please try again.")
         XCTAssertTrue(analytics.events.isEmpty)
     }
 
@@ -407,6 +434,21 @@ final class AuthenticationViewModelTests: XCTestCase {
         XCTAssertEqual(service.deleteAccountCalls, 1)
         XCTAssertNil(viewModel.currentUser)
     }
+
+    func testGoogleAccountDeletionUsesReauthenticationPathBeforeClearingTheSession() async {
+        let user = AuthenticatedUser(id: UserID(rawValue: "member"))
+        let service = TestAuthenticationService(requiresGoogleReauthentication: true)
+        let viewModel = AuthenticationViewModel(service: service)
+        service.emitAuthentication(user)
+
+        let deleted = await viewModel.deleteAccountWithGoogleReauthentication()
+
+        XCTAssertTrue(deleted)
+        XCTAssertTrue(viewModel.requiresGoogleReauthenticationForAccountDeletion)
+        XCTAssertEqual(service.googleAccountDeletionCalls, 1)
+        XCTAssertEqual(service.deleteAccountCalls, 1)
+        XCTAssertNil(viewModel.currentUser)
+    }
 }
 
 @MainActor
@@ -422,30 +464,38 @@ private final class TestAuthenticationService: AuthenticationService {
     private let deliversInitialObservation: Bool
     private let notifiesOnSignOut: Bool
     private let appleResult: Result<AuthenticatedUser, RegistrationError>?
+    private let googleResult: Result<AuthenticatedUser, RegistrationError>?
     private let deleteAccountResult: Result<Void, AccountDeletionError>
     private let requiresAppleTokenRevocation: Bool
+    private let requiresGoogleReauthentication: Bool
     private var observers: [UUID: @MainActor (AuthenticatedUser?) -> Void] = [:]
     private(set) var currentUser: AuthenticatedUser?
     private(set) var registrationCalls = 0
     private(set) var resetCalls = 0
     private(set) var appleSignInCalls = 0
+    private(set) var googleSignInCalls = 0
     private(set) var deleteAccountCalls = 0
     private(set) var appleAccountDeletionCalls = 0
+    private(set) var googleAccountDeletionCalls = 0
 
     init(
         result: Result<AuthenticatedUser, RegistrationError> = .success(AuthenticatedUser(id: UserID(rawValue: "test-user"))),
         deliversInitialObservation: Bool = true,
         notifiesOnSignOut: Bool = true,
         appleResult: Result<AuthenticatedUser, RegistrationError>? = nil,
+        googleResult: Result<AuthenticatedUser, RegistrationError>? = nil,
         deleteAccountResult: Result<Void, AccountDeletionError> = .success(()),
-        requiresAppleTokenRevocation: Bool = false
+        requiresAppleTokenRevocation: Bool = false,
+        requiresGoogleReauthentication: Bool = false
     ) {
         self.result = result
         self.deliversInitialObservation = deliversInitialObservation
         self.notifiesOnSignOut = notifiesOnSignOut
         self.appleResult = appleResult
+        self.googleResult = googleResult
         self.deleteAccountResult = deleteAccountResult
         self.requiresAppleTokenRevocation = requiresAppleTokenRevocation
+        self.requiresGoogleReauthentication = requiresGoogleReauthentication
     }
 
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation {
@@ -459,6 +509,10 @@ private final class TestAuthenticationService: AuthenticationService {
 
     var requiresAppleTokenRevocationForAccountDeletion: Bool {
         requiresAppleTokenRevocation
+    }
+
+    var requiresGoogleReauthenticationForAccountDeletion: Bool {
+        requiresGoogleReauthentication
     }
 
     func emitAuthentication(_ user: AuthenticatedUser?) {
@@ -486,6 +540,14 @@ private final class TestAuthenticationService: AuthenticationService {
         return user
     }
 
+    func signInWithGoogle() async throws -> AuthenticatedUser {
+        googleSignInCalls += 1
+        let user = try (googleResult ?? result).get()
+        currentUser = user
+        observers.values.forEach { $0(user) }
+        return user
+    }
+
     func deleteAccount() async throws {
         deleteAccountCalls += 1
         try deleteAccountResult.get()
@@ -502,6 +564,12 @@ private final class TestAuthenticationService: AuthenticationService {
         guard !identityToken.isEmpty, !rawNonce.isEmpty, !authorizationCode.isEmpty else {
             throw AccountDeletionError.unavailable
         }
+        try await deleteAccount()
+    }
+
+    func deleteAccountWithGoogleReauthentication() async throws {
+        googleAccountDeletionCalls += 1
+        guard requiresGoogleReauthentication else { throw AccountDeletionError.unavailable }
         try await deleteAccount()
     }
 

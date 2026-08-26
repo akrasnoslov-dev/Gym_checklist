@@ -973,7 +973,7 @@ Provide standard recovery for email accounts.
 
 ---
 
-### M5.4 `IN PROGRESS (PENDING EXTERNAL)` Implement Google Sign-In
+### M5.4 `IN PROGRESS (PENDING CI/EXTERNAL)` Implement Google Sign-In
 **Goal**
 Add the approved secondary auth method.
 
@@ -1265,7 +1265,7 @@ Protect critical behavior before beta distribution.
 
 ## Milestone 8 — TestFlight readiness and iPhone beta distribution
 
-### M8.1 `IN PROGRESS (PENDING IMPLEMENTATION/EXTERNAL)` Verify current App Store authentication requirements
+### M8.1 `IN PROGRESS (PENDING CI/EXTERNAL)` Verify current App Store authentication requirements
 **Goal**
 Resolve release compliance for third-party login.
 
@@ -1410,7 +1410,7 @@ Document:
 
 ## Milestone 9 — MVP acceptance and stable release preparation
 
-### M9.1 `TODO` Run full product acceptance checklist
+### M9.1 `IN PROGRESS (PENDING CI/EXTERNAL)` Run full product acceptance checklist
 **Goal**
 Validate every approved MVP scenario against `docs/product_spec.md`.
 

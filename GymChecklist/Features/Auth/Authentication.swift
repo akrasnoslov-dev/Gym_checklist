@@ -2,9 +2,12 @@ import AuthenticationServices
 import Combine
 import CryptoKit
 import FirebaseAuth
+import FirebaseCore
 import FirebaseFunctions
 import Foundation
+import GoogleSignIn
 import Security
+import UIKit
 
 struct AuthenticatedUser: Equatable {
     let id: UserID
@@ -55,9 +58,11 @@ protocol AuthenticationObservation: AnyObject {
 protocol AuthenticationService: AnyObject {
     var currentUser: AuthenticatedUser? { get }
     var requiresAppleTokenRevocationForAccountDeletion: Bool { get }
+    var requiresGoogleReauthenticationForAccountDeletion: Bool { get }
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation
     func register(email: String, password: String) async throws -> AuthenticatedUser
     func signIn(email: String, password: String) async throws -> AuthenticatedUser
+    func signInWithGoogle() async throws -> AuthenticatedUser
     func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthenticatedUser
     func sendPasswordReset(email: String) async throws
     func deleteAccount() async throws
@@ -66,6 +71,7 @@ protocol AuthenticationService: AnyObject {
         rawNonce: String,
         authorizationCode: String
     ) async throws
+    func deleteAccountWithGoogleReauthentication() async throws
     func signOut() throws
 }
 
@@ -157,6 +163,23 @@ final class AuthenticationViewModel: ObservableObject {
     }
 
     @discardableResult
+    func signInWithGoogle() async -> Bool {
+        isSubmitting = true
+        errorMessage = nil
+        defer { isSubmitting = false }
+        do {
+            _ = try await service.signInWithGoogle()
+            analytics.log(.login)
+            return true
+        } catch RegistrationError.signInCancelled {
+            return false
+        } catch {
+            errorMessage = "We could not sign you in with Google. Please try again."
+            return false
+        }
+    }
+
+    @discardableResult
     func signInWithApple(identityToken: String, rawNonce: String) async -> Bool {
         isSubmitting = true
         errorMessage = nil
@@ -203,8 +226,19 @@ final class AuthenticationViewModel: ObservableObject {
         }
     }
 
+    @discardableResult
+    func deleteAccountWithGoogleReauthentication() async -> Bool {
+        await performAccountDeletion {
+            try await service.deleteAccountWithGoogleReauthentication()
+        }
+    }
+
     var requiresAppleTokenRevocationForAccountDeletion: Bool {
         service.requiresAppleTokenRevocationForAccountDeletion
+    }
+
+    var requiresGoogleReauthenticationForAccountDeletion: Bool {
+        service.requiresGoogleReauthenticationForAccountDeletion
     }
 
     @discardableResult
@@ -220,6 +254,8 @@ final class AuthenticationViewModel: ObservableObject {
             return true
         } catch let error as AccountDeletionError {
             errorMessage = error.message
+            return false
+        } catch RegistrationError.signInCancelled {
             return false
         } catch {
             errorMessage = AccountDeletionError.unavailable.message
@@ -300,6 +336,10 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         auth.currentUser?.providerData.contains(where: { $0.providerID == "apple.com" }) == true
     }
 
+    var requiresGoogleReauthenticationForAccountDeletion: Bool {
+        auth.currentUser?.providerData.contains(where: { $0.providerID == "google.com" }) == true
+    }
+
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation {
         let handle = auth.addStateDidChangeListener { _, user in
             let authenticatedUser = user.map { AuthenticatedUser(id: UserID(rawValue: $0.uid)) }
@@ -357,7 +397,25 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         }
     }
 
-    func signOut() throws { try auth.signOut() }
+    func signInWithGoogle() async throws -> AuthenticatedUser {
+        let credential = try await freshGoogleCredential()
+        return try await withCheckedThrowingContinuation { continuation in
+            auth.signIn(with: credential) { result, error in
+                if let error {
+                    continuation.resume(throwing: Self.map(error))
+                } else if let user = result?.user {
+                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid)))
+                } else {
+                    continuation.resume(throwing: RegistrationError.unavailable)
+                }
+            }
+        }
+    }
+
+    func signOut() throws {
+        try auth.signOut()
+        GIDSignIn.sharedInstance.signOut()
+    }
 
     func sendPasswordReset(email: String) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -413,6 +471,32 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         try await FirebaseAccountDeletionCallable().deleteCurrentAccount()
     }
 
+    func deleteAccountWithGoogleReauthentication() async throws {
+        guard let user = auth.currentUser,
+              user.providerData.contains(where: { $0.providerID == "google.com" }) else {
+            throw AccountDeletionError.unavailable
+        }
+        let expectedUserID = user.uid
+        let credential = try await freshGoogleCredential()
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            user.reauthenticate(with: credential) { _, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+        guard auth.currentUser?.uid == expectedUserID else {
+            throw AccountDeletionError.unavailable
+        }
+        _ = try await user.getIDToken(forcingRefresh: true)
+        guard auth.currentUser?.uid == expectedUserID else {
+            throw AccountDeletionError.unavailable
+        }
+        try await FirebaseAccountDeletionCallable().deleteCurrentAccount()
+    }
+
     private static func map(_ error: Error) -> RegistrationError {
         guard let code = AuthErrorCode(rawValue: (error as NSError).code) else { return .unavailable }
         switch code {
@@ -423,6 +507,54 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         case .wrongPassword, .userNotFound, .invalidCredential: return .invalidCredentials
         default: return .unavailable
         }
+    }
+
+    private func freshGoogleCredential() async throws -> AuthCredential {
+        guard let clientID = FirebaseApp.app()?.options.clientID,
+              let presenter = Self.activePresentationController() else {
+            throw RegistrationError.unavailable
+        }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenter)
+            guard let idToken = result.user.idToken?.tokenString else {
+                throw RegistrationError.unavailable
+            }
+            return GoogleAuthProvider.credential(
+                withIDToken: idToken,
+                accessToken: result.user.accessToken.tokenString
+            )
+        } catch let error as NSError
+            where error.domain == kGIDSignInErrorDomain
+                && error.code == GIDSignInErrorCode.canceled.rawValue {
+            throw RegistrationError.signInCancelled
+        } catch {
+            throw RegistrationError.unavailable
+        }
+    }
+
+    @MainActor
+    private static func activePresentationController() -> UIViewController? {
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })?
+            .windows
+            .first(where: \.isKeyWindow)
+        else { return nil }
+        return visibleViewController(from: window.rootViewController)
+    }
+
+    private static func visibleViewController(from controller: UIViewController?) -> UIViewController? {
+        if let navigation = controller as? UINavigationController {
+            return visibleViewController(from: navigation.visibleViewController)
+        }
+        if let tab = controller as? UITabBarController {
+            return visibleViewController(from: tab.selectedViewController)
+        }
+        if let presented = controller?.presentedViewController {
+            return visibleViewController(from: presented)
+        }
+        return controller
     }
 }
 
@@ -534,6 +666,10 @@ private final class UITestAuthenticationService: AuthenticationService {
         requiresAppleTokenRevocation
     }
 
+    var requiresGoogleReauthenticationForAccountDeletion: Bool {
+        ProcessInfo.processInfo.environment["UITEST_ACCOUNT_DELETION_PROVIDER"] == "google"
+    }
+
     func register(email: String, password: String) async throws -> AuthenticatedUser {
         if let registrationError { throw registrationError }
         let user = AuthenticatedUser(id: UserID(rawValue: "ui-test-registered-user"))
@@ -544,6 +680,10 @@ private final class UITestAuthenticationService: AuthenticationService {
 
     func signIn(email: String, password: String) async throws -> AuthenticatedUser {
         try await register(email: email, password: password)
+    }
+
+    func signInWithGoogle() async throws -> AuthenticatedUser {
+        try await register(email: "google-ui-test@example.com", password: "not-used")
     }
 
     func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthenticatedUser {
@@ -565,6 +705,12 @@ private final class UITestAuthenticationService: AuthenticationService {
         guard !identityToken.isEmpty, !rawNonce.isEmpty, !authorizationCode.isEmpty else {
             throw AccountDeletionError.unavailable
         }
+        if let accountDeletionError { throw accountDeletionError }
+        currentUser = nil
+        observers.values.forEach { $0(nil) }
+    }
+
+    func deleteAccountWithGoogleReauthentication() async throws {
         if let accountDeletionError { throw accountDeletionError }
         currentUser = nil
         observers.values.forEach { $0(nil) }

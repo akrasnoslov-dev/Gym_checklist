@@ -1,4 +1,5 @@
 import AuthenticationServices
+import GoogleSignInSwift
 import SwiftUI
 
 @MainActor
@@ -66,6 +67,19 @@ struct RegistrationView: View {
                     .accessibilityIdentifier(isResettingPassword ? "authSendReset" : (isSignIn ? "authSignIn" : "authRegister"))
 
                     if !isResettingPassword {
+#if DEBUG
+                        if FirebaseBootstrap.isRunningTests() {
+                            Button("Continue with Google") {
+                                Task { _ = await viewModel.signInWithGoogle() }
+                            }
+                            .disabled(viewModel.isSubmitting)
+                            .accessibilityIdentifier("authSignInWithGoogle")
+                        } else {
+                            googleSignInButton
+                        }
+#else
+                        googleSignInButton
+#endif
 #if DEBUG
                         if FirebaseBootstrap.isRunningTests() {
                             Button("Continue with Apple") {
@@ -139,5 +153,14 @@ struct RegistrationView: View {
         .frame(minHeight: 44)
         .disabled(viewModel.isSubmitting)
         .accessibilityIdentifier("authSignInWithApple")
+    }
+
+    private var googleSignInButton: some View {
+        GoogleSignInButton {
+            Task { _ = await viewModel.signInWithGoogle() }
+        }
+        .frame(minHeight: 44)
+        .disabled(viewModel.isSubmitting)
+        .accessibilityIdentifier("authSignInWithGoogle")
     }
 }

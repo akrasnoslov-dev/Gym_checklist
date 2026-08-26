@@ -686,10 +686,34 @@ final class RegistrationUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
     }
 
+    func testGoogleAccountDeletionVerifiesBeforeRoutingToAuthScreen() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_PROVIDER"] = "google"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+        XCTAssertTrue(app.buttons["accountDeleteVerifyGoogle"].waitForExistence(timeout: 2))
+        app.buttons["accountDeleteVerifyGoogle"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+    }
+
     func testAppleSignInRoutesToToday() {
         let app = launchRegistration()
 
         app.buttons["authSignInWithApple"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+    }
+
+    func testGoogleSignInRoutesToToday() {
+        let app = launchRegistration()
+
+        app.buttons["authSignInWithGoogle"].tap()
 
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
     }

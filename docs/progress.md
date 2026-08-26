@@ -7,13 +7,12 @@
 
 ## Verification
 - Local checks pass: whitespace, Firebase security hygiene, Firestore rules, account-deletion, offline, and Google Sign-In configuration contracts.
-- UI diagnostics have been iteratively narrowed around simulator timing/accessibility and account-deletion behavior. macOS UI run `33017028444` targets app checkpoint `cd900ed`; reconcile its final result before further UI/full verification.
-- The earlier `40c1c24` UI diagnostic exposed two simulator/Xcode launch failures plus the account-deletion sheet bug fixed by `cd900ed`; launch failures are not treated as app evidence.
+- UI diagnostic `33017028444` reached the current app checkpoint `cd900ed`: 40/42 tests passed. The two failures are test-fixture/accessibility-selector defects, corrected locally by fixing the Program initial date and querying the account-deletion error by its actual accessibility element.
 
 ## External/deferred
 - Real device validation remains required for Google sign-in/cancel/failure, Firestore owner isolation/offline reconnect, Crashlytics, accessibility, account deletion, and the physical-iPhone MVP pass.
 - Paid Apple membership, App Store Connect/TestFlight, release signing/secrets, final icon, and paid-release Apple configuration remain deferred.
 
 ## Next action
-1. Reconcile macOS UI run `33017028444` for `cd900ed`.
+1. Run one macOS `ui` diagnostic for the current test correction.
 2. If it passes, run one current-head macOS `full` verification; if it reports an app/test failure, fix only that narrow surface first. Treat pure simulator/Xcode launch failures as infrastructure evidence, not product regressions.

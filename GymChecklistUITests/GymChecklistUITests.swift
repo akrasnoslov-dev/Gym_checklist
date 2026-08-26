@@ -9,6 +9,7 @@ final class GymChecklistUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-08-14"
         app.launch()
 
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
@@ -750,7 +751,7 @@ final class RegistrationUITests: XCTestCase {
         app.alerts["Delete account?"].buttons["Delete account"].tap()
         app.buttons["accountDeleteVerifyApple"].tap()
 
-        XCTAssertTrue(app.staticTexts["accountDeleteVerificationError"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["accountDeleteVerificationError"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
     }

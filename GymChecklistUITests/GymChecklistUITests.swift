@@ -24,10 +24,11 @@ final class GymChecklistUITests: XCTestCase {
         let previousWeek = app.buttons["programPreviousWeek"]
         XCTAssertTrue(nextWeek.isHittable)
         XCTAssertTrue(previousWeek.isHittable)
+        let initialWeekLabel = weekHeader.label
         nextWeek.tap()
-        XCTAssertTrue(previousWeek.isHittable)
+        XCTAssertTrue(waitForLabelChange(of: weekHeader, from: initialWeekLabel))
         previousWeek.tap()
-        XCTAssertTrue(nextWeek.isHittable)
+        XCTAssertTrue(waitForLabel(of: weekHeader, toEqual: initialWeekLabel))
 
         app.buttons["programCreateWorkout"].tap()
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
@@ -165,8 +166,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertEqual(appearance.value as? String, "dark")
         XCTAssertEqual(app.descendants(matching: .any)["authenticatedContent"].value as? String, "dark")
 
-        app.buttons["settingsAppearanceSystem"].tap()
-        XCTAssertEqual(appearance.value as? String, "system")
+        XCTAssertTrue(selectAppearance("system", buttonIdentifier: "settingsAppearanceSystem", in: app, picker: appearance))
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
     }
@@ -207,11 +207,12 @@ final class GymChecklistUITests: XCTestCase {
         app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-08-07"
         app.launch()
 
         openProgram(app)
         let historyDate = app.buttons["programDate-2026-08-07"]
-        XCTAssertTrue(moveToPreviousWeek(containing: historyDate, in: app))
+        XCTAssertTrue(historyDate.waitForExistence(timeout: 5))
         historyDate.tap()
 
         let history = app.descendants(matching: .any)["programHistoryWorkout"]
@@ -238,11 +239,12 @@ final class GymChecklistUITests: XCTestCase {
         app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-08-07"
         app.launch()
 
         openProgram(app)
         let historyDate = app.buttons["programDate-2026-08-07"]
-        XCTAssertTrue(moveToPreviousWeek(containing: historyDate, in: app))
+        XCTAssertTrue(historyDate.waitForExistence(timeout: 5))
         historyDate.tap()
         let completedSet = app.buttons["programHistorySet-90000000-0000-4000-8000-000000000401"]
         XCTAssertTrue(reveal(completedSet, in: app))
@@ -282,11 +284,12 @@ final class GymChecklistUITests: XCTestCase {
         app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
         app.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-08-06"
         app.launch()
 
         openProgram(app)
         let pastDate = app.buttons["programDate-2026-08-06"]
-        XCTAssertTrue(moveToPreviousWeek(containing: pastDate, in: app))
+        XCTAssertTrue(pastDate.waitForExistence(timeout: 5))
         pastDate.tap()
 
         XCTAssertTrue(reveal(app.descendants(matching: .any)["programEmptyState"], in: app))
@@ -302,17 +305,6 @@ final class GymChecklistUITests: XCTestCase {
     private func openProgram(_ app: XCUIApplication) {
         app.tabBars.buttons["Program"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["programScreen"].waitForExistence(timeout: 5))
-    }
-
-    private func moveToPreviousWeek(containing date: XCUIElement, in app: XCUIApplication) -> Bool {
-        let previousWeek = app.buttons["programPreviousWeek"]
-        guard previousWeek.waitForExistence(timeout: 5) else { return false }
-
-        for _ in 0..<2 {
-            if date.waitForExistence(timeout: 1) { return true }
-            previousWeek.tap()
-        }
-        return date.waitForExistence(timeout: 5)
     }
 
     private func reveal(_ element: XCUIElement, in app: XCUIApplication, maximumSwipes: Int = 3) -> Bool {
@@ -337,6 +329,37 @@ final class GymChecklistUITests: XCTestCase {
             evaluatedWith: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func waitForLabelChange(of element: XCUIElement, from previousLabel: String) -> Bool {
+        let expectation = expectation(
+            for: NSPredicate(format: "label != %@", previousLabel),
+            evaluatedWith: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func waitForLabel(of element: XCUIElement, toEqual expectedLabel: String) -> Bool {
+        let expectation = expectation(
+            for: NSPredicate(format: "label == %@", expectedLabel),
+            evaluatedWith: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func selectAppearance(
+        _ expectedValue: String,
+        buttonIdentifier: String,
+        in app: XCUIApplication,
+        picker: XCUIElement
+    ) -> Bool {
+        let button = app.buttons[buttonIdentifier]
+        for _ in 0..<2 {
+            if picker.value as? String == expectedValue { return true }
+            button.tap()
+            if waitForValue(picker, expectedValue) { return true }
+        }
+        return picker.value as? String == expectedValue
     }
 }
 
@@ -706,7 +729,7 @@ final class RegistrationUITests: XCTestCase {
         app.buttons["accountDelete"].tap()
         app.alerts["Delete account?"].buttons["Delete account"].tap()
 
-        let deletionError = app.descendants(matching: .any)["authLogoutError"]
+        let deletionError = app.staticTexts["authLogoutError"]
         XCTAssertTrue(reveal(deletionError, in: app))
         XCTAssertEqual(deletionError.label, "Error: For security, sign in again and then retry account deletion.")
         XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)
@@ -741,7 +764,7 @@ final class RegistrationUITests: XCTestCase {
         app.alerts["Delete account?"].buttons["Delete account"].tap()
         app.buttons["accountDeleteVerifyApple"].tap()
 
-        XCTAssertTrue(app.descendants(matching: .any)["accountDeleteVerificationError"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["accountDeleteVerificationError"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
     }
@@ -843,7 +866,7 @@ final class RegistrationUITests: XCTestCase {
         app.secureTextFields["authConfirmPassword"].typeText("password")
         app.buttons["authRegister"].tap()
 
-        let error = app.descendants(matching: .any)["authRegistrationError"]
+        let error = app.staticTexts["authRegistrationError"]
         XCTAssertTrue(error.waitForExistence(timeout: 5))
         XCTAssertEqual(error.label, "Error: Enter a valid email address.")
         XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].exists)
@@ -881,7 +904,7 @@ final class RegistrationUITests: XCTestCase {
         app.secureTextFields["authConfirmPassword"].typeText("different")
         app.buttons["authRegister"].tap()
 
-        let error = app.descendants(matching: .any)["authRegistrationError"]
+        let error = app.staticTexts["authRegistrationError"]
         XCTAssertTrue(error.waitForExistence(timeout: 5))
         XCTAssertEqual(error.label, "Error: Passwords do not match.")
         XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].exists)

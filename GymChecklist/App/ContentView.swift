@@ -38,11 +38,24 @@ struct ContentView: View {
         }
     }
 
-    fileprivate static var testReferenceDate: LocalDate? {
-        guard let raw = ProcessInfo.processInfo.environment["UITEST_REFERENCE_DATE"] else { return nil }
+    fileprivate static func testDate(named environmentKey: String) -> LocalDate? {
+        guard let raw = ProcessInfo.processInfo.environment[environmentKey] else { return nil }
         let values = raw.split(separator: "-").compactMap { Int($0) }
         guard values.count == 3, (1...12).contains(values[1]), (1...31).contains(values[2]) else { return nil }
         return LocalDate(year: values[0], month: values[1], day: values[2])
+    }
+
+    fileprivate static var testReferenceDate: LocalDate? {
+        testDate(named: "UITEST_REFERENCE_DATE")
+    }
+
+    fileprivate static var testInitialSelectedDate: LocalDate? {
+#if DEBUG
+        guard FirebaseBootstrap.isRunningTests() else { return nil }
+        return testDate(named: "UITEST_INITIAL_SELECTED_DATE")
+#else
+        nil
+#endif
     }
 
     fileprivate static func localCurrentDate(calendar: Calendar) -> LocalDate {
@@ -256,6 +269,7 @@ private struct AuthenticatedContentView: View {
         let calendar = Calendar.autoupdatingCurrent
         let currentDateProvider = { ContentView.localCurrentDate(calendar: calendar) }
         let today = currentDateProvider()
+        let initialSelectedDate = ContentView.testInitialSelectedDate ?? today
         let repository: WorkoutRepository
         let customExerciseRepository: CustomExerciseRepository?
         let settingsRepository: UserSettingsRepository?
@@ -291,7 +305,7 @@ private struct AuthenticatedContentView: View {
 #endif
         _workoutViewModel = StateObject(wrappedValue: WorkoutViewModel(
             repository: repository,
-            initialDate: today,
+            initialDate: initialSelectedDate,
             currentDate: today,
             calendar: calendar,
             customExerciseRepository: customExerciseRepository,

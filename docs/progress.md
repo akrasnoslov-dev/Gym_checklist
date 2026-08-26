@@ -15,6 +15,7 @@ User pause checkpoint:
 - `5eaa082` — `Record user-requested pause`
 
 Latest code checkpoints:
+- `d097cfe` — `Implement Google sign-in flow`
 - `2abdcf3` — `Fix account deletion build errors`
 - `2df48bb` — `Add secure account deletion release path`
 - `8ebe053` — `Complete settings account surface`
@@ -201,11 +202,16 @@ Latest macOS build:
 - final status: `completed / success` (`build-for-testing`)
 - scope: focused retry for the three `32949106276` compile-only fixes. The remaining OAuth-provider API diagnostics are deprecation warnings, not known blockers.
 
-Current dispatched macOS unit test:
+Earlier dispatched macOS unit test:
 - run `32952236689`
 - checkpoint SHA: `32c1b81`
-- current status: `pending` (do not poll while runnable acceptance work exists)
-- scope: gated `GymChecklistTests` verification after successful `32951109298` build. Do not dispatch the focused UI layer until this unit run passes.
+- scope: gated `GymChecklistTests` verification after successful `32951109298` build; it is superseded for current-head evidence by the Google Sign-In package change.
+
+Current dispatched macOS build:
+- run `32953583375`
+- checkpoint SHA: `d097cfe`
+- current status: `pending` (do not poll while other safe work exists)
+- scope: focused `build-for-testing` verification for the pinned Google Sign-In package, app redirect handler, Firebase credential exchange, and provider-bound account-deletion reauthentication. Do not dispatch unit until this build passes.
 
 Previous macOS build:
 - run `32949106276`
@@ -293,13 +299,13 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Unit verification `32952236689` is pending for `32c1b81`; Google provider reauthentication and non-production Firebase/Apple validation remain external/deferred.
-4. Dispatch the matching focused UI layer only if that unit run passes.
+3. Build verification `32953583375` is pending for `d097cfe`; Google provider console setup and non-production Firebase/Apple validation remain external/deferred.
+4. Dispatch the matching unit layer only if that build run passes.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;
    - fail -> inspect once, fix narrowly, dispatch one relevant rerun, return to implementation;
    - queued/running -> keep `PENDING CI`, return to implementation.
-6. If the build is pending and no external setup arrives, preserve it as background verification; do not manufacture a client-side Google deletion path without the configured Google SDK/provider.
+6. If the build is pending and no external setup arrives, preserve it as background verification; do not bypass provider-bound reauthentication or the configured Google callback URL scheme.
 
 ## Future candidates
 None approved beyond the explicit backlog in `docs/implementation_plan.md`.

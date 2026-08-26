@@ -97,14 +97,14 @@ jobs:
             "$IOS_PROVISIONING_PROFILE_B64" \
             "$CI_KEYCHAIN_PASSWORD"; do
             if [ -z "$value" ]; then
-              echo "Missing required release configuration. See docs/github_release_secrets.md." >&2
+              echo "Missing required release configuration. See docs/release/github_release_secrets.md." >&2
               exit 1
             fi
           done
           if [ "$DESTINATION" = "testflight" ]; then
             for value in "$APPSTORE_CONNECT_KEY_ID" "$APPSTORE_CONNECT_ISSUER_ID" "$APPSTORE_CONNECT_API_PRIVATE_KEY_B64"; do
               if [ -z "$value" ]; then
-                echo "Missing App Store Connect upload configuration. See docs/github_release_secrets.md." >&2
+                echo "Missing App Store Connect upload configuration. See docs/release/github_release_secrets.md." >&2
                 exit 1
               fi
             done

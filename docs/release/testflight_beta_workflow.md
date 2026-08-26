@@ -2,9 +2,9 @@
 
 This workflow is for internal iPhone testing only. It does not publish to the
 App Store and it does not make an external TestFlight build release-compliant.
-Before the first run, complete `docs/apple_signing_checklist.md` and configure
+Before the first run, complete `docs/release/apple_signing_checklist.md` and configure
 the protected `testflight-internal` GitHub environment exactly as described in
-`docs/github_release_secrets.md`.
+`docs/release/github_release_secrets.md`.
 
 1. Choose the next unused integer build number. It must be greater than every
    prior upload for version `1.0`.
@@ -29,7 +29,7 @@ the protected `testflight-internal` GitHub environment exactly as described in
 
 Apple processes uploaded builds before they appear in TestFlight. Internal
 testing is the first distribution target; external testing remains blocked on
-the App Review/auth/deletion work in `docs/app_store_auth_compliance.md`.
+the App Review/auth/deletion work in `docs/release/app_store_auth_compliance.md`.
 
 Never upload a build from an untrusted branch, paste certificate/API-key
 material into a task, or reuse a build number.

@@ -2,7 +2,7 @@
 
 The manually triggered release workflow must remain disabled until the Apple
 Developer and App Store Connect prerequisites in
-`docs/apple_signing_checklist.md` are complete. It is separate from simulator
+`docs/release/apple_signing_checklist.md` are complete. It is separate from simulator
 CI and never runs on a normal push or pull request.
 
 Configure these as **environment secrets** on the protected

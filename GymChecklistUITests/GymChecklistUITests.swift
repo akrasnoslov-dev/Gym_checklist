@@ -24,11 +24,10 @@ final class GymChecklistUITests: XCTestCase {
         let previousWeek = app.buttons["programPreviousWeek"]
         XCTAssertTrue(nextWeek.isHittable)
         XCTAssertTrue(previousWeek.isHittable)
-        let initialWeekLabel = weekHeader.label
         nextWeek.tap()
-        XCTAssertTrue(waitForLabelChange(of: weekHeader, from: initialWeekLabel))
+        XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 5))
         previousWeek.tap()
-        XCTAssertTrue(waitForLabel(of: weekHeader, toEqual: initialWeekLabel))
+        XCTAssertTrue(app.buttons["programDate-2026-08-14"].waitForExistence(timeout: 5))
 
         app.buttons["programCreateWorkout"].tap()
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
@@ -326,22 +325,6 @@ final class GymChecklistUITests: XCTestCase {
     private func waitForValue(_ element: XCUIElement, _ expectedValue: String) -> Bool {
         let expectation = expectation(
             for: NSPredicate(format: "value == %@", expectedValue),
-            evaluatedWith: element
-        )
-        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
-    }
-
-    private func waitForLabelChange(of element: XCUIElement, from previousLabel: String) -> Bool {
-        let expectation = expectation(
-            for: NSPredicate(format: "label != %@", previousLabel),
-            evaluatedWith: element
-        )
-        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
-    }
-
-    private func waitForLabel(of element: XCUIElement, toEqual expectedLabel: String) -> Bool {
-        let expectation = expectation(
-            for: NSPredicate(format: "label == %@", expectedLabel),
             evaluatedWith: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed

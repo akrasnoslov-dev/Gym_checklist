@@ -2,11 +2,11 @@
 
 ## Current state
 - Branch: `dev`; latest checkpoint `1766819` (`Stabilize accessibility-based UI assertions`); a follow-up UI-test stabilization is uncommitted.
-- The follow-up makes history fixtures deterministic with a DEBUG-only test selected date, separately verifies week navigation, scopes SwiftUI error assertions to their unique `StaticText` nodes, and waits for appearance state propagation.
+- The follow-up makes history fixtures deterministic with a DEBUG-only test selected date, separately verifies week navigation with fresh date-button queries, scopes SwiftUI error assertions to their unique `StaticText` nodes, and waits for appearance state propagation.
 
 ## Verification
 - Local checks pass: whitespace, Firebase security hygiene, Firestore rules, account-deletion, offline, and Google Sign-In configuration contracts.
-- Latest macOS UI diagnostic `33009897993` failed at `1766819`: history setup still relied on an unreliable cross-week tap; error-label queries matched both image and text accessibility nodes; one appearance selection did not settle before assertion. The current follow-up targets only those UI-test surfaces and adds a direct week-navigation assertion.
+- Latest macOS UI diagnostic `33012722131` failed at `4f4338b`: all prior reported assertions passed; its sole failure was a cached SwiftUI week-header label predicate after a verified week-control tap. The current test-only change replaces that fragile predicate with fresh date-button queries.
 
 ## External/deferred
 - Real device validation remains required for Google sign-in/cancel/failure, Firestore owner isolation/offline reconnect, Crashlytics, accessibility, account deletion, and the physical-iPhone MVP pass.

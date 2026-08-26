@@ -97,7 +97,8 @@ Create the base app navigation with the three approved top-level tabs.
 Turn the macOS CI workflow into the authoritative build/test path for a Windows-based developer.
 
 **Requirements**
-- CI triggers on PRs to `dev` and relevant pushes.
+- Lightweight Linux CI triggers on relevant pushes and PRs.
+- Authoritative macOS/Xcode CI runs on PRs and explicit `workflow_dispatch` checkpoints; normal pushes do not create macOS runs.
 - Use a current macOS runner and available Xcode.
 - Build the app for an iOS Simulator.
 - Run unit tests.

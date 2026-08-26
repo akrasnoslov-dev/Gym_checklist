@@ -15,6 +15,7 @@ User pause checkpoint:
 - `5eaa082` — `Record user-requested pause`
 
 Latest code checkpoints:
+- `2abdcf3` — `Fix account deletion build errors`
 - `2df48bb` — `Add secure account deletion release path`
 - `8ebe053` — `Complete settings account surface`
 - `7ca1c6f` — `Implement weight unit setting`
@@ -191,10 +192,16 @@ Current dispatched macOS UI test:
 - scope: gated focused UI verification after successful `32755392773` unit layer; this newer `2df48bb` checkpoint supersedes it for current-head verification
 
 Current dispatched macOS build:
+- run `32951109298`
+- checkpoint SHA: `2abdcf3`
+- current status: `pending` (do not poll while other safe work exists)
+- scope: focused `build-for-testing` retry for the three `32949106276` compile-only fixes. The remaining OAuth-provider API diagnostics are deprecation warnings, not known blockers; do not dispatch unit until this build passes.
+
+Previous macOS build:
 - run `32949106276`
 - checkpoint SHA: `2df48bb`
 - final status: `completed / failure` (`build-for-testing`)
-- diagnosis: three compile-only issues—new Apple-deletion closures were referenced from the wrong view scope, conditional opaque-view branches needed `@ViewBuilder`, and the deletion callable continuation needed an explicit `Void` type. The focused correction is unstaged locally; do not dispatch unit until its build retry passes.
+- diagnosis: three compile-only issues—new Apple-deletion closures were referenced from the wrong view scope, conditional opaque-view branches needed `@ViewBuilder`, and the deletion callable continuation needed an explicit `Void` type. All three are corrected at `2abdcf3`.
 
 Previous macOS build:
 - run `32748151516`
@@ -276,7 +283,7 @@ Do not turn CI back into the foreground task.
 
 1. Do **not** make CI the first foreground task.
 2. M7.1 implementation is complete; its acceptance remains pending macOS CI.
-3. Commit the focused correction for the `32949106276` compile failure, run the static contract checks, then dispatch one build retry. Google provider reauthentication and non-production Firebase/Apple validation remain external/deferred.
+3. Build retry `32951109298` is pending for `2abdcf3`; Google provider reauthentication and non-production Firebase/Apple validation remain external/deferred.
 4. Dispatch the matching unit layer only if that build retry passes.
 5. At later natural checkpoints only, inspect pending CI once and react:
    - pass -> reconcile only the acceptance the run actually proves;

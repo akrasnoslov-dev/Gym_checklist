@@ -19,12 +19,11 @@ struct ProgramView: View {
                 Section {
                     weekHeader
                     dateSelector
-                        .id(calendarState.selectedDate)
                 }
                 selectedDateSections
-                    .id(calendarState.selectedDate)
             }
             .listStyle(.insetGrouped)
+            .id(calendarState.selectedDate)
             .navigationTitle("Program")
             .accessibilityIdentifier("programScreen")
             .toolbar {

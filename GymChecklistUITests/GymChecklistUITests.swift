@@ -30,7 +30,9 @@ final class GymChecklistUITests: XCTestCase {
             of: app.descendants(matching: .any)["programSelectedDate"],
             toEqual: "Friday, August 21, 2026"
         ))
-        previousWeek.tap()
+        let previousWeekAfterNext = app.buttons["programPreviousWeek"]
+        XCTAssertTrue(previousWeekAfterNext.waitForExistence(timeout: 2))
+        previousWeekAfterNext.tap()
         XCTAssertTrue(waitForLabel(
             of: app.descendants(matching: .any)["programSelectedDate"],
             toEqual: "Friday, August 14, 2026"

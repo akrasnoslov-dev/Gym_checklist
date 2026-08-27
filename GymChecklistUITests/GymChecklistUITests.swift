@@ -26,17 +26,11 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(nextWeek.isHittable)
         XCTAssertTrue(previousWeek.isHittable)
         nextWeek.tap()
-        XCTAssertTrue(waitForLabel(
-            of: app.descendants(matching: .any)["programSelectedDate"],
-            toEqual: "Friday, August 21, 2026"
-        ))
+        XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
         let previousWeekAfterNext = app.buttons["programPreviousWeek"]
         XCTAssertTrue(previousWeekAfterNext.waitForExistence(timeout: 2))
         previousWeekAfterNext.tap()
-        XCTAssertTrue(waitForLabel(
-            of: app.descendants(matching: .any)["programSelectedDate"],
-            toEqual: "Friday, August 14, 2026"
-        ))
+        XCTAssertTrue(app.buttons["programDate-2026-08-14"].waitForExistence(timeout: 2))
 
         app.buttons["programCreateWorkout"].tap()
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
@@ -48,10 +42,7 @@ final class GymChecklistUITests: XCTestCase {
         let nextWeekAfterCreatingWorkout = app.buttons["programNextWeek"]
         XCTAssertTrue(nextWeekAfterCreatingWorkout.waitForExistence(timeout: 2))
         nextWeekAfterCreatingWorkout.tap()
-        XCTAssertTrue(waitForLabel(
-            of: app.descendants(matching: .any)["programSelectedDate"],
-            toEqual: "Friday, August 21, 2026"
-        ))
+        XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["programCreateWorkout"].exists)
 
@@ -60,10 +51,7 @@ final class GymChecklistUITests: XCTestCase {
         let previousWeekAfterEmptyWeek = app.buttons["programPreviousWeek"]
         XCTAssertTrue(previousWeekAfterEmptyWeek.waitForExistence(timeout: 2))
         previousWeekAfterEmptyWeek.tap()
-        XCTAssertTrue(waitForLabel(
-            of: app.descendants(matching: .any)["programSelectedDate"],
-            toEqual: "Friday, August 14, 2026"
-        ))
+        XCTAssertTrue(app.buttons["programDate-2026-08-14"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
 

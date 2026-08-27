@@ -273,7 +273,6 @@ private struct AuthenticatedContentView: View {
         let repository: WorkoutRepository
         let customExerciseRepository: CustomExerciseRepository?
         let settingsRepository: UserSettingsRepository?
-#if DEBUG || MVP_DEMO
         if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
             let inMemoryRepository = InMemoryWorkoutRepository(userID: userID)
             if !DemoMode.isEnabled, userID.rawValue == "ui-test-user" {
@@ -289,11 +288,6 @@ private struct AuthenticatedContentView: View {
             customExerciseRepository = FirestoreCustomExerciseRepository(currentUserID: { userID })
             settingsRepository = FirestoreUserSettingsRepository(currentUserID: { userID })
         }
-#else
-        repository = FirestoreWorkoutRepository(currentUserID: { userID })
-        customExerciseRepository = FirestoreCustomExerciseRepository(currentUserID: { userID })
-        settingsRepository = FirestoreUserSettingsRepository(currentUserID: { userID })
-#endif
 #if DEBUG
         if let inMemoryRepository = repository as? InMemoryWorkoutRepository {
             if ProcessInfo.processInfo.environment["UITEST_FAIL_NEXT_TODAY_SAVE"] == "1" {

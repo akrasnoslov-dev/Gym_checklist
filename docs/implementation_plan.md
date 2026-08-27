@@ -1031,7 +1031,7 @@ Make auth reliable without adding visual complexity.
 
 ---
 
-### M5.6 `TODO` Auth/security checkpoint
+### M5.6 `IN PROGRESS (PENDING EXTERNAL/POST-PREVIEW)` Auth/security checkpoint
 **Required reviews**
 - `security_privacy_agent`
 - `firebase_data_guardian`
@@ -1415,7 +1415,7 @@ Document:
 
 ---
 
-### M8.8 `TODO` TestFlight readiness checkpoint
+### M8.8 `BLOCKED (DEFERRED BY USER)` TestFlight readiness checkpoint
 **Required reviews**
 - `release_appstore_agent`
 - `security_privacy_agent`
@@ -1463,7 +1463,7 @@ Validate every approved MVP scenario against `docs/product_spec.md`.
 
 ---
 
-### M9.2 `TODO` Fix acceptance blockers and regressions
+### M9.2 `BLOCKED (ONLY IF MVP PREVIEW/ACCEPTANCE FINDS A BLOCKER)` Fix acceptance blockers and regressions
 **Goal**
 Resolve only issues that block approved MVP quality.
 
@@ -1493,7 +1493,7 @@ Document what the beta/release does and deliberately does not do.
 
 ---
 
-### M9.4 `TODO` Prepare `dev -> main` release PR
+### M9.4 `BLOCKED (REQUIRES EXPLICIT USER APPROVAL)` Prepare `dev -> main` release PR
 **Goal**
 Prepare stable/release integration only after explicit user approval.
 

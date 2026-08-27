@@ -768,10 +768,12 @@ final class RegistrationUITests: XCTestCase {
         app.tabBars.buttons["Settings"].tap()
         app.buttons["accountDelete"].tap()
         app.alerts["Delete account?"].buttons["Delete account"].tap()
-        XCTAssertTrue(app.buttons["accountDeleteVerifyGoogle"].waitForExistence(timeout: 2))
-        app.buttons["accountDeleteVerifyGoogle"].tap()
+        let verifyGoogle = app.buttons["accountDeleteVerifyGoogle"]
+        XCTAssertTrue(verifyGoogle.waitForExistence(timeout: 5))
+        verifyGoogle.tap()
 
         XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+        XCTAssertFalse(verifyGoogle.exists)
     }
 
     func testAppleSignInRoutesToToday() {

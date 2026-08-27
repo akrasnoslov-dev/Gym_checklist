@@ -19,8 +19,10 @@ struct ProgramView: View {
                 Section {
                     weekHeader
                     dateSelector
+                        .id(calendarState.selectedDate)
                 }
                 selectedDateSections
+                    .id(calendarState.selectedDate)
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Program")

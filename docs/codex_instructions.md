@@ -15,6 +15,14 @@ Authoritative iOS verification runs in `.github/workflows/ios-ci.yml` on macOS/X
 
 Normal strategy: use one `full` macOS run at a coherent checkpoint. Use `build`, `unit`, or `ui` only to diagnose a failure or a narrowly risky build/test surface, then return to `full` for reconciliation.
 
+For one known failing test, use the optional `test_filter` workflow input instead of rerunning the entire target. Example:
+
+```powershell
+gh workflow run ios-ci.yml --repo akrasnoslov-dev/Gym_checklist --ref dev -f verification_scope=ui -f "test_filter=GymChecklistUITests/GymChecklistUITests/testProgramWeekNavigation"
+```
+
+Use the exact test class/method reported by the failure. After the focused test passes, return directly to one `full` run.
+
 When CI is the only remaining gate, do not spend model turns polling unchanged status. Confirm the run ID/SHA once, then wait in one silent foreground command:
 
 PowerShell:

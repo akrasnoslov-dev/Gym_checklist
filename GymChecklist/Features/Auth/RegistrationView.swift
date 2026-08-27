@@ -67,8 +67,8 @@ struct RegistrationView: View {
                     .accessibilityIdentifier(isResettingPassword ? "authSendReset" : (isSignIn ? "authSignIn" : "authRegister"))
 
                     if !isResettingPassword {
-#if DEBUG
-                        if FirebaseBootstrap.isRunningTests() {
+#if DEBUG || MVP_DEMO
+                        if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
                             Button("Continue with Google") {
                                 Task { _ = await viewModel.signInWithGoogle() }
                             }
@@ -80,8 +80,8 @@ struct RegistrationView: View {
 #else
                         googleSignInButton
 #endif
-#if DEBUG
-                        if FirebaseBootstrap.isRunningTests() {
+#if DEBUG || MVP_DEMO
+                        if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
                             Button("Continue with Apple") {
                                 Task {
                                     _ = await viewModel.signInWithApple(

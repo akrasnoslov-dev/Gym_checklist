@@ -1,0 +1,87 @@
+name: MVP Demo IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/mvp-demo-ipa.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-demo-ipa:
+    runs-on: macos-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve Swift packages
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project GymChecklist.xcodeproj \
+            -scheme GymChecklist \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+
+      - name: Build Firebase-free MVP demo for iPhone
+        shell: bash
+        run: |
+          set -euo pipefail
+          DERIVED_DATA="$RUNNER_TEMP/DerivedData"
+
+          xcodebuild build \
+            -project GymChecklist.xcodeproj \
+            -scheme GymChecklist \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$DERIVED_DATA" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS="MVP_DEMO" \
+            PRODUCT_BUNDLE_IDENTIFIER="dev.akrasnoslov.GymChecklist.demo" \
+            INFOPLIST_KEY_CFBundleDisplayName="Gym Checklist Demo"
+
+          APP_PATH="$DERIVED_DATA/Build/Products/Release-iphoneos/GymChecklist.app"
+          test -d "$APP_PATH"
+          test -f "$APP_PATH/GymChecklist"
+
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist")
+          test "$BUNDLE_ID" = "dev.akrasnoslov.GymChecklist.demo"
+
+          if [ -e "$APP_PATH/GoogleService-Info.plist" ]; then
+            echo "Demo IPA must not contain Firebase configuration." >&2
+            exit 1
+          fi
+          if [ -e "$APP_PATH/embedded.mobileprovision" ]; then
+            echo "Demo IPA must remain unsigned for Sideloadly." >&2
+            exit 1
+          fi
+
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP_PATH" "$RUNNER_TEMP/ipa/Payload/GymChecklist.app"
+
+          cd "$RUNNER_TEMP/ipa"
+          /usr/bin/zip -qry "$RUNNER_TEMP/GymChecklist-Demo.ipa" Payload
+          test -s "$RUNNER_TEMP/GymChecklist-Demo.ipa"
+
+          shasum -a 256 "$RUNNER_TEMP/GymChecklist-Demo.ipa" | tee "$RUNNER_TEMP/GymChecklist-Demo.sha256"
+          unzip -l "$RUNNER_TEMP/GymChecklist-Demo.ipa" | head -80
+
+      - name: Upload GymChecklist Demo IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: GymChecklist-Demo
+          path: |
+            ${{ runner.temp }}/GymChecklist-Demo.ipa
+            ${{ runner.temp }}/GymChecklist-Demo.sha256
+          if-no-files-found: error
+          retention-days: 14

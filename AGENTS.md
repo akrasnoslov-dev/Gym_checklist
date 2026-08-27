@@ -57,26 +57,17 @@ Google/Firebase development configuration and non-production validation are stil
 
 
 ## Active MVP finish lock
-This lock is active until the user has seen a real current MVP build/preview.
-
-The priority is now **finish -> show MVP**, not further hardening for its own sake.
+This lock remains active until the completed original-MVP candidate—not an intermediate demo or preview—is ready for the user's product acceptance.
 
 Rules:
 - Freeze scope. Do not add features, opportunistic refactors, architecture cleanup, test-suite cleanup, or documentation expansion unless required to fix a confirmed MVP blocker.
-- The Program navigation selector issue already classified as `KNOWN_UI_TEST_HARNESS_FLAKE` is non-blocking. Run `33077303696` was the final focused diagnostic for that surface. Do not rerun that focused test again unless new independent evidence proves a product bug.
-- The next authoritative gate is exactly one current-head macOS `smoke` run.
-- If `smoke` is green, **do not run `full` before the user's first MVP look**. Move immediately to a user-visible MVP handoff.
-- Handoff order is fixed:
-  1. immediately produce a **real simulator-based preview from the current build** (not a mockup) with screenshots/video or equivalent build evidence, so the user can see the MVP without waiting on signing;
-  2. only after that, prepare the user's own-iPhone path if the available non-paid signing/configuration route is technically sufficient. If it is externally blocked, state the single exact blocker instead of delaying the first MVP look.
-- If `smoke` fails, inspect the failure once, fix only the confirmed MVP blocker, and rerun `smoke`. Do not branch into unrelated diagnostics.
-- Live Google/Firebase/Crashlytics/manual-accessibility checks do not block the user's first MVP look unless their failure prevents the app from launching or prevents the core local workout flow from being demonstrated.
-- Do not activate TestFlight, App Store, paid signing, release automation, final icon work, or `dev -> main` work before the user has seen the MVP and explicitly asks to continue toward distribution.
+- The Program navigation selector issue already classified as `KNOWN_UI_TEST_HARNESS_FLAKE` is non-blocking. Run `33077303696` was the final focused diagnostic for that surface. Do not rerun it without new independent product evidence.
+- A green smoke run is a checkpoint, not a handoff. Continue resolving all technically achievable original-MVP implementation and verification work, including real Firebase/auth/offline/security paths.
+- Run exactly one final macOS `full` verification after the final product/UX reconciliation. Fix only confirmed MVP defects it exposes.
+- The final handoff is one completed physical-iPhone candidate using the real MVP architecture. The prior in-memory `MVP_DEMO` preview does not satisfy this lock.
+- Do not activate TestFlight, App Store, paid signing, release automation, final icon work, or `dev -> main` work.
 - M9.2 is runnable only for an actual acceptance blocker. A stale `TODO` label alone is not work.
-- A successful smoke run plus a real user-visible MVP handoff is the completion target for the current development phase.
-- After the real simulator MVP preview is produced, the current autonomous development phase is **complete**. Record the preview reference/checkpoint in `docs/progress.md`, stop implementation, and wait for explicit user feedback before any further product, iPhone-distribution, release, or hardening work.
-
-Do not stop at a commit, documentation update, CI dispatch, or CI result if the MVP can be shown next. Stop only after the handoff is produced or one genuinely external user action is the only remaining blocker.
+- Stop voluntarily only when the completed MVP candidate is ready for product acceptance, or all independent work is complete and one exact external user action is required.
 
 ## Autonomous work loop
 Repeat until a real stop condition exists:
@@ -110,7 +101,7 @@ During the current MVP-hardening phase, optimize for reaching a user-visible MVP
 Use:
 - `smoke` as the normal iterative macOS gate. It runs all unit tests plus a small set of critical stable UI flows.
 - exact filtered `unit`/`ui` runs for one known failing test.
-- `full` only after the user's first MVP look at a later broad release/reconciliation checkpoint, after high-risk cross-cutting changes, or when explicitly requested. It does not block the first MVP handoff.
+- `full` only once after final original-MVP reconciliation, after high-risk cross-cutting changes, or when explicitly requested. The final original-MVP candidate requires that checkpoint before handoff.
 
 Do not use `build -> unit -> ui -> full` as a routine scheduler.
 
@@ -133,15 +124,7 @@ A CI result proves the checkpoint SHA it actually ran against.
 CI is background verification. After dispatching a run, continue other safe implementation immediately.
 
 ### CI wait budget
-Do not burn Codex execution quota waiting 15-30 minutes for GitHub Actions.
-
-If no independent safe work remains:
-1. check the exact run ID/SHA once;
-2. use at most one silent foreground wait of up to 5 minutes;
-3. if the run still has no terminal result, write `CI_PENDING <RUN_ID> <SHA>` into `docs/progress.md` and end the task cleanly;
-4. a fresh Codex task must inspect that pending run first and resume from its result without asking the user to restate context.
-
-No repeated polling, no repeated "still running" narration, and no long `gh run watch` that consumes most of the model/task limit.
+Pending CI is not a voluntary stop condition. Continue independent useful MVP work while it runs. If none remains, wait or poll reasonably for its terminal result, process it immediately, and continue. Record an in-flight run only for continuity when an actual platform, tool, or context limit forces a checkpoint; never end a task merely to conserve quota while CI is pending.
 
 When CI completes:
 - green focused run -> run `smoke` if a coherent checkpoint is ready;
@@ -155,7 +138,7 @@ Before a final response:
 1. inspect Git/worktree, `docs/progress.md`, active backlog, and relevant CI;
 2. identify the exact next safe action;
 3. if it is executable now, execute it instead of stopping;
-4. if CI is running and no other work exists, use the CI wait budget above; after the single short wait, `CI_PENDING` is a valid clean stop instead of consuming the task limit;
+4. if CI is running, continue independent MVP work or wait reasonably for its terminal result; CI pending alone is never a voluntary stop condition;
 5. if a task is externally blocked, scan the rest of the active backlog;
 6. stop only when no technically safe active work remains and the remaining blocker is genuinely external/user-required, destructive approval/product decision is required, a real failure blocks all continuation, a required tool is unavailable, or the platform/model/tool limit actually ends execution.
 

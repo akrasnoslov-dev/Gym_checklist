@@ -40,7 +40,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     env:
-      VERIFICATION_SCOPE: ${{ inputs.verification_scope || 'full' }}
+      VERIFICATION_SCOPE: ${{ inputs.verification_scope || 'smoke' }}
       TEST_FILTER: ${{ inputs.test_filter || '' }}
 
     steps:

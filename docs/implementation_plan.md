@@ -18,10 +18,14 @@ The current user goal is to see and evaluate the MVP as soon as safely possible.
 Until that MVP review happens:
 - implementation-complete tasks marked only `PENDING CI` do not need an individual full-suite rerun each;
 - use exact focused diagnostics for known failures and the macOS `smoke` scope for routine reconciliation;
-- run the full regression suite only at a broad MVP/device-handoff checkpoint;
+- the user's first MVP look is gated by one current-head `smoke` run, not by another full regression run;
 - do not spend more than two focused reruns chasing one XCTest-only flaky test without independent evidence of a product bug;
 - paid Apple Developer, App Store Connect, TestFlight, release signing/secrets, final icon, and paid-release Apple configuration remain deferred and are not dependencies for current MVP acceptance work;
 - M9.1 product acceptance may proceed after the implementation/quality surface is smoke-green even while physical-device/live-provider checks remain `PENDING EXTERNAL`.
+- the existing Program `KNOWN_UI_TEST_HARNESS_FLAKE` is non-blocking and must not receive another focused rerun without new independent product evidence;
+- once current-head `smoke` is green, stop implementation work and move directly to a real MVP handoff/preview;
+- if physical iPhone installation is externally blocked, produce a real simulator-based preview from the current build rather than continuing implementation;
+- after smoke-green, do not run M9.2, M8 release work, TestFlight work, broad refactors, or full-suite hardening before the user has seen the MVP unless a confirmed blocker prevents the handoff.
 
 This override changes scheduling only. It does not waive security, data integrity, destructive-action, or final release acceptance requirements.
 

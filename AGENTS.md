@@ -55,6 +55,28 @@ Current goal: finish and verify the MVP as far as possible, then get a developme
 
 Google/Firebase development configuration and non-production validation are still relevant because they are part of the app itself, not only App Store release.
 
+
+## Active MVP finish lock
+This lock is active until the user has seen a real current MVP build/preview.
+
+The priority is now **finish -> show MVP**, not further hardening for its own sake.
+
+Rules:
+- Freeze scope. Do not add features, opportunistic refactors, architecture cleanup, test-suite cleanup, or documentation expansion unless required to fix a confirmed MVP blocker.
+- The Program navigation selector issue already classified as `KNOWN_UI_TEST_HARNESS_FLAKE` is non-blocking. Run `33077303696` was the final focused diagnostic for that surface. Do not rerun that focused test again unless new independent evidence proves a product bug.
+- The next authoritative gate is exactly one current-head macOS `smoke` run.
+- If `smoke` is green, **do not run `full` before the user's first MVP look**. Move immediately to a user-visible MVP handoff.
+- Preferred handoff order:
+  1. put the current development build on the user's own iPhone if the available non-paid signing/configuration path is technically sufficient;
+  2. if physical installation is blocked by signing, provider configuration, or another genuinely external requirement, produce a real simulator-based preview from the current build (not a mockup) with screenshots/video or equivalent build evidence, and state the single exact external action needed for physical installation.
+- If `smoke` fails, inspect the failure once, fix only the confirmed MVP blocker, and rerun `smoke`. Do not branch into unrelated diagnostics.
+- Live Google/Firebase/Crashlytics/manual-accessibility checks do not block the user's first MVP look unless their failure prevents the app from launching or prevents the core local workout flow from being demonstrated.
+- Do not activate TestFlight, App Store, paid signing, release automation, final icon work, or `dev -> main` work before the user has seen the MVP and explicitly asks to continue toward distribution.
+- M9.2 is runnable only for an actual acceptance blocker. A stale `TODO` label alone is not work.
+- A successful smoke run plus a real user-visible MVP handoff is the completion target for the current development phase.
+
+Do not stop at a commit, documentation update, CI dispatch, or CI result if the MVP can be shown next. Stop only after the handoff is produced or one genuinely external user action is the only remaining blocker.
+
 ## Autonomous work loop
 Repeat until a real stop condition exists:
 1. reconstruct current Git/code/test/CI state;
@@ -87,7 +109,7 @@ During the current MVP-hardening phase, optimize for reaching a user-visible MVP
 Use:
 - `smoke` as the normal iterative macOS gate. It runs all unit tests plus a small set of critical stable UI flows.
 - exact filtered `unit`/`ui` runs for one known failing test.
-- `full` only at broad reconciliation checkpoints, before MVP/device handoff, after high-risk cross-cutting changes, or when explicitly requested.
+- `full` only after the user's first MVP look at a later broad release/reconciliation checkpoint, after high-risk cross-cutting changes, or when explicitly requested. It does not block the first MVP handoff.
 
 Do not use `build -> unit -> ui -> full` as a routine scheduler.
 

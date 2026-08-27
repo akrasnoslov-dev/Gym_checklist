@@ -9,12 +9,13 @@ on:
   workflow_dispatch:
     inputs:
       verification_scope:
-        description: "Authoritative verification scope (use full normally; narrow scopes for diagnostics)"
+        description: "Verification scope (use smoke during MVP iteration; full for broad checkpoints)"
         required: true
         default: full
         type: choice
         options:
           - full
+          - smoke
           - build
           - unit
           - ui
@@ -124,6 +125,21 @@ jobs:
                 exit 2
               fi
               xcodebuild "${XCODE_ARGS[@]}" test
+              ;;
+            smoke)
+              if [ -n "$TEST_FILTER" ]; then
+                echo "test_filter is only valid for unit/ui diagnostics" >&2
+                exit 2
+              fi
+              xcodebuild "${XCODE_ARGS[@]}" test \
+                -only-testing:GymChecklistTests \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayCompletesAndUndoesSetWithoutLeavingTheScreen \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayLongPressEditsPlanThenActualWithoutLeavingToday \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayRestoresSkippedExerciseWithItsOriginalCompletionState \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testProgramEditsCompletedHistoricalActualAndRetainsItAfterReopen \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testWeightUnitUpdatesTodayAndProgramWithoutChangingStoredWorkout \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testSuccessfulRegistrationRoutesDirectlyToTodayEmptyState \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testCompletingEveryRequiredSetShowsDismissibleCompletionPopup
               ;;
             build)
               if [ -n "$TEST_FILTER" ]; then

@@ -1,33 +1,28 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current state
-- Branch: `dev`; repository head includes MVP-finish scheduling changes; current product-code checkpoint remains `f40315e` (`Default manual macOS CI to MVP smoke`).
-- Product implementation is frozen for the first MVP handoff: no new features/refactors/cleanup unless a confirmed blocker prevents the MVP from being shown.
-- Apple/Google deletion reauthentication dismisses its sheet before routing to auth; failure/cancellation retain the sheet/session.
-- Program week navigation recreates only its dynamic calendar/content subtrees after a selected-date change.
-- A malformed Firestore workout document retains any cached workout for that same date and presents non-blocking unavailable state instead of erasing Today into a false rest day.
+- Branch: `dev`.
+- Approved MVP product implementation is frozen pending user evaluation.
+- Authoritative macOS MVP smoke run `33082510251` completed `success`.
+- The Program XCTest selector issue remains `KNOWN_UI_TEST_HARNESS_FLAKE` and is non-blocking; do not rerun it without new independent product evidence.
+- A dedicated sideload demo path now exists for first-device evaluation without paid Apple/TestFlight distribution.
 
-## Verification
-- Local safety checks pass: whitespace plus Firebase security hygiene, Firestore rules, account-deletion, and offline cache/reconnect contracts.
-- Full macOS verification `33054548821` ran all unit tests plus 41/42 UI tests; only Program week navigation failed.
-- Multiple focused Program diagnostics established XCTest accessibility/selector instability while domain/unit coverage and the rest of the UI suite remained green.
-- Final focused diagnostic `33077303696` completed with `failure`. The Program surface remains classified `KNOWN_UI_TEST_HARNESS_FLAKE`; the focused rerun budget is exhausted. Do not run that focused test again without new independent evidence of a product bug.
-- Authoritative macOS MVP smoke run `33082510251` completed `success`; product code remained unchanged from `f40315e`. Temporary PR #1 was closed without merge.
-
-## MVP finish lock
-- The next authoritative gate is one current-head macOS `smoke` run.
-- If smoke is green, stop implementation/hardening and immediately produce a real user-visible MVP handoff.
-- First handoff after smoke-green: produce a real simulator-based preview from the current build (not a mockup) so the user sees the MVP immediately.
-- Physical iPhone installation is the second step. Use a non-paid path if technically sufficient; if signing/provider configuration blocks it, state the single exact external action without delaying the simulator preview.
-- Once the real simulator preview is produced, this autonomous development phase ends. Record the preview/checkpoint and wait for explicit user feedback before any further coding or release work.
-- Do not run `full`, TestFlight/release work, another Program focused diagnostic, or broad cleanup before the user's first MVP look.
-- If smoke fails, inspect once, fix only the confirmed MVP blocker, then rerun smoke.
+## MVP demo IPA
+- Workflow: `.github/workflows/mvp-demo-ipa.yml`.
+- Successful build run: `33087360512`.
+- Source checkpoint: `4e6a241c2aad68c39a5df0e6c4d19e9f7459139d`.
+- Artifact: `GymChecklist-Demo` (artifact id `9652911549`).
+- IPA: `GymChecklist-Demo.ipa`, arm64 iPhone build, bundle id `dev.akrasnoslov.GymChecklist.demo`.
+- Verified in packaged app: `MVP_DEMO=true`, no `GoogleService-Info.plist`, no embedded provisioning profile.
+- Demo mode uses local in-memory auth/workout/custom-exercise/settings repositories and no Firebase/Analytics live services.
+- Important demo limitation: data is not durable across a full app process restart. This is acceptable for the first UI/interaction evaluation but does not replace later Firebase/offline persistence validation.
 
 ## External/deferred
-- Real-device validation remains required later for live Google sign-in/cancel/failure, Firestore owner isolation/offline reconnect, Crashlytics, accessibility, account deletion, and the physical-iPhone pass where applicable.
+- Physical iPhone installation now proceeds through Sideloadly using the demo IPA and the user's Apple Account.
 - Paid Apple membership, App Store Connect/TestFlight, release signing/secrets, final icon, and paid-release Apple configuration remain deferred.
+- Live Google/Firebase/Crashlytics/account-isolation/offline reconnect and final physical-device validation remain later acceptance work.
 
 ## Next action
-1. Complete real simulator preview run `33083774961` from current `dev`.
-2. Export/show the captured Auth, Today, Program, Settings, and completion screens to the user.
-3. After preview is delivered, end this autonomous development phase and wait for explicit user feedback.
+1. User installs `GymChecklist-Demo.ipa` on the iPhone with Sideloadly.
+2. User evaluates the MVP UI and core workout flow.
+3. Do not resume autonomous feature development until explicit user feedback identifies a blocker or approved change.

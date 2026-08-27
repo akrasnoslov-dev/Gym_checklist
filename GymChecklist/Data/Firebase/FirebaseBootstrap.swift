@@ -37,3 +37,14 @@ enum FirebaseBootstrap {
         environment["UITESTING"] == "1" || environment["XCTestConfigurationFilePath"] != nil
     }
 }
+
+
+enum DemoMode {
+    static var isEnabled: Bool {
+#if MVP_DEMO
+        true
+#else
+        false
+#endif
+    }
+}

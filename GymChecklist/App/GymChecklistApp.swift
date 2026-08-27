@@ -7,10 +7,12 @@ struct GymChecklistApp: App {
     private let isRunningTests: Bool
 
     init() {
-        firebaseStatus = FirebaseBootstrap.configureIfAvailable()
+        firebaseStatus = DemoMode.isEnabled
+            ? .missingConfiguration
+            : FirebaseBootstrap.configureIfAvailable()
         isRunningTests = FirebaseBootstrap.isRunningTests()
 #if DEBUG
-        if firebaseStatus != .configured, !isRunningTests {
+        if firebaseStatus != .configured, !isRunningTests, !DemoMode.isEnabled {
             preconditionFailure("Firebase requires GoogleService-Info.plist. See docs/firebase_setup.md.")
         }
 #endif
@@ -32,7 +34,7 @@ struct GymChecklistApp: App {
     }
 
     static func canComposeFirebaseServices(status: FirebaseBootstrap.Status, isRunningTests: Bool) -> Bool {
-        isRunningTests || status == .configured
+        DemoMode.isEnabled || isRunningTests || status == .configured
     }
 }
 

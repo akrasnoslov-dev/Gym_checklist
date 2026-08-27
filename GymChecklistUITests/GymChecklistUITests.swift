@@ -27,12 +27,12 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(previousWeek.isHittable)
         nextWeek.tap()
         XCTAssertTrue(waitForLabel(
-            of: app.staticTexts["programSelectedDate"],
+            of: app.descendants(matching: .any)["programSelectedDate"],
             toEqual: "Friday, August 21, 2026"
         ))
         previousWeek.tap()
         XCTAssertTrue(waitForLabel(
-            of: app.staticTexts["programSelectedDate"],
+            of: app.descendants(matching: .any)["programSelectedDate"],
             toEqual: "Friday, August 14, 2026"
         ))
 
@@ -47,7 +47,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(nextWeekAfterCreatingWorkout.waitForExistence(timeout: 2))
         nextWeekAfterCreatingWorkout.tap()
         XCTAssertTrue(waitForLabel(
-            of: app.staticTexts["programSelectedDate"],
+            of: app.descendants(matching: .any)["programSelectedDate"],
             toEqual: "Friday, August 21, 2026"
         ))
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
@@ -59,7 +59,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(previousWeekAfterEmptyWeek.waitForExistence(timeout: 2))
         previousWeekAfterEmptyWeek.tap()
         XCTAssertTrue(waitForLabel(
-            of: app.staticTexts["programSelectedDate"],
+            of: app.descendants(matching: .any)["programSelectedDate"],
             toEqual: "Friday, August 14, 2026"
         ))
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))

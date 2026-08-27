@@ -1,7 +1,7 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current state
-- Branch: `dev`; pushed through `127d4f7`. App-code checkpoint remains `aa076d5` (`Harden Firestore cached snapshot recovery`).
+- Branch: `dev`; current worktree is clean and all current commits are pushed. App-code checkpoint remains `aa076d5` (`Harden Firestore cached snapshot recovery`); the later commits only update scheduling and continuity instructions.
 - Current goal: complete the entire originally approved MVP before the next product review. The prior physical-iPhone preview was intermediate only; do not stop or solicit acceptance until the final MVP candidate is ready.
 - The app contains the planned Program, Today, Settings, Firebase/auth, offline, Analytics, and Crashlytics paths. Remaining work is to reconcile their real implementation and verification against the approved MVP, fix confirmed gaps, and complete one final broad verification.
 - Program week navigation rebuilds only dynamic calendar/content after date changes. Malformed Firestore workout snapshots preserve any cached workout and show a non-blocking unavailable state rather than a false rest day.

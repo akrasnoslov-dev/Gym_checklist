@@ -18,6 +18,11 @@ on:
           - build
           - unit
           - ui
+      test_filter:
+        description: "Optional exact xcodebuild -only-testing filter for unit/ui diagnostics"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -35,6 +40,7 @@ jobs:
     timeout-minutes: 45
     env:
       VERIFICATION_SCOPE: ${{ inputs.verification_scope || 'full' }}
+      TEST_FILTER: ${{ inputs.test_filter || '' }}
 
     steps:
       - name: Checkout
@@ -113,16 +119,46 @@ jobs:
           )
           case "$VERIFICATION_SCOPE" in
             full)
+              if [ -n "$TEST_FILTER" ]; then
+                echo "test_filter is only valid for unit/ui diagnostics" >&2
+                exit 2
+              fi
               xcodebuild "${XCODE_ARGS[@]}" test
               ;;
             build)
+              if [ -n "$TEST_FILTER" ]; then
+                echo "test_filter is only valid for unit/ui diagnostics" >&2
+                exit 2
+              fi
               xcodebuild "${XCODE_ARGS[@]}" build-for-testing
               ;;
             unit)
-              xcodebuild "${XCODE_ARGS[@]}" test -only-testing:GymChecklistTests
+              if [ -n "$TEST_FILTER" ]; then
+                case "$TEST_FILTER" in
+                  GymChecklistTests/*) ;;
+                  *)
+                    echo "unit test_filter must start with GymChecklistTests/" >&2
+                    exit 2
+                    ;;
+                esac
+                xcodebuild "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
+              else
+                xcodebuild "${XCODE_ARGS[@]}" test -only-testing:GymChecklistTests
+              fi
               ;;
             ui)
-              xcodebuild "${XCODE_ARGS[@]}" test -only-testing:GymChecklistUITests
+              if [ -n "$TEST_FILTER" ]; then
+                case "$TEST_FILTER" in
+                  GymChecklistUITests/*) ;;
+                  *)
+                    echo "ui test_filter must start with GymChecklistUITests/" >&2
+                    exit 2
+                    ;;
+                esac
+                xcodebuild "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
+              else
+                xcodebuild "${XCODE_ARGS[@]}" test -only-testing:GymChecklistUITests
+              fi
               ;;
             *)
               echo "Unsupported verification scope: $VERIFICATION_SCOPE" >&2

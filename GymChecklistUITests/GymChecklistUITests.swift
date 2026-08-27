@@ -945,6 +945,61 @@ final class RegistrationUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
     }
 
+    func testCaptureMVPPreviewScreens() {
+        let registrationApp = XCUIApplication()
+        registrationApp.launchEnvironment["UITESTING"] = "1"
+        registrationApp.launchEnvironment["UITEST_AUTH_MODE"] = "registration"
+        registrationApp.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        registrationApp.launch()
+        XCTAssertTrue(
+            registrationApp.descendants(matching: .any)["authRegistrationScreen"]
+                .waitForExistence(timeout: 5)
+        )
+        captureMVPPreview("01-Auth", app: registrationApp)
+        registrationApp.terminate()
+
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        captureMVPPreview("02-Today", app: app)
+
+        app.tabBars.buttons["Program"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["programScreen"].waitForExistence(timeout: 5))
+        captureMVPPreview("03-Program", app: app)
+
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].waitForExistence(timeout: 5))
+        captureMVPPreview("04-Settings", app: app)
+        app.terminate()
+
+        let completionApp = XCUIApplication()
+        completionApp.launchEnvironment["UITESTING"] = "1"
+        completionApp.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        completionApp.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
+        completionApp.launch()
+        XCTAssertTrue(
+            completionApp.descendants(matching: .any)["todayScreen"]
+                .waitForExistence(timeout: 5)
+        )
+        completionApp.buttons["todaySet-90000000-0000-4000-8000-000000000101"].tap()
+        completionApp.buttons["todaySet-90000000-0000-4000-8000-000000000201"].tap()
+        XCTAssertTrue(
+            completionApp.descendants(matching: .any)["todayCompletionPopup"]
+                .waitForExistence(timeout: 2)
+        )
+        captureMVPPreview("05-Completion", app: completionApp)
+    }
+
+    private func captureMVPPreview(_ name: String, app: XCUIApplication) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     private func launchRegistration() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["UITESTING"] = "1"

@@ -10,6 +10,21 @@ Task completion rule: a task may be marked `DONE` only when all listed acceptanc
 
 Continuity rule: after each meaningful checkpoint, update `docs/progress.md` with verification, relevant review notes, blockers/deferred external actions, and the exact next safe action. Runtime status in `docs/progress.md` plus actual Git/code state is authoritative if a task header in this plan is stale.
 
+
+## Current MVP-first execution override
+
+The current user goal is to see and evaluate the MVP as soon as safely possible.
+
+Until that MVP review happens:
+- implementation-complete tasks marked only `PENDING CI` do not need an individual full-suite rerun each;
+- use exact focused diagnostics for known failures and the macOS `smoke` scope for routine reconciliation;
+- run the full regression suite only at a broad MVP/device-handoff checkpoint;
+- do not spend more than two focused reruns chasing one XCTest-only flaky test without independent evidence of a product bug;
+- paid Apple Developer, App Store Connect, TestFlight, release signing/secrets, final icon, and paid-release Apple configuration remain deferred and are not dependencies for current MVP acceptance work;
+- M9.1 product acceptance may proceed after the implementation/quality surface is smoke-green even while physical-device/live-provider checks remain `PENDING EXTERNAL`.
+
+This override changes scheduling only. It does not waive security, data integrity, destructive-action, or final release acceptance requirements.
+
 ---
 
 ## Milestone 0 — Repository and iOS bootstrap
@@ -1440,7 +1455,7 @@ Validate every approved MVP scenario against `docs/product_spec.md`.
 - All critical scenarios pass or have explicit blocking bug tasks created and fixed before release.
 
 **Dependencies**
-- M8.8
+- M7.6 for current MVP acceptance. M8.8 remains deferred until paid distribution is reactivated.
 
 ---
 

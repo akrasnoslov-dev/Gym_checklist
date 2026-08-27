@@ -74,6 +74,7 @@ Rules:
 - Do not activate TestFlight, App Store, paid signing, release automation, final icon work, or `dev -> main` work before the user has seen the MVP and explicitly asks to continue toward distribution.
 - M9.2 is runnable only for an actual acceptance blocker. A stale `TODO` label alone is not work.
 - A successful smoke run plus a real user-visible MVP handoff is the completion target for the current development phase.
+- After the real simulator MVP preview is produced, the current autonomous development phase is **complete**. Record the preview reference/checkpoint in `docs/progress.md`, stop implementation, and wait for explicit user feedback before any further product, iPhone-distribution, release, or hardening work.
 
 Do not stop at a commit, documentation update, CI dispatch, or CI result if the MVP can be shown next. Stop only after the handoff is produced or one genuinely external user action is the only remaining blocker.
 

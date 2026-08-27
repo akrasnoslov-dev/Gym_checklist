@@ -311,11 +311,9 @@ final class AuthenticationViewModel: ObservableObject {
 @MainActor
 enum AuthenticationServiceFactory {
     static func makeDefault() -> AuthenticationService {
-#if DEBUG || MVP_DEMO
         if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
             return UITestAuthenticationService()
         }
-#endif
         return FirebaseAuthenticationService()
     }
 }
@@ -639,7 +637,6 @@ private final class FirebaseAuthenticationObservation: AuthenticationObservation
     deinit { MainActor.assumeIsolated { cancel() } }
 }
 
-#if DEBUG || MVP_DEMO
 @MainActor
 private final class UITestAuthenticationService: AuthenticationService {
     private var observers: [UUID: @MainActor (AuthenticatedUser?) -> Void] = [:]
@@ -727,4 +724,3 @@ private final class UITestAuthenticationService: AuthenticationService {
 
     func sendPasswordReset(email: String) async throws {}
 }
-#endif

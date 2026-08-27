@@ -82,62 +82,49 @@ Linux checks are routine feedback. macOS/Xcode CI is authoritative for iOS.
 The macOS workflow is intentionally **not triggered by normal pushes**. Normal pushes should create only the lightweight Linux run; macOS verification is started explicitly with `workflow_dispatch` at a justified checkpoint, or by a pull request. Do not re-add a push trigger to the macOS workflow merely to make it automatic: that creates misleading skipped workflow records and obscures the real verification history.
 
 ### Normal macOS strategy
-Use **one `full` macOS run at a coherent checkpoint** as the normal authoritative path.
+During the current MVP-hardening phase, optimize for reaching a user-visible MVP rather than repeatedly proving the entire regression suite after every small fix.
 
-Do not use `build -> unit -> ui` as the normal foreground scheduler. Narrow scopes exist for diagnosis:
-- use `build` when diagnosing compilation/project/dependency failures;
-- use `unit` when a full run points to unit-test failures;
-- use `ui` when a full run points to UI-test failures;
-- after a narrow fix is clean, return to a `full` run for current-head reconciliation.
+Use:
+- `smoke` as the normal iterative macOS gate. It runs all unit tests plus a small set of critical stable UI flows.
+- exact filtered `unit`/`ui` runs for one known failing test.
+- `full` only at broad reconciliation checkpoints, before MVP/device handoff, after high-risk cross-cutting changes, or when explicitly requested.
 
-Do not dispatch duplicate identical runs without a code/config change or clear infrastructure reason.
+Do not use `build -> unit -> ui -> full` as a routine scheduler.
 
-When a full run identifies one specific failing test, make the next diagnostic genuinely narrow:
-- for one known UI-test failure, dispatch `verification_scope=ui` with `test_filter=GymChecklistUITests/<TestClass>/<testMethod>`;
-- for one known unit-test failure, dispatch `verification_scope=unit` with `test_filter=GymChecklistTests/<TestClass>/<testMethod>`;
-- do not rerun the whole UI or unit target after every isolated fix when the exact failing test is already known;
-- once the exact focused test passes, go directly back to one current-head `full` run;
-- run an unfiltered `ui` or `unit` diagnostic only when the failure surface is not yet isolated or multiple tests are genuinely implicated.
+When one exact test fails:
+- dispatch `verification_scope=ui` with `test_filter=GymChecklistUITests/<TestClass>/<testMethod>`, or the equivalent unit filter;
+- do not rerun the whole UI/unit target;
+- after the exact test passes, use `smoke`, not automatically `full`;
+- return to `full` only at the next broad checkpoint.
 
-The purpose of narrow CI is to shorten the diagnose/fix loop, not merely to rename a full target run as a diagnostic.
+### Flaky UI-test budget
+Do not spend an entire Codex task chasing XCTest-only instability.
+- Maximum: two consecutive focused reruns of the same UI test without new independent evidence of a product bug.
+- If the remaining failure is accessibility/selector/timing instability, domain/unit coverage is green, and the product behavior is not independently proven broken, record `KNOWN_UI_TEST_HARNESS_FLAKE` and continue MVP work.
+- Keep the test in the full regression suite for later hardening; do not silently delete coverage.
+- Never change production behavior solely to make XCTest discover an element. Production changes require independent product/UX/state evidence.
 
 A CI result proves the checkpoint SHA it actually ran against.
 
 ### CI while implementation exists
 CI is background verification. After dispatching a run, continue other safe implementation immediately.
 
-### CI when nothing else is runnable
-If no independent safe work exists and the only next action depends on an already-running CI job, Codex must stay in the same task without burning reasoning turns or user-visible narration on unchanged CI status.
+### CI wait budget
+Do not burn Codex execution quota waiting 15-30 minutes for GitHub Actions.
 
-Do **not** run model-driven polling loops such as repeated `gh run view`, API/status checks, or `Ran commands` every 60–90 seconds. Do not repeatedly narrate that the job is queued, healthy, running, or still within timeout.
+If no independent safe work remains:
+1. check the exact run ID/SHA once;
+2. use at most one silent foreground wait of up to 5 minutes;
+3. if the run still has no terminal result, write `CI_PENDING <RUN_ID> <SHA>` into `docs/progress.md` and end the task cleanly;
+4. a fresh Codex task must inspect that pending run first and resume from its result without asking the user to restate context.
 
-Use this order instead:
-1. check the run once to confirm the exact run ID and checkpoint SHA;
-2. start **one foreground blocking wait** for that exact run, with routine progress output suppressed;
-3. give that command the longest available timeout, preferably longer than the workflow timeout;
-4. when the blocking wait returns, inspect the completed result once and immediately continue with diagnosis/fix or the next runnable action.
-
-Preferred GitHub CLI wait:
-
-PowerShell:
-```powershell
-gh run watch <RUN_ID> --repo akrasnoslov-dev/Gym_checklist --exit-status --interval 60 *> $null
-```
-
-Bash:
-```bash
-gh run watch <RUN_ID> --repo akrasnoslov-dev/Gym_checklist --exit-status --interval 60 >/dev/null 2>&1
-```
-
-The command may internally refresh GitHub state; that is acceptable because it does not require repeated model turns. It is a foreground wait, not an external watchdog, daemon, scheduled task, or heartbeat process.
-
-If `gh run watch` is unavailable, use one equivalent foreground shell loop that sleeps internally and emits only the final state. If the execution tool imposes a shorter hard timeout than the CI run, wait in the largest practical silent chunks, **never more frequently than once every 5 minutes**, and perform at most one status check between chunks. Do not emit commentary for unchanged state.
-
-If the platform/model/tool itself prevents any further foreground waiting or execution, record `MODEL_OR_TOOL_LIMIT` and stop only because of that actual limit.
+No repeated polling, no repeated "still running" narration, and no long `gh run watch` that consumes most of the model/task limit.
 
 When CI completes:
-- green -> reconcile what it proves and continue;
-- failure -> inspect once, fix the narrow reported surface, use narrow CI if useful, then run `full` again;
+- green focused run -> run `smoke` if a coherent checkpoint is ready;
+- green smoke -> continue implementation or prepare the MVP/device handoff;
+- failure -> inspect once and fix only the narrow reported surface;
+- full -> use only for broad reconciliation, not every small fix;
 - cancelled/infrastructure failure -> record no pass/fail evidence and rerun only when justified.
 
 ## Final-response gate
@@ -145,7 +132,7 @@ Before a final response:
 1. inspect Git/worktree, `docs/progress.md`, active backlog, and relevant CI;
 2. identify the exact next safe action;
 3. if it is executable now, execute it instead of stopping;
-4. if CI is running and no other work exists, remain in the task using the silent foreground-wait rule above instead of polling or summarizing;
+4. if CI is running and no other work exists, use the CI wait budget above; after the single short wait, `CI_PENDING` is a valid clean stop instead of consuming the task limit;
 5. if a task is externally blocked, scan the rest of the active backlog;
 6. stop only when no technically safe active work remains and the remaining blocker is genuinely external/user-required, destructive approval/product decision is required, a real failure blocks all continuation, a required tool is unavailable, or the platform/model/tool limit actually ends execution.
 
@@ -162,6 +149,8 @@ Keep only:
 - exact next action.
 
 Do not accumulate old superseded CI runs, old fixed compiler failures, or historical checkpoint archaeology. Git history already stores that.
+
+Do not create a separate progress-only commit after every diagnostic attempt. Update/commit `docs/progress.md` only when the runtime checkpoint materially changes, before a clean stop, or at a broad handoff.
 
 ## Product rules
 - English only for MVP.

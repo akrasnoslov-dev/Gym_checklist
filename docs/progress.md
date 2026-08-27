@@ -12,7 +12,7 @@
 - Full macOS verification `33054548821` ran all unit tests plus 41/42 UI tests; only Program week navigation failed.
 - Multiple focused Program diagnostics established XCTest accessibility/selector instability while domain/unit coverage and the rest of the UI suite remained green.
 - Final focused diagnostic `33077303696` completed with `failure`. The Program surface remains classified `KNOWN_UI_TEST_HARNESS_FLAKE`; the focused rerun budget is exhausted. Do not run that focused test again without new independent evidence of a product bug.
-- Current MVP smoke gate: PR #1 (`mvp-smoke-gate`) triggered authoritative macOS run `33082510251`; product code is unchanged from `f40315e`. `CI_PENDING 33082510251 b73fea6d27728df61a9b9c90ae63c47c44af66b9`.
+- Authoritative macOS MVP smoke run `33082510251` completed `success`; product code remained unchanged from `f40315e`. Temporary PR #1 was closed without merge.
 
 ## MVP finish lock
 - The next authoritative gate is one current-head macOS `smoke` run.
@@ -28,6 +28,6 @@
 - Paid Apple membership, App Store Connect/TestFlight, release signing/secrets, final icon, and paid-release Apple configuration remain deferred.
 
 ## Next action
-1. Inspect macOS smoke run `33082510251` once terminal.
-2. Green smoke -> immediately create a real simulator MVP preview and show it to the user; then end this autonomous development phase and wait for user feedback.
-3. Smoke failure -> fix only the reported MVP blocker and rerun smoke once.
+1. Complete real simulator preview run `33083774961` from current `dev`.
+2. Export/show the captured Auth, Today, Program, Settings, and completion screens to the user.
+3. After preview is delivered, end this autonomous development phase and wait for explicit user feedback.

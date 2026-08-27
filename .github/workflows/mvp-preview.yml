@@ -1,0 +1,86 @@
+name: MVP Simulator Preview
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/mvp-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture-preview:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Capture real MVP simulator screens
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="GymChecklist.xcodeproj"
+          SCHEME="GymChecklist"
+          DESTINATION_UDID=$(python3 - <<'PY'
+          import json
+          import re
+          import subprocess
+
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          candidates = []
+          for runtime, devices in data.get("devices", {}).items():
+              match = re.search(r"iOS[- ](\d+)[-.](\d+)(?:[-.](\d+))?", runtime)
+              if not match:
+                  continue
+              version = tuple(int(part or 0) for part in match.groups())
+              for device in devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      candidates.append((version, device["name"], device["udid"]))
+          if not candidates:
+              raise SystemExit("No available iPhone simulator was found")
+          candidates.sort(reverse=True)
+          print(candidates[0][2])
+          PY
+          )
+          echo "Using simulator UDID: $DESTINATION_UDID"
+          PACKAGE_DIRECTORY="$RUNNER_TEMP/SourcePackages"
+          RESULT_BUNDLE="$RUNNER_TEMP/MVPPreview.xcresult"
+          OUTPUT_DIR="$RUNNER_TEMP/mvp-preview"
+
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY"
+
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,id=$DESTINATION_UDID" \
+            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY" \
+            CODE_SIGNING_ALLOWED=NO \
+            test \
+            -only-testing:GymChecklistUITests/GymChecklistUITests/testCaptureMVPPreviewScreens \
+            -resultBundlePath "$RESULT_BUNDLE"
+
+          mkdir -p "$OUTPUT_DIR"
+          xcrun xcresulttool export attachments \
+            --path "$RESULT_BUNDLE" \
+            --output-path "$OUTPUT_DIR"
+          echo "Exported preview files:"
+          find "$OUTPUT_DIR" -maxdepth 2 -type f -print
+
+      - name: Upload MVP preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvp-simulator-preview
+          path: ${{ runner.temp }}/mvp-preview
+          if-no-files-found: error
+          retention-days: 7

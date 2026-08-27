@@ -41,10 +41,6 @@ enum FirebaseBootstrap {
 
 enum DemoMode {
     static var isEnabled: Bool {
-#if MVP_DEMO
-        true
-#else
-        false
-#endif
+        Bundle.main.object(forInfoDictionaryKey: "MVP_DEMO") as? Bool == true
     }
 }

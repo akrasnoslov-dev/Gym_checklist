@@ -17,4 +17,5 @@
 
 ## Next action
 1. Run the focused macOS UI diagnostic `GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs` for `5730db0`.
-2. If it passes, run one current-head macOS `full` verification; otherwise fix only the reported narrow surface. Treat pure simulator/Xcode launch failures as infrastructure evidence, not product regressions.
+2. If it passes, run current-head macOS `smoke` verification, not the full 42-test suite.
+3. If the same test remains XCTest-only flaky after the focused retry budget, record `KNOWN_UI_TEST_HARNESS_FLAKE` and continue toward the MVP review checkpoint. Use `full` only at the broad device-handoff checkpoint.

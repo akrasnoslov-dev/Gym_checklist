@@ -18,6 +18,7 @@
 - If smoke is green, stop implementation/hardening and immediately produce a real user-visible MVP handoff.
 - First handoff after smoke-green: produce a real simulator-based preview from the current build (not a mockup) so the user sees the MVP immediately.
 - Physical iPhone installation is the second step. Use a non-paid path if technically sufficient; if signing/provider configuration blocks it, state the single exact external action without delaying the simulator preview.
+- Once the real simulator preview is produced, this autonomous development phase ends. Record the preview/checkpoint and wait for explicit user feedback before any further coding or release work.
 - Do not run `full`, TestFlight/release work, another Program focused diagnostic, or broad cleanup before the user's first MVP look.
 - If smoke fails, inspect once, fix only the confirmed MVP blocker, then rerun smoke.
 

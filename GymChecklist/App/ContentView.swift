@@ -273,14 +273,16 @@ private struct AuthenticatedContentView: View {
         let repository: WorkoutRepository
         let customExerciseRepository: CustomExerciseRepository?
         let settingsRepository: UserSettingsRepository?
-#if DEBUG
-        if FirebaseBootstrap.isRunningTests() {
+#if DEBUG || MVP_DEMO
+        if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
             let inMemoryRepository = InMemoryWorkoutRepository(userID: userID)
-            if userID.rawValue == "ui-test-user" {
+            if !DemoMode.isEnabled, userID.rawValue == "ui-test-user" {
                 ContentView.seedTodayWorkoutForUITests(in: inMemoryRepository, on: today)
             }
             repository = inMemoryRepository
-            customExerciseRepository = nil
+            customExerciseRepository = DemoMode.isEnabled
+                ? InMemoryCustomExerciseRepository(userID: userID)
+                : nil
             settingsRepository = InMemoryUserSettingsRepository(userID: userID)
         } else {
             repository = FirestoreWorkoutRepository(currentUserID: { userID })

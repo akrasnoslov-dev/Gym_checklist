@@ -1,28 +1,24 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current state
-- Branch: `dev`.
-- Approved MVP product implementation is frozen pending user evaluation.
-- Authoritative macOS MVP smoke run `33082510251` completed `success`.
-- The Program XCTest selector issue remains `KNOWN_UI_TEST_HARNESS_FLAKE` and is non-blocking; do not rerun it without new independent product evidence.
-- A dedicated sideload demo path now exists for first-device evaluation without paid Apple/TestFlight distribution.
+- Branch: `dev`; rebased local `Harden Firestore cached snapshot recovery` checkpoint is ready to push.
+- Current goal: complete the entire originally approved MVP before the next product review. The prior physical-iPhone preview was intermediate only; do not stop or solicit acceptance until the final MVP candidate is ready.
+- The app contains the planned Program, Today, Settings, Firebase/auth, offline, Analytics, and Crashlytics paths. Remaining work is to reconcile their real implementation and verification against the approved MVP, fix confirmed gaps, and complete one final broad verification.
+- Program week navigation rebuilds only dynamic calendar/content after date changes. Malformed Firestore workout snapshots preserve any cached workout and show a non-blocking unavailable state rather than a false rest day.
+- Firestore workout listeners now receive metadata-only updates, so a recovered connection clears the stale sync-unavailable state. A successful cached snapshot, including an empty collection, is usable offline; malformed entries remain non-blocking unavailable state.
+- The existing ignored Firebase plist is installed at the app's expected local path. It remains untracked and enables non-test Firebase/Auth/Google composition on a configured device build.
+- The previous sideloadable in-memory `MVP_DEMO` artifact is an intermediate preview only and is not the final MVP candidate.
 
-## MVP demo IPA
-- Workflow: `.github/workflows/mvp-demo-ipa.yml`.
-- Successful build run: `33087360512`.
-- Source checkpoint: `4e6a241c2aad68c39a5df0e6c4d19e9f7459139d`.
-- Artifact: `GymChecklist-Demo` (artifact id `9652911549`).
-- IPA: `GymChecklist-Demo.ipa`, arm64 iPhone build, bundle id `dev.akrasnoslov.GymChecklist.demo`.
-- Verified in packaged app: `MVP_DEMO=true`, no `GoogleService-Info.plist`, no embedded provisioning profile.
-- Demo mode uses local in-memory auth/workout/custom-exercise/settings repositories and no Firebase/Analytics live services.
-- Important demo limitation: data is not durable across a full app process restart. This is acceptable for the first UI/interaction evaluation but does not replace later Firebase/offline persistence validation.
+## Verification
+- Local whitespace, Firebase-security-hygiene, Firestore-rules, account-deletion, and offline cache/reconnect contracts pass.
+- Added focused unit coverage for successful cached snapshot availability and malformed-snapshot fallback.
+- macOS smoke `33082510251` passed before this Firestore recovery checkpoint. Run smoke again on the rebased current head.
+- Focused macOS diagnostic `33077303696` failed at the same Program date selector after Next week; it is the fourth matching result. Retain `KNOWN_UI_TEST_HARNESS_FLAKE` and do not rerun or alter production behavior for that selector without independent product-failure evidence.
 
 ## External/deferred
-- Physical iPhone installation now proceeds through Sideloadly using the demo IPA and the user's Apple Account.
-- Paid Apple membership, App Store Connect/TestFlight, release signing/secrets, final icon, and paid-release Apple configuration remain deferred.
-- Live Google/Firebase/Crashlytics/account-isolation/offline reconnect and final physical-device validation remain later acceptance work.
+- Real Firebase console setup remains required: deploy `firestore.rules`, enable the email/password and Google providers, and validate with non-production accounts. Real-device validation remains required for cache/reconnect, Google sign-in, account deletion, Crashlytics, and accessibility.
+- Paid Apple membership, App Store Connect/TestFlight, release signing/secrets, final icon, paid-release Apple configuration, and `dev -> main` remain deferred.
 
 ## Next action
-1. User installs `GymChecklist-Demo.ipa` on the iPhone with Sideloadly.
-2. User evaluates the MVP UI and core workout flow.
-3. Do not resume autonomous feature development until explicit user feedback identifies a blocker or approved change.
+1. Push the Firestore offline recovery checkpoint, then dispatch macOS `smoke` against that exact SHA while continuing safe reconciliation.
+2. Reconcile the remaining product surfaces against MVP acceptance criteria; use non-production Firebase/device evidence once the necessary console configuration is available. Reserve one `full` run for final MVP reconciliation.

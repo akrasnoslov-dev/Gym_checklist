@@ -12,8 +12,9 @@ is in `docs/crashlytics_setup.md`.
 1. Create a Firebase project and register the iOS app with bundle identifier
    `dev.akrasnoslov.GymChecklist`.
 2. Enable Authentication. Create Cloud Firestore in **production mode** so it
-   denies access by default; do not use test mode. Do not add Firestore client
-   calls until M4.7 has committed and verified owner-scoped rules.
+   denies access by default; do not use test mode. Before connecting real user
+   data, deploy the owner-scoped rules in this repository and verify them with
+   non-production accounts.
 3. Download `GoogleService-Info.plist` to `GymChecklist/GoogleService-Info.plist`.
    Do not commit it; `.gitignore` excludes it. The tracked build phase copies
    this local file into configured app builds and derives the Google callback
@@ -22,7 +23,8 @@ is in `docs/crashlytics_setup.md`.
 4. Resolve packages and build the `GymChecklist` scheme. The Firebase bootstrap
    returns a clear development failure until a valid plist is present; XCTest
    and UI-test processes intentionally bypass configuration so CI never needs a
-   real plist. No Firebase services are used by the local/mock workout flow yet.
+   real plist. Normal app launches use Firebase Auth, Firestore, Analytics, and
+   Crashlytics rather than the test-only in-memory repositories.
 5. Before live Firestore verification, deploy `firestore.rules` as documented
    in `docs/firestore_security.md`, then validate owner isolation with two
    non-production test users. Do not use Firestore test mode.

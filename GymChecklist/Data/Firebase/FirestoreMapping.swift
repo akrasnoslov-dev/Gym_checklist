@@ -48,6 +48,24 @@ struct DecodedFirestoreWorkoutSnapshot: Equatable {
     }
 }
 
+/// A successfully delivered Firestore snapshot is usable even when it is
+/// empty or sourced from the local cache. Transport failures and malformed
+/// entries are represented separately so Today remains usable offline.
+struct FirestoreWorkoutSnapshotAvailability: Equatable {
+    let hasUsableSnapshot: Bool
+    let loadState: WorkoutLoadState
+
+    static func successfulSnapshot(discardedEntryCount: Int) -> Self {
+        let hasDiscardedEntries = discardedEntryCount > 0
+        return Self(
+            hasUsableSnapshot: true,
+            loadState: hasDiscardedEntries
+                ? .unavailable(hasUsableSnapshot: true)
+                : .available
+        )
+    }
+}
+
 enum FirestoreWorkoutSnapshotDecoder {
     static func decode(_ entries: [FirestoreWorkoutSnapshotEntry], userID: UserID) -> DecodedFirestoreWorkoutSnapshot {
         var workouts: [Workout] = []

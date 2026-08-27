@@ -15,6 +15,10 @@ foreach ($fragment in @('addSnapshotListener', 'workouts.append(workout)', 'publ
     }
 }
 
+if (-not $repository.Contains('addSnapshotListener(includeMetadataChanges: true)')) {
+    throw 'Firestore workout listeners must observe metadata-only reconnect transitions'
+}
+
 $createStart = $repository.IndexOf('func createEmptyWorkout')
 $saveStart = $repository.IndexOf('func save(_ workout: Workout) throws')
 $deleteStart = $repository.IndexOf('func deleteWorkout')

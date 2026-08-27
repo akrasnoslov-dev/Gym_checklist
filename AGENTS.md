@@ -51,7 +51,7 @@ Until the user explicitly reactivates release work:
 
 These items may remain documented in the long-term implementation plan, but they are **not current blockers and not runnable backlog**.
 
-Current goal: finish and verify the MVP as far as possible, then get a development build onto the user's own iPhone for real-device evaluation. Only after that does the user decide whether to pay for Apple distribution.
+Current goal: finish the full originally approved MVP defined by the product, UX, architecture, and active-plan acceptance criteria; then complete final verification and provide one physical-iPhone candidate for the user's next product review. A preliminary device preview is only an intermediate checkpoint, not a product-acceptance stop or freeze. Do not request another product review or hand off an intentionally incomplete in-memory demo before the full MVP persistence, authentication, offline, security, and product paths are complete to the maximum extent possible without the deferred paid Apple distribution path.
 
 Google/Firebase development configuration and non-production validation are still relevant because they are part of the app itself, not only App Store release.
 

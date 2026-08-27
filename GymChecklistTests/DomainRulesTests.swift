@@ -24,6 +24,22 @@ final class DomainModelsTests: XCTestCase {
     }
 }
 
+final class FirestoreWorkoutSnapshotAvailabilityTests: XCTestCase {
+    func testEmptySuccessfulCachedSnapshotIsUsable() {
+        let availability = FirestoreWorkoutSnapshotAvailability.successfulSnapshot(discardedEntryCount: 0)
+
+        XCTAssertTrue(availability.hasUsableSnapshot)
+        XCTAssertEqual(availability.loadState, .available)
+    }
+
+    func testMalformedEntriesKeepCachedWorkoutUsableButUnavailable() {
+        let availability = FirestoreWorkoutSnapshotAvailability.successfulSnapshot(discardedEntryCount: 1)
+
+        XCTAssertTrue(availability.hasUsableSnapshot)
+        XCTAssertEqual(availability.loadState, .unavailable(hasUsableSnapshot: true))
+    }
+}
+
 final class LocalDateTests: XCTestCase {
     func testInstantResolvesAcrossDayBoundaryInTwoTimeZones() {
         let instant = ISO8601DateFormatter().date(from: "2026-08-14T00:30:00Z")!

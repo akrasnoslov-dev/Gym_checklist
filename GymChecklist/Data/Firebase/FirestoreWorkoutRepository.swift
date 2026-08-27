@@ -112,7 +112,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
 
     private func startListening() {
         guard let userID = boundUserID else { return }
-        listener = store.collection("users").document(userID.rawValue).collection("workouts").addSnapshotListener { [weak self] snapshot, error in
+        listener = store.collection("users").document(userID.rawValue).collection("workouts").addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
             guard error == nil, let snapshot else {
                 Task { @MainActor in
                     guard let self, self.boundUserID == userID else { return }
@@ -127,7 +127,6 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                 )
             }
             let decoded = FirestoreWorkoutSnapshotDecoder.decode(entries, userID: userID)
-            let isFromCache = snapshot.metadata.isFromCache
             Task { @MainActor in
                 guard let self, self.boundUserID == userID else { return }
                 guard entries.isEmpty || decoded.discardedEntryCount < entries.count else {
@@ -140,10 +139,11 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                     return
                 }
                 self.workouts = decoded.workoutsPreservingCachedEntries(self.workouts)
-                self.hasUsableSnapshot = self.hasUsableSnapshot || !isFromCache || !decoded.workouts.isEmpty
-                self.loadState = decoded.discardedEntryCount > 0 || isFromCache
-                    ? .unavailable(hasUsableSnapshot: self.hasUsableSnapshot)
-                    : .available
+                let availability = FirestoreWorkoutSnapshotAvailability.successfulSnapshot(
+                    discardedEntryCount: decoded.discardedEntryCount
+                )
+                self.hasUsableSnapshot = availability.hasUsableSnapshot
+                self.loadState = availability.loadState
                 self.publish()
             }
         }

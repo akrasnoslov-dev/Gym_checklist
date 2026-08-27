@@ -24,7 +24,7 @@ Until that MVP review happens:
 - M9.1 product acceptance may proceed after the implementation/quality surface is smoke-green even while physical-device/live-provider checks remain `PENDING EXTERNAL`.
 - the existing Program `KNOWN_UI_TEST_HARNESS_FLAKE` is non-blocking and must not receive another focused rerun without new independent product evidence;
 - once current-head `smoke` is green, stop implementation work and move directly to a real MVP handoff/preview;
-- if physical iPhone installation is externally blocked, produce a real simulator-based preview from the current build rather than continuing implementation;
+- immediately after smoke-green, produce a real simulator-based preview from the current build; physical iPhone installation is a second step and must not delay the user's first MVP look;
 - after smoke-green, do not run M9.2, M8 release work, TestFlight work, broad refactors, or full-suite hardening before the user has seen the MVP unless a confirmed blocker prevents the handoff.
 
 This override changes scheduling only. It does not waive security, data integrity, destructive-action, or final release acceptance requirements.

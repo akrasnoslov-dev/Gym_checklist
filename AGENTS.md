@@ -92,6 +92,15 @@ Do not use `build -> unit -> ui` as the normal foreground scheduler. Narrow scop
 
 Do not dispatch duplicate identical runs without a code/config change or clear infrastructure reason.
 
+When a full run identifies one specific failing test, make the next diagnostic genuinely narrow:
+- for one known UI-test failure, dispatch `verification_scope=ui` with `test_filter=GymChecklistUITests/<TestClass>/<testMethod>`;
+- for one known unit-test failure, dispatch `verification_scope=unit` with `test_filter=GymChecklistTests/<TestClass>/<testMethod>`;
+- do not rerun the whole UI or unit target after every isolated fix when the exact failing test is already known;
+- once the exact focused test passes, go directly back to one current-head `full` run;
+- run an unfiltered `ui` or `unit` diagnostic only when the failure surface is not yet isolated or multiple tests are genuinely implicated.
+
+The purpose of narrow CI is to shorten the diagnose/fix loop, not merely to rename a full target run as a diagnostic.
+
 A CI result proves the checkpoint SHA it actually ran against.
 
 ### CI while implementation exists

@@ -33,11 +33,9 @@ final class FirebaseAnalyticsTracker: AnalyticsTracking {
 
 enum AnalyticsTrackerFactory {
     static func makeDefault() -> AnalyticsTracking {
-#if DEBUG || MVP_DEMO
         if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
             return NoOpAnalyticsTracker()
         }
-#endif
         return FirebaseAnalyticsTracker()
     }
 }

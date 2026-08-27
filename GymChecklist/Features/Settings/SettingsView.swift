@@ -220,8 +220,8 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var appleDeletionButton: some View {
-#if DEBUG
-        if FirebaseBootstrap.isRunningTests() {
+#if DEBUG || MVP_DEMO
+        if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
             Button("Verify with Apple") {
                 Task {
                     isDeletingAccount = true
@@ -271,8 +271,8 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var googleDeletionButton: some View {
-#if DEBUG
-        if FirebaseBootstrap.isRunningTests() {
+#if DEBUG || MVP_DEMO
+        if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
             Button("Verify with Google") {
                 Task {
                     isDeletingAccount = true

@@ -13,6 +13,7 @@
 - Local whitespace, Firebase-security-hygiene, Firestore-rules, account-deletion, and offline cache/reconnect contracts pass.
 - Added focused unit coverage for successful cached snapshot availability and malformed-snapshot fallback.
 - macOS smoke `33082510251` passed before this Firestore recovery checkpoint. Run smoke again on the rebased current head.
+- `CI_PENDING 33096720036 aa076d5c3d176f747575653b016045c70f18c77e`: macOS smoke for the Firestore recovery checkpoint is in progress. Inspect it once before further broad verification.
 - Focused macOS diagnostic `33077303696` failed at the same Program date selector after Next week; it is the fourth matching result. Retain `KNOWN_UI_TEST_HARNESS_FLAKE` and do not rerun or alter production behavior for that selector without independent product-failure evidence.
 
 ## External/deferred
@@ -20,5 +21,5 @@
 - Paid Apple membership, App Store Connect/TestFlight, release signing/secrets, final icon, paid-release Apple configuration, and `dev -> main` remain deferred.
 
 ## Next action
-1. Push the Firestore offline recovery checkpoint, then dispatch macOS `smoke` against that exact SHA while continuing safe reconciliation.
-2. Reconcile the remaining product surfaces against MVP acceptance criteria; use non-production Firebase/device evidence once the necessary console configuration is available. Reserve one `full` run for final MVP reconciliation.
+1. Inspect `33096720036` once terminal. If green, proceed to the final broad `full` verification only after all remaining external/runtime MVP evidence is either complete or precisely blocked.
+2. Real Firebase console/device work remains: deploy `firestore.rules`, enable the email/password and Google providers, validate two-user owner isolation plus the cache→airplane-mode→reconnect flow, then produce the final physical-iPhone candidate. Reserve one `full` run for final MVP reconciliation.

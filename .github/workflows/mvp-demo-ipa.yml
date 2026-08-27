@@ -46,9 +46,9 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS="" \
-            SWIFT_ACTIVE_COMPILATION_CONDITIONS="MVP_DEMO" \
             PRODUCT_BUNDLE_IDENTIFIER="dev.akrasnoslov.GymChecklist.demo" \
-            INFOPLIST_KEY_CFBundleDisplayName="Gym Checklist Demo"
+            INFOPLIST_KEY_CFBundleDisplayName="Gym Checklist Demo" \
+            INFOPLIST_KEY_MVP_DEMO=YES
 
           APP_PATH="$DERIVED_DATA/Build/Products/Release-iphoneos/GymChecklist.app"
           test -d "$APP_PATH"

@@ -41,6 +41,30 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
         XCTAssertFalse(app.buttons["programCreateWorkout"].exists)
 
+        // Navigate away only after the selected date has dynamic workout content.
+        // This guards the List subtree refresh used by week navigation.
+        let nextWeekAfterCreatingWorkout = app.buttons["programNextWeek"]
+        XCTAssertTrue(nextWeekAfterCreatingWorkout.waitForExistence(timeout: 2))
+        nextWeekAfterCreatingWorkout.tap()
+        XCTAssertTrue(waitForLabel(
+            of: app.staticTexts["programSelectedDate"],
+            toEqual: "Friday, August 21, 2026"
+        ))
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["programCreateWorkout"].exists)
+
+        // Reacquire this control because changing weeks intentionally recreates
+        // the Program content subtree.
+        let previousWeekAfterEmptyWeek = app.buttons["programPreviousWeek"]
+        XCTAssertTrue(previousWeekAfterEmptyWeek.waitForExistence(timeout: 2))
+        previousWeekAfterEmptyWeek.tap()
+        XCTAssertTrue(waitForLabel(
+            of: app.staticTexts["programSelectedDate"],
+            toEqual: "Friday, August 14, 2026"
+        ))
+        XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
+
         app.buttons["programCopyWorkout"].tap()
         XCTAssertTrue(app.navigationBars["Copy workout"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["copyWorkoutSourceDate"].exists)

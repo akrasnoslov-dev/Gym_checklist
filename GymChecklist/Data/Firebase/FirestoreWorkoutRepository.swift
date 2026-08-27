@@ -139,9 +139,9 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                     }
                     return
                 }
-                self.workouts = decoded.workouts
+                self.workouts = decoded.workoutsPreservingCachedEntries(self.workouts)
                 self.hasUsableSnapshot = self.hasUsableSnapshot || !isFromCache || !decoded.workouts.isEmpty
-                self.loadState = isFromCache
+                self.loadState = decoded.discardedEntryCount > 0 || isFromCache
                     ? .unavailable(hasUsableSnapshot: self.hasUsableSnapshot)
                     : .available
                 self.publish()

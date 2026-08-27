@@ -739,6 +739,41 @@ final class FirestoreMappingTests: XCTestCase {
         XCTAssertEqual(decoded.discardedEntryCount, 1)
     }
 
+    func testSnapshotDecoderPreservesCachedWorkoutForMalformedDocumentOnTheSameDate() {
+        let cachedDate = LocalDate(year: 2026, month: 8, day: 14)
+        let validDate = LocalDate(year: 2026, month: 8, day: 15)
+        let cachedWorkout = Workout(
+            id: WorkoutID(),
+            userID: userID,
+            localDate: cachedDate,
+            exercises: [],
+            createdAt: .distantPast,
+            updatedAt: .distantPast
+        )
+        let validWorkout = Workout(
+            id: WorkoutID(),
+            userID: userID,
+            localDate: validDate,
+            exercises: [],
+            createdAt: .distantPast,
+            updatedAt: .distantPast
+        )
+
+        let decoded = FirestoreWorkoutSnapshotDecoder.decode([
+            FirestoreWorkoutSnapshotEntry(documentDate: cachedDate, payload: nil),
+            FirestoreWorkoutSnapshotEntry(
+                documentDate: validDate,
+                payload: FirestoreWorkoutPayload(workout: validWorkout)
+            )
+        ], userID: userID)
+
+        XCTAssertEqual(decoded.discardedDocumentDates, [cachedDate])
+        XCTAssertEqual(
+            decoded.workoutsPreservingCachedEntries([cachedWorkout]),
+            [cachedWorkout, validWorkout]
+        )
+    }
+
     func testCustomExerciseAndSettingsMappingsStayUserScoped() throws {
         let exercise = Exercise(id: ExerciseID(), name: "Cable Press", category: "Chest", isSystem: false, createdByUserID: userID)
         XCTAssertEqual(try FirestoreCustomExerciseDocument(exercise: exercise).exercise(userID: userID), exercise)

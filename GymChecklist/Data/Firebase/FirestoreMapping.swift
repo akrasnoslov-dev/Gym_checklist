@@ -37,12 +37,22 @@ struct FirestoreWorkoutSnapshotEntry {
 struct DecodedFirestoreWorkoutSnapshot: Equatable {
     let workouts: [Workout]
     let discardedEntryCount: Int
+    let discardedDocumentDates: Set<LocalDate>
+
+    func workoutsPreservingCachedEntries(_ cachedWorkouts: [Workout]) -> [Workout] {
+        var workoutsByDate = Dictionary(uniqueKeysWithValues: workouts.map { ($0.localDate, $0) })
+        for workout in cachedWorkouts where discardedDocumentDates.contains(workout.localDate) {
+            workoutsByDate[workout.localDate] = workoutsByDate[workout.localDate] ?? workout
+        }
+        return workoutsByDate.values.sorted { $0.localDate < $1.localDate }
+    }
 }
 
 enum FirestoreWorkoutSnapshotDecoder {
     static func decode(_ entries: [FirestoreWorkoutSnapshotEntry], userID: UserID) -> DecodedFirestoreWorkoutSnapshot {
         var workouts: [Workout] = []
         var discardedEntryCount = 0
+        var discardedDocumentDates: Set<LocalDate> = []
 
         for entry in entries {
             guard let documentDate = entry.documentDate,
@@ -50,6 +60,9 @@ enum FirestoreWorkoutSnapshotDecoder {
                   let workout = try? payload.domainWorkout(userID: userID, documentDate: documentDate)
             else {
                 discardedEntryCount += 1
+                if let documentDate = entry.documentDate {
+                    discardedDocumentDates.insert(documentDate)
+                }
                 continue
             }
             workouts.append(workout)
@@ -57,7 +70,8 @@ enum FirestoreWorkoutSnapshotDecoder {
 
         return DecodedFirestoreWorkoutSnapshot(
             workouts: workouts.sorted { $0.localDate < $1.localDate },
-            discardedEntryCount: discardedEntryCount
+            discardedEntryCount: discardedEntryCount,
+            discardedDocumentDates: discardedDocumentDates
         )
     }
 }

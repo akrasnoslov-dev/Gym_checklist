@@ -16,8 +16,8 @@
 ## MVP finish lock
 - The next authoritative gate is one current-head macOS `smoke` run.
 - If smoke is green, stop implementation/hardening and immediately produce a real user-visible MVP handoff.
-- Preferred handoff: current development build on the user's iPhone using the available non-paid path if technically sufficient.
-- If physical installation is blocked by signing/provider configuration or another genuinely external requirement, produce a real simulator-based preview from the current build (not a mockup) and identify the single exact external action required for iPhone installation.
+- First handoff after smoke-green: produce a real simulator-based preview from the current build (not a mockup) so the user sees the MVP immediately.
+- Physical iPhone installation is the second step. Use a non-paid path if technically sufficient; if signing/provider configuration blocks it, state the single exact external action without delaying the simulator preview.
 - Do not run `full`, TestFlight/release work, another Program focused diagnostic, or broad cleanup before the user's first MVP look.
 - If smoke fails, inspect once, fix only the confirmed MVP blocker, then rerun smoke.
 
@@ -27,5 +27,5 @@
 
 ## Next action
 1. Dispatch one current-head macOS `smoke` verification.
-2. Green smoke -> immediately create the real MVP handoff/preview and show it to the user.
+2. Green smoke -> immediately create a real simulator MVP preview and show it to the user; only then continue to the physical-iPhone path.
 3. Smoke failure -> fix only the reported MVP blocker and rerun smoke.

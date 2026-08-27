@@ -66,9 +66,9 @@ Rules:
 - The Program navigation selector issue already classified as `KNOWN_UI_TEST_HARNESS_FLAKE` is non-blocking. Run `33077303696` was the final focused diagnostic for that surface. Do not rerun that focused test again unless new independent evidence proves a product bug.
 - The next authoritative gate is exactly one current-head macOS `smoke` run.
 - If `smoke` is green, **do not run `full` before the user's first MVP look**. Move immediately to a user-visible MVP handoff.
-- Preferred handoff order:
-  1. put the current development build on the user's own iPhone if the available non-paid signing/configuration path is technically sufficient;
-  2. if physical installation is blocked by signing, provider configuration, or another genuinely external requirement, produce a real simulator-based preview from the current build (not a mockup) with screenshots/video or equivalent build evidence, and state the single exact external action needed for physical installation.
+- Handoff order is fixed:
+  1. immediately produce a **real simulator-based preview from the current build** (not a mockup) with screenshots/video or equivalent build evidence, so the user can see the MVP without waiting on signing;
+  2. only after that, prepare the user's own-iPhone path if the available non-paid signing/configuration route is technically sufficient. If it is externally blocked, state the single exact blocker instead of delaying the first MVP look.
 - If `smoke` fails, inspect the failure once, fix only the confirmed MVP blocker, and rerun `smoke`. Do not branch into unrelated diagnostics.
 - Live Google/Firebase/Crashlytics/manual-accessibility checks do not block the user's first MVP look unless their failure prevents the app from launching or prevents the core local workout flow from being demonstrated.
 - Do not activate TestFlight, App Store, paid signing, release automation, final icon work, or `dev -> main` work before the user has seen the MVP and explicitly asks to continue toward distribution.

@@ -54,7 +54,7 @@ Explicitly deferred until the user approves payment/release work:
 - paid Apple Developer membership;
 - App Store Connect and TestFlight;
 - release signing/secrets and paid distribution automation;
-- final App Store icon/release metadata decisions that are needed only for distribution;
+- App Store listing metadata and other distribution-only visual assets beyond the currently approved app icon;
 - live Sign in with Apple configuration where it requires paid Apple capabilities;
 - any Firebase/Google Cloud action that requires enabling billing or moving from Spark to Blaze, including live deployment of `functions:deleteAccount` if billing is required;
 - `dev -> main` release work.
@@ -72,7 +72,7 @@ Rules:
 - A green smoke run is a checkpoint, not a handoff. Continue resolving all technically achievable original-MVP implementation and verification work, including free Firebase Spark auth/persistence/offline/security paths.
 - The final candidate must have a **green authoritative macOS `full` run on its exact SHA**. If `full` fails, diagnose the failure, fix any product/test defect that can affect acceptance, and rerun the required gates until the final run is green. A red final run is never an acceptable handoff.
 - The final handoff is one completed physical-iPhone candidate using the real MVP architecture and all no-cost live services that can be validated on Spark. The prior in-memory `MVP_DEMO` preview does not satisfy this lock.
-- Do not activate TestFlight, App Store, paid signing, release automation, final icon work, Firebase Blaze/billing, or `dev -> main` work.
+- Do not activate TestFlight, App Store, paid signing, release automation, Firebase Blaze/billing, or `dev -> main` work. The current approved app icon/logo may be maintained as normal product UI/branding.
 - M9.2 is active now for the confirmed Program date-selector defect. After that defect is resolved, M9.2 remains runnable only for real acceptance blockers/regressions.
 - Stop voluntarily only when all no-cost implementation/verification work is complete, the final exact candidate SHA has green required CI, and the completed physical-iPhone candidate is ready for product acceptance; or when one exact external zero-cost user action is genuinely required and no independent work remains.
 

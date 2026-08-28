@@ -17,7 +17,7 @@ The current user goal is to verify the originally approved MVP **before paying f
 
 Until the user explicitly accepts the functional MVP:
 - use only zero-cost development and validation paths;
-- paid Apple Developer membership, App Store Connect, TestFlight, paid/release signing, release secrets, final App Store work, and `dev -> main` remain deferred and are not runnable backlog;
+- paid Apple Developer membership, App Store Connect, TestFlight, paid/release signing, release secrets, distribution-only App Store metadata/listing work, and `dev -> main` remain deferred and are not runnable backlog; the user-approved current logo/app icon is not deferred and should stay integrated;
 - use a non-production Firebase **Spark** project for all supported no-cost live verification; do not attach billing or upgrade to Blaze without explicit user approval;
 - validate every free Firebase path that is part of the product: email/password auth, Google Sign-In, Firestore persistence/owner isolation, offline cache/reconnect, Analytics, and Crashlytics;
 - live `functions:deleteAccount` deployment is deferred if Firebase requires Blaze/billing; its client behavior, backend source, and deterministic contract/unit/UI coverage still remain in current verification;

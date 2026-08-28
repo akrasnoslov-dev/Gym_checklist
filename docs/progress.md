@@ -1,7 +1,7 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current state
-- Branch: `dev`; latest app-code candidate remains `672fc66` (`Render Program calendar in dynamic scroll view`). Later commits only optimize CI/process documentation.
+- Branch: `dev`; current head includes the user-approved Gym Checklist branding/app-icon integration. The latest Program behavior candidate remains `672fc66` (`Render Program calendar in dynamic scroll view`); branding does not close the Program blocker.
 - Current phase: **pre-payment functional MVP acceptance**. Use only zero-cost development/validation.
 - Program week/date navigation remains the active acceptance blocker until a final candidate CI gate is green and the behavior is confirmed on the physical iPhone.
 - The previous in-memory `MVP_DEMO` is still only an intermediate preview.
@@ -11,6 +11,7 @@
 - Several macOS checks on that SHA produced mixed results; the latest standalone final run `33181272919` concluded failure, so `672fc66` is not accepted.
 - The prior process wasted substantial Codex runtime by polling separate focused/smoke/full runs. The CI workflow now has a `candidate` scope that builds once, runs one exact blocker test, and if it passes automatically runs the full suite on the same runner/build/SHA.
 - CI now emits compact failure output and retains detailed diagnostics as a short-lived artifact. Swift package sources are cached.
+- The approved lime/green Gym Checklist mark is now wired as the iOS `AppIcon`; the same master/vector assets are stored under `docs/brand/`. This branding change should ride the next justified candidate gate rather than consuming a separate macOS run.
 
 ## CI operating rule
 - During diagnosis: one focused `unit`/`ui` run per code change when needed.

@@ -1,41 +1,62 @@
 # MVP acceptance checklist (M9.1)
 
-This is a release-readiness matrix, not a claim that the MVP is accepted.
-`Static coverage` means deterministic local/unit/UI coverage exists; the listed
-macOS and live checks must still pass before release acceptance.
+This checklist defines the **current pre-payment functional acceptance**. It is not App Store/TestFlight release acceptance.
 
-| Scenario | Static coverage | Remaining release evidence |
+Current rule: verify everything that can be implemented and proven at zero cost before the user decides whether to pay for Apple distribution. Use Firebase Spark only; do not attach billing or upgrade to Blaze without explicit approval.
+
+## Current blocking issue
+
+- Program week/date navigation is a confirmed product defect. The user reproduced broken date switching on a physical iPhone, and final macOS run `33151994017` failed on the same Program navigation surface.
+- The previous `KNOWN_UI_TEST_HARNESS_FLAKE` classification is revoked.
+- The candidate cannot be accepted until this is fixed, regression-covered, and required CI is green.
+
+## Free acceptance matrix
+
+| Scenario | Automated/static coverage | Free evidence required now |
 | --- | --- | --- |
-| Register via email/password | Unit + UI registration tests | macOS CI; live Firebase validation |
-| Login via email/password and logout | Unit + UI auth-routing/isolation tests | macOS CI; live Firebase validation |
-| Google sign-in | Native SDK/client credential path plus deterministic unit/UI coverage | Configure provider/URL scheme and validate signed-device success, cancel, failure |
-| First-use Today and create workout | Today/Program UI tests | macOS UI CI |
-| Concrete-date workout creation | Domain + Program UI tests | macOS CI |
-| Search/add custom exercise | Domain + Program UI tests | macOS CI; live custom-exercise persistence |
-| Arbitrary reps, weight, and time | Domain + Program editor UI tests | macOS CI |
-| Copy workout independently | Domain + Program UI tests | macOS CI |
-| Repeat workout independently | Domain + Program UI tests | macOS CI |
-| Today complete/undo in arbitrary order | Domain + Today UI tests | macOS CI |
-| Today planned/actual long-press edit | Domain + Today UI tests | macOS CI |
-| Skip and restore exercise | Domain + Today UI tests | macOS CI |
-| Rest day and no-program states | Today UI tests | macOS CI |
-| Completion popup | Domain + Today UI tests | macOS CI; manual VoiceOver review |
-| Historical viewing and actual edit | Domain + Program UI tests | macOS CI; live persistence validation |
-| System/Light/Dark appearance | Unit + UI test | macOS UI CI; manual contrast review |
-| kg/lb display and input | Unit + UI test | macOS CI |
-| Offline execution and reconnect | Deterministic availability/repository tests | Airplane-mode/cache/reconnect validation against non-production Firebase |
+| Register via email/password | Unit + UI registration tests | Live Firebase Spark |
+| Login/reset/logout via email/password | Unit + UI auth tests | Live Firebase Spark |
+| Google Sign-In | Native SDK path + deterministic tests | Live Spark/provider configuration on device |
+| First-use Today and create workout | Today/Program UI tests | Physical-iPhone review |
+| Program date/week navigation | UI coverage exists | **Fix confirmed bug; simulator + physical-iPhone proof** |
+| Create/edit/delete dated workout | Domain + Program UI tests | Physical-iPhone review |
+| Search/add custom exercise | Domain + Program UI tests | Live Firestore persistence + device review |
+| Arbitrary reps/weight/time and set ordering | Domain + UI tests | Physical-iPhone review |
+| Copy workout independently | Domain + Program UI tests | Physical-iPhone review |
+| Repeat workout independently | Domain + Program UI tests | Physical-iPhone review |
+| Today complete/undo in arbitrary order | Domain + Today UI tests | Physical-iPhone review |
+| Today planned/actual long-press edit | Domain + Today UI tests | Physical-iPhone review |
+| Skip and restore exercise | Domain + Today UI tests | Physical-iPhone review |
+| Rest day / no-program states | Today UI tests | Physical-iPhone review |
+| Completion popup | Domain + Today UI tests | Device + VoiceOver review |
+| Historical view / actual edit | Domain + Program UI tests | Relaunch/persistence proof |
+| System/Light/Dark | Unit + UI tests | Device + contrast review |
+| kg/lb display and input | Unit + UI tests | Device review |
+| Firestore persistence | Mapping/repository tests | Create -> terminate -> relaunch on Spark |
+| Two-user owner isolation | Rules/contracts | Two non-production Spark users |
+| Offline execution/reconnect | Deterministic repository tests | Cache -> airplane mode -> mutate -> reconnect |
+| Analytics | Event tests/contracts | Verify free Spark Analytics path |
+| Crashlytics | Bootstrap/privacy contracts | Verify free Spark crash-reporting path |
+| Accessibility | UI identifiers/Dynamic Type coverage | Manual VoiceOver + Dynamic Type + contrast |
 
-## Required release gates
+## Current CI gates
 
-- The active macOS unit run and its gated focused UI run must pass for their
-  checkpoints; a full suite remains required for release reconciliation.
-- Configure and validate Google and Apple sign-in, Firestore owner rules,
-  cached offline/reconnect behavior, Crashlytics, and account deletion as
-  listed in `docs/progress.md`.
-- Complete manual VoiceOver, Dynamic Type, and appearance-contrast checks.
-- Produce and install a signed internal TestFlight build before any release
-  acceptance claim.
+- Iteration may use focused diagnostics and `smoke`.
+- Before physical-iPhone acceptance, the exact candidate SHA must have all required CI green.
+- In particular, the final authoritative macOS `full` run must conclude **success**. A known red test is not an acceptable final state.
+- A failure independently reproduced in the product cannot be waived as a test flake.
 
-No future-scope feature is a release gate. In particular, analytics dashboards,
-timers, coaching, social features, HealthKit, and multiple workouts per day
-remain out of scope.
+## Paid/billing-dependent checks deliberately deferred
+
+These are not current acceptance failures:
+
+- Apple Developer Program membership.
+- App Store Connect and TestFlight.
+- Paid/release signing, distribution secrets, and App Store submission.
+- Live Sign in with Apple configuration where paid Apple capabilities are required.
+- Live deployment/validation of `functions:deleteAccount` if Firebase requires Blaze/billing. The client flow, backend source, and automated contracts remain required now.
+- Final App Store icon/release metadata and `dev -> main`.
+
+## Product-acceptance gate
+
+After the free matrix passes and the final CI is green, install the exact free candidate on the user's iPhone. The user then decides subjectively whether functionality and UX are acceptable. Only after that decision may paid Apple/Firebase work be proposed or activated.

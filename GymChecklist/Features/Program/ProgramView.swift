@@ -15,15 +15,24 @@ struct ProgramView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
+            VStack(spacing: 0) {
+                VStack(spacing: 8) {
                     weekHeader
                     dateSelector
                 }
-                selectedDateSections
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+
+                List {
+                    // A dynamic child gives List a stable diff boundary for the
+                    // selected day's variable sections without recreating the
+                    // calendar controls that triggered the selection change.
+                    ForEach([calendarState.selectedDate], id: \.self) { _ in
+                        selectedDateSections
+                    }
+                }
+                .listStyle(.insetGrouped)
             }
-            .listStyle(.insetGrouped)
-            .id(calendarState.selectedDate)
             .navigationTitle("Program")
             .accessibilityIdentifier("programScreen")
             .toolbar {
@@ -200,7 +209,6 @@ struct ProgramView: View {
                 dateButton(date)
             }
         }
-        .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
     }
 
     private func dateButton(_ date: LocalDate) -> some View {

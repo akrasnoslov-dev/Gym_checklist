@@ -26,15 +26,14 @@ struct ProgramView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    weekHeader
-                    dateSelector
-                }
-
-                // A dynamic child gives List a stable diff boundary for the
-                // selected day's variable sections while the calendar controls
-                // remain in the established List presentation.
+                // Both the week strip and selected-day sections must be dynamic
+                // List children. Static List rows cache their subtree and do
+                // not reliably redraw the concrete dates after navigation.
                 ForEach([calendarState.selectedDate], id: \.self) { _ in
+                    Section {
+                        weekHeader
+                        dateSelector
+                    }
                     selectedDateSections
                 }
             }

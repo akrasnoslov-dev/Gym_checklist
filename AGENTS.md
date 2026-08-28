@@ -106,17 +106,19 @@ The macOS workflow is intentionally **not triggered by normal pushes**. Normal p
 During the current MVP-hardening phase, optimize for reaching a user-visible MVP rather than repeatedly proving the entire regression suite after every small fix.
 
 Use:
-- `smoke` as the normal iterative macOS gate. It runs all unit tests plus a small set of critical stable UI flows.
-- exact filtered `unit`/`ui` runs for one known failing test.
-- `full` at broad reconciliation/candidate checkpoints, after high-risk cross-cutting changes, or when explicitly requested. The final original-MVP candidate requires a **green** `full` run on its exact SHA. If a fix changes the candidate after a failed `full`, rerun `full` for the new candidate until the final authoritative result is green.
+- exact filtered `unit`/`ui` runs while diagnosing one blocker;
+- `smoke` only when a broad but non-final checkpoint is genuinely useful;
+- `candidate` for the final verification of a blocker fix. It builds once, runs the exact blocker test, and if that passes automatically runs the full suite on the same runner/build/SHA;
+- standalone `full` only when no focused blocker test exists or when explicitly justified.
 
-Do not use `build -> unit -> ui -> full` as a routine scheduler.
+Do not use `build -> unit -> ui -> smoke -> full` as a routine scheduler. In particular, do not run a separate smoke between a green blocker-focused test and final full verification; the `candidate` scope replaces that chain.
 
 When one exact test fails:
-- dispatch `verification_scope=ui` with `test_filter=GymChecklistUITests/<TestClass>/<testMethod>`, or the equivalent unit filter;
-- do not rerun the whole UI/unit target;
-- after the exact test passes, use `smoke`, not automatically `full`;
-- return to `full` only at the next broad checkpoint.
+- during diagnosis, dispatch `verification_scope=ui` with `test_filter=GymChecklistUITests/<TestClass>/<testMethod>`, or the equivalent unit filter;
+- after implementing the candidate fix, dispatch exactly one `verification_scope=candidate` run with the same exact `test_filter`;
+- if the focused stage fails, inspect that failure and change the code before dispatching another candidate run;
+- if the focused stage passes, GitHub proceeds to the full suite automatically without Codex intervention;
+- a green `candidate` run therefore satisfies the required final full gate for that exact SHA.
 
 ### Flaky UI-test budget
 Do not spend an entire Codex task chasing XCTest-only instability.
@@ -128,27 +130,35 @@ Do not spend an entire Codex task chasing XCTest-only instability.
 
 A CI result proves the checkpoint SHA it actually ran against.
 
-### CI while implementation exists
-CI is background verification. After dispatching a run, continue other safe implementation immediately.
+### Asynchronous CI rule
+Do **not** keep a Codex task alive merely to wait for GitHub Actions.
 
-### CI wait budget
-Pending CI is not a voluntary stop condition. Continue independent useful MVP work while it runs. If none remains, wait or poll reasonably for its terminal result, process it immediately, and continue. Record an in-flight run only for continuity when an actual platform, tool, or context limit forces a checkpoint; never end a task merely to conserve quota while CI is pending.
+After dispatching a macOS run:
+- record the exact run ID, scope, and candidate SHA in `docs/progress.md`;
+- continue only work that is genuinely useful and does not invalidate the candidate being tested;
+- if no such work exists, end the Codex task immediately. This is an intentional efficient checkpoint, not a failure to continue;
+- do not poll the same in-progress run repeatedly.
+
+At the start of the next Codex task:
+- read the recorded run once;
+- if it is still running, do not reconstruct/review the whole project and do not enter a polling loop; report the still-running gate and end quickly;
+- if terminal, process the result immediately.
 
 When CI completes:
-- green focused run -> run `smoke` if a coherent checkpoint is ready;
-- green smoke -> continue implementation or prepare the MVP/device handoff;
-- failure -> inspect once and fix only the narrow reported surface;
-- full -> use only for broad reconciliation, not every small fix;
-- cancelled/infrastructure failure -> record no pass/fail evidence and rerun only when justified.
+- failed focused/candidate stage -> inspect the concise failure summary/artifact, fix the narrow reported surface, then dispatch one new candidate run;
+- green `candidate` -> both the focused blocker test and full suite passed on the exact SHA; do not run smoke/full again;
+- cancelled/infrastructure failure -> rerun only when justified.
+
+CI logs are intentionally compact. Prefer the failure summary emitted by the workflow; download the diagnostic artifact only when the summary is insufficient.
 
 ## Final-response gate
 Before a final response:
 1. inspect Git/worktree, `docs/progress.md`, active backlog, and relevant CI;
 2. identify the exact next safe action;
 3. if it is executable now, execute it instead of stopping;
-4. if CI is running, continue independent MVP work or wait reasonably for its terminal result; CI pending alone is never a voluntary stop condition;
+4. if CI is running, follow the asynchronous CI rule: continue only non-invalidating useful work; otherwise record the run and end immediately instead of waiting/polling;
 5. if a task is externally blocked, scan the rest of the active backlog;
-6. in the current pre-payment acceptance phase, do not stop with a red final CI result or known free-to-fix blocker; stop only when no technically safe no-cost active work remains and the remaining blocker is genuinely external/user-required, destructive approval/product decision is required, a required tool is unavailable, or the platform/model/tool limit actually ends execution.
+6. in the current pre-payment acceptance phase, do not hand off a red final candidate as accepted; however, an in-progress CI run is now an explicit efficient stop condition once its run ID/SHA/scope are recorded.
 
 Do not stop merely because Codex wants to summarize.
 

@@ -74,7 +74,25 @@ Rules:
 - The final handoff is one completed physical-iPhone candidate using the real MVP architecture and all no-cost live services that can be validated on Spark. The prior in-memory `MVP_DEMO` preview does not satisfy this lock.
 - Do not activate TestFlight, App Store, paid signing, release automation, Firebase Blaze/billing, or `dev -> main` work. The current approved app icon/logo may be maintained as normal product UI/branding.
 - M9.2 is active now for the confirmed Program date-selector defect. After that defect is resolved, M9.2 remains runnable only for real acceptance blockers/regressions.
-- Stop voluntarily only when all no-cost implementation/verification work is complete, the final exact candidate SHA has green required CI, and the completed physical-iPhone candidate is ready for product acceptance; or when one exact external zero-cost user action is genuinely required and no independent work remains.
+- Stop voluntarily only when all no-cost implementation/verification work is complete, the final exact candidate SHA has green required CI, and the completed physical-iPhone candidate is ready for product acceptance; or after the consolidated external handoff below when execution genuinely requires an unavailable user/external environment.
+
+## External handoff batching rule
+
+A user/external prerequisite is not by itself a reason to stop immediately.
+
+When one or more external actions are required:
+
+1. Scan the entire remaining active MVP backlog.
+2. Complete every implementation, static validation, automated test, configuration preparation, script, documentation, and diagnostic step that can be done without the user.
+3. Prepare all files, configuration, templates, and commands needed for the external phase.
+4. Identify all foreseeable user-required actions across Firebase, Xcode, signing, physical-iPhone validation, accessibility/manual validation, and other active no-cost MVP acceptance work.
+5. Combine them into one external handoff; do not stop for the first dependency when another foreseeable dependency would cause another interruption.
+6. Infer safe defaults where possible and never ask configuration questions one at a time.
+7. Before stopping, verify that no technically safe work remains anywhere in the active no-cost MVP scope.
+
+The one external handoff must state the exact user actions, why each is required, exact commands/paths/settings where applicable, the evidence to return, and the minimum number of user interactions needed. After it, stop only because access to the user's Firebase account, Mac/Xcode, physical iPhone, credentials, or another unavailable external environment is genuinely required.
+
+Do not manufacture work merely to avoid stopping, and do not run redundant CI, reviews, or refactors. The asynchronous CI rule still applies: never keep a Codex task alive merely to wait for or poll GitHub Actions.
 
 ## Autonomous work loop
 Repeat until a real stop condition exists:
@@ -157,7 +175,7 @@ Before a final response:
 2. identify the exact next safe action;
 3. if it is executable now, execute it instead of stopping;
 4. if CI is running, follow the asynchronous CI rule: continue only non-invalidating useful work; otherwise record the run and end immediately instead of waiting/polling;
-5. if a task is externally blocked, scan the rest of the active backlog;
+5. if a task is externally blocked, apply the External handoff batching rule before stopping;
 6. in the current pre-payment acceptance phase, do not hand off a red final candidate as accepted; however, an in-progress CI run is now an explicit efficient stop condition once its run ID/SHA/scope are recorded.
 
 Do not stop merely because Codex wants to summarize.

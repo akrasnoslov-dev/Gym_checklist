@@ -4,11 +4,10 @@ This checklist defines the **current pre-payment functional acceptance**. It is 
 
 Current rule: verify everything that can be implemented and proven at zero cost before the user decides whether to pay for Apple distribution. Use Firebase Spark only; do not attach billing or upgrade to Blaze without explicit approval.
 
-## Current blocking issue
+## Current blocker status
 
-- Program week/date navigation is a confirmed product defect. The user reproduced broken date switching on a physical iPhone, and final macOS run `33151994017` failed on the same Program navigation surface.
-- The previous `KNOWN_UI_TEST_HARNESS_FLAKE` classification is revoked.
-- The candidate cannot be accepted until this is fixed, regression-covered, and required CI is green.
+- Program week/date navigation was a confirmed product defect. It is regression-covered, and authoritative candidate run `33211219461` passed both the focused Program test and full suite on source SHA `ee579d06cedaffad8c6e5b563aacdcf6ecd7a00b`.
+- Physical-iPhone confirmation remains required; do not treat simulator CI as that evidence.
 
 ## Free acceptance matrix
 
@@ -18,7 +17,7 @@ Current rule: verify everything that can be implemented and proven at zero cost 
 | Login/reset/logout via email/password | Unit + UI auth tests | Live Firebase Spark |
 | Google Sign-In | Native SDK path + deterministic tests | Live Spark/provider configuration on device |
 | First-use Today and create workout | Today/Program UI tests | Physical-iPhone review |
-| Program date/week navigation | UI coverage exists | **Fix confirmed bug; simulator + physical-iPhone proof** |
+| Program date/week navigation | UI coverage exists | CI green; physical-iPhone proof |
 | Create/edit/delete dated workout | Domain + Program UI tests | Physical-iPhone review |
 | Search/add custom exercise | Domain + Program UI tests | Live Firestore persistence + device review |
 | Arbitrary reps/weight/time and set ordering | Domain + UI tests | Physical-iPhone review |

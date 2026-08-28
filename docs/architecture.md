@@ -194,15 +194,24 @@ A normal push to `dev` does not allocate a macOS runner. macOS CI is reserved fo
 
 Both workflows cancel obsolete in-progress runs for the same ref. Docs-only changes are excluded from automatic CI.
 
-Required macOS verification remains mandatory before a checkpoint that explicitly requires it can be marked `DONE`. Quota exhaustion follows `docs/ci_free_quota_policy.md`.
+Required macOS verification remains mandatory before a checkpoint that explicitly requires it can be marked `DONE`. During current pre-payment acceptance, the final exact candidate SHA must have a green authoritative macOS `full` result; a red final run cannot be waived when the same behavior is observed in the product.
 
-## 14. Distribution
-Development stages:
-1. CI-only simulator build/tests.
-2. Apple Developer account/configuration.
-3. Code signing/provisioning setup.
-4. TestFlight beta upload from macOS CI or another Apple-supported release path.
-5. App Store submission only after explicit release approval.
+## 14. Current free validation and later distribution
+
+Current pre-payment stages:
+1. CI simulator/unit/UI development using free GitHub-hosted capacity.
+2. Non-production Firebase **Spark** configuration with billing disabled.
+3. Free live validation of email/password auth, Google Sign-In, Firestore persistence/owner isolation, offline/reconnect, Analytics, and Crashlytics where supported.
+4. Free personal-device installation/testing on the user's iPhone.
+5. User functional/UX acceptance.
+
+Only after explicit user approval:
+6. Paid Apple Developer account/configuration.
+7. Release signing/provisioning and App Store Connect/TestFlight.
+8. Paid/billing-dependent backend work, if still required for release.
+9. App Store submission after explicit release approval.
+
+Do not attach Firebase billing, upgrade to Blaze, or activate a paid Apple service during stages 1–5 without explicit user approval.
 
 ## 15. Architecture guardrails
 Do not add:

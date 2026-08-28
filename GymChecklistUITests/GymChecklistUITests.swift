@@ -91,6 +91,7 @@ final class GymChecklistUITests: XCTestCase {
         let search = app.searchFields["Search exercises"]
         XCTAssertTrue(search.waitForExistence(timeout: 2))
         search.tap()
+        XCTAssertTrue(app.keyboards.element.waitForExistence(timeout: 2))
         search.typeText("bench")
         let bench = app.buttons["exercisePickerResult-00000000-0000-4000-8000-000000000001"]
         XCTAssertTrue(bench.waitForExistence(timeout: 2))

@@ -5,6 +5,7 @@ struct ExercisePickerView: View {
     @State private var query = ""
     @State private var showsCustomExercise = false
     @State private var errorMessage: String?
+    @FocusState private var isSearchFocused: Bool
     @AccessibilityFocusState private var accessibilityFocus: AccessibilityFocusTarget?
 
     let search: (String) -> [Exercise]
@@ -64,7 +65,9 @@ struct ExercisePickerView: View {
             .navigationTitle("Add exercise")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $query, prompt: "Search exercises")
+            .searchFocused($isSearchFocused)
             .accessibilityIdentifier("exercisePicker")
+            .onAppear { isSearchFocused = true }
             .onChange(of: errorMessage) { _, newValue in
                 if newValue != nil { accessibilityFocus = .error }
             }

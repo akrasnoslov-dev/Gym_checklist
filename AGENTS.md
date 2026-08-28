@@ -40,34 +40,41 @@ The repository is durable memory. Chat history is not.
 
 Never discard coherent local work merely because `origin/dev` is older. Never reset or overwrite uncommitted user work.
 
-## Current release-scope decision
-Until the user explicitly reactivates release work:
-- paid Apple Developer membership is deferred;
-- App Store Connect is deferred;
-- TestFlight is deferred;
-- release signing/secrets are deferred;
-- final App Store icon decision is deferred;
-- live Sign in with Apple release configuration is deferred where it requires the paid Apple path.
+## Current pre-payment acceptance decision
+Until the user explicitly accepts the functional MVP and reactivates paid release work, use **only zero-cost development and validation paths**.
 
-These items may remain documented in the long-term implementation plan, but they are **not current blockers and not runnable backlog**.
+Current runnable scope:
+- fix every confirmed MVP product defect;
+- keep all required CI green, including a final authoritative macOS `full` run on the exact candidate SHA;
+- use a non-production Firebase **Spark** project for every supported no-cost live check;
+- validate email/password auth, Google Sign-In, Firestore persistence and owner isolation, cached offline execution/reconnect, Analytics, Crashlytics, and manual accessibility where those checks remain free;
+- produce a physical-iPhone candidate through a free personal-device path when available and use it for the user's product acceptance.
 
-Current goal: finish the full originally approved MVP defined by the product, UX, architecture, and active-plan acceptance criteria; then complete final verification and provide one physical-iPhone candidate for the user's next product review. A preliminary device preview is only an intermediate checkpoint, not a product-acceptance stop or freeze. Do not request another product review or hand off an intentionally incomplete in-memory demo before the full MVP persistence, authentication, offline, security, and product paths are complete to the maximum extent possible without the deferred paid Apple distribution path.
+Explicitly deferred until the user approves payment/release work:
+- paid Apple Developer membership;
+- App Store Connect and TestFlight;
+- release signing/secrets and paid distribution automation;
+- final App Store icon/release metadata decisions that are needed only for distribution;
+- live Sign in with Apple configuration where it requires paid Apple capabilities;
+- any Firebase/Google Cloud action that requires enabling billing or moving from Spark to Blaze, including live deployment of `functions:deleteAccount` if billing is required;
+- `dev -> main` release work.
 
-Google/Firebase development configuration and non-production validation are still relevant because they are part of the app itself, not only App Store release.
+Do not attach a billing account, upgrade Firebase to Blaze, buy Apple membership, or activate any paid service without explicit user approval.
 
+The current goal is **pre-payment functional MVP acceptance**: all functionality that can be implemented and verified for free must be complete and proven first. Paid-only functionality remains documented as a known unverified limitation and is not a current acceptance blocker.
 
 ## Active MVP finish lock
 This lock remains active until the completed original-MVP candidate—not an intermediate demo or preview—is ready for the user's product acceptance.
 
 Rules:
 - Freeze scope. Do not add features, opportunistic refactors, architecture cleanup, test-suite cleanup, or documentation expansion unless required to fix a confirmed MVP blocker.
-- The Program navigation selector issue already classified as `KNOWN_UI_TEST_HARNESS_FLAKE` is non-blocking. Run `33077303696` was the final focused diagnostic for that surface. Do not rerun it without new independent product evidence.
-- A green smoke run is a checkpoint, not a handoff. Continue resolving all technically achievable original-MVP implementation and verification work, including real Firebase/auth/offline/security paths.
-- Run exactly one final macOS `full` verification after the final product/UX reconciliation. Fix only confirmed MVP defects it exposes.
-- The final handoff is one completed physical-iPhone candidate using the real MVP architecture. The prior in-memory `MVP_DEMO` preview does not satisfy this lock.
-- Do not activate TestFlight, App Store, paid signing, release automation, final icon work, or `dev -> main` work.
-- M9.2 is runnable only for an actual acceptance blocker. A stale `TODO` label alone is not work.
-- Stop voluntarily only when the completed MVP candidate is ready for product acceptance, or all independent work is complete and one exact external user action is required.
+- The Program week/date selector is a **confirmed product defect**: the user observed it failing on a previously installed physical-iPhone build, and the final macOS run reproduced failure on the same surface. The old `KNOWN_UI_TEST_HARNESS_FLAKE` classification is revoked. Reproduce, diagnose, fix production behavior as needed, add regression coverage, and verify it before acceptance.
+- A green smoke run is a checkpoint, not a handoff. Continue resolving all technically achievable original-MVP implementation and verification work, including free Firebase Spark auth/persistence/offline/security paths.
+- The final candidate must have a **green authoritative macOS `full` run on its exact SHA**. If `full` fails, diagnose the failure, fix any product/test defect that can affect acceptance, and rerun the required gates until the final run is green. A red final run is never an acceptable handoff.
+- The final handoff is one completed physical-iPhone candidate using the real MVP architecture and all no-cost live services that can be validated on Spark. The prior in-memory `MVP_DEMO` preview does not satisfy this lock.
+- Do not activate TestFlight, App Store, paid signing, release automation, final icon work, Firebase Blaze/billing, or `dev -> main` work.
+- M9.2 is active now for the confirmed Program date-selector defect. After that defect is resolved, M9.2 remains runnable only for real acceptance blockers/regressions.
+- Stop voluntarily only when all no-cost implementation/verification work is complete, the final exact candidate SHA has green required CI, and the completed physical-iPhone candidate is ready for product acceptance; or when one exact external zero-cost user action is genuinely required and no independent work remains.
 
 ## Autonomous work loop
 Repeat until a real stop condition exists:
@@ -101,7 +108,7 @@ During the current MVP-hardening phase, optimize for reaching a user-visible MVP
 Use:
 - `smoke` as the normal iterative macOS gate. It runs all unit tests plus a small set of critical stable UI flows.
 - exact filtered `unit`/`ui` runs for one known failing test.
-- `full` only once after final original-MVP reconciliation, after high-risk cross-cutting changes, or when explicitly requested. The final original-MVP candidate requires that checkpoint before handoff.
+- `full` at broad reconciliation/candidate checkpoints, after high-risk cross-cutting changes, or when explicitly requested. The final original-MVP candidate requires a **green** `full` run on its exact SHA. If a fix changes the candidate after a failed `full`, rerun `full` for the new candidate until the final authoritative result is green.
 
 Do not use `build -> unit -> ui -> full` as a routine scheduler.
 
@@ -113,9 +120,10 @@ When one exact test fails:
 
 ### Flaky UI-test budget
 Do not spend an entire Codex task chasing XCTest-only instability.
-- Maximum: two consecutive focused reruns of the same UI test without new independent evidence of a product bug.
+- Maximum: two consecutive focused reruns of the same UI test **only when there is no independent product-failure evidence**.
 - If the remaining failure is accessibility/selector/timing instability, domain/unit coverage is green, and the product behavior is not independently proven broken, record `KNOWN_UI_TEST_HARNESS_FLAKE` and continue MVP work.
-- Keep the test in the full regression suite for later hardening; do not silently delete coverage.
+- The Program week/date-selector failure is explicitly excluded from this flake allowance because the user independently reproduced the broken behavior on a physical iPhone.
+- Keep flaky tests in the regression suite for later hardening; do not silently delete coverage.
 - Never change production behavior solely to make XCTest discover an element. Production changes require independent product/UX/state evidence.
 
 A CI result proves the checkpoint SHA it actually ran against.
@@ -140,7 +148,7 @@ Before a final response:
 3. if it is executable now, execute it instead of stopping;
 4. if CI is running, continue independent MVP work or wait reasonably for its terminal result; CI pending alone is never a voluntary stop condition;
 5. if a task is externally blocked, scan the rest of the active backlog;
-6. stop only when no technically safe active work remains and the remaining blocker is genuinely external/user-required, destructive approval/product decision is required, a real failure blocks all continuation, a required tool is unavailable, or the platform/model/tool limit actually ends execution.
+6. in the current pre-payment acceptance phase, do not stop with a red final CI result or known free-to-fix blocker; stop only when no technically safe no-cost active work remains and the remaining blocker is genuinely external/user-required, destructive approval/product decision is required, a required tool is unavailable, or the platform/model/tool limit actually ends execution.
 
 Do not stop merely because Codex wants to summarize.
 

@@ -15,7 +15,7 @@ Unauthenticated and cross-user requests are denied.
 
 ## Deploy
 
-Use a non-production Firebase project for local/emulator validation first.
+Use a non-production Firebase **Spark** project with billing disabled for current local/live validation first.
 After authenticating the Firebase CLI for the intended project, deploy only
 these rules:
 

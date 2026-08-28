@@ -201,7 +201,7 @@ Minimum:
 
 Because Google Sign-In establishes the primary app account, public/external
 release must also offer Sign in with Apple as the equivalent login path. See
-`docs/app_store_auth_compliance.md`; it must be enabled and verified before
+`docs/release/app_store_auth_compliance.md`; it must be enabled and verified before
 external TestFlight/App Store submission.
 
 ## 15. Offline requirements
@@ -229,4 +229,15 @@ Network/sync errors should be non-blocking whenever local workout data is availa
 - Final required set triggers motivational popup.
 
 ## 17. MVP definition of done
-Functional MVP is complete when authentication, Program creation/editing, exercise selection, Today execution, actual editing, skip/restore, copy, repeat, history, offline behavior, themes, units, motivational completion, analytics/crash reporting, automated build/tests, and TestFlight-ready release plumbing are implemented and verified.
+
+### Current functional-acceptance gate
+Before the user pays for distribution, the functional MVP is accepted only when:
+- all approved product behavior is implemented;
+- every zero-cost live path that can be validated with Firebase Spark is verified, including authentication, persistence, owner isolation, offline/reconnect, Analytics, and Crashlytics where available;
+- the exact candidate SHA has green required CI, including a green authoritative macOS `full` run;
+- the candidate is installed on the user's physical iPhone through a free personal-device path and the user accepts its functionality/UX.
+
+Paid-only release capabilities are not part of this pre-payment acceptance gate. They must remain documented as unverified rather than simulated or falsely claimed complete.
+
+### Later release-readiness gate
+After explicit user approval to pay/ship, release readiness additionally requires the applicable Apple Developer/App Store/TestFlight signing and distribution path, live Sign in with Apple release configuration, account-deletion backend deployment/verification where billing is required, and final release/compliance checks.

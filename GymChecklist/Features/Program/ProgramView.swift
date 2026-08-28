@@ -15,23 +15,23 @@ struct ProgramView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            List {
+                // A dynamic child gives List a stable diff boundary for the
+                // selected day's variable sections without recreating the
+                // calendar controls that triggered the selection change.
+                ForEach([calendarState.selectedDate], id: \.self) { _ in
+                    selectedDateSections
+                }
+            }
+            .listStyle(.insetGrouped)
+            .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 8) {
                     weekHeader
                     dateSelector
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-
-                List {
-                    // A dynamic child gives List a stable diff boundary for the
-                    // selected day's variable sections without recreating the
-                    // calendar controls that triggered the selection change.
-                    ForEach([calendarState.selectedDate], id: \.self) { _ in
-                        selectedDateSections
-                    }
-                }
-                .listStyle(.insetGrouped)
+                .background(.bar)
             }
             .navigationTitle("Program")
             .accessibilityIdentifier("programScreen")

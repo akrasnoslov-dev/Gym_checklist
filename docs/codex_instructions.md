@@ -9,20 +9,27 @@ git status -sb
 git diff --check
 pwsh -File scripts/verify_security_hygiene.ps1
 pwsh -File scripts/verify_account_deletion_contract.ps1
+pwsh -File scripts/verify_firestore_rules.ps1
+pwsh -File scripts/verify_offline_contract.ps1
+pwsh -File scripts/verify_google_signin_configuration_contract.ps1
 ```
 
 Authoritative iOS verification runs in `.github/workflows/ios-ci.yml` on macOS/Xcode.
 
-Current MVP strategy: use `smoke` for routine macOS verification. Use exact filtered `unit`/`ui` diagnostics for one known failure. Use `full` only at broad reconciliation/device-handoff checkpoints, not after every small fix.
+Current pre-payment strategy:
+- use exact filtered `unit`/`ui` diagnostics for a known failure;
+- use `smoke` for iterative coherent checkpoints;
+- require a green `full` run on the **exact final candidate SHA** before physical-iPhone product acceptance;
+- if `full` fails after a code/test fix, rerun it for the new candidate until the final authoritative result is green.
 
-For one known failing test, use the optional `test_filter` workflow input instead of rerunning the entire target. Example:
+The Program week/date-selector failure is not eligible for the old harness-flake waiver because the user reproduced it on a physical iPhone.
+
+For one known failing test, use the optional `test_filter` workflow input instead of rerunning the entire target during diagnosis. Example:
 
 ```powershell
-gh workflow run ios-ci.yml --repo akrasnoslov-dev/Gym_checklist --ref dev -f verification_scope=ui -f "test_filter=GymChecklistUITests/GymChecklistUITests/testProgramWeekNavigation"
+gh workflow run ios-ci.yml --repo akrasnoslov-dev/Gym_checklist --ref dev -f verification_scope=ui -f "test_filter=GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs"
 ```
 
-Use the exact test class/method reported by the failure. After the focused test passes, run `smoke`. Do not automatically run `full`.
+Pending CI alone is **not** a voluntary stopping condition. Continue independent work; if none exists, poll/wait reasonably and process the terminal result. Do not end the task merely because CI is still running.
 
-When CI is the only remaining gate, do not spend the task limit on a long foreground wait. Check once, wait silently for at most 5 minutes, then record `CI_PENDING <RUN_ID> <SHA>` in `docs/progress.md` and end cleanly if the run is still active. The next task resumes from that run result.
-
-Never claim local Xcode verification from the user's Windows machine. Never print or commit secrets, signing material, service-account credentials, auth tokens, or `GoogleService-Info.plist`.
+Use only zero-cost services during current acceptance. Firebase Spark is allowed; Firebase Blaze/billing and paid Apple distribution are not. Never print or commit secrets, signing material, service-account credentials, auth tokens, or `GoogleService-Info.plist`.

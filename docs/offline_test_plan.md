@@ -12,7 +12,7 @@ therefore part of the live session checks below, not a separate sync UI.
 
 ## Preconditions
 
-1. Use a non-production Firebase project with `firestore.rules` deployed.
+1. Use a non-production Firebase **Spark** project with billing disabled and `firestore.rules` deployed.
 2. Sign in as a dedicated test user and create a Today workout containing at
    least two exercises and multiple sets.
 3. Keep the app open until Firestore's local cache has received the workout;

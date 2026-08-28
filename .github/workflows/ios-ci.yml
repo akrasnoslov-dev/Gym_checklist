@@ -19,6 +19,7 @@ on:
           - build
           - unit
           - ui
+          - candidate
       test_filter:
         description: "Optional exact xcodebuild -only-testing filter for unit/ui diagnostics"
         required: false
@@ -49,6 +50,14 @@ jobs:
 
       - name: Show Xcode version
         run: xcodebuild -version
+
+      - name: Cache Swift package sources
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: ${{ runner.os }}-swiftpm-${{ hashFiles('GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swiftpm-
 
       - name: Detect Xcode project
         id: detect
@@ -102,36 +111,88 @@ jobs:
           )
           echo "Using simulator UDID: $DESTINATION_UDID"
           PACKAGE_DIRECTORY="$RUNNER_TEMP/SourcePackages"
+          DERIVED_DATA="$RUNNER_TEMP/DerivedData"
+          LOG_DIRECTORY="$RUNNER_TEMP/ci-logs"
+          mkdir -p "$PACKAGE_DIRECTORY" "$DERIVED_DATA" "$LOG_DIRECTORY"
+
           xcodebuild \
             -resolvePackageDependencies \
             -project "$PROJECT" \
             -scheme "$SCHEME" \
-            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY"
+            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY" \
+            > "$LOG_DIRECTORY/package-resolution.log" 2>&1
+
           if [ -f "GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" ]; then
             git diff --exit-code -- GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           fi
+
           XCODE_ARGS=(
             -project "$PROJECT"
             -scheme "$SCHEME"
             -sdk iphonesimulator
             -destination "platform=iOS Simulator,id=$DESTINATION_UDID"
             -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY"
+            -derivedDataPath "$DERIVED_DATA"
+            -disableAutomaticPackageResolution
             CODE_SIGNING_ALLOWED=NO
           )
+
+          run_xcodebuild() {
+            local label="$1"
+            shift
+            local log="$LOG_DIRECTORY/$label.log"
+
+            set +e
+            xcodebuild "$@" > "$log" 2>&1
+            local status=$?
+            set -e
+
+            if [ "$status" -ne 0 ]; then
+              {
+                echo "xcodebuild failed: $label"
+                echo
+                grep -E "Test Case .* failed|Testing failed|error:|XCTAssert|failed -|Assertion|Expected|threw error" "$log" | tail -n 200 || true
+              } > "$LOG_DIRECTORY/failure-summary.txt"
+              cat "$LOG_DIRECTORY/failure-summary.txt"
+              return "$status"
+            fi
+
+            echo "xcodebuild passed: $label"
+          }
+
           case "$VERIFICATION_SCOPE" in
-            full)
-              if [ -n "$TEST_FILTER" ]; then
-                echo "test_filter is only valid for unit/ui diagnostics" >&2
+            candidate)
+              if [ -z "$TEST_FILTER" ]; then
+                echo "candidate scope requires an exact test_filter" >&2
                 exit 2
               fi
-              xcodebuild "${XCODE_ARGS[@]}" test
+              case "$TEST_FILTER" in
+                GymChecklistTests/*|GymChecklistUITests/*) ;;
+                *)
+                  echo "candidate test_filter must start with GymChecklistTests/ or GymChecklistUITests/" >&2
+                  exit 2
+                  ;;
+              esac
+
+              # Build exactly once. If the blocker test passes, immediately run
+              # the full suite against the same build and candidate SHA.
+              run_xcodebuild candidate-build "${XCODE_ARGS[@]}" build-for-testing
+              run_xcodebuild candidate-focused "${XCODE_ARGS[@]}" test-without-building "-only-testing:$TEST_FILTER"
+              run_xcodebuild candidate-full "${XCODE_ARGS[@]}" test-without-building
+              ;;
+            full)
+              if [ -n "$TEST_FILTER" ]; then
+                echo "test_filter is only valid for unit/ui/candidate diagnostics" >&2
+                exit 2
+              fi
+              run_xcodebuild full "${XCODE_ARGS[@]}" test
               ;;
             smoke)
               if [ -n "$TEST_FILTER" ]; then
-                echo "test_filter is only valid for unit/ui diagnostics" >&2
+                echo "test_filter is only valid for unit/ui/candidate diagnostics" >&2
                 exit 2
               fi
-              xcodebuild "${XCODE_ARGS[@]}" test \
+              run_xcodebuild smoke "${XCODE_ARGS[@]}" test \
                 -only-testing:GymChecklistTests \
                 -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayCompletesAndUndoesSetWithoutLeavingTheScreen \
                 -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayLongPressEditsPlanThenActualWithoutLeavingToday \
@@ -143,10 +204,10 @@ jobs:
               ;;
             build)
               if [ -n "$TEST_FILTER" ]; then
-                echo "test_filter is only valid for unit/ui diagnostics" >&2
+                echo "test_filter is only valid for unit/ui/candidate diagnostics" >&2
                 exit 2
               fi
-              xcodebuild "${XCODE_ARGS[@]}" build-for-testing
+              run_xcodebuild build "${XCODE_ARGS[@]}" build-for-testing
               ;;
             unit)
               if [ -n "$TEST_FILTER" ]; then
@@ -157,9 +218,9 @@ jobs:
                     exit 2
                     ;;
                 esac
-                xcodebuild "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
+                run_xcodebuild unit-focused "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
               else
-                xcodebuild "${XCODE_ARGS[@]}" test -only-testing:GymChecklistTests
+                run_xcodebuild unit "${XCODE_ARGS[@]}" test -only-testing:GymChecklistTests
               fi
               ;;
             ui)
@@ -171,9 +232,9 @@ jobs:
                     exit 2
                     ;;
                 esac
-                xcodebuild "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
+                run_xcodebuild ui-focused "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
               else
-                xcodebuild "${XCODE_ARGS[@]}" test -only-testing:GymChecklistUITests
+                run_xcodebuild ui "${XCODE_ARGS[@]}" test -only-testing:GymChecklistUITests
               fi
               ;;
             *)
@@ -181,3 +242,12 @@ jobs:
               exit 2
               ;;
           esac
+
+      - name: Upload CI diagnostics
+        if: failure() && steps.detect.outputs.project_found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ci-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/ci-logs
+          if-no-files-found: ignore
+          retention-days: 7

@@ -30,9 +30,13 @@ all-or-nothing deletion across an expiring/re-authenticated Auth session.
   before the deletion callable. Firebase does not retain that token. This
   revocation flow and signed-device validation remain required before release.
 
+## Current pre-payment status
+
+The account-deletion client flow, backend source, and automated security/behavior contracts remain required now. Live Cloud Function deployment is **not** a current functional-acceptance blocker if Firebase requires attaching billing or upgrading from Spark to Blaze. Do not enable billing for this purpose without explicit user approval. Record the live backend deletion path as a paid-phase limitation until release work is reactivated.
+
 ## Required deployment and proof
 
-The Function source uses Node 20. After installing dependencies in
+After paid/billing-dependent release work is explicitly reactivated, the Function source uses Node 20. After installing dependencies in
 `functions/` on a trusted machine and selecting a non-production Firebase
 project, deploy only the callable:
 
@@ -40,8 +44,7 @@ project, deploy only the callable:
 firebase deploy --only functions:deleteAccount --project YOUR_FIREBASE_PROJECT_ID
 ```
 
-Do not deploy it before reviewing the Firebase project billing/runtime policy;
-Cloud Functions may require Firebase/Google Cloud account configuration.
+Do not deploy it before reviewing the Firebase project billing/runtime policy and receiving explicit approval for any billing change.
 
 ## Required implementation shape
 

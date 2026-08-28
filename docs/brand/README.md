@@ -9,6 +9,7 @@ Status: **current approved logo direction** as of 2026-08-28. Keep using it unti
 - Wordmark in the approved reference reads **Gym Checklist**, with “Gym” in the green treatment and “Checklist” in dark charcoal.
 
 ## Files
+- `gymchecklist-logo-reference.jpg` — compact raster reference of the user-approved full logo board (mark, wordmark, app-icon concept).
 - `gymchecklist-logo-mark.svg` — scalable logo mark for documentation/design handoff.
 - `gymchecklist-app-icon-1024.png` — 1024×1024 app-icon master used by the iOS project.
 - App runtime copy: `GymChecklist/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`.

@@ -49,10 +49,19 @@ git rev-parse HEAD
 git rev-parse origin/dev
 ```
 
-## Current release direction
-The current development target is to finish/verify the MVP and then validate it on the user's own iPhone before deciding whether to pay for Apple distribution.
+## Current pre-payment acceptance direction
+The current development target is to finish and verify the functional MVP **entirely through zero-cost paths**, then validate the exact candidate on the user's own iPhone before deciding whether to pay for distribution.
 
-Paid Apple Developer membership, App Store Connect, TestFlight, release signing/secrets, final App Store icon work, and paid-release Apple configuration are currently deferred. The live `docs/progress.md` records the current decision and should be checked in case it changes later.
+Rules:
+- all required CI must be green before handoff, including a green final authoritative macOS `full` run on the exact candidate SHA;
+- the Program week/date selector is a confirmed product defect because the user reproduced it on a physical iPhone; do not treat it as a harness-only flake;
+- use a non-production Firebase Spark project and verify every no-cost live path that Spark supports;
+- do not attach Firebase billing or upgrade to Blaze without explicit user approval;
+- paid Apple Developer membership, App Store Connect, TestFlight, release signing/secrets, final App Store release work, and paid-only Apple capabilities remain deferred;
+- live Cloud Function account deletion may remain deferred if it requires Blaze/billing, but its code and automated contracts still remain in scope;
+- the old in-memory `MVP_DEMO` is only an intermediate UI preview, not sufficient for final functional acceptance.
+
+The live `docs/progress.md` records the exact current blocker and next action.
 
 ## Project Sources policy
 Do not ask the user to keep re-uploading mutable repository files into ChatGPT Project Sources. Read mutable project files live from GitHub.

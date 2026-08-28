@@ -4,6 +4,10 @@ import SwiftUI
 struct ProgramView: View {
     @ObservedObject var viewModel: WorkoutViewModel
     let weightUnit: WeightUnit
+    // SwiftUI's static List rows do not reliably redraw this calendar from an
+    // observed-object mutation. This is a rendering mirror of the view-model
+    // selection; mutations in either direction are synchronized below.
+    @State private var displayedSelectedDate: LocalDate
     @State private var exercisePickerRoute: ExercisePickerRoute?
     @State private var setEditorRoute: SetEditorRoute?
     @State private var historicalActualEditorRoute: HistoricalActualEditorRoute?
@@ -12,6 +16,12 @@ struct ProgramView: View {
     @State private var pendingDeletion: PendingExerciseDeletion?
     @State private var pendingWorkoutDeletion: LocalDate?
     @State private var showsMutationError = false
+
+    init(viewModel: WorkoutViewModel, weightUnit: WeightUnit) {
+        self.viewModel = viewModel
+        self.weightUnit = weightUnit
+        _displayedSelectedDate = State(initialValue: viewModel.selectedDate)
+    }
 
     var body: some View {
         NavigationStack {
@@ -31,6 +41,17 @@ struct ProgramView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("Program")
             .accessibilityIdentifier("programScreen")
+            .onAppear {
+                displayedSelectedDate = viewModel.selectedDate
+            }
+            .onChange(of: displayedSelectedDate) { _, selectedDate in
+                viewModel.select(selectedDate)
+            }
+            .onChange(of: viewModel.selectedDate) { _, selectedDate in
+                if displayedSelectedDate != selectedDate {
+                    displayedSelectedDate = selectedDate
+                }
+            }
             .toolbar {
                 if !isHistorical && !orderedExercises.isEmpty {
                     EditButton()
@@ -174,7 +195,7 @@ struct ProgramView: View {
     private var weekHeader: some View {
         HStack {
             Button {
-                viewModel.moveWeek(by: -1)
+                moveWeek(by: -1)
             } label: {
                 Image(systemName: "chevron.left")
                     .frame(width: 44, height: 44)
@@ -189,7 +210,7 @@ struct ProgramView: View {
             Spacer()
 
             Button {
-                viewModel.moveWeek(by: 1)
+                moveWeek(by: 1)
             } label: {
                 Image(systemName: "chevron.right")
                     .frame(width: 44, height: 44)
@@ -213,7 +234,7 @@ struct ProgramView: View {
         let isSelected = date == calendarState.selectedDate
 
         return Button {
-            viewModel.select(date)
+            displayedSelectedDate = date
         } label: {
             VStack(spacing: 5) {
                 Text(shortWeekday(for: date))
@@ -527,11 +548,23 @@ struct ProgramView: View {
         ProgramDayState.workout(status).label
     }
 
-    private var calendarState: ProgramCalendarState { viewModel.calendarState }
+    private var calendarState: ProgramCalendarState {
+        ProgramCalendarState(
+            selectedDate: displayedSelectedDate,
+            currentDate: viewModel.currentDate,
+            calendar: viewModel.calendar,
+            workouts: viewModel.workouts
+        )
+    }
     private var orderedExercises: [WorkoutExercise] {
         viewModel.orderedExercises(on: calendarState.selectedDate)
     }
     private var isHistorical: Bool { calendarState.selectedDate < viewModel.currentDate }
+
+    private func moveWeek(by offset: Int) {
+        guard let date = displayedSelectedDate.adding(weeks: offset, calendar: viewModel.calendar) else { return }
+        displayedSelectedDate = date
+    }
 
     private func deleteExercises(at offsets: IndexSet) {
         let exercises = offsets.compactMap {

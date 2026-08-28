@@ -1,7 +1,7 @@
 # Crashlytics setup (M7.2)
 
 Gym Checklist links `FirebaseCrashlytics` from the existing pinned Firebase
-Swift package. Crash reporting starts only after `FirebaseApp` has configured
+Swift package. Current pre-payment validation should use the non-production Firebase **Spark** project with billing disabled. Crash reporting starts only after `FirebaseApp` has configured
 from the local, untracked `GoogleService-Info.plist`; test processes without
 that file remain configuration-free.
 

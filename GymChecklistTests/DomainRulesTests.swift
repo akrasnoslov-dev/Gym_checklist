@@ -694,6 +694,44 @@ final class FirebaseBootstrapTests: XCTestCase {
         XCTAssertFalse(GymChecklistApp.canComposeFirebaseServices(status: .missingConfiguration, isRunningTests: false))
         XCTAssertFalse(GymChecklistApp.canComposeFirebaseServices(status: .invalidConfiguration, isRunningTests: false))
     }
+
+    func testTestAndDemoProcessesDoNotConfigureFirebase() {
+        var didConfigure = false
+        let configure: () -> FirebaseBootstrap.Status = {
+            didConfigure = true
+            return .configured
+        }
+
+        XCTAssertEqual(
+            GymChecklistApp.initialFirebaseStatus(
+                isRunningTests: true,
+                isDemoModeEnabled: false,
+                configure: configure
+            ),
+            .missingConfiguration
+        )
+        XCTAssertFalse(didConfigure)
+
+        XCTAssertEqual(
+            GymChecklistApp.initialFirebaseStatus(
+                isRunningTests: false,
+                isDemoModeEnabled: true,
+                configure: configure
+            ),
+            .missingConfiguration
+        )
+        XCTAssertFalse(didConfigure)
+
+        XCTAssertEqual(
+            GymChecklistApp.initialFirebaseStatus(
+                isRunningTests: false,
+                isDemoModeEnabled: false,
+                configure: configure
+            ),
+            .configured
+        )
+        XCTAssertTrue(didConfigure)
+    }
 }
 
 final class FirestoreMappingTests: XCTestCase {

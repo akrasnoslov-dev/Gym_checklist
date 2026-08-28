@@ -23,13 +23,14 @@ Until the user explicitly accepts the functional MVP:
 - live `functions:deleteAccount` deployment is deferred if Firebase requires Blaze/billing; its client behavior, backend source, and deterministic contract/unit/UI coverage still remain in current verification;
 - live Sign in with Apple configuration may remain deferred where it requires paid Apple capabilities; its code/tests remain;
 - implementation-complete tasks marked only `PENDING CI` do not need an individual full-suite rerun each;
-- use exact focused diagnostics and `smoke` during iteration, but the final exact candidate SHA must have a **green authoritative macOS `full` run**;
-- if `full` fails, fix the relevant product/test defect and rerun required gates until the final authoritative result is green; a red final run is not an acceptable handoff;
+- use exact focused diagnostics during investigation; for the final fix of a known blocker, use the macOS `candidate` scope so one build runs the blocker test and then full automatically on the same SHA;
+- do not insert a separate smoke run between a green blocker-focused check and final full verification;
+- if candidate/full fails, fix the relevant product/test defect and dispatch one new candidate run; a red final run is not an acceptable product handoff;
 - the Program week/date-selector issue is now a **confirmed product defect** because the user reproduced it on a physical iPhone. Revoke the old `KNOWN_UI_TEST_HARNESS_FLAKE` treatment and fix it under M9.2;
 - a green smoke run is a checkpoint, not a handoff;
 - do not stop after an intermediate simulator/device preview or in-memory demo;
 - prepare one completed physical-iPhone candidate using the real MVP architecture and all free live services available for acceptance;
-- pending CI is never a voluntary stop condition; continue useful work or wait/process the terminal result.
+- do not spend Codex runtime waiting for CI. After dispatch, record run ID/scope/SHA; if no non-invalidating independent work remains, end the task and resume only after the run is terminal.
 
 This override changes scheduling and the current acceptance boundary only. It does not waive security, data integrity, destructive-action, or later paid-release requirements.
 

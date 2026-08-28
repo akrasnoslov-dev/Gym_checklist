@@ -25,19 +25,27 @@ struct ProgramView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                // Both the week strip and selected-day sections must be dynamic
-                // List children. Static List rows cache their subtree and do
-                // not reliably redraw the concrete dates after navigation.
-                ForEach([calendarState.selectedDate], id: \.self) { _ in
-                    Section {
-                        weekHeader
-                        dateSelector
+            ZStack(alignment: .top) {
+                List {
+                    // Keep the selected day dynamic so List updates workout
+                    // content, while the interactive week controls remain
+                    // outside List's static-row lifecycle.
+                    ForEach([displayedSelectedDate], id: \.self) { _ in
+                        selectedDateSections
                     }
-                    selectedDateSections
                 }
+                .listStyle(.insetGrouped)
+                .padding(.top, 114)
+
+                VStack(spacing: 8) {
+                    weekHeader
+                    dateSelector
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.bar)
+                .zIndex(1)
             }
-            .listStyle(.insetGrouped)
             .navigationTitle("Program")
             .accessibilityIdentifier("programScreen")
             .onAppear {

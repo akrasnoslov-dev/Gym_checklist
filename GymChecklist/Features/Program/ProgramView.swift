@@ -25,26 +25,26 @@ struct ProgramView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
-                List {
-                    // Keep the selected day dynamic so List updates workout
-                    // content, while the interactive week controls remain
-                    // outside List's static-row lifecycle.
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    VStack(spacing: 8) {
+                        weekHeader
+                        dateSelector
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+
+                    // Program navigation must update both the date controls
+                    // and the selected day's content. A List keeps its static
+                    // rows alive across these state changes (and obscures
+                    // sibling controls from accessibility), so this screen
+                    // intentionally uses one dynamic scroll hierarchy.
                     ForEach([displayedSelectedDate], id: \.self) { _ in
                         selectedDateSections
                     }
                 }
-                .listStyle(.insetGrouped)
-                .padding(.top, 114)
-
-                VStack(spacing: 8) {
-                    weekHeader
-                    dateSelector
-                }
-                .padding(.horizontal)
                 .padding(.vertical, 8)
-                .background(.bar)
-                .zIndex(1)
             }
             .navigationTitle("Program")
             .accessibilityIdentifier("programScreen")
@@ -60,10 +60,6 @@ struct ProgramView: View {
                 }
             }
             .toolbar {
-                if !isHistorical && !orderedExercises.isEmpty {
-                    EditButton()
-                        .accessibilityIdentifier("programEditExercises")
-                }
                 if !isHistorical, let workout = calendarState.selectedWorkout {
                     Button {
                         copyWorkoutRoute = CopyWorkoutRoute(
@@ -350,8 +346,6 @@ struct ProgramView: View {
                             index: orderedExercises.firstIndex(where: { $0.id == exercise.id }) ?? 0
                         )
                     }
-                    .onDelete(perform: deleteExercises)
-                    .onMove(perform: moveExercises)
 
                     Button {
                         exercisePickerRoute = ExercisePickerRoute(workoutDate: calendarState.selectedDate)
@@ -571,19 +565,6 @@ struct ProgramView: View {
     private func moveWeek(by offset: Int) {
         guard let date = displayedSelectedDate.adding(weeks: offset, calendar: viewModel.calendar) else { return }
         displayedSelectedDate = date
-    }
-
-    private func deleteExercises(at offsets: IndexSet) {
-        let exercises = offsets.compactMap {
-            orderedExercises.indices.contains($0) ? orderedExercises[$0] : nil
-        }
-        for exercise in exercises { requestDeletion(of: exercise) }
-    }
-
-    private func moveExercises(from offsets: IndexSet, to destination: Int) {
-        var reordered = orderedExercises
-        reordered.move(fromOffsets: offsets, toOffset: destination)
-        persistOrder(reordered.map(\.id))
     }
 
     private func moveExercise(_ id: WorkoutExerciseID, by offset: Int) {

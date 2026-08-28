@@ -7,9 +7,13 @@ from the official Firebase Apple SDK. M7.1 uses FirebaseAnalytics only through
 a parameter-free event tracker. M7.2 configuration and symbol-upload guidance
 is in `docs/crashlytics_setup.md`.
 
+## Current no-cost development boundary
+
+For pre-payment MVP acceptance, use a dedicated non-production Firebase **Spark** project and keep billing disabled. Authentication, Firestore within Spark quotas, Analytics, and Crashlytics are part of current free validation. Do not attach a Cloud Billing account or upgrade to Blaze without explicit user approval.
+
 ## Required console setup before Firebase-backed features
 
-1. Create a Firebase project and register the iOS app with bundle identifier
+1. Create a Firebase Spark project and register the iOS app with bundle identifier
    `dev.akrasnoslov.GymChecklist`.
 2. Enable Authentication. Create Cloud Firestore in **production mode** so it
    denies access by default; do not use test mode. Before connecting real user
@@ -28,12 +32,11 @@ is in `docs/crashlytics_setup.md`.
 5. Before live Firestore verification, deploy `firestore.rules` as documented
    in `docs/firestore_security.md`, then validate owner isolation with two
    non-production test users. Do not use Firestore test mode.
-6. Before external release, deploy the authenticated `deleteAccount` callable
-   from `functions/` to a non-production project and validate its recent-auth,
-   owner-only erase, retry, and provider reauthentication paths as described in
-   `docs/account_deletion_design.md`. This backend deployment may require
-   Firebase/Google Cloud billing/runtime configuration; do not configure it
-   with credentials in the repository.
+6. Keep the authenticated `deleteAccount` callable source and its automated
+   contracts verified. Do **not** enable billing merely to deploy it during the
+   current pre-payment phase. If Firebase requires Blaze/billing for live
+   deployment, defer that deployment and live deletion proof until the user
+   explicitly approves paid release work. See `docs/account_deletion_design.md`.
 
 `GoogleService-Info.plist` contains project identifiers rather than a service
 account key, but it remains local to avoid publishing project configuration.

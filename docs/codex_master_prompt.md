@@ -24,9 +24,11 @@ The Program week/date selector is a confirmed product bug: the user reproduced b
 
 Continue every technically safe item in current scope. Use Firebase Spark for every no-cost live path that can be validated: email/password auth, Google Sign-In, Firestore persistence/owner isolation, offline cache/reconnect, Analytics, Crashlytics, and manual/device validation. If a live action requires Blaze/billing or paid Apple capabilities, defer only that exact action and continue everything else.
 
-Use focused CI and smoke during iteration. Before handoff, the exact final candidate SHA must have all required CI green, including a green authoritative macOS full run. A red final run is not acceptable. If full fails, diagnose/fix and rerun until the final candidate is green.
+Use focused CI while diagnosing. For the candidate fix of a known blocker, use the `candidate` CI scope with the exact test filter; it builds once, runs the blocker test, then automatically runs full on the same runner/build/SHA. Do not run a separate smoke between those stages.
 
-Do not stop at task, commit, push, documentation, review, or CI boundaries. Pending CI alone is not a stop condition. If one exact external zero-cost console/device action is required, batch all required user actions into one concise checklist only after exhausting independent work.
+Do not waste Codex runtime waiting or polling for CI. After dispatching CI, record the run ID/scope/SHA. Continue only useful work that cannot invalidate the candidate; if none exists, end the task immediately. A later task checks that exact run once and processes the terminal result. If it is still running, end quickly rather than polling.
+
+Before product handoff, the exact final candidate must have green candidate/full evidence. A red final run is not acceptable. If one exact external zero-cost console/device action is required, batch all required user actions into one concise checklist only after exhausting independent work.
 
 The final handoff for this phase is a completed free physical-iPhone candidate using the real MVP architecture, plus a clear list of paid-only functionality that remains unverified. The old in-memory MVP_DEMO is not sufficient.
 

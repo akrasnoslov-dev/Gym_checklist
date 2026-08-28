@@ -11,24 +11,27 @@ Task completion rule: a task may be marked `DONE` only when all listed acceptanc
 Continuity rule: after each meaningful checkpoint, update `docs/progress.md` with verification, relevant review notes, blockers/deferred external actions, and the exact next safe action. Runtime status in `docs/progress.md` plus actual Git/code state is authoritative if a task header in this plan is stale.
 
 
-## Current original-MVP completion override
+## Current pre-payment functional-acceptance override
 
-The current user goal is to finish the originally approved MVP before the next product review.
+The current user goal is to verify the originally approved MVP **before paying for distribution or cloud billing**.
 
-Until the completed MVP candidate is ready:
+Until the user explicitly accepts the functional MVP:
+- use only zero-cost development and validation paths;
+- paid Apple Developer membership, App Store Connect, TestFlight, paid/release signing, release secrets, final App Store work, and `dev -> main` remain deferred and are not runnable backlog;
+- use a non-production Firebase **Spark** project for all supported no-cost live verification; do not attach billing or upgrade to Blaze without explicit user approval;
+- validate every free Firebase path that is part of the product: email/password auth, Google Sign-In, Firestore persistence/owner isolation, offline cache/reconnect, Analytics, and Crashlytics;
+- live `functions:deleteAccount` deployment is deferred if Firebase requires Blaze/billing; its client behavior, backend source, and deterministic contract/unit/UI coverage still remain in current verification;
+- live Sign in with Apple configuration may remain deferred where it requires paid Apple capabilities; its code/tests remain;
 - implementation-complete tasks marked only `PENDING CI` do not need an individual full-suite rerun each;
-- use exact focused diagnostics for known failures and the macOS `smoke` scope for routine reconciliation;
-- use one current-head `smoke` run for meaningful iteration and one final `full` run after the final product/UX reconciliation;
-- do not spend more than two focused reruns chasing one XCTest-only flaky test without independent evidence of a product bug;
-- paid Apple Developer, App Store Connect, TestFlight, release signing/secrets, final icon, and paid-release Apple configuration remain deferred and are not dependencies for current MVP acceptance work;
-- M9.1 product acceptance begins only with the completed original-MVP candidate; physical-device/live-provider checks stay pending only when they genuinely require an external user-controlled action.
-- the existing Program `KNOWN_UI_TEST_HARNESS_FLAKE` is non-blocking and must not receive another focused rerun without new independent product evidence;
-- a green smoke run is a checkpoint, not a handoff; continue independent original-MVP work and verification;
+- use exact focused diagnostics and `smoke` during iteration, but the final exact candidate SHA must have a **green authoritative macOS `full` run**;
+- if `full` fails, fix the relevant product/test defect and rerun required gates until the final authoritative result is green; a red final run is not an acceptable handoff;
+- the Program week/date-selector issue is now a **confirmed product defect** because the user reproduced it on a physical iPhone. Revoke the old `KNOWN_UI_TEST_HARNESS_FLAKE` treatment and fix it under M9.2;
+- a green smoke run is a checkpoint, not a handoff;
 - do not stop after an intermediate simulator/device preview or in-memory demo;
-- after code-side original-MVP work is reconciled, run the final `full` verification, fix confirmed defects only, then prepare one completed physical-iPhone candidate;
-- pending CI is never a voluntary stop condition; continue useful work or wait for its terminal result.
+- prepare one completed physical-iPhone candidate using the real MVP architecture and all free live services available for acceptance;
+- pending CI is never a voluntary stop condition; continue useful work or wait/process the terminal result.
 
-This override changes scheduling only. It does not waive security, data integrity, destructive-action, or final release acceptance requirements.
+This override changes scheduling and the current acceptance boundary only. It does not waive security, data integrity, destructive-action, or later paid-release requirements.
 
 ---
 
@@ -1286,7 +1289,7 @@ Protect critical behavior before beta distribution.
 
 ## Milestone 8 — TestFlight readiness and iPhone beta distribution
 
-### M8.1 `IN PROGRESS (PENDING CI/EXTERNAL)` Verify current App Store authentication requirements
+### M8.1 `BLOCKED (DEFERRED BY USER UNTIL FUNCTIONAL MVP ACCEPTANCE)` Verify current App Store authentication requirements
 **Goal**
 Resolve release compliance for third-party login.
 
@@ -1307,7 +1310,7 @@ Resolve release compliance for third-party login.
 
 ---
 
-### M8.2 `IN PROGRESS (PENDING FINAL APP ICON/APPLE CONFIRMATION)` Define app identity and release metadata baseline
+### M8.2 `BLOCKED (DEFERRED BY USER UNTIL FUNCTIONAL MVP ACCEPTANCE)` Define app identity and release metadata baseline
 **Goal**
 Prepare signing/build identity.
 
@@ -1326,7 +1329,7 @@ Prepare signing/build identity.
 
 ---
 
-### M8.3 `IN PROGRESS (PENDING EXTERNAL)` Apple Developer account/signing checkpoint — USER ACTION MAY BE REQUIRED
+### M8.3 `BLOCKED (DEFERRED BY USER UNTIL FUNCTIONAL MVP ACCEPTANCE)` Apple Developer account/signing checkpoint — USER ACTION MAY BE REQUIRED
 **Goal**
 Obtain the external account/signing prerequisites for device/TestFlight distribution.
 
@@ -1343,7 +1346,7 @@ Obtain the external account/signing prerequisites for device/TestFlight distribu
 
 ---
 
-### M8.4 `IN PROGRESS (PENDING EXTERNAL)` Configure GitHub release secrets safely — USER ACTION MAY BE REQUIRED
+### M8.4 `BLOCKED (DEFERRED BY USER UNTIL FUNCTIONAL MVP ACCEPTANCE)` Configure GitHub release secrets safely — USER ACTION MAY BE REQUIRED
 **Goal**
 Provide CI with only the secrets needed for signed archive/TestFlight upload.
 
@@ -1360,7 +1363,7 @@ Provide CI with only the secrets needed for signed archive/TestFlight upload.
 
 ---
 
-### M8.5 `IN PROGRESS (PENDING EXTERNAL/CI)` Add signed archive/export workflow
+### M8.5 `BLOCKED (DEFERRED BY USER UNTIL FUNCTIONAL MVP ACCEPTANCE)` Add signed archive/export workflow
 **Goal**
 Build a distributable beta on macOS CI.
 
@@ -1378,7 +1381,7 @@ Build a distributable beta on macOS CI.
 
 ---
 
-### M8.6 `IN PROGRESS (PENDING EXTERNAL/CI)` Automate TestFlight upload
+### M8.6 `BLOCKED (DEFERRED BY USER UNTIL FUNCTIONAL MVP ACCEPTANCE)` Automate TestFlight upload
 **Goal**
 Allow the user to get current beta builds on their iPhone without App Store publication.
 
@@ -1396,7 +1399,7 @@ Allow the user to get current beta builds on their iPhone without App Store publ
 
 ---
 
-### M8.7 `IN PROGRESS (PENDING EXTERNAL)` Document iPhone beta update workflow
+### M8.7 `BLOCKED (DEFERRED BY USER UNTIL FUNCTIONAL MVP ACCEPTANCE)` Document iPhone beta update workflow
 **Goal**
 Make recurring physical-device testing trivial for the user.
 
@@ -1431,17 +1434,16 @@ Document:
 
 ## Milestone 9 — MVP acceptance and stable release preparation
 
-### M9.1 `IN PROGRESS (PENDING CI/EXTERNAL)` Run full product acceptance checklist
+### M9.1 `IN PROGRESS (FREE VALIDATION + USER ACCEPTANCE)` Run full product acceptance checklist
 **Goal**
 Validate every approved MVP scenario against `docs/product_spec.md`.
 
-**Required scenarios**
-- Register via email/password.
-- Login via email/password.
-- Google sign-in.
-- Logout.
+**Required scenarios — current free acceptance**
+- Register/login/reset/logout with email/password against non-production Firebase Spark.
+- Google Sign-In against the free development configuration.
 - First-use Today -> create workout.
-- Create workout by concrete date.
+- Create/edit/delete workout by concrete date.
+- Navigate Program across dates and previous/next weeks reliably on simulator and physical iPhone.
 - Add/search/custom exercise.
 - Arbitrary sets/reps/weight/time.
 - Copy workout.
@@ -1449,38 +1451,57 @@ Validate every approved MVP scenario against `docs/product_spec.md`.
 - Today one-tap complete/undo in arbitrary order.
 - Long-press edit before/after completion.
 - Skip and restore exercise.
-- Rest day.
+- Rest day and no-program states.
 - Workout completion popup.
 - Historical viewing/editing.
 - Theme selection.
 - kg/lb.
-- Offline workout and reconnect sync.
+- Firestore persistence after app termination/relaunch.
+- Two-user owner isolation.
+- Cached offline workout and automatic reconnect sync.
+- Analytics and Crashlytics on Spark where available.
+- Manual VoiceOver, Dynamic Type, and appearance/contrast review.
+- Install and use the exact candidate on the user's physical iPhone through a free personal-device path.
+
+**Explicitly deferred from current free acceptance**
+- TestFlight/App Store distribution and paid Apple release signing.
+- Live Sign in with Apple configuration where paid Apple capabilities are required.
+- Live Cloud Function account-deletion deployment if it requires Firebase Blaze/billing. Keep its implemented client/backend code and automated contracts covered.
 
 **Acceptance criteria**
-- All critical scenarios pass or have explicit blocking bug tasks created and fixed before release.
+- All current free scenarios pass.
+- The final exact candidate SHA has green required CI, including a green authoritative macOS `full` run.
+- Any confirmed blocker is fixed and regression-covered before handoff.
+- Paid-only limitations are listed clearly and are not falsely claimed as verified.
+- The user performs final subjective product acceptance on the physical-iPhone candidate.
 
 **Dependencies**
-- M7.6 for current MVP acceptance. M8.8 remains deferred until paid distribution is reactivated.
+- M7.6 for current MVP acceptance. M8 remains deferred until the user explicitly reactivates paid distribution.
 
 ---
 
-### M9.2 `BLOCKED (ONLY IF MVP PREVIEW/ACCEPTANCE FINDS A BLOCKER)` Fix acceptance blockers and regressions
+### M9.2 `IN PROGRESS (CONFIRMED PROGRAM DATE-SELECTOR DEFECT)` Fix acceptance blockers and regressions
 **Goal**
 Resolve only issues that block approved MVP quality.
 
 **Requirements**
+- First fix the confirmed Program week/date-selector failure reproduced by the user on a physical iPhone and by final macOS CI.
+- Do not classify that surface as a harness-only flake without new independent evidence that the product behavior is fixed.
 - Do not opportunistically add future features.
 - Add regression tests for fixed critical bugs.
 
 **Acceptance criteria**
-- M9.1 rerun passes.
+- Program date/week navigation works manually and in regression coverage.
+- Focused/current-head smoke verification passes.
+- The final exact candidate SHA has a green authoritative macOS `full` run.
+- M9.1 free acceptance can continue without a known blocker.
 
 **Dependencies**
 - M9.1
 
 ---
 
-### M9.3 `IN PROGRESS (PENDING CI/EXTERNAL)` Produce MVP release notes and known limitations
+### M9.3 `BLOCKED (AFTER FREE FUNCTIONAL ACCEPTANCE)` Produce MVP release notes and known limitations
 **Goal**
 Document what the beta/release does and deliberately does not do.
 

@@ -2,7 +2,7 @@
 
 ## Current state
 - Workflow/docs HEAD: `dev` (after the physical-iPhone acceptance IPA workflow commit); accepted app source remains `ee579d0`, intentionally checked out by the workflow.
-- Physical-device IPA: the dedicated manual-only Firebase-backed unsigned IPA workflow is prepared for dispatch; its run ID/status will be recorded here after dispatch.
+- Physical-device IPA: GitHub Actions run `33260633014` has been dispatched from workflow/docs SHA `7919074`; it checks out fixed accepted app source `ee579d0` and is pending asynchronous completion. Do not poll it from this task.
 - Candidate app source: `ee579d0`; the Program blocker CI gate is green. The consolidated no-cost external handoff is prepared; its live evidence remains.
 - Current phase: **pre-payment functional MVP acceptance**. Use only zero-cost development/validation.
 - Program week/date navigation has passed its final candidate CI gate; physical-iPhone confirmation remains part of acceptance.
@@ -31,5 +31,4 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. Dispatch the physical-iPhone acceptance IPA workflow once, record its run ID here, and follow its asynchronous result without polling.
-2. After the IPA is available, complete the one external handoff in `docs/mvp_external_acceptance_handoff.md`, then return its sanitized evidence against `ee579d0`.
+1. On the next task, inspect the terminal result of IPA run `33260633014` once. If green, download `GymChecklist-MVP-ee579d0` and complete the one external handoff in `docs/mvp_external_acceptance_handoff.md` against `ee579d0`.

@@ -1,0 +1,141 @@
+name: MVP Physical iPhone Acceptance IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-acceptance-ipa:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      APP_SOURCE_SHA: ee579d06cedaffad8c6e5b563aacdcf6ecd7a00b
+      APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
+      APP_DISPLAY_NAME: Gym Checklist
+
+    steps:
+      - name: Checkout accepted MVP app source
+        uses: actions/checkout@v4
+        with:
+          ref: ee579d06cedaffad8c6e5b563aacdcf6ecd7a00b
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Confirm accepted app source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$APP_SOURCE_SHA"
+
+      - name: Restore Firebase configuration for this job only
+        shell: bash
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GOOGLE_SERVICE_INFO_PLIST_B64:-}" ]; then
+            echo "GOOGLE_SERVICE_INFO_PLIST_B64 is required for the Firebase-backed acceptance IPA." >&2
+            exit 1
+          fi
+
+          CONFIGURATION_PATH="GymChecklist/GoogleService-Info.plist"
+          umask 077
+          printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 -D > "$CONFIGURATION_PATH"
+          unset GOOGLE_SERVICE_INFO_PLIST_B64
+          test -s "$CONFIGURATION_PATH"
+          plutil -lint "$CONFIGURATION_PATH" >/dev/null
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve Swift packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project GymChecklist.xcodeproj \
+            -scheme GymChecklist \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+
+      - name: Build unsigned Firebase-backed acceptance app
+        shell: bash
+        run: |
+          set -euo pipefail
+          DERIVED_DATA="$RUNNER_TEMP/DerivedData"
+
+          xcodebuild build \
+            -project GymChecklist.xcodeproj \
+            -scheme GymChecklist \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$DERIVED_DATA" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -disableAutomaticPackageResolution \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS="" \
+            PRODUCT_BUNDLE_IDENTIFIER="$APP_BUNDLE_ID" \
+            INFOPLIST_KEY_CFBundleDisplayName="$APP_DISPLAY_NAME"
+
+      - name: Validate unsigned Firebase acceptance app
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/GymChecklist.app"
+          INFO_PLIST="$APP_PATH/Info.plist"
+          CONFIGURATION_PATH="GymChecklist/GoogleService-Info.plist"
+
+          test -d "$APP_PATH"
+          test -f "$APP_PATH/GymChecklist"
+          test -f "$APP_PATH/GoogleService-Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")" = "$APP_BUNDLE_ID"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$INFO_PLIST")" = "$APP_DISPLAY_NAME"
+          if /usr/libexec/PlistBuddy -c 'Print :MVP_DEMO' "$INFO_PLIST" >/dev/null 2>&1; then
+            echo "Acceptance IPA must not use MVP_DEMO." >&2
+            exit 1
+          fi
+          if [ -e "$APP_PATH/embedded.mobileprovision" ]; then
+            echo "Acceptance IPA must remain unsigned for Sideloadly." >&2
+            exit 1
+          fi
+
+          GOOGLE_CALLBACK_SCHEME=$(/usr/libexec/PlistBuddy -c 'Print :REVERSED_CLIENT_ID' "$CONFIGURATION_PATH")
+          BUILT_CALLBACK_SCHEME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' "$INFO_PLIST")
+          test -n "$GOOGLE_CALLBACK_SCHEME"
+          test "$BUILT_CALLBACK_SCHEME" = "$GOOGLE_CALLBACK_SCHEME"
+
+      - name: Package acceptance IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/GymChecklist.app"
+          PACKAGE_DIRECTORY="$RUNNER_TEMP/ipa"
+          ARTIFACT_DIRECTORY="$RUNNER_TEMP/mvp-acceptance-artifact"
+
+          mkdir -p "$PACKAGE_DIRECTORY/Payload" "$ARTIFACT_DIRECTORY"
+          cp -R "$APP_PATH" "$PACKAGE_DIRECTORY/Payload/GymChecklist.app"
+          (
+            cd "$PACKAGE_DIRECTORY"
+            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa" Payload
+          )
+          test -s "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa"
+          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa.sha256"
+          printf '%s\n' \
+            "app source SHA: $APP_SOURCE_SHA" \
+            "bundle ID: $APP_BUNDLE_ID" \
+            "configuration: Release" \
+            "GitHub run ID: $GITHUB_RUN_ID" \
+            "Firebase configuration present: yes" \
+            > "$ARTIFACT_DIRECTORY/manifest.txt"
+
+      - name: Upload physical iPhone acceptance IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: GymChecklist-MVP-ee579d0
+          path: ${{ runner.temp }}/mvp-acceptance-artifact
+          if-no-files-found: error
+          retention-days: 7

@@ -2,10 +2,6 @@ name: MVP Demo IPA
 
 on:
   workflow_dispatch:
-  push:
-    branches: [dev]
-    paths:
-      - ".github/workflows/mvp-demo-ipa.yml"
 
 permissions:
   contents: read

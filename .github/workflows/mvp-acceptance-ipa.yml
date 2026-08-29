@@ -59,6 +59,20 @@ jobs:
             -scheme GymChecklist \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
 
+      - name: Expose resolved packages to the Crashlytics build phase
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_PACKAGES="$RUNNER_TEMP/SourcePackages"
+          CRASHLYTICS_PACKAGE_PATH="$SOURCE_PACKAGES/checkouts/firebase-ios-sdk/Crashlytics/run"
+          DERIVED_PACKAGES="$RUNNER_TEMP/DerivedData/SourcePackages"
+
+          test -x "$CRASHLYTICS_PACKAGE_PATH"
+          mkdir -p "$RUNNER_TEMP/DerivedData"
+          test ! -e "$DERIVED_PACKAGES"
+          ln -s "$SOURCE_PACKAGES" "$DERIVED_PACKAGES"
+          test -x "$DERIVED_PACKAGES/checkouts/firebase-ios-sdk/Crashlytics/run"
+
       - name: Build unsigned Firebase-backed acceptance app
         shell: bash
         run: |

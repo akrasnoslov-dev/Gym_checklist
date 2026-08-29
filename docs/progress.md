@@ -2,7 +2,7 @@
 
 ## Current state
 - Workflow/docs HEAD: `dev` (after the physical-iPhone acceptance IPA workflow commit); accepted app source remains `ee579d0`, intentionally checked out by the workflow.
-- Physical-device IPA: run `33261038190` showed that removing `-disableAutomaticPackageResolution` did not solve the Xcode 26.6 Release device build failure. The observed cause is the global empty `SWIFT_ACTIVE_COMPILATION_CONDITIONS`, which stripped SwiftPM's GTMAppAuth package conditions including `SWIFT_PACKAGE` and `SWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE`. The workflow-only correction removes that global override; accepted app source remains `ee579d0`.
+- Physical-device IPA: run `33261038190` showed that removing `-disableAutomaticPackageResolution` did not solve the Xcode 26.6 Release device build failure. The observed cause is the global empty `SWIFT_ACTIVE_COMPILATION_CONDITIONS`, which stripped SwiftPM's GTMAppAuth package conditions including `SWIFT_PACKAGE` and `SWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE`. Replacement run `33261496979` has been dispatched from workflow/docs SHA `9d2810f`, which removes only that global override and checks out accepted app source `ee579d0`. Do not poll it from this task.
 - Candidate app source: `ee579d0`; the Program blocker CI gate is green. The consolidated no-cost external handoff is prepared; its live evidence remains.
 - Current phase: **pre-payment functional MVP acceptance**. Use only zero-cost development/validation.
 - Program week/date navigation has passed its final candidate CI gate; physical-iPhone confirmation remains part of acceptance.
@@ -31,4 +31,4 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. Commit/push the SwiftPM-conditions workflow correction, dispatch one physical-iPhone acceptance IPA build, and record its run ID without polling.
+1. On the next task, inspect the terminal result of IPA run `33261496979` once. If green, download `GymChecklist-MVP-ee579d0` and complete the one external handoff in `docs/mvp_external_acceptance_handoff.md` against `ee579d0`.

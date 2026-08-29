@@ -76,7 +76,6 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS="" \
-            SWIFT_ACTIVE_COMPILATION_CONDITIONS="" \
             PRODUCT_BUNDLE_IDENTIFIER="$APP_BUNDLE_ID" \
             INFOPLIST_KEY_CFBundleDisplayName="$APP_DISPLAY_NAME"
 

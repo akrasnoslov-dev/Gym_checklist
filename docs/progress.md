@@ -14,8 +14,12 @@
 
 ## CI operating rule
 - macOS/Xcode CI is a final/expensive remote gate, not the normal development loop.
+- A task that changes production/test/project code must **not** dispatch macOS in that task. It must finish the batch, commit/push, record `REMOTE_GATE_READY_FOR_AUDIT <SHA>`, and stop.
+- A separate fresh task must audit that exact SHA. If it finds anything requiring production/test/project code changes, it fixes/batches them, records a new ready-for-audit SHA, and stops again without macOS.
+- Only a clean fresh audit with no production/test/project code changes may record `REMOTE_GATE_APPROVED <SHA>` and dispatch one candidate/full gate.
+- Any red candidate revokes approval and forces the two-pass process again.
 - Do not dispatch it after each individual fix. First batch all runnable implementation, regression review, affected-test updates, documentation, and available static/security/offline checks.
-- Dispatch macOS only after the repository is locally exhausted: no known issue or independent active-scope work remains that can reasonably be completed by repository inspection in the current environment.
+- Local exhaustion is required but is not sufficient without the clean fresh audit pass.
 - Use focused `unit`/`ui` only when one isolated compiler/runtime/test behavior is genuinely the remaining blocker.
 - Use `candidate` only for an implementation-complete checkpoint intended to become the next physical-acceptance candidate.
 - After a red run, inspect once, batch all related fixes and review the same defect class across the repository, then return to local development; do not immediately launch a replacement candidate after one small edit.
@@ -29,4 +33,7 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. Read `33913992158` once at the next task start. If green, update the physical-iPhone IPA workflow to source SHA `648757c569536c9967d7577d28fe1c868a44873b` and prepare the free device candidate; if red, inspect its concise failure summary before editing. Do not produce an IPA unless its focused stage and authoritative full suite are green.
+1. Let current run `33913992158` finish; do not dispatch any additional macOS run from the current implementation task.
+2. If it is red, inspect it once, batch all fixes and all remaining runnable acceptance work, commit/push, record `REMOTE_GATE_READY_FOR_AUDIT <SHA>`, and stop without macOS.
+3. Start a separate fresh preflight-audit task on that SHA. Only if the audit requires no production/test/project changes may it record `REMOTE_GATE_APPROVED <SHA>` and dispatch one candidate/full gate.
+4. If `33913992158` is green, it remains valid evidence for its exact SHA; proceed toward the physical-iPhone candidate without another redundant macOS run.

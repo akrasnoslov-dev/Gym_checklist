@@ -32,9 +32,11 @@ Until the user explicitly accepts the functional MVP:
 - live `functions:deleteAccount` deployment is deferred if Firebase requires Blaze/billing; its client behavior, backend source, and deterministic contract/unit/UI coverage still remain in current verification;
 - live Sign in with Apple configuration may remain deferred where it requires paid Apple capabilities; its code/tests remain;
 - implementation-complete tasks marked only `PENDING CI` do not need an individual full-suite rerun each;
-- use exact focused diagnostics during investigation; for the final fix of a known blocker, use the macOS `candidate` scope so one build runs the blocker test and then full automatically on the same SHA;
+- do not dispatch macOS CI per task, fix, commit, or acceptance finding; batch implementation and review until the active checkpoint is locally exhausted;
+- before macOS dispatch, finish all runnable implementation, migration, affected-test maintenance, repository self-review, documentation, and available static/security/offline validation;
+- use exact focused diagnostics only when a specific compiler/runtime/test uncertainty is genuinely the remaining blocker; use the macOS `candidate` scope only for an implementation-complete checkpoint intended to become the next acceptance candidate;
 - do not insert a separate smoke run between a green blocker-focused check and final full verification;
-- if candidate/full fails, fix the relevant product/test defect and dispatch one new candidate run; a red final run is not an acceptable product handoff;
+- if candidate/full fails, classify all failures, batch related fixes plus any other runnable work, review for the same defect class elsewhere, and dispatch again only after the repository is locally exhausted; a red final run is not an acceptable product handoff;
 - the Program week/date-selector issue is now a **confirmed product defect** because the user reproduced it on a physical iPhone. Revoke the old `KNOWN_UI_TEST_HARNESS_FLAKE` treatment and fix it under M9.2;
 - a green smoke run is a checkpoint, not a handoff;
 - do not stop after an intermediate simulator/device preview or in-memory demo;

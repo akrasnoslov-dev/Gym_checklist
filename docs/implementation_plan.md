@@ -33,6 +33,10 @@ Until the user explicitly accepts the functional MVP:
 - live Sign in with Apple configuration may remain deferred where it requires paid Apple capabilities; its code/tests remain;
 - implementation-complete tasks marked only `PENDING CI` do not need an individual full-suite rerun each;
 - do not dispatch macOS CI per task, fix, commit, or acceptance finding; batch implementation and review until the active checkpoint is locally exhausted;
+- any task that changes production/test/project code must stop after committing/pushing and marking `REMOTE_GATE_READY_FOR_AUDIT <SHA>`; it must not dispatch macOS in that same task;
+- a separate fresh preflight-audit task is required on that exact SHA; if the audit changes production/test/project code, stop again and require another fresh audit;
+- only a clean preflight pass with no production/test/project code changes may mark `REMOTE_GATE_APPROVED <SHA>` and dispatch one candidate/full gate;
+- any red candidate revokes approval and restarts the two-pass gate;
 - before macOS dispatch, finish all runnable implementation, migration, affected-test maintenance, repository self-review, documentation, and available static/security/offline validation;
 - use exact focused diagnostics only when a specific compiler/runtime/test uncertainty is genuinely the remaining blocker; use the macOS `candidate` scope only for an implementation-complete checkpoint intended to become the next acceptance candidate;
 - do not insert a separate smoke run between a green blocker-focused check and final full verification;

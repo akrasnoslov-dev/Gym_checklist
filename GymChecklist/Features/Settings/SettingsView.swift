@@ -11,7 +11,7 @@ final class SettingsViewModel: ObservableObject {
 
     private let repository: UserSettingsRepository
     private let bodyWeightRepository: BodyWeightRepository
-    private let currentDate: LocalDate
+    @Published private(set) var currentDate: LocalDate
     private var observation: UserSettingsObservation?
     private var bodyWeightObservation: BodyWeightObservation?
 
@@ -71,6 +71,14 @@ final class SettingsViewModel: ObservableObject {
 
     var bmi: Double? { settings.profile.bmi(weightInKilograms: currentWeightInKilograms) }
 
+    /// Called when the app becomes active or receives a significant time
+    /// change so local-date BMI applicability never remains stuck yesterday.
+    func refreshCurrentDate(_ date: LocalDate? = nil) {
+        let refreshed = date ?? LocalDate(date: Date(), calendar: .autoupdatingCurrent)
+        guard refreshed != currentDate else { return }
+        currentDate = refreshed
+    }
+
     func saveProfile(_ profile: UserProfile) throws {
         guard profile.heightCentimeters.map({ $0.isFinite && $0 > 0 }) ?? true else {
             throw BodyWeightRepositoryError.invalidMeasurement
@@ -125,7 +133,7 @@ struct SettingsView: View {
                                 .font(.title2)
                                 .frame(width: 38, height: 38)
                                 .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                .foregroundStyle(GymTheme.accent)
+                                .foregroundStyle(GymTheme.accentForeground)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("Your profile")
                                     .foregroundStyle(.primary)
@@ -149,7 +157,7 @@ struct SettingsView: View {
                                 .font(.title3)
                                 .frame(width: 38, height: 38)
                                 .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                .foregroundStyle(GymTheme.accent)
+                                .foregroundStyle(GymTheme.accentForeground)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("Body weight")
                                     .foregroundStyle(.primary)
@@ -502,12 +510,16 @@ private struct ProfileEditorSheet: View {
                         Text("Not specified").tag(Sex?.none)
                         ForEach(Sex.allCases, id: \.self) { value in Text(value.title).tag(Sex?.some(value)) }
                     }
+                    .accessibilityIdentifier("profileSex")
                     Toggle("Add date of birth", isOn: $hasDateOfBirth)
+                        .accessibilityIdentifier("profileDateOfBirthEnabled")
                     if hasDateOfBirth {
                         DatePicker("Date of birth", selection: $dateOfBirth, in: ...Date(), displayedComponents: .date)
+                            .accessibilityIdentifier("profileDateOfBirth")
                     }
                     TextField("Height (cm)", text: $heightText)
                         .keyboardType(.decimalPad)
+                        .accessibilityIdentifier("profileHeight")
                 }
                 Section {
                     Text("Your profile is only used to present your details and calculate BMI when a body weight is available. BMI is not medical advice.")
@@ -534,6 +546,7 @@ private struct ProfileEditorSheet: View {
                             dismiss()
                         } catch { showsValidationError = true }
                     }
+                    .accessibilityIdentifier("profileSave")
                 }
             }
             .alert("Check your profile", isPresented: $showsValidationError) {
@@ -555,6 +568,7 @@ private struct BodyWeightHistorySheet: View {
     @State private var measurementDate = Date()
     @State private var editingMeasurement: BodyWeightMeasurement?
     @State private var showsValidationError = false
+    @State private var showsDeleteError = false
 
     var body: some View {
         NavigationStack {
@@ -564,6 +578,7 @@ private struct BodyWeightHistorySheet: View {
                         .keyboardType(.decimalPad)
                         .accessibilityIdentifier("bodyWeightInput")
                     DatePicker("Date", selection: $measurementDate, displayedComponents: .date)
+                        .accessibilityIdentifier("bodyWeightDate")
                     Button(editingMeasurement == nil ? "Save measurement" : "Update measurement") { saveMeasurement() }
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("bodyWeightSave")
@@ -587,10 +602,15 @@ private struct BodyWeightHistorySheet: View {
                             }
                         }
                         .foregroundStyle(.primary)
+                        .accessibilityIdentifier("bodyWeightMeasurement")
                         .swipeActions {
                             Button(role: .destructive) {
-                                try? onDelete(measurement)
-                                if editingMeasurement?.id == measurement.id { clearEditor() }
+                                do {
+                                    try onDelete(measurement)
+                                    if editingMeasurement?.id == measurement.id { clearEditor() }
+                                } catch {
+                                    showsDeleteError = true
+                                }
                             } label: { Label("Delete", systemImage: "trash") }
                         }
                     }
@@ -601,6 +621,9 @@ private struct BodyWeightHistorySheet: View {
             .alert("Enter a valid weight", isPresented: $showsValidationError) {
                 Button("OK", role: .cancel) {}
             } message: { Text("Weight must be greater than zero.") }
+            .alert("Couldn't delete measurement", isPresented: $showsDeleteError) {
+                Button("OK", role: .cancel) {}
+            } message: { Text("Try again. Your saved measurement is still available.") }
         }
     }
 

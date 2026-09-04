@@ -17,14 +17,18 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         self.store = store
         listener = collection.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, _ in
             guard let snapshot else { return }
-            let decoded = snapshot.documents.compactMap { document -> BodyWeightMeasurement? in
-                guard let payload = try? document.data(as: FirestoreBodyWeightMeasurementDocument.self),
-                      document.documentID == payload.id else { return nil }
-                return try? payload.measurement(userID: user)
-            }
+            let decoded = FirestoreBodyWeightSnapshotDecoder.decode(
+                snapshot.documents.map { document in
+                    FirestoreBodyWeightSnapshotEntry(
+                        documentID: document.documentID,
+                        payload: try? document.data(as: FirestoreBodyWeightMeasurementDocument.self)
+                    )
+                },
+                userID: user
+            )
             Task { @MainActor in
                 guard let self else { return }
-                self.measurements = self.sorted(decoded)
+                self.measurements = decoded.measurementsPreservingCachedEntries(self.measurements)
                 self.publish()
             }
         }

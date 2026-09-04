@@ -375,3 +375,51 @@ struct FirestoreBodyWeightMeasurementDocument: Codable, Equatable {
         )
     }
 }
+
+/// Decode body-weight snapshots without letting a malformed document erase a
+/// usable cached measurement for the same document ID. Firestore's cache can
+/// still provide the earlier value while the invalid remote record is fixed.
+struct FirestoreBodyWeightSnapshotEntry {
+    let documentID: String
+    let payload: FirestoreBodyWeightMeasurementDocument?
+}
+
+struct DecodedFirestoreBodyWeightSnapshot: Equatable {
+    let measurements: [BodyWeightMeasurement]
+    let discardedMeasurementIDs: Set<BodyWeightMeasurementID>
+
+    func measurementsPreservingCachedEntries(_ cachedMeasurements: [BodyWeightMeasurement]) -> [BodyWeightMeasurement] {
+        let decodedIDs = Set(measurements.map(\.id))
+        let preserved = cachedMeasurements.filter {
+            discardedMeasurementIDs.contains($0.id) && !decodedIDs.contains($0.id)
+        }
+        return (measurements + preserved).sorted {
+            BodyWeightMeasurement.isMoreRecent($0, than: $1)
+        }
+    }
+}
+
+enum FirestoreBodyWeightSnapshotDecoder {
+    static func decode(_ entries: [FirestoreBodyWeightSnapshotEntry], userID: UserID) -> DecodedFirestoreBodyWeightSnapshot {
+        var measurements: [BodyWeightMeasurement] = []
+        var discardedMeasurementIDs: Set<BodyWeightMeasurementID> = []
+
+        for entry in entries {
+            guard let payload = entry.payload,
+                  entry.documentID == payload.id,
+                  let measurement = try? payload.measurement(userID: userID)
+            else {
+                if let identifier = UUID(uuidString: entry.documentID) {
+                    discardedMeasurementIDs.insert(BodyWeightMeasurementID(rawValue: identifier))
+                }
+                continue
+            }
+            measurements.append(measurement)
+        }
+
+        return DecodedFirestoreBodyWeightSnapshot(
+            measurements: measurements.sorted { BodyWeightMeasurement.isMoreRecent($0, than: $1) },
+            discardedMeasurementIDs: discardedMeasurementIDs
+        )
+    }
+}

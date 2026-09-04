@@ -245,7 +245,7 @@ struct TodayView: View {
         HStack(spacing: 12) {
             Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
-                .foregroundStyle(set.isCompleted ? GymTheme.accent : Color.secondary)
+                .foregroundStyle(set.isCompleted ? GymTheme.accentForeground : Color.secondary)
             Text(setDescription(for: set))
                 .font(.body)
                 .multilineTextAlignment(.leading)
@@ -380,7 +380,7 @@ private struct TodayCompletionOverlay: View {
                     Circle().fill(GymTheme.accentSoft).frame(width: 78, height: 78)
                     Image(systemName: "dumbbell.fill")
                         .font(.system(size: 32, weight: .semibold))
-                        .foregroundStyle(GymTheme.accent)
+                        .foregroundStyle(GymTheme.accentForeground)
                 }
                     .accessibilityHidden(true)
                 Text("You crushed it!")

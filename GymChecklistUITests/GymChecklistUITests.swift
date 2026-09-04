@@ -133,6 +133,9 @@ final class GymChecklistUITests: XCTestCase {
         firstBenchSet.tap()
         XCTAssertTrue(app.buttons["programSetEditorDelete"].waitForExistence(timeout: 2))
         app.buttons["programSetEditorDelete"].tap()
+        let confirmSetDeletion = app.buttons.matching(identifier: "programConfirmDeleteSet").firstMatch
+        XCTAssertTrue(confirmSetDeletion.waitForExistence(timeout: 2))
+        confirmSetDeletion.tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
         app.buttons["programAddExercise"].tap()
@@ -194,6 +197,7 @@ final class GymChecklistUITests: XCTestCase {
         app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-09-04"
         app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-09-04"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
         app.launch()
 
         openProgram(app)
@@ -201,15 +205,61 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(mode.waitForExistence(timeout: 5))
         mode.buttons["Month"].tap()
         XCTAssertTrue(app.staticTexts["programMonthHeader"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["programMonthWeekday-0"].exists)
-        XCTAssertTrue(app.staticTexts["programMonthWeekday-6"].exists)
+        XCTAssertEqual(app.staticTexts["programMonthWeekday-0"].label, "M")
+        XCTAssertEqual(app.staticTexts["programMonthWeekday-6"].label, "S")
         let selectedDate = app.buttons["programMonthDate-2026-09-04"]
         XCTAssertTrue(selectedDate.waitForExistence(timeout: 2))
+        XCTAssertTrue((selectedDate.value as? String)?.contains("today") == true)
+        XCTAssertTrue((selectedDate.value as? String)?.contains("Planned") == true)
+        app.buttons["programPreviousMonth"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programMonthHeader"], toEqual: "August 2026"))
+        app.buttons["programNextMonth"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programMonthHeader"], toEqual: "September 2026"))
         selectedDate.tap()
         XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, September 4, 2026"))
+        let outsideMonthDate = app.buttons["programMonthDate-2026-08-31"]
+        XCTAssertTrue(outsideMonthDate.exists)
+        outsideMonthDate.tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Monday, August 31, 2026"))
         mode.buttons["Week"].tap()
-        XCTAssertTrue(app.buttons["programDate-2026-09-04"].waitForExistence(timeout: 2))
-        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, September 4, 2026"))
+        XCTAssertTrue(app.buttons["programDate-2026-08-31"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Monday, August 31, 2026"))
+    }
+
+    func testSettingsProfileAndBodyWeightUpdateBMI() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-09-04"
+        app.launch()
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settingsProfile"].tap()
+        XCTAssertTrue(app.textFields["profileHeight"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["profileSex"].exists)
+        replaceText(in: app.textFields["profileHeight"], with: "180")
+        app.buttons["profileSave"].tap()
+
+        app.buttons["settingsBodyWeight"].tap()
+        let weight = app.textFields["bodyWeightInput"]
+        XCTAssertTrue(weight.waitForExistence(timeout: 2))
+        replaceText(in: weight, with: "81")
+        app.buttons["bodyWeightSave"].tap()
+        let measurement = app.buttons["bodyWeightMeasurement"]
+        XCTAssertTrue(measurement.waitForExistence(timeout: 2))
+        measurement.tap()
+        replaceText(in: weight, with: "80")
+        app.buttons["bodyWeightSave"].tap()
+        XCTAssertTrue(app.staticTexts["80 kg"].exists)
+        let updatedMeasurement = app.buttons["bodyWeightMeasurement"]
+        XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 2))
+        updatedMeasurement.swipeLeft()
+        let deleteMeasurement = app.buttons["Delete"]
+        XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 2))
+        deleteMeasurement.tap()
+        XCTAssertFalse(updatedMeasurement.waitForExistence(timeout: 1))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["180 cm"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Log your first measurement"].exists)
     }
 
     func testAppearanceSelectionKeepsTodayAvailable() {

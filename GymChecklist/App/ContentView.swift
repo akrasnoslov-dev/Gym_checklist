@@ -367,9 +367,11 @@ private struct AuthenticatedContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
             workoutViewModel.refreshCurrentDate()
+            settingsViewModel.refreshCurrentDate()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
             workoutViewModel.refreshCurrentDate()
+            settingsViewModel.refreshCurrentDate()
         }
         .preferredColorScheme(settingsViewModel.preferredColorScheme)
         .tint(GymTheme.accent)

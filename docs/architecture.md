@@ -69,6 +69,7 @@ Avoid introducing extra layers unless a real testing or separation problem appea
 - id, userId, localDate, measuredAt, updatedAt
 - canonical kilograms, converted only at the UI boundary
 - latest measurement is the current profile weight; BMI is derived locally and never stored
+- current applicability is recomputed on foreground/significant local-time changes; malformed snapshot entries must not erase a usable cached measurement for the same record
 
 All `WorkoutSet.weight` and `WorkoutSet.actualWeight` values are stored as
 canonical kilograms. `weightUnit` is only a user-scoped display/input

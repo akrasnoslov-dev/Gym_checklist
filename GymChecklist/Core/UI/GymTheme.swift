@@ -1,11 +1,20 @@
 import SwiftUI
+import UIKit
 
 /// Small semantic palette shared by the three product surfaces. The lime/mint
 /// accent stays restrained: it signals selection, completion, and primary
 /// actions while system surfaces continue to adapt to Light and Dark mode.
 enum GymTheme {
-    static let accent = Color(red: 0.37, green: 0.77, blue: 0.54)
-    static let accentSoft = accent.opacity(0.16)
+    /// Dark enough for white text on a primary control in either appearance.
+    static let accent = Color(red: 0.05, green: 0.40, blue: 0.23)
+    /// Keeps the mint character for icons and selection outlines while using a
+    /// contrast-safe green on light surfaces.
+    static let accentForeground = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.37, green: 0.77, blue: 0.54, alpha: 1)
+            : UIColor(red: 0.05, green: 0.40, blue: 0.23, alpha: 1)
+    })
+    static let accentSoft = accentForeground.opacity(0.16)
     static let surface = Color(uiColor: .secondarySystemGroupedBackground)
     static let elevatedSurface = Color(uiColor: .tertiarySystemGroupedBackground)
     static let separator = Color(uiColor: .separator)

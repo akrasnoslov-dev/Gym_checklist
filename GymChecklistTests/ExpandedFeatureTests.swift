@@ -53,10 +53,36 @@ final class ExpandedFeatureTests: XCTestCase {
         try repository.save(future)
         XCTAssertEqual(repository.measurements.first?.id, future.id)
         XCTAssertEqual(viewModel.currentWeightInKilograms, 80)
+        viewModel.refreshCurrentDate(LocalDate(year: 2026, month: 9, day: 3))
+        XCTAssertEqual(viewModel.currentWeightInKilograms, 79)
+        XCTAssertEqual(viewModel.bmi ?? 0, 24.382_716, accuracy: 0.000_001)
         XCTAssertThrowsError(try repository.save(BodyWeightMeasurement(
             userID: UserID(rawValue: "other"), localDate: backfilledOlderDate.localDate,
             weightInKilograms: 80, measuredAt: Date(), updatedAt: Date()
         )))
+    }
+
+    func testBodyWeightSnapshotPreservesCachedMeasurementWhenItsDocumentIsUnreadable() {
+        let owner = UserID(rawValue: "owner")
+        let cached = BodyWeightMeasurement(
+            id: BodyWeightMeasurementID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000010")!),
+            userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 2),
+            weightInKilograms: 80, measuredAt: .distantPast, updatedAt: .distantPast
+        )
+        let fresh = BodyWeightMeasurement(
+            id: BodyWeightMeasurementID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000011")!),
+            userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 3),
+            weightInKilograms: 79, measuredAt: .distantFuture, updatedAt: .distantFuture
+        )
+        let snapshot = FirestoreBodyWeightSnapshotDecoder.decode([
+            FirestoreBodyWeightSnapshotEntry(documentID: cached.id.rawValue.uuidString, payload: nil),
+            FirestoreBodyWeightSnapshotEntry(
+                documentID: fresh.id.rawValue.uuidString,
+                payload: FirestoreBodyWeightMeasurementDocument(measurement: fresh)
+            )
+        ], userID: owner)
+
+        XCTAssertEqual(snapshot.measurementsPreservingCachedEntries([cached]), [fresh, cached])
     }
 
     func testLegacyMixedSetRoundTripsWithoutDiscardingPlanOrActualValues() throws {

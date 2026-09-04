@@ -181,6 +181,7 @@ Profile-first iOS settings pattern:
 - Dynamic Type where layout permits.
 - Completion state not color-only.
 - Sufficient contrast in both themes.
+- Destructive Program changes require a native confirmation; body-weight history uses the standard destructive swipe affordance and preserves the row when deletion fails.
 
 ## 16. UX review checklist
 Before accepting any Today change, answer:

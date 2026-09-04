@@ -302,7 +302,7 @@ struct ProgramView: View {
                 Text("\(date.day)").font(.subheadline.weight(isSelected ? .bold : .regular))
                 Image(systemName: state.systemImage ?? "circle")
                     .font(.caption2)
-                    .foregroundStyle(state.systemImage == nil ? Color.secondary.opacity(0.45) : GymTheme.accent)
+                    .foregroundStyle(state.systemImage == nil ? Color.secondary.opacity(0.45) : GymTheme.accentForeground)
                     .accessibilityHidden(true)
             }
             .frame(maxWidth: .infinity, minHeight: 44)
@@ -310,7 +310,7 @@ struct ProgramView: View {
             .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 9))
             .overlay {
                 RoundedRectangle(cornerRadius: 9)
-                    .stroke(isSelected ? GymTheme.accent : (isToday ? Color.primary.opacity(0.65) : .clear), lineWidth: isSelected ? 1.5 : 1)
+                    .stroke(isSelected ? GymTheme.accentForeground : (isToday ? Color.primary.opacity(0.65) : .clear), lineWidth: isSelected ? 1.5 : 1)
             }
         }
         .buttonStyle(.plain)
@@ -346,7 +346,7 @@ struct ProgramView: View {
             .background(isSelected ? GymTheme.accentSoft : Color.clear)
             .overlay {
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? GymTheme.accent : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? GymTheme.accentForeground : Color.clear, lineWidth: 2)
             }
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .contentShape(Rectangle())
@@ -408,7 +408,7 @@ struct ProgramView: View {
             Section {
                 Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(status == .completed ? GymTheme.accent : Color.secondary)
+                    .foregroundStyle(status == .completed ? GymTheme.accentForeground : Color.secondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(GymTheme.surface, in: Capsule())
@@ -494,7 +494,7 @@ struct ProgramView: View {
         let valueKind = set.isCompleted ? "Actual" : "Planned"
         let row = HStack(spacing: 8) {
             Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(set.isCompleted ? GymTheme.accent : Color.secondary)
+                .foregroundStyle(set.isCompleted ? GymTheme.accentForeground : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Set \(setIndex + 1)")
                 Text("\(state) · \(valueKind): \(value)")
@@ -726,14 +726,10 @@ struct ProgramView: View {
     }
 
     private func requestDeletion(of exercise: WorkoutExercise) {
-        if exercise.sets.isEmpty {
-            deleteExercise(exercise.id)
-        } else {
-            pendingDeletion = PendingExerciseDeletion(
-                id: exercise.id,
-                name: viewModel.exerciseName(for: exercise)
-            )
-        }
+        pendingDeletion = PendingExerciseDeletion(
+            id: exercise.id,
+            name: viewModel.exerciseName(for: exercise)
+        )
     }
 
     private var deleteConfirmationBinding: Binding<Bool> {
@@ -841,7 +837,7 @@ private struct CopyWorkoutSheet: View {
                         Image(systemName: "doc.on.doc")
                             .font(.title3)
                             .frame(width: 38, height: 38)
-                            .foregroundStyle(GymTheme.accent)
+                            .foregroundStyle(GymTheme.accentForeground)
                             .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         VStack(alignment: .leading, spacing: 3) {
                             Text(fullDateLabel(for: sourceDate))
@@ -982,7 +978,7 @@ private struct RepeatWorkoutSheet: View {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.title3)
                             .frame(width: 38, height: 38)
-                            .foregroundStyle(GymTheme.accent)
+                            .foregroundStyle(GymTheme.accentForeground)
                             .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         VStack(alignment: .leading, spacing: 3) {
                     Text(fullDateLabel(for: sourceDate))
@@ -1127,6 +1123,7 @@ private struct ProgramSetEditorSheet: View {
     @State private var timeSeconds: Int
     @State private var type: WorkoutSetType
     @State private var showsValidationError = false
+    @State private var isDeleteConfirmationPresented = false
 
     init(
         set: WorkoutSet?,
@@ -1185,12 +1182,7 @@ private struct ProgramSetEditorSheet: View {
                 if set != nil {
                     Section {
                         Button("Delete set", role: .destructive) {
-                            do {
-                                try onDelete()
-                                dismiss()
-                            } catch {
-                                showsValidationError = true
-                            }
+                            isDeleteConfirmationPresented = true
                         }
                         .accessibilityIdentifier("programSetEditorDelete")
                     }
@@ -1217,6 +1209,24 @@ private struct ProgramSetEditorSheet: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("Enter valid reps, weight, and time values.")
+            }
+            .confirmationDialog(
+                "Delete this set?",
+                isPresented: $isDeleteConfirmationPresented,
+                titleVisibility: .visible
+            ) {
+                Button("Delete set", role: .destructive) {
+                    do {
+                        try onDelete()
+                        dismiss()
+                    } catch {
+                        showsValidationError = true
+                    }
+                }
+                .accessibilityIdentifier("programConfirmDeleteSet")
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This set will be removed from the workout.")
             }
         }
     }

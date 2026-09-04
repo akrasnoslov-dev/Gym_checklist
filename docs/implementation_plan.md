@@ -1502,6 +1502,7 @@ Resolve only issues that block approved MVP quality.
 
 **Requirements**
 - First fix the confirmed Program week/date-selector failure reproduced by the user on a physical iPhone and by final macOS CI.
+- Keep the approved ACC-01 through ACC-09 expansion hardened: local-date BMI must refresh across a date rollover, malformed body-weight snapshots must retain usable cached values, and destructive Program mutations require native confirmation.
 - Do not classify that surface as a harness-only flake without new independent evidence that the product behavior is fixed.
 - Do not opportunistically add future features.
 - Add regression tests for fixed critical bugs.

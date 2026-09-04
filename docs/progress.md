@@ -2,14 +2,13 @@
 
 ## Current state
 - Branch: `dev`; the user approved the 2026-09-04 post-acceptance scope expansion (profile/body weight/BMI, set types, repeat cadence, Month view, and the listed visual hierarchy work). It supersedes the former scope freeze for those items.
-- The locally reviewed checkpoint fixes the `756b755` compiler error with named value tuples. Legacy mixed rep/weight/time documents retain raw plan and actual values through Codable and Firestore decode/re-save, copy/repeat/add-set, and until an explicit editable type is selected. Current body weight is selected by applicable local date with deterministic same-day ordering, while Week/Month is deterministically Monday-first. Copy/Repeat retain cards but their primary labels are exactly `Copy` and `Create`.
+- The locally reviewed checkpoint classifies legacy timed placeholders (`reps <= 1`, `weight = 0`, `time > 0`) as timed while preserving meaningful mixed records, including plan/actual decode-re-save and copy/repeat/add-set. Legacy mixed editors expose their meaningful fields without exposing legacy mixed as a selectable new-set type. Week/Month is deterministically Monday-first; Copy/Repeat primary labels are exactly `Copy` and `Create`.
 - Current phase remains **pre-payment functional MVP acceptance**: no billing, paid Apple, TestFlight, App Store, or Blaze work.
 
 ## Latest verification
 - Previous-scope evidence only: IPA run `33262381993` is green; it built source `ee579d0`. That workflow currently hard-codes this old source and must be updated only after the new final candidate SHA exists.
 - Current static checks: whitespace, Google Sign-In configuration, account deletion, Firestore owner rules, offline cache/reconnect, release workflow, and security hygiene all pass. Windows has no local Swift/Xcode toolchain.
-- `33905390516` is terminal red on `5f27622282cea2127637f294dcd82584bfbd4d40`. Production code compiled far enough to reach the test target, but `candidate-build` failed compiling `GymChecklistTests/ExpandedFeatureTests.swift`: the new legacy copy/repeat/add-set regression test called `@MainActor` repositories/view-model APIs from a synchronous nonisolated XCTest method. The focused test and full suite never ran. The test is now annotated `@MainActor`; every expanded-scope model/repository/view-model test was audited for the same boundary and the other production API call sites are already isolated.
-- `33907241126` is terminal red on `4de834602968e4d2658799e4047c3ae3565a9257`. `candidate-build` passed and the focused legacy migration test passed; `candidate-full` then failed in two remaining regressions: `SetDisplayFormatterTests/testCompactDisplayRules` (legacy inference/formatter expectation for reps=1 + 45 sec) and `GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs` (week-navigation expectation still reflects the old Sunday-first calendar while Program is now Monday-first).
+- `33907241126` is terminal red on `4de834602968e4d2658799e4047c3ae3565a9257`: candidate build and the focused legacy migration test passed, but full suite found two regressions. `SetDisplayFormatterTests.testCompactDisplayRules` exposed the legacy timed `1 rep/0 kg/time` placeholder misclassification; `GymChecklistUITests.testAppLaunchesOnTodayAndNavigatesAllTabs` retained Sunday-first headers despite correct Monday-first production behavior. Both are corrected with explicit regression coverage, alongside the related legacy editor audit.
 - No new physical-iPhone IPA should be produced until the expanded checkpoint is implementation-complete and a green authoritative candidate/full result exists on its exact SHA.
 
 ## CI operating rule
@@ -29,7 +28,4 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. Resume from live `dev` and inspect terminal run `33907241126` once.
-2. Resolve the two full-suite failures deliberately: decide the correct backward-compatible inference/display rule for legacy reps=1 + timed data without violating the no-data-loss migration rule, and update the stale Sunday-first UI test expectations to the approved Monday-first calendar behavior.
-3. Audit nearby formatter/inference and Program week-navigation tests for the same stale assumptions, batch all related fixes, rerun available static checks, and continue any remaining runnable ACC work.
-4. Only after the repository is locally exhausted again, dispatch one justified candidate run. Do not produce an IPA unless its focused and full stages are green.
+1. Commit and push the locally exhausted compatibility/calendar checkpoint, then dispatch one `candidate` run with the exact legacy placeholder regression filter. Record its exact SHA/run ID here and do not poll. Do not produce an IPA unless its focused stage and authoritative full suite are green.

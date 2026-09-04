@@ -448,12 +448,12 @@ private struct TodaySetEditorSheet: View {
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("todaySetEditorReps")
                     }
-                    if route.workoutSet.displayedType == .weighted {
+                    if route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed {
                         TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
                             .keyboardType(.decimalPad)
                             .accessibilityIdentifier("todaySetEditorWeight")
                     }
-                    if route.workoutSet.displayedType == .timed {
+                    if route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed {
                         TextField("Time (seconds)", value: $timeSeconds, format: .number)
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("todaySetEditorTime")

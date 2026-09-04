@@ -167,13 +167,26 @@ enum WorkoutSetType: String, Codable, CaseIterable, Hashable, Sendable {
     }
 
     static func inferred(reps: Int, weight: Double, timeSeconds: Int) -> Self {
-        let hasReps = reps > 0
         let hasWeight = weight > 0
         let hasTime = timeSeconds > 0
-        if hasTime && !hasReps && !hasWeight { return .timed }
+        // Earlier timed sets used one rep with no weight as a technical
+        // placeholder. Preserve genuinely meaningful rep/time combinations,
+        // but infer the old placeholder as the timed presentation.
+        if hasTime && !hasWeight && reps <= 1 { return .timed }
         if hasWeight && !hasTime { return .weighted }
         if !hasWeight && !hasTime { return .repsOnly }
         return .legacyMixed
+    }
+
+    static func resolved(
+        storedType: Self?, reps: Int, weight: Double, timeSeconds: Int
+    ) -> Self {
+        let inferredType = inferred(reps: reps, weight: weight, timeSeconds: timeSeconds)
+        // `legacyMixed` was never an editable choice. A previously persisted
+        // placeholder may therefore carry that transitional marker; upgrade
+        // it when the values prove it is really a timed set.
+        if storedType == .legacyMixed && inferredType == .timed { return .timed }
+        return storedType ?? inferredType
     }
 }
 
@@ -234,7 +247,9 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
     ) {
         self.id = id
         self.order = order
-        self.type = type ?? WorkoutSetType.inferred(reps: reps, weight: weight, timeSeconds: timeSeconds)
+        self.type = WorkoutSetType.resolved(
+            storedType: type, reps: reps, weight: weight, timeSeconds: timeSeconds
+        )
         let normalized = Self.normalizedValues(reps: reps, weight: weight, timeSeconds: timeSeconds, type: self.type)
         self.reps = normalized.reps
         self.weight = normalized.weight
@@ -267,7 +282,9 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         guard isCompleted || (actualReps == nil && actualWeight == nil && actualTimeSeconds == nil && completedAt == nil) else {
             throw WorkoutSetPersistenceError.incompleteSetHasActualValues
         }
-        let storedType = type ?? WorkoutSetType.inferred(reps: reps, weight: weight, timeSeconds: timeSeconds)
+        let storedType = WorkoutSetType.resolved(
+            storedType: type, reps: reps, weight: weight, timeSeconds: timeSeconds
+        )
         self.type = storedType
         let normalized: (reps: Int, weight: Double, timeSeconds: Int)
         if type == nil {
@@ -286,10 +303,14 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         self.actualReps = actualReps
         self.actualWeight = actualWeight
         self.actualTimeSeconds = actualTimeSeconds
+        let storedActualType: WorkoutSetType? = actualType ?? ((type == nil || type == .legacyMixed) ? nil : self.type)
         self.actualType = isCompleted
-            ? (actualType ?? (type == nil
-                ? WorkoutSetType.inferred(reps: actualReps ?? 0, weight: actualWeight ?? 0, timeSeconds: actualTimeSeconds ?? 0)
-                : self.type))
+            ? WorkoutSetType.resolved(
+                storedType: storedActualType,
+                reps: actualReps ?? 0,
+                weight: actualWeight ?? 0,
+                timeSeconds: actualTimeSeconds ?? 0
+            )
             : nil
         self.completedAt = completedAt
     }
@@ -302,7 +323,9 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         let decodedWeight = try container.decode(Double.self, forKey: .weight)
         let decodedTimeSeconds = try container.decode(Int.self, forKey: .timeSeconds)
         let decodedType = try container.decodeIfPresent(WorkoutSetType.self, forKey: .type)
-        type = decodedType ?? WorkoutSetType.inferred(reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds)
+        type = WorkoutSetType.resolved(
+            storedType: decodedType, reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds
+        )
         let normalized: (reps: Int, weight: Double, timeSeconds: Int)
         if decodedType == nil {
             // Preserve legacy mixed payloads during decode/re-save. Explicit
@@ -329,9 +352,13 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
             throw DecodingError.dataCorruptedError(forKey: .isCompleted, in: container, debugDescription: "Incomplete sets cannot contain actual values or a completion timestamp")
         }
         if isCompleted {
-            actualType = actualType ?? (decodedType == nil
-                ? WorkoutSetType.inferred(reps: actualReps ?? 0, weight: actualWeight ?? 0, timeSeconds: actualTimeSeconds ?? 0)
-                : type)
+            let storedActualType: WorkoutSetType? = actualType ?? ((decodedType == nil || decodedType == .legacyMixed) ? nil : type)
+            actualType = WorkoutSetType.resolved(
+                storedType: storedActualType,
+                reps: actualReps ?? 0,
+                weight: actualWeight ?? 0,
+                timeSeconds: actualTimeSeconds ?? 0
+            )
         }
         if !isCompleted { actualType = nil }
     }

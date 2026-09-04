@@ -10,10 +10,6 @@ struct SetDisplayFormatter {
         timeSeconds: Int,
         type: WorkoutSetType? = nil
     ) -> String {
-        if type == nil, WorkoutSetType.inferred(reps: reps, weight: weightInKilograms, timeSeconds: timeSeconds) == .legacyMixed {
-            let weighted = "\(reps) reps × \(formatted(unit.displayWeight(fromCanonicalKilograms: weightInKilograms))) \(unit.rawValue)"
-            return "\(weighted) × \(timeSeconds) sec"
-        }
         switch type ?? WorkoutSetType.inferred(reps: reps, weight: weightInKilograms, timeSeconds: timeSeconds) {
         case .timed:
             return "\(timeSeconds) sec"
@@ -23,9 +19,18 @@ struct SetDisplayFormatter {
         case .repsOnly:
             return "\(reps) reps"
         case .legacyMixed:
-            let weighted = "\(reps) reps × \(formatted(unit.displayWeight(fromCanonicalKilograms: weightInKilograms))) \(unit.rawValue)"
-            return "\(weighted) × \(timeSeconds) sec"
+            return legacyMixedString(reps: reps, weightInKilograms: weightInKilograms, timeSeconds: timeSeconds)
         }
+    }
+
+    private func legacyMixedString(reps: Int, weightInKilograms: Double, timeSeconds: Int) -> String {
+        var components: [String] = []
+        if reps > 0 { components.append("\(reps) reps") }
+        if weightInKilograms > 0 {
+            components.append("\(formatted(unit.displayWeight(fromCanonicalKilograms: weightInKilograms))) \(unit.rawValue)")
+        }
+        if timeSeconds > 0 { components.append("\(timeSeconds) sec") }
+        return components.isEmpty ? "0 reps" : components.joined(separator: " × ")
     }
 
     private func formatted(_ value: Double) -> String {

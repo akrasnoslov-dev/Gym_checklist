@@ -74,7 +74,9 @@ final class SetDisplayFormatterTests: XCTestCase {
         XCTAssertEqual(SetDisplayFormatter(unit: .pounds).string(reps: 8, weightInKilograms: 60, timeSeconds: 0), "8 reps × 132.28 lb")
         XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 12, weightInKilograms: 0, timeSeconds: 0), "12 reps")
         XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 1, weightInKilograms: 0, timeSeconds: 45), "45 sec")
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 0, weightInKilograms: 0, timeSeconds: 45), "45 sec")
         XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weightInKilograms: 60, timeSeconds: 45), "8 reps × 60 kg × 45 sec")
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weightInKilograms: 0, timeSeconds: 45), "8 reps × 45 sec")
         XCTAssertFalse(SetDisplayFormatter(unit: .kilograms).string(reps: 12, weightInKilograms: 0, timeSeconds: 0).contains("0 kg"))
     }
 

@@ -88,6 +88,51 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(reread.actualReps, 7)
         XCTAssertEqual(reread.actualWeight, 65)
         XCTAssertEqual(reread.actualTimeSeconds, 50)
+        XCTAssertEqual(reread.type, .legacyMixed)
+        XCTAssertEqual(reread.actualType, .legacyMixed)
+    }
+
+    func testLegacyTimedPlaceholdersInferTimedWhileMeaningfulRepTimeValuesRemainMixed() throws {
+        let legacyPlaceholder = FirestoreWorkoutSetDocument(
+            id: "00000000-0000-4000-8000-000000000002", order: 0,
+            reps: 1, weight: 0, timeSeconds: 45, type: nil,
+            isCompleted: true, actualReps: 1, actualWeight: 0, actualTimeSeconds: 50,
+            actualType: nil, completedAt: .distantPast
+        )
+
+        let decodedPlaceholder = try legacyPlaceholder.workoutSet()
+        XCTAssertEqual(decodedPlaceholder.type, .timed)
+        XCTAssertEqual(decodedPlaceholder.actualType, .timed)
+        XCTAssertEqual(decodedPlaceholder.reps, 1)
+        XCTAssertEqual(decodedPlaceholder.actualReps, 1)
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(
+            reps: decodedPlaceholder.displayedReps,
+            weightInKilograms: decodedPlaceholder.displayedWeight,
+            timeSeconds: decodedPlaceholder.displayedTimeSeconds,
+            type: decodedPlaceholder.displayedType
+        ), "50 sec")
+        XCTAssertEqual(FirestoreWorkoutSetDocument(set: decodedPlaceholder).type, .timed)
+
+        XCTAssertEqual(WorkoutSet(order: 0, reps: 0, weight: 0, timeSeconds: 45).type, .timed)
+        let repAndTime = WorkoutSet(order: 0, reps: 8, weight: 0, timeSeconds: 45)
+        XCTAssertEqual(repAndTime.type, .legacyMixed)
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(
+            reps: repAndTime.reps, weightInKilograms: repAndTime.weight,
+            timeSeconds: repAndTime.timeSeconds, type: repAndTime.type
+        ), "8 reps × 45 sec")
+
+        let encoded = try JSONEncoder().encode(WorkoutSet(
+            id: WorkoutSetID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000003")!),
+            order: 0, reps: 0, weight: 0, timeSeconds: 45, type: .timed
+        ))
+        var payload = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        payload.removeValue(forKey: "type")
+        payload["reps"] = 1
+        let codablePlaceholder = try JSONDecoder().decode(
+            WorkoutSet.self, from: JSONSerialization.data(withJSONObject: payload)
+        )
+        XCTAssertEqual(codablePlaceholder.type, .timed)
+        XCTAssertEqual(codablePlaceholder.reps, 1)
     }
 
     @MainActor

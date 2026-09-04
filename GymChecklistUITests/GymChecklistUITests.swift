@@ -27,14 +27,14 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(previousWeek.isHittable)
         nextWeek.tap()
         XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
-        XCTAssertTrue(waitForLabel(of: weekHeader, toEqual: "Aug 16 - Aug 22"))
+        XCTAssertTrue(waitForLabel(of: weekHeader, toEqual: "Aug 17 - Aug 23"))
         XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, August 21, 2026"))
         XCTAssertTrue(app.staticTexts["programEmptyState"].exists)
         let previousWeekAfterNext = app.buttons["programPreviousWeek"]
         XCTAssertTrue(previousWeekAfterNext.waitForExistence(timeout: 2))
         previousWeekAfterNext.tap()
         XCTAssertTrue(app.buttons["programDate-2026-08-14"].waitForExistence(timeout: 2))
-        XCTAssertTrue(waitForLabel(of: app.staticTexts["programWeekHeader"], toEqual: "Aug 9 - Aug 15"))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programWeekHeader"], toEqual: "Aug 10 - Aug 16"))
         XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, August 14, 2026"))
 
         app.buttons["programCreateWorkout"].tap()

@@ -1170,12 +1170,12 @@ private struct ProgramSetEditorSheet: View {
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("programSetEditorReps")
                     }
-                    if type == .weighted {
+                    if type == .weighted || type == .legacyMixed {
                         TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
                             .keyboardType(.decimalPad)
                             .accessibilityIdentifier("programSetEditorWeight")
                     }
-                    if type == .timed {
+                    if type == .timed || type == .legacyMixed {
                         TextField("Time (seconds)", value: $timeSeconds, format: .number)
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("programSetEditorTime")
@@ -1259,12 +1259,12 @@ private struct HistoricalActualEditorSheet: View {
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("programHistoryActualEditorReps")
                     }
-                    if route.workoutSet.displayedType == .weighted {
+                    if route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed {
                         TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
                             .keyboardType(.decimalPad)
                             .accessibilityIdentifier("programHistoryActualEditorWeight")
                     }
-                    if route.workoutSet.displayedType == .timed {
+                    if route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed {
                         TextField("Time (seconds)", value: $timeSeconds, format: .number)
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("programHistoryActualEditorTime")

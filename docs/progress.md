@@ -9,6 +9,7 @@
 - Previous-scope evidence only: IPA run `33262381993` is green; it built source `ee579d0`. That workflow currently hard-codes this old source and must be updated only after the new final candidate SHA exists.
 - Current static checks: whitespace, Google Sign-In configuration, account deletion, Firestore owner rules, offline cache/reconnect, release workflow, and security hygiene all pass. Windows has no local Swift/Xcode toolchain.
 - `33907241126` is terminal red on `4de834602968e4d2658799e4047c3ae3565a9257`: candidate build and the focused legacy migration test passed, but full suite found two regressions. `SetDisplayFormatterTests.testCompactDisplayRules` exposed the legacy timed `1 rep/0 kg/time` placeholder misclassification; `GymChecklistUITests.testAppLaunchesOnTodayAndNavigatesAllTabs` retained Sunday-first headers despite correct Monday-first production behavior. Both are corrected with explicit regression coverage, alongside the related legacy editor audit.
+- `CI_PENDING 33913992158`: `candidate` scope on exact source SHA `648757c569536c9967d7577d28fe1c868a44873b`, using `GymChecklistTests/ExpandedFeatureTests/testLegacyTimedPlaceholdersInferTimedWhileMeaningfulRepTimeValuesRemainMixed`. It builds once, runs that focused compatibility regression, then runs the full suite on the same SHA. Do not poll from this task.
 - No new physical-iPhone IPA should be produced until the expanded checkpoint is implementation-complete and a green authoritative candidate/full result exists on its exact SHA.
 
 ## CI operating rule
@@ -28,4 +29,4 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. Commit and push the locally exhausted compatibility/calendar checkpoint, then dispatch one `candidate` run with the exact legacy placeholder regression filter. Record its exact SHA/run ID here and do not poll. Do not produce an IPA unless its focused stage and authoritative full suite are green.
+1. Read `33913992158` once at the next task start. If green, update the physical-iPhone IPA workflow to source SHA `648757c569536c9967d7577d28fe1c868a44873b` and prepare the free device candidate; if red, inspect its concise failure summary before editing. Do not produce an IPA unless its focused stage and authoritative full suite are green.

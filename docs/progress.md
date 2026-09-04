@@ -2,13 +2,13 @@
 
 ## Current state
 - Branch: `dev`; the user approved the 2026-09-04 post-acceptance scope expansion (profile/body weight/BMI, set types, repeat cadence, Month view, and the listed visual hierarchy work). It supersedes the former scope freeze for those items.
-- Working checkpoint adds a lime/mint semantic theme; owner-scoped profile/body-weight persistence; explicit set types with legacy inference and completed actual-type preservation; 1–4-week repeat cadence; Month navigation sharing the repaired Program selection; and focused Program/Today/Settings polish.
+- Working checkpoint fixes the red candidate’s real defects: legacy mixed rep/weight/time documents retain raw plan and actual values through Firestore decode/re-save, current body weight is selected by applicable local date, and Program Week/Month is deterministically Monday-first. It also replaces generic Copy/Repeat forms and the top-level Settings list with the approved card hierarchy.
 - Current phase remains **pre-payment functional MVP acceptance**: no billing, paid Apple, TestFlight, App Store, or Blaze work.
 
 ## Latest verification
 - Previous-scope evidence only: IPA run `33262381993` is green; it built source `ee579d0`. That workflow currently hard-codes this old source and must be updated only after the new final candidate SHA exists.
-- Current static checks: Firestore owner-rule contract and account-deletion contract pass. Windows has no local Swift/Xcode toolchain.
-- `CI_PENDING 33879273252`: `candidate` scope for `GymChecklistTests/ExpandedFeatureTests/testBodyWeightHistoryIsOwnerBoundAndSortedByMostRecentMeasurement` on exact source SHA `c9c4c241effa2839a6e84b4fe5238a368b3c05aa`; focused pass automatically proceeds to the full suite. Do not poll from this task.
+- Current static checks: Firestore owner-rule and offline cache/reconnect contracts pass. Windows has no local Swift/Xcode toolchain.
+- `33879273252` is terminal red on `c9c4c241effa2839a6e84b4fe5238a368b3c05aa`: build and focused body-weight test passed; full suite exposed the destructive legacy decoder, local-date ordering gap, Monday-first gap, and stale set/history UI expectations. Those fixes are in the uncommitted working checkpoint and require a new candidate run.
 
 ## CI operating rule
 - During diagnosis: one focused `unit`/`ui` run per code change when needed.
@@ -24,4 +24,4 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. Resume only after `33879273252` is terminal: process its concise failure summary or, if green, update the physical-IPA workflow to the final accepted source SHA and prepare the next device candidate.
+1. Review/commit this checkpoint, then dispatch one candidate run against `GymChecklistTests/ExpandedFeatureTests/testLegacyMixedSetRoundTripsWithoutDiscardingPlanOrActualValues`; its full-suite stage is the required gate for the exact candidate SHA.

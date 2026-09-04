@@ -10,6 +10,8 @@ enum GymTheme {
     static let elevatedSurface = Color(uiColor: .tertiarySystemGroupedBackground)
     static let separator = Color(uiColor: .separator)
     static let destructive = Color.red
+    static let mutedText = Color.secondary
+    static let cardBorder = Color.primary.opacity(0.08)
 }
 
 struct GymCard: ViewModifier {
@@ -17,6 +19,20 @@ struct GymCard: ViewModifier {
         content
             .padding(16)
             .background(GymTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(GymTheme.cardBorder, lineWidth: 1)
+            }
+    }
+}
+
+struct GymSectionHeader: View {
+    let title: String
+    var body: some View {
+        Text(title.uppercased())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(GymTheme.mutedText)
+            .tracking(0.5)
     }
 }
 

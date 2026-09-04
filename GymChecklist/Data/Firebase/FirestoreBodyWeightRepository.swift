@@ -65,8 +65,7 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
 
     private func sorted(_ values: [BodyWeightMeasurement]) -> [BodyWeightMeasurement] {
         values.sorted {
-            if $0.measuredAt != $1.measuredAt { return $0.measuredAt > $1.measuredAt }
-            return $0.id.rawValue.uuidString > $1.id.rawValue.uuidString
+            BodyWeightMeasurement.isMoreRecent($0, than: $1)
         }
     }
 

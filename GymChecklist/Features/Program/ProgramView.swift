@@ -274,6 +274,17 @@ struct ProgramView: View {
         let dates = calendarState.monthDates(containing: displayedMonth)
         return VStack(spacing: 6) {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 36)), count: 7), spacing: 6) {
+                ForEach(["M", "T", "W", "T", "F", "S", "S"].indices, id: \.self) { index in
+                    Text(["M", "T", "W", "T", "F", "S", "S"][index])
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("programMonthWeekday-\(index)")
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Weekdays Monday through Sunday")
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 36)), count: 7), spacing: 6) {
                 ForEach(dates, id: \.self) { date in monthDateButton(date) }
             }
         }
@@ -285,6 +296,7 @@ struct ProgramView: View {
         let state = calendarState.dayState(for: date)
         let isSelected = date == displayedSelectedDate
         let isCurrentMonth = date.month == displayedMonth.month && date.year == displayedMonth.year
+        let isToday = date == calendarState.currentDate
         return Button { displayedSelectedDate = date } label: {
             VStack(spacing: 3) {
                 Text("\(date.day)").font(.subheadline.weight(isSelected ? .bold : .regular))
@@ -296,10 +308,14 @@ struct ProgramView: View {
             .frame(maxWidth: .infinity, minHeight: 44)
             .foregroundStyle(isCurrentMonth ? Color.primary : Color.secondary)
             .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+            .overlay {
+                RoundedRectangle(cornerRadius: 9)
+                    .stroke(isSelected ? GymTheme.accent : (isToday ? Color.primary.opacity(0.65) : .clear), lineWidth: isSelected ? 1.5 : 1)
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(fullDateLabel(for: date))
-        .accessibilityValue("\(state.label)\(isSelected ? ", selected" : "")")
+        .accessibilityValue("\(state.label)\(isSelected ? ", selected" : "")\(isToday ? ", today" : "")\(isCurrentMonth ? "" : ", outside current month")")
         .accessibilityIdentifier("programMonthDate-\(date.description)")
     }
 
@@ -421,7 +437,9 @@ struct ProgramView: View {
                         exercisePickerRoute = ExercisePickerRoute(workoutDate: calendarState.selectedDate)
                     } label: {
                         Label("Add exercise", systemImage: "plus")
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
+                    .buttonStyle(.bordered)
                     .accessibilityIdentifier("programAddExercise")
                 }
             }
@@ -589,8 +607,9 @@ struct ProgramView: View {
                 addSet(to: exercise.id)
             } label: {
                 Label("Add set", systemImage: "plus")
-                    .frame(minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: 44)
             }
+            .buttonStyle(.bordered)
             .accessibilityLabel("Add set to \(name)")
             .accessibilityIdentifier("programAddSet-\(exercise.id.rawValue.uuidString)")
         }
@@ -815,34 +834,48 @@ private struct CopyWorkoutSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Source") {
-                    Text(fullDateLabel(for: sourceDate))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    GymSectionHeader(title: "Source")
+                    HStack(spacing: 12) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.title3)
+                            .frame(width: 38, height: 38)
+                            .foregroundStyle(GymTheme.accent)
+                            .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(fullDateLabel(for: sourceDate))
+                                .font(.headline)
                         .accessibilityIdentifier("copyWorkoutSourceDate")
-                    Text("\(exerciseCount) \(exerciseCount == 1 ? "exercise" : "exercises") · \(setCount) \(setCount == 1 ? "set" : "sets")")
-                        .foregroundStyle(.secondary)
+                            Text("\(exerciseCount) \(exerciseCount == 1 ? "exercise" : "exercises") · \(setCount) \(setCount == 1 ? "set" : "sets")")
+                                .foregroundStyle(.secondary)
                         .accessibilityIdentifier("copyWorkoutSummary")
-                }
-
-                Section("Destination") {
-                    DatePicker("Destination date", selection: $destination, displayedComponents: .date)
-                        .accessibilityIdentifier("copyWorkoutDestination")
-                    if let destinationMessage {
-                        Text(destinationMessage)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("copyWorkoutDestinationMessage")
+                        }
+                        Spacer()
                     }
-                }
-            }
-            .navigationTitle("Copy workout")
-            .accessibilityIdentifier("copyWorkoutSheet")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .accessibilityIdentifier("copyWorkoutCancel")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Copy") {
+                    .gymCard()
+
+                    GymSectionHeader(title: "Destination")
+                    VStack(alignment: .leading, spacing: 12) {
+                        DatePicker("Destination date", selection: $destination, displayedComponents: .date)
+                            .accessibilityIdentifier("copyWorkoutDestination")
+                        Divider()
+                        Text(fullDateLabel(for: destinationDate))
+                            .font(.headline)
+                        if let destinationMessage {
+                            Text(destinationMessage)
+                                .font(.subheadline)
+                                .foregroundStyle(GymTheme.destructive)
+                                .accessibilityIdentifier("copyWorkoutDestinationMessage")
+                        } else {
+                            Text("Creates an independent planned workout.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .gymCard()
+
+                    Button("Copy workout") {
                         do {
                             try onCopy(destinationDate)
                             dismiss()
@@ -850,8 +883,20 @@ private struct CopyWorkoutSheet: View {
                             showsCopyError = true
                         }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(GymTheme.accent)
+                    .frame(maxWidth: .infinity, minHeight: 48)
                     .disabled(destinationMessage != nil)
                     .accessibilityIdentifier("copyWorkoutAction")
+                }
+                .padding()
+            }
+            .navigationTitle("Copy workout")
+            .accessibilityIdentifier("copyWorkoutSheet")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .accessibilityIdentifier("copyWorkoutCancel")
                 }
             }
             .alert("Workout could not be copied", isPresented: $showsCopyError) {
@@ -930,37 +975,57 @@ private struct RepeatWorkoutSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Repeat workout") {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    GymSectionHeader(title: "Source workout")
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.title3)
+                            .frame(width: 38, height: 38)
+                            .foregroundStyle(GymTheme.accent)
+                            .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
                     Text(fullDateLabel(for: sourceDate))
-                        .foregroundStyle(.secondary)
+                                .font(.headline)
                         .accessibilityIdentifier("repeatWorkoutSourceDate")
                     Text("\(exerciseCount) \(exerciseCount == 1 ? "exercise" : "exercises") · \(setCount) \(setCount == 1 ? "set" : "sets")")
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("repeatWorkoutSourceSummary")
+                        }
+                        Spacer()
+                    }
+                    .gymCard()
+
+                    GymSectionHeader(title: "Schedule")
+                    VStack(alignment: .leading, spacing: 14) {
+                    Text("Cadence").font(.subheadline.weight(.medium))
                     Picker("Cadence", selection: $cadenceWeeks) {
                         ForEach(1...4, id: \.self) { weeks in
                             Text(weeks == 1 ? "Every week" : "Every \(weeks) weeks").tag(weeks)
                         }
                     }
+                    .pickerStyle(.segmented)
                     .accessibilityIdentifier("repeatWorkoutCadence")
+                    Divider()
+                    Text("Duration").font(.subheadline.weight(.medium))
                     Picker("Duration", selection: $duration) {
                         ForEach(Duration.allCases) { duration in
                             Text(duration.rawValue).tag(duration)
                         }
                     }
+                    .pickerStyle(.segmented)
                     .accessibilityIdentifier("repeatWorkoutDuration")
-                }
-
-                if duration == .untilDate {
-                    Section("End date") {
+                    if duration == .untilDate {
                         DatePicker("Repeat until", selection: $untilDate, displayedComponents: .date)
                             .accessibilityIdentifier("repeatWorkoutUntilDate")
                     }
-                }
+                    }
+                    .gymCard()
 
-                Section {
+                    GymSectionHeader(title: "Result")
+                    VStack(alignment: .leading, spacing: 8) {
                     Text(scheduleSummary)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("repeatWorkoutSummary")
                     ForEach(occupiedDates, id: \.self) { date in
@@ -968,17 +1033,10 @@ private struct RepeatWorkoutSheet: View {
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("repeatWorkoutSkip-\(date.description)")
                     }
-                }
-            }
-            .navigationTitle("Repeat workout")
-            .accessibilityIdentifier("repeatWorkoutSheet")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .accessibilityIdentifier("repeatWorkoutCancel")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
+                    }
+                    .gymCard()
+
+                    Button("Create \(availableDates.count) \(availableDates.count == 1 ? "workout" : "workouts")") {
                         do {
                             _ = try onRepeat(endDate, WorkoutRepeatCadence(intervalWeeks: cadenceWeeks))
                             dismiss()
@@ -986,8 +1044,20 @@ private struct RepeatWorkoutSheet: View {
                             showsRepeatError = true
                         }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(GymTheme.accent)
+                    .frame(maxWidth: .infinity, minHeight: 48)
                     .disabled(candidateDates.isEmpty || availableDates.isEmpty)
                     .accessibilityIdentifier("repeatWorkoutAction")
+                }
+                .padding()
+            }
+            .navigationTitle("Repeat workout")
+            .accessibilityIdentifier("repeatWorkoutSheet")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .accessibilityIdentifier("repeatWorkoutCancel")
                 }
             }
             .alert("Workout could not be repeated", isPresented: $showsRepeatError) {
@@ -1085,7 +1155,7 @@ private struct ProgramSetEditorSheet: View {
                             .foregroundStyle(.secondary)
                     }
                     Picker("Set type", selection: $type) {
-                        ForEach(WorkoutSetType.allCases, id: \.self) { Text($0.title).tag($0) }
+                        ForEach(WorkoutSetType.editableCases, id: \.self) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("programSetEditorType")

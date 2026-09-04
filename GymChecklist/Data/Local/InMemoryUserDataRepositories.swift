@@ -112,8 +112,7 @@ final class InMemoryBodyWeightRepository: BodyWeightRepository {
 
     var measurements: [BodyWeightMeasurement] {
         storage.values.sorted { lhs, rhs in
-            if lhs.measuredAt != rhs.measuredAt { return lhs.measuredAt > rhs.measuredAt }
-            return lhs.id.rawValue.uuidString > rhs.id.rawValue.uuidString
+            BodyWeightMeasurement.isMoreRecent(lhs, than: rhs)
         }
     }
 

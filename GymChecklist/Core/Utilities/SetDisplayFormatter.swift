@@ -10,6 +10,10 @@ struct SetDisplayFormatter {
         timeSeconds: Int,
         type: WorkoutSetType? = nil
     ) -> String {
+        if type == nil, WorkoutSetType.inferred(reps: reps, weight: weightInKilograms, timeSeconds: timeSeconds) == .legacyMixed {
+            let weighted = "\(reps) reps × \(formatted(unit.displayWeight(fromCanonicalKilograms: weightInKilograms))) \(unit.rawValue)"
+            return "\(weighted) × \(timeSeconds) sec"
+        }
         switch type ?? WorkoutSetType.inferred(reps: reps, weight: weightInKilograms, timeSeconds: timeSeconds) {
         case .timed:
             return "\(timeSeconds) sec"
@@ -18,6 +22,9 @@ struct SetDisplayFormatter {
             return "\(reps) reps × \(formatted(displayWeight)) \(unit.rawValue)"
         case .repsOnly:
             return "\(reps) reps"
+        case .legacyMixed:
+            let weighted = "\(reps) reps × \(formatted(unit.displayWeight(fromCanonicalKilograms: weightInKilograms))) \(unit.rawValue)"
+            return "\(weighted) × \(timeSeconds) sec"
         }
     }
 

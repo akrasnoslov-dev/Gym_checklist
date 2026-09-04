@@ -11,11 +11,17 @@ final class SettingsViewModel: ObservableObject {
 
     private let repository: UserSettingsRepository
     private let bodyWeightRepository: BodyWeightRepository
+    private let currentDate: LocalDate
     private var observation: UserSettingsObservation?
     private var bodyWeightObservation: BodyWeightObservation?
 
-    init(repository: UserSettingsRepository, bodyWeightRepository: BodyWeightRepository? = nil) {
+    init(
+        repository: UserSettingsRepository,
+        bodyWeightRepository: BodyWeightRepository? = nil,
+        currentDate: LocalDate? = nil
+    ) {
         self.repository = repository
+        self.currentDate = currentDate ?? LocalDate(date: Date(), calendar: .autoupdatingCurrent)
         let resolvedBodyWeightRepository = bodyWeightRepository ?? InMemoryBodyWeightRepository(userID: repository.userID)
         self.bodyWeightRepository = resolvedBodyWeightRepository
         settings = repository.settings
@@ -55,7 +61,13 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    var currentWeightInKilograms: Double? { measurements.first?.weightInKilograms }
+    var currentWeightInKilograms: Double? {
+        measurements
+            .filter { BodyWeightMeasurement.isOnOrBefore($0, date: currentDate) }
+            .sorted { BodyWeightMeasurement.isMoreRecent($0, than: $1) }
+            .first?
+            .weightInKilograms
+    }
 
     var bmi: Double? { settings.profile.bmi(weightInKilograms: currentWeightInKilograms) }
 
@@ -101,13 +113,18 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("Profile") {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 24) {
+                    GymSectionHeader(title: "Health profile")
+                    VStack(spacing: 0) {
                     Button {
                         isProfileEditorPresented = true
                     } label: {
                         HStack {
                             Image(systemName: "person.crop.circle.fill")
+                                .font(.title2)
+                                .frame(width: 38, height: 38)
+                                .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                                 .foregroundStyle(GymTheme.accent)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("Your profile")
@@ -123,12 +140,15 @@ struct SettingsView: View {
                         }
                     }
                     .accessibilityIdentifier("settingsProfile")
-
+                    Divider().padding(.leading, 50)
                     Button {
                         isBodyWeightEditorPresented = true
                     } label: {
                         HStack {
                             Image(systemName: "scalemass.fill")
+                                .font(.title3)
+                                .frame(width: 38, height: 38)
+                                .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                                 .foregroundStyle(GymTheme.accent)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text("Body weight")
@@ -144,9 +164,13 @@ struct SettingsView: View {
                         }
                     }
                     .accessibilityIdentifier("settingsBodyWeight")
-                }
+                    }
+                    .gymCard()
 
-                Section("Preferences") {
+                    GymSectionHeader(title: "Preferences")
+                    VStack(alignment: .leading, spacing: 16) {
+                    Text("Appearance")
+                        .font(.subheadline.weight(.medium))
                     Picker(
                         "Appearance",
                         selection: Binding(
@@ -171,6 +195,9 @@ struct SettingsView: View {
                             .accessibilityFocused($isErrorFocused)
                             .accessibilityIdentifier("settingsAppearanceError")
                     }
+                    Divider()
+                    Text("Weight unit")
+                        .font(.subheadline.weight(.medium))
                     Picker(
                         "Weight unit",
                         selection: Binding(
@@ -187,22 +214,32 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("settingsWeightUnit")
                     .accessibilityValue(viewModel.settings.weightUnit.rawValue)
-                }
+                    }
+                    .gymCard()
 
-                Section("Account") {
-                    Text(accountEmail ?? "Signed in")
+                    GymSectionHeader(title: "Account")
+                    VStack(alignment: .leading, spacing: 4) {
+                    Text("Signed in")
+                        .font(.subheadline.weight(.medium))
+                    Text(accountEmail ?? "Your account is ready")
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("settingsAccountSummary")
-                    Button("Log out", role: .destructive, action: onLogout)
+                    }
+                    .gymCard()
+                    VStack(alignment: .leading, spacing: 8) {
+                    Text("Danger zone")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Button("Log out", action: onLogout)
                         .accessibilityIdentifier("authLogout")
                     Button("Delete account", role: .destructive) {
                         isDeleteAccountConfirmationPresented = true
                     }
                     .disabled(isDeletingAccount)
                     .accessibilityIdentifier("accountDelete")
-                }
-                if let errorMessage {
-                    Section {
+                    }
+                    .gymCard()
+                    if let errorMessage {
                         Label(errorMessage, systemImage: "exclamationmark.circle")
                             .foregroundStyle(.red)
                             .accessibilityLabel("Error: \(errorMessage)")
@@ -211,6 +248,7 @@ struct SettingsView: View {
                     }
                 }
             }
+            .padding()
             .navigationTitle("Settings")
             .accessibilityIdentifier("settingsPlaceholder")
             .alert("Delete account?", isPresented: $isDeleteAccountConfirmationPresented) {

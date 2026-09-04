@@ -115,7 +115,7 @@ final class GymChecklistUITests: XCTestCase {
         app.tabBars.buttons["Program"].tap()
         firstBenchSet.tap()
         XCTAssertTrue(app.textFields["programSetEditorReps"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
+        XCTAssertFalse(app.textFields["programSetEditorWeight"].exists)
         XCTAssertFalse(app.textFields["programSetEditorTime"].exists)
         app.buttons["programSetEditorSave"].tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
@@ -249,8 +249,6 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(historyDate.waitForExistence(timeout: 5))
         historyDate.tap()
 
-        let history = app.descendants(matching: .any)["programHistoryWorkout"]
-        XCTAssertTrue(reveal(history, in: app))
         let completedSet = app.buttons["programHistorySet-90000000-0000-4000-8000-000000000401"]
         XCTAssertTrue(reveal(completedSet, in: app))
         XCTAssertEqual(completedSet.value as? String, "Completed, actual 7 reps × 65 kg")

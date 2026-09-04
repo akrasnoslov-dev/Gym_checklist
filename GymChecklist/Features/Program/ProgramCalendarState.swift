@@ -39,7 +39,10 @@ struct ProgramCalendarState {
     ) {
         self.selectedDate = selectedDate
         self.currentDate = currentDate ?? selectedDate
-        self.calendar = calendar
+        var displayCalendar = calendar
+        displayCalendar.firstWeekday = 2
+        displayCalendar.minimumDaysInFirstWeek = 4
+        self.calendar = displayCalendar
         self.workoutsByDate = workouts.reduce(into: [:]) { result, workout in
             result[workout.localDate] = workout
         }

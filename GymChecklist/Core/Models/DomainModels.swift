@@ -134,22 +134,46 @@ struct BodyWeightMeasurement: Codable, Equatable, Identifiable, Sendable {
         self.measuredAt = measuredAt
         self.updatedAt = updatedAt
     }
+
+    /// The current measurement is based on the day the person recorded, not
+    /// on when an offline/backfilled record happened to reach a repository.
+    static func isMoreRecent(_ lhs: Self, than rhs: Self) -> Bool {
+        if lhs.localDate.year != rhs.localDate.year { return lhs.localDate.year > rhs.localDate.year }
+        if lhs.localDate.month != rhs.localDate.month { return lhs.localDate.month > rhs.localDate.month }
+        if lhs.localDate.day != rhs.localDate.day { return lhs.localDate.day > rhs.localDate.day }
+        if lhs.measuredAt != rhs.measuredAt { return lhs.measuredAt > rhs.measuredAt }
+        return lhs.id.rawValue.uuidString > rhs.id.rawValue.uuidString
+    }
+
+    static func isOnOrBefore(_ measurement: Self, date: LocalDate) -> Bool {
+        if measurement.localDate.year != date.year { return measurement.localDate.year < date.year }
+        if measurement.localDate.month != date.month { return measurement.localDate.month < date.month }
+        return measurement.localDate.day <= date.day
+    }
 }
 
 enum WorkoutSetType: String, Codable, CaseIterable, Hashable, Sendable {
-    case weighted, repsOnly, timed
+    case weighted, repsOnly, timed, legacyMixed
+
+    static let editableCases: [Self] = [.weighted, .repsOnly, .timed]
 
     var title: String {
         switch self {
         case .weighted: "Weighted"
         case .repsOnly: "Reps only"
         case .timed: "Timed"
+        case .legacyMixed: "Legacy set"
         }
     }
 
     static func inferred(reps: Int, weight: Double, timeSeconds: Int) -> Self {
-        if timeSeconds > 0 { return .timed }
-        return weight > 0 ? .weighted : .repsOnly
+        let hasReps = reps > 0
+        let hasWeight = weight > 0
+        let hasTime = timeSeconds > 0
+        if hasTime && !hasReps && !hasWeight { return .timed }
+        if hasWeight && !hasTime { return .weighted }
+        if !hasWeight && !hasTime { return .repsOnly }
+        return .legacyMixed
     }
 }
 
@@ -243,8 +267,11 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         guard isCompleted || (actualReps == nil && actualWeight == nil && actualTimeSeconds == nil && completedAt == nil) else {
             throw WorkoutSetPersistenceError.incompleteSetHasActualValues
         }
-        self.type = type ?? WorkoutSetType.inferred(reps: reps, weight: weight, timeSeconds: timeSeconds)
-        let normalized = Self.normalizedValues(reps: reps, weight: weight, timeSeconds: timeSeconds, type: self.type)
+        let storedType = type ?? WorkoutSetType.inferred(reps: reps, weight: weight, timeSeconds: timeSeconds)
+        self.type = storedType
+        let normalized = type == nil
+            ? (reps, weight, timeSeconds)
+            : Self.normalizedValues(reps: reps, weight: weight, timeSeconds: timeSeconds, type: storedType)
         self.id = id
         self.order = order
         self.reps = normalized.reps
@@ -254,7 +281,11 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         self.actualReps = actualReps
         self.actualWeight = actualWeight
         self.actualTimeSeconds = actualTimeSeconds
-        self.actualType = isCompleted ? (actualType ?? self.type) : nil
+        self.actualType = isCompleted
+            ? (actualType ?? (type == nil
+                ? WorkoutSetType.inferred(reps: actualReps ?? 0, weight: actualWeight ?? 0, timeSeconds: actualTimeSeconds ?? 0)
+                : self.type))
+            : nil
         self.completedAt = completedAt
     }
 
@@ -265,9 +296,11 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         let decodedReps = try container.decode(Int.self, forKey: .reps)
         let decodedWeight = try container.decode(Double.self, forKey: .weight)
         let decodedTimeSeconds = try container.decode(Int.self, forKey: .timeSeconds)
-        type = try container.decodeIfPresent(WorkoutSetType.self, forKey: .type)
-            ?? WorkoutSetType.inferred(reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds)
-        let normalized = Self.normalizedValues(reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds, type: type)
+        let decodedType = try container.decodeIfPresent(WorkoutSetType.self, forKey: .type)
+        type = decodedType ?? WorkoutSetType.inferred(reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds)
+        let normalized = decodedType == nil
+            ? (decodedReps, decodedWeight, decodedTimeSeconds)
+            : Self.normalizedValues(reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds, type: type)
         reps = normalized.reps
         weight = normalized.weight
         timeSeconds = normalized.timeSeconds
@@ -283,7 +316,11 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         if !isCompleted && (actualReps != nil || actualWeight != nil || actualTimeSeconds != nil || completedAt != nil) {
             throw DecodingError.dataCorruptedError(forKey: .isCompleted, in: container, debugDescription: "Incomplete sets cannot contain actual values or a completion timestamp")
         }
-        if isCompleted { actualType = actualType ?? type }
+        if isCompleted {
+            actualType = actualType ?? (decodedType == nil
+                ? WorkoutSetType.inferred(reps: actualReps ?? 0, weight: actualWeight ?? 0, timeSeconds: actualTimeSeconds ?? 0)
+                : type)
+        }
         if !isCompleted { actualType = nil }
     }
 }
@@ -347,6 +384,7 @@ extension WorkoutSet {
         case .weighted: (reps, weight, 0)
         case .repsOnly: (reps, 0, 0)
         case .timed: (0, 0, timeSeconds)
+        case .legacyMixed: (reps, weight, timeSeconds)
         }
     }
 }

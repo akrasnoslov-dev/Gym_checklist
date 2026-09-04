@@ -1785,17 +1785,20 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertFalse(sets[0].isCompleted)
         XCTAssertNil(sets[0].actualReps)
 
-        try viewModel.editSet(firstSetID, in: exerciseID, on: date, reps: 8, weight: 0, timeSeconds: 45)
+        try viewModel.editSet(firstSetID, in: exerciseID, on: date, reps: 8, weight: 0, timeSeconds: 45, type: .timed)
         try viewModel.addSet(to: exerciseID, on: date)
         sets = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
         XCTAssertEqual(sets.map(\.id), [firstSetID, secondSetID])
         XCTAssertEqual(sets.map(\.order), [0, 1])
-        XCTAssertEqual(sets[1].reps, 8)
+        XCTAssertEqual(sets[1].reps, 0)
         XCTAssertEqual(sets[1].weight, 0)
         XCTAssertEqual(sets[1].timeSeconds, 45)
         XCTAssertFalse(sets[1].isCompleted)
         XCTAssertNil(sets[1].actualWeight)
-        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(reps: 8, weightInKilograms: 0, timeSeconds: 45), "8 reps × 45 sec")
+        XCTAssertEqual(sets[1].type, .timed)
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(
+            reps: sets[1].reps, weightInKilograms: sets[1].weight, timeSeconds: sets[1].timeSeconds, type: sets[1].type
+        ), "45 sec")
     }
 
     func testTodayCompletionTogglePersistsImmediatelyAndAllowsArbitraryOrder() throws {
@@ -2039,9 +2042,9 @@ final class WorkoutViewModelTests: XCTestCase {
         try repository.save(workout)
         let viewModel = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar())
 
-        try viewModel.editSet(setID, in: exerciseID, on: date, reps: 7, weight: 0, timeSeconds: 45)
+        try viewModel.editSet(setID, in: exerciseID, on: date, reps: 7, weight: 0, timeSeconds: 45, type: .timed)
         let updated = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets.first)
-        XCTAssertEqual(updated.reps, 7)
+        XCTAssertEqual(updated.reps, 0)
         XCTAssertEqual(updated.weight, 0)
         XCTAssertEqual(updated.timeSeconds, 45)
         XCTAssertTrue(updated.isCompleted)
@@ -2228,7 +2231,7 @@ final class WorkoutViewModelTests: XCTestCase {
         var source = repository.createEmptyWorkout(on: sourceDate, at: .distantPast).workout
         let sourceExerciseIDs = [WorkoutExerciseID(), WorkoutExerciseID()]
         let sourceSetIDs = [WorkoutSetID(), WorkoutSetID()]
-        var completedSet = WorkoutSet(id: sourceSetIDs[0], order: 4, reps: 8, weight: 0, timeSeconds: 45)
+        var completedSet = WorkoutSet(id: sourceSetIDs[0], order: 4, reps: 8, weight: 0, timeSeconds: 45, type: .timed)
         completedSet.complete(at: .distantPast)
         completedSet.editActual(reps: 9, weight: 0, timeSeconds: 50)
         source.exercises = [
@@ -2278,7 +2281,7 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertEqual(destination.exercises.map(\.customName), [nil, "Nordic Hop"])
         XCTAssertTrue(destination.exercises.allSatisfy { !$0.isSkipped })
         XCTAssertEqual(destination.exercises.flatMap(\.sets).map(\.order), [0, 0])
-        XCTAssertEqual(destination.exercises.flatMap(\.sets).map(\.reps), [5, 8])
+        XCTAssertEqual(destination.exercises.flatMap(\.sets).map(\.reps), [5, 0])
         XCTAssertEqual(destination.exercises.flatMap(\.sets).map(\.weight), [60, 0])
         XCTAssertEqual(destination.exercises.flatMap(\.sets).map(\.timeSeconds), [0, 45])
         XCTAssertTrue(destination.exercises.flatMap(\.sets).allSatisfy {
@@ -2291,7 +2294,7 @@ final class WorkoutViewModelTests: XCTestCase {
 
         let copiedSetID = try XCTUnwrap(destination.exercises.first?.sets.first?.id)
         let copiedExerciseID = try XCTUnwrap(destination.exercises.first?.id)
-        try viewModel.editSet(copiedSetID, in: copiedExerciseID, on: destinationDate, reps: 12, weight: 0, timeSeconds: 60)
+        try viewModel.editSet(copiedSetID, in: copiedExerciseID, on: destinationDate, reps: 12, weight: 0, timeSeconds: 60, type: .repsOnly)
         XCTAssertEqual(repository.workout(on: sourceDate), sourceBeforeCopy)
         XCTAssertEqual(repository.workout(on: destinationDate)?.exercises.first?.sets.first?.reps, 12)
     }

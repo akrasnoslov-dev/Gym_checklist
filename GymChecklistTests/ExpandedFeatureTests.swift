@@ -9,24 +9,75 @@ final class ExpandedFeatureTests: XCTestCase {
     }
 
     @MainActor
-    func testBodyWeightHistoryIsOwnerBoundAndSortedByMostRecentMeasurement() throws {
+    func testBodyWeightHistoryUsesLocalDateForCurrentWeightAndKeepsFutureEntriesOutOfBMI() throws {
         let owner = UserID(rawValue: "owner")
         let repository = InMemoryBodyWeightRepository(userID: owner)
-        let earlier = BodyWeightMeasurement(
+        let backfilledOlderDate = BodyWeightMeasurement(
             userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 1),
-            weightInKilograms: 81, measuredAt: .distantPast, updatedAt: .distantPast
+            weightInKilograms: 81, measuredAt: .distantFuture, updatedAt: .distantFuture
         )
-        let later = BodyWeightMeasurement(
+        let newerMeasurementDate = BodyWeightMeasurement(
             userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 2),
-            weightInKilograms: 80, measuredAt: .distantFuture, updatedAt: .distantFuture
+            weightInKilograms: 80, measuredAt: .distantPast, updatedAt: .distantPast
         )
-        try repository.save(earlier)
-        try repository.save(later)
-        XCTAssertEqual(repository.measurements.map(\.id), [later.id, earlier.id])
+        try repository.save(backfilledOlderDate)
+        try repository.save(newerMeasurementDate)
+        XCTAssertEqual(repository.measurements.map(\.id), [newerMeasurementDate.id, backfilledOlderDate.id])
+
+        let settingsRepository = InMemoryUserSettingsRepository(
+            userID: owner,
+            settings: UserSettings(userID: owner, profile: UserProfile(heightCentimeters: 180))
+        )
+        let viewModel = SettingsViewModel(
+            repository: settingsRepository,
+            bodyWeightRepository: repository,
+            currentDate: LocalDate(year: 2026, month: 9, day: 2)
+        )
+        XCTAssertEqual(viewModel.currentWeightInKilograms, 80)
+        XCTAssertEqual(viewModel.bmi ?? 0, 24.691_358, accuracy: 0.000_001)
+
+        let future = BodyWeightMeasurement(
+            userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 3),
+            weightInKilograms: 79, measuredAt: .distantPast, updatedAt: .distantPast
+        )
+        try repository.save(future)
+        XCTAssertEqual(repository.measurements.first?.id, future.id)
+        XCTAssertEqual(viewModel.currentWeightInKilograms, 80)
         XCTAssertThrowsError(try repository.save(BodyWeightMeasurement(
-            userID: UserID(rawValue: "other"), localDate: earlier.localDate,
+            userID: UserID(rawValue: "other"), localDate: backfilledOlderDate.localDate,
             weightInKilograms: 80, measuredAt: Date(), updatedAt: Date()
         )))
+    }
+
+    func testLegacyMixedSetRoundTripsWithoutDiscardingPlanOrActualValues() throws {
+        let document = FirestoreWorkoutSetDocument(
+            id: "00000000-0000-4000-8000-000000000001", order: 0,
+            reps: 8, weight: 60, timeSeconds: 45, type: nil,
+            isCompleted: true, actualReps: 7, actualWeight: 65, actualTimeSeconds: 50,
+            actualType: nil, completedAt: .distantPast
+        )
+
+        let legacy = try document.workoutSet()
+        XCTAssertEqual(legacy.type, .legacyMixed)
+        XCTAssertEqual(legacy.reps, 8)
+        XCTAssertEqual(legacy.weight, 60)
+        XCTAssertEqual(legacy.timeSeconds, 45)
+        XCTAssertEqual(legacy.actualType, .legacyMixed)
+        XCTAssertEqual(legacy.actualReps, 7)
+        XCTAssertEqual(legacy.actualWeight, 65)
+        XCTAssertEqual(legacy.actualTimeSeconds, 50)
+        XCTAssertEqual(legacy.displayedType, .legacyMixed)
+
+        let persisted = FirestoreWorkoutSetDocument(set: legacy)
+        XCTAssertEqual(persisted.type, .legacyMixed)
+        XCTAssertEqual(persisted.actualType, .legacyMixed)
+        let reread = try persisted.workoutSet()
+        XCTAssertEqual(reread.reps, 8)
+        XCTAssertEqual(reread.weight, 60)
+        XCTAssertEqual(reread.timeSeconds, 45)
+        XCTAssertEqual(reread.actualReps, 7)
+        XCTAssertEqual(reread.actualWeight, 65)
+        XCTAssertEqual(reread.actualTimeSeconds, 50)
     }
 
     func testSetTypesHideIrrelevantMetricsAndFormatterUsesOnlyTheChosenType() {
@@ -72,5 +123,7 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(dates.count, 42)
         XCTAssertTrue(dates.contains(selected))
         XCTAssertEqual(dates.first?.day, 31)
+        XCTAssertEqual(state.weekDates.first, LocalDate(year: 2026, month: 8, day: 31))
+        XCTAssertEqual(state.weekDates.map(\.day), [31, 1, 2, 3, 4, 5, 6])
     }
 }

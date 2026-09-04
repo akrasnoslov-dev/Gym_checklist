@@ -17,11 +17,16 @@ pwsh -File scripts/verify_google_signin_configuration_contract.ps1
 Authoritative iOS verification runs in `.github/workflows/ios-ci.yml` on macOS/Xcode.
 
 Current pre-payment strategy:
-- use exact filtered `unit`/`ui` diagnostics while investigating a known failure;
-- for a candidate fix with a known blocker test, use `verification_scope=candidate`: GitHub builds once, runs the exact blocker test, then automatically runs the full suite only if that test passes;
+- macOS/Xcode CI is a scarce authoritative gate, not the normal development loop;
+- do not dispatch it after each fix, commit, or individual finding;
+- first finish all implementation, migration, test maintenance, UX work, self-review, documentation, and available static/security/offline checks that can be completed without Xcode;
+- dispatch remote macOS verification only when the repository is locally exhausted and compiler/runtime feedback is the remaining blocker, or when the implementation is otherwise ready to become the next physical-acceptance candidate;
+- use focused `unit`/`ui` only for a genuinely isolated remaining blocker;
+- use `verification_scope=candidate` only for an implementation-complete candidate checkpoint; GitHub builds once, runs the exact blocker regression, then automatically runs the full suite if that passes;
+- after a failed run, batch all related fixes and review the same defect class across the repository before another dispatch;
 - do not insert a separate smoke run between focused and final verification;
 - a green `candidate` run is the required green full evidence for that exact SHA;
-- use standalone `smoke` or `full` only when the candidate path does not fit the situation.
+- use standalone `smoke` or `full` only when explicitly justified.
 
 The Program week/date-selector failure is not eligible for the old harness-flake waiver because the user reproduced it on a physical iPhone.
 
@@ -31,6 +36,6 @@ For one known failing test, use the optional `test_filter` workflow input instea
 gh workflow run ios-ci.yml --repo akrasnoslov-dev/Gym_checklist --ref dev -f verification_scope=ui -f "test_filter=GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs"
 ```
 
-Do not spend Codex runtime waiting for CI. After dispatch, record run ID + scope + SHA in `docs/progress.md`. Continue only independent work that cannot invalidate the tested candidate; otherwise end the task immediately. On the next task, check the recorded run once. If it is still running, end quickly instead of polling.
+Do not spend Codex runtime merely waiting for CI. After dispatch, record run ID + scope + SHA in `docs/progress.md`. Continue any useful work that cannot invalidate the tested candidate. End only when no such work remains. On the next task, inspect the recorded run once; if it is still running, scan for useful non-invalidating work before ending, and never enter a polling loop.
 
 Use only zero-cost services during current acceptance. Firebase Spark is allowed; Firebase Blaze/billing and paid Apple distribution are not. Never print or commit secrets, signing material, service-account credentials, auth tokens, or `GoogleService-Info.plist`.

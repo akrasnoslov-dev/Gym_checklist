@@ -120,23 +120,45 @@ Linux checks are routine feedback. macOS/Xcode CI is authoritative for iOS.
 
 The macOS workflow is intentionally **not triggered by normal pushes**. Normal pushes should create only the lightweight Linux run; macOS verification is started explicitly with `workflow_dispatch` at a justified checkpoint, or by a pull request. Do not re-add a push trigger to the macOS workflow merely to make it automatic: that creates misleading skipped workflow records and obscures the real verification history.
 
-### Normal macOS strategy
-During the current MVP-hardening phase, optimize for reaching a user-visible MVP rather than repeatedly proving the entire regression suite after every small fix.
+### macOS dispatch conservation rule
+macOS/Xcode CI is an expensive authoritative remote verification gate, **not** the normal development loop and not a substitute for code review.
 
-Use:
-- exact filtered `unit`/`ui` runs while diagnosing one blocker;
-- `smoke` only when a broad but non-final checkpoint is genuinely useful;
-- `candidate` for the final verification of a blocker fix. It builds once, runs the exact blocker test, and if that passes automatically runs the full suite on the same runner/build/SHA;
-- standalone `full` only when no focused blocker test exists or when explicitly justified.
+Default behavior:
+- Do **not** dispatch macOS CI after each code change, bug fix, commit, test update, or individual acceptance finding.
+- Continue autonomously across the whole active task while any useful implementation, migration, regression review, test maintenance, UX work, documentation, static validation, or repository inspection can still be done in the current environment.
+- The Windows workspace lacking Xcode is **not** by itself a reason to dispatch macOS CI early.
+- Prefer one larger, implementation-complete checkpoint over several small remote checkpoints.
 
-Do not use `build -> unit -> ui -> smoke -> full` as a routine scheduler. In particular, do not run a separate smoke between a green blocker-focused test and final full verification; the `candidate` scope replaces that chain.
+A checkpoint is **locally exhausted** only when all of the following are true:
+1. every currently approved requirement that can be implemented without macOS/Xcode is implemented;
+2. all touched code paths have been self-reviewed for compile/type risks, data migration, backward compatibility, product behavior, and obvious regressions;
+3. existing tests affected by intentional behavior/model changes have been reviewed and updated;
+4. useful deterministic regression tests have been added;
+5. all available Windows/Linux/static/security/offline checks pass;
+6. relevant specs/progress/docs match the implementation;
+7. no known issue remains that can reasonably be diagnosed or fixed by repository inspection;
+8. no independent runnable work remains elsewhere in the active task.
 
-When one exact test fails:
-- during diagnosis, dispatch `verification_scope=ui` with `test_filter=GymChecklistUITests/<TestClass>/<testMethod>`, or the equivalent unit filter;
-- after implementing the candidate fix, dispatch exactly one `verification_scope=candidate` run with the same exact `test_filter`;
-- if the focused stage fails, inspect that failure and change the code before dispatching another candidate run;
-- if the focused stage passes, GitHub proceeds to the full suite automatically without Codex intervention;
-- a green `candidate` run therefore satisfies the required final full gate for that exact SHA.
+Only after that checkpoint is locally exhausted may Codex dispatch macOS CI.
+
+Scope selection:
+- `build`: only when compilation itself is the remaining blocker and further useful repository work cannot resolve the uncertainty;
+- focused `unit`/`ui`: only when one specific runtime/test behavior is the remaining blocker after related fixes have already been batched;
+- `candidate`: only for an implementation-complete checkpoint intended to become the next physical-acceptance candidate; it may build once, run an exact blocker regression, then run the full suite on the same SHA;
+- standalone `full`: only when a candidate filter does not fit and final authoritative verification is otherwise justified.
+
+Do **not** use `candidate` merely to discover ordinary compiler errors, stale tests, incomplete migrations, or unfinished implementation that careful repository review could find first. Do not use `build -> unit -> ui -> smoke -> full` as a routine scheduler.
+
+After a failed macOS run:
+1. inspect the terminal result and concise diagnostics once;
+2. classify all reported failures before editing;
+3. fix related failures as one batch rather than one tiny fix at a time;
+4. review the repository for the same class of defect beyond the exact reported lines/tests;
+5. complete any other useful remaining work in the active task;
+6. rerun all available local/static checks;
+7. dispatch another macOS run only after the repository is locally exhausted again.
+
+A failed run does **not** automatically justify an immediate replacement run. Multiple intermediate authoritative runs are not a goal; minimize them by batching implementation and review between dispatches.
 
 ### Flaky UI-test budget
 Do not spend an entire Codex task chasing XCTest-only instability.
@@ -163,9 +185,9 @@ At the start of the next Codex task:
 - if terminal, process the result immediately.
 
 When CI completes:
-- failed focused/candidate stage -> inspect the concise failure summary/artifact, fix the narrow reported surface, then dispatch one new candidate run;
+- failed build/focused/candidate stage -> inspect the concise failure summary/artifact once, batch all related fixes and remaining runnable work, then return to the local-exhaustion checklist; do **not** immediately dispatch a replacement run after the first small fix;
 - green `candidate` -> both the focused blocker test and full suite passed on the exact SHA; do not run smoke/full again;
-- cancelled/infrastructure failure -> rerun only when justified.
+- cancelled/infrastructure failure -> rerun only when justified and only if the repository checkpoint still warrants remote verification.
 
 CI logs are intentionally compact. Prefer the failure summary emitted by the workflow; download the diagnostic artifact only when the summary is insufficient.
 
@@ -174,7 +196,7 @@ Before a final response:
 1. inspect Git/worktree, `docs/progress.md`, active backlog, and relevant CI;
 2. identify the exact next safe action;
 3. if it is executable now, execute it instead of stopping;
-4. if CI is running, follow the asynchronous CI rule: continue only non-invalidating useful work; otherwise record the run and end immediately instead of waiting/polling;
+4. if CI is running, follow the asynchronous CI rule: scan for non-invalidating useful work and continue it; only end when no such work remains, and never wait/poll merely to keep the task alive;
 5. if a task is externally blocked, apply the External handoff batching rule before stopping;
 6. in the current pre-payment acceptance phase, do not hand off a red final candidate as accepted; however, an in-progress CI run is now an explicit efficient stop condition once its run ID/SHA/scope are recorded.
 

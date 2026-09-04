@@ -9,7 +9,7 @@
 - Previous-scope evidence only: IPA run `33262381993` is green; it built source `ee579d0`. That workflow currently hard-codes this old source and must be updated only after the new final candidate SHA exists.
 - Current static checks: whitespace, Google Sign-In configuration, account deletion, Firestore owner rules, offline cache/reconnect, release workflow, and security hygiene all pass. Windows has no local Swift/Xcode toolchain.
 - `33905390516` is terminal red on `5f27622282cea2127637f294dcd82584bfbd4d40`. Production code compiled far enough to reach the test target, but `candidate-build` failed compiling `GymChecklistTests/ExpandedFeatureTests.swift`: the new legacy copy/repeat/add-set regression test called `@MainActor` repositories/view-model APIs from a synchronous nonisolated XCTest method. The focused test and full suite never ran. The test is now annotated `@MainActor`; every expanded-scope model/repository/view-model test was audited for the same boundary and the other production API call sites are already isolated.
-- `CI_PENDING 33907241126`: `candidate` scope for `GymChecklistTests/ExpandedFeatureTests/testLegacyMixedCodableCopyRepeatAndAddSetKeepRawValuesUntilAnExplicitTypeIsChosen` on exact source SHA `4de834602968e4d2658799e4047c3ae3565a9257`. It builds once, then runs the focused migration path and the full suite on the same SHA. Do not poll from this task.
+- `33907241126` is terminal red on `4de834602968e4d2658799e4047c3ae3565a9257`. `candidate-build` passed and the focused legacy migration test passed; `candidate-full` then failed in two remaining regressions: `SetDisplayFormatterTests/testCompactDisplayRules` (legacy inference/formatter expectation for reps=1 + 45 sec) and `GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs` (week-navigation expectation still reflects the old Sunday-first calendar while Program is now Monday-first).
 - No new physical-iPhone IPA should be produced until the expanded checkpoint is implementation-complete and a green authoritative candidate/full result exists on its exact SHA.
 
 ## CI operating rule
@@ -29,4 +29,7 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. At the next task start, read `33907241126` once. If green, update the physical-iPhone IPA workflow to the exact accepted SHA and prepare the next free device candidate; if red, inspect the concise failure summary before editing. Do not produce an IPA unless the candidate's focused test and authoritative full suite are green.
+1. Resume from live `dev` and inspect terminal run `33907241126` once.
+2. Resolve the two full-suite failures deliberately: decide the correct backward-compatible inference/display rule for legacy reps=1 + timed data without violating the no-data-loss migration rule, and update the stale Sunday-first UI test expectations to the approved Monday-first calendar behavior.
+3. Audit nearby formatter/inference and Program week-navigation tests for the same stale assumptions, batch all related fixes, rerun available static checks, and continue any remaining runnable ACC work.
+4. Only after the repository is locally exhausted again, dispatch one justified candidate run. Do not produce an IPA unless its focused and full stages are green.

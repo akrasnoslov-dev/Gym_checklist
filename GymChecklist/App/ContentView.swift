@@ -22,6 +22,7 @@ struct ContentView: View {
             } else if let user = authenticationViewModel.currentUser {
                 AuthenticatedContentView(
                     userID: user.id,
+                    accountEmail: user.email,
                     onLogout: authenticationViewModel.signOut,
                     onDeleteAccount: authenticationViewModel.deleteAccount,
                     requiresAppleTokenRevocationForAccountDeletion: authenticationViewModel.requiresAppleTokenRevocationForAccountDeletion,
@@ -238,6 +239,7 @@ private struct AuthenticatedContentView: View {
     @State private var selectedTab = AppTab.today
     @StateObject private var workoutViewModel: WorkoutViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
+    private let accountEmail: String?
     private let onLogout: () -> Void
     private let onDeleteAccount: () async -> Bool
     private let requiresAppleTokenRevocationForAccountDeletion: Bool
@@ -249,6 +251,7 @@ private struct AuthenticatedContentView: View {
 
     init(
         userID: UserID,
+        accountEmail: String?,
         onLogout: @escaping () -> Void,
         onDeleteAccount: @escaping () async -> Bool,
         requiresAppleTokenRevocationForAccountDeletion: Bool,
@@ -259,6 +262,7 @@ private struct AuthenticatedContentView: View {
         authenticationError: String?
     ) {
         self.onLogout = onLogout
+        self.accountEmail = accountEmail
         self.onDeleteAccount = onDeleteAccount
         self.requiresAppleTokenRevocationForAccountDeletion = requiresAppleTokenRevocationForAccountDeletion
         self.requiresGoogleReauthenticationForAccountDeletion = requiresGoogleReauthenticationForAccountDeletion
@@ -273,6 +277,7 @@ private struct AuthenticatedContentView: View {
         let repository: WorkoutRepository
         let customExerciseRepository: CustomExerciseRepository?
         let settingsRepository: UserSettingsRepository?
+        let bodyWeightRepository: BodyWeightRepository?
         if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
             let inMemoryRepository = InMemoryWorkoutRepository(userID: userID)
             if !DemoMode.isEnabled, userID.rawValue == "ui-test-user" {
@@ -283,10 +288,12 @@ private struct AuthenticatedContentView: View {
                 ? InMemoryCustomExerciseRepository(userID: userID)
                 : nil
             settingsRepository = InMemoryUserSettingsRepository(userID: userID)
+            bodyWeightRepository = InMemoryBodyWeightRepository(userID: userID)
         } else {
             repository = FirestoreWorkoutRepository(currentUserID: { userID })
             customExerciseRepository = FirestoreCustomExerciseRepository(currentUserID: { userID })
             settingsRepository = FirestoreUserSettingsRepository(currentUserID: { userID })
+            bodyWeightRepository = FirestoreBodyWeightRepository(currentUserID: { userID })
         }
 #if DEBUG
         if let inMemoryRepository = repository as? InMemoryWorkoutRepository {
@@ -308,10 +315,13 @@ private struct AuthenticatedContentView: View {
             analytics: AnalyticsTrackerFactory.makeDefault(),
             currentDateProvider: currentDateProvider,
         ))
-        guard let settingsRepository else {
-            preconditionFailure("Authenticated content requires a user settings repository")
+        guard let settingsRepository, let bodyWeightRepository else {
+            preconditionFailure("Authenticated content requires user settings and body-weight repositories")
         }
-        _settingsViewModel = StateObject(wrappedValue: SettingsViewModel(repository: settingsRepository))
+        _settingsViewModel = StateObject(wrappedValue: SettingsViewModel(
+            repository: settingsRepository,
+            bodyWeightRepository: bodyWeightRepository
+        ))
     }
 
     var body: some View {
@@ -339,6 +349,7 @@ private struct AuthenticatedContentView: View {
 
             SettingsView(
                 viewModel: settingsViewModel,
+                accountEmail: accountEmail,
                 onLogout: onLogout,
                 onDeleteAccount: onDeleteAccount,
                 requiresAppleTokenRevocationForAccountDeletion: requiresAppleTokenRevocationForAccountDeletion,
@@ -361,6 +372,7 @@ private struct AuthenticatedContentView: View {
             workoutViewModel.refreshCurrentDate()
         }
         .preferredColorScheme(settingsViewModel.preferredColorScheme)
+        .tint(GymTheme.accent)
         .accessibilityIdentifier("authenticatedContent")
         .accessibilityValue(settingsViewModel.settings.appearance.rawValue)
     }

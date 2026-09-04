@@ -8,6 +8,8 @@ struct ProgramView: View {
     // observed-object mutation. This is a rendering mirror of the view-model
     // selection; mutations in either direction are synchronized below.
     @State private var displayedSelectedDate: LocalDate
+    @State private var displayedMonth: LocalDate
+    @State private var calendarMode: CalendarMode = .week
     @State private var exercisePickerRoute: ExercisePickerRoute?
     @State private var setEditorRoute: SetEditorRoute?
     @State private var historicalActualEditorRoute: HistoricalActualEditorRoute?
@@ -21,6 +23,7 @@ struct ProgramView: View {
         self.viewModel = viewModel
         self.weightUnit = weightUnit
         _displayedSelectedDate = State(initialValue: viewModel.selectedDate)
+        _displayedMonth = State(initialValue: viewModel.selectedDate)
     }
 
     var body: some View {
@@ -28,7 +31,13 @@ struct ProgramView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     VStack(spacing: 8) {
-                        weekHeader
+                        Picker("Program view", selection: $calendarMode) {
+                            ForEach(CalendarMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+                        .accessibilityIdentifier("programViewMode")
+                        calendarHeader
                         dateSelector
                     }
                     .frame(maxWidth: .infinity)
@@ -50,9 +59,11 @@ struct ProgramView: View {
             .accessibilityIdentifier("programScreen")
             .onAppear {
                 displayedSelectedDate = viewModel.selectedDate
+                displayedMonth = viewModel.selectedDate
             }
             .onChange(of: displayedSelectedDate) { _, selectedDate in
                 viewModel.select(selectedDate)
+                displayedMonth = selectedDate
             }
             .onChange(of: viewModel.selectedDate) { _, selectedDate in
                 if displayedSelectedDate != selectedDate {
@@ -61,28 +72,28 @@ struct ProgramView: View {
             }
             .toolbar {
                 if !isHistorical, let workout = calendarState.selectedWorkout {
-                    Button {
-                        copyWorkoutRoute = CopyWorkoutRoute(
-                            sourceDate: workout.localDate,
-                            exerciseCount: workout.exercises.count,
-                            setCount: workout.exercises.flatMap(\.sets).count
-                        )
+                    Menu {
+                        Button {
+                            copyWorkoutRoute = CopyWorkoutRoute(
+                                sourceDate: workout.localDate,
+                                exerciseCount: workout.exercises.count,
+                                setCount: workout.exercises.flatMap(\.sets).count
+                            )
+                        } label: { Label("Copy workout", systemImage: "doc.on.doc") }
+                        .accessibilityIdentifier("programCopyWorkout")
+                        Button {
+                            repeatWorkoutRoute = RepeatWorkoutRoute(sourceDate: workout.localDate)
+                        } label: { Label("Repeat workout", systemImage: "arrow.triangle.2.circlepath") }
+                        .accessibilityIdentifier("programRepeatWorkout")
+                        Divider()
+                        Button("Delete workout", systemImage: "trash", role: .destructive) {
+                            pendingWorkoutDeletion = calendarState.selectedDate
+                        }
+                        .accessibilityIdentifier("programDeleteWorkout")
                     } label: {
-                        Label("Copy workout", systemImage: "doc.on.doc")
+                        Label("Workout actions", systemImage: "ellipsis.circle")
                     }
-                    .accessibilityIdentifier("programCopyWorkout")
-                    Button {
-                        repeatWorkoutRoute = RepeatWorkoutRoute(sourceDate: workout.localDate)
-                    } label: {
-                        Label("Repeat weekly", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                    .accessibilityIdentifier("programRepeatWorkout")
-                }
-                if !isHistorical && calendarState.selectedWorkout != nil {
-                    Button("Delete workout", role: .destructive) {
-                        pendingWorkoutDeletion = calendarState.selectedDate
-                    }
-                    .accessibilityIdentifier("programDeleteWorkout")
+                    .accessibilityIdentifier("programWorkoutActions")
                 }
             }
             .sheet(item: $exercisePickerRoute) { route in
@@ -99,7 +110,7 @@ struct ProgramView: View {
                     set: route.set,
                     exerciseName: viewModel.exerciseName(for: route.exercise),
                     weightUnit: weightUnit,
-                    onSave: { reps, weight, timeSeconds in
+                    onSave: { reps, weight, timeSeconds, type in
                         guard let set = route.set else { return }
                         try viewModel.editSet(
                             set.id,
@@ -107,7 +118,8 @@ struct ProgramView: View {
                             on: route.workoutDate,
                             reps: reps,
                             weight: weight,
-                            timeSeconds: timeSeconds
+                            timeSeconds: timeSeconds,
+                            type: type
                         )
                     },
                     onDelete: {
@@ -155,8 +167,8 @@ struct ProgramView: View {
                     setCount: calendarState.selectedWorkout?.exercises.flatMap(\.sets).count ?? 0,
                     calendar: calendarState.calendar,
                     isDestinationOccupied: { viewModel.hasWorkout(on: $0) },
-                    onRepeat: { endDate in
-                        try viewModel.repeatWorkout(from: route.sourceDate, through: endDate)
+                    onRepeat: { endDate, cadence in
+                        try viewModel.repeatWorkout(from: route.sourceDate, through: endDate, cadence: cadence)
                     }
                 )
             }
@@ -195,6 +207,12 @@ struct ProgramView: View {
         }
     }
 
+    private var calendarHeader: some View {
+        Group {
+            if calendarMode == .week { weekHeader } else { monthHeader }
+        }
+    }
+
     private var weekHeader: some View {
         HStack {
             Button {
@@ -224,12 +242,65 @@ struct ProgramView: View {
     }
 
     private var dateSelector: some View {
-        HStack(spacing: 2) {
-            ForEach(calendarState.weekDates, id: \.self) { date in
-                dateButton(date)
+        Group {
+            if calendarMode == .week {
+                HStack(spacing: 2) {
+                    ForEach(calendarState.weekDates, id: \.self) { date in
+                        dateButton(date)
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
+            } else {
+                monthGrid
             }
         }
-        .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
+    }
+
+    private var monthHeader: some View {
+        HStack {
+            Button { moveMonth(by: -1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+                .accessibilityLabel("Previous month")
+                .accessibilityIdentifier("programPreviousMonth")
+            Spacer()
+            Text(monthRangeLabel).font(.headline).accessibilityIdentifier("programMonthHeader")
+            Spacer()
+            Button { moveMonth(by: 1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
+                .accessibilityLabel("Next month")
+                .accessibilityIdentifier("programNextMonth")
+        }
+    }
+
+    private var monthGrid: some View {
+        let dates = calendarState.monthDates(containing: displayedMonth)
+        return VStack(spacing: 6) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 36)), count: 7), spacing: 6) {
+                ForEach(dates, id: \.self) { date in monthDateButton(date) }
+            }
+        }
+        .padding(.horizontal, 4)
+        .accessibilityIdentifier("programMonthGrid")
+    }
+
+    private func monthDateButton(_ date: LocalDate) -> some View {
+        let state = calendarState.dayState(for: date)
+        let isSelected = date == displayedSelectedDate
+        let isCurrentMonth = date.month == displayedMonth.month && date.year == displayedMonth.year
+        return Button { displayedSelectedDate = date } label: {
+            VStack(spacing: 3) {
+                Text("\(date.day)").font(.subheadline.weight(isSelected ? .bold : .regular))
+                Image(systemName: state.systemImage ?? "circle")
+                    .font(.caption2)
+                    .foregroundStyle(state.systemImage == nil ? Color.secondary.opacity(0.45) : GymTheme.accent)
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .foregroundStyle(isCurrentMonth ? Color.primary : Color.secondary)
+            .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(fullDateLabel(for: date))
+        .accessibilityValue("\(state.label)\(isSelected ? ", selected" : "")")
+        .accessibilityIdentifier("programMonthDate-\(date.description)")
     }
 
     private func dateButton(_ date: LocalDate) -> some View {
@@ -256,10 +327,10 @@ struct ProgramView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 58)
             .padding(.vertical, 4)
-            .background(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
+            .background(isSelected ? GymTheme.accentSoft : Color.clear)
             .overlay {
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? GymTheme.accent : Color.clear, lineWidth: 2)
             }
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .contentShape(Rectangle())
@@ -276,6 +347,7 @@ struct ProgramView: View {
         Section {
             Text(fullDateLabel(for: calendarState.selectedDate))
                 .font(.title2.weight(.semibold))
+                .padding(.horizontal)
                 .accessibilityIdentifier("programSelectedDate")
         }
 
@@ -319,14 +391,12 @@ struct ProgramView: View {
         case let .workout(status):
             Section {
                 Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
-                    .foregroundStyle(.secondary)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(status == .completed ? GymTheme.accent : Color.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(GymTheme.surface, in: Capsule())
                     .accessibilityIdentifier("programWorkoutState")
-                if isHistorical {
-                    Text("History")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("programHistoryWorkout")
-                }
             }
 
             Section("Exercises") {
@@ -383,6 +453,7 @@ struct ProgramView: View {
             }
         }
         .accessibilityElement(children: .contain)
+        .gymCard()
         .accessibilityIdentifier("programHistoryExercise-\(exercise.id.rawValue.uuidString)")
     }
 
@@ -396,7 +467,8 @@ struct ProgramView: View {
         let value = SetDisplayFormatter(unit: weightUnit).string(
             reps: set.displayedReps,
             weightInKilograms: set.displayedWeight,
-            timeSeconds: set.displayedTimeSeconds
+            timeSeconds: set.displayedTimeSeconds,
+            type: set.displayedType
         )
         let state = exercise.isSkipped
             ? (set.isCompleted ? "Skipped · Completed" : "Skipped")
@@ -404,7 +476,7 @@ struct ProgramView: View {
         let valueKind = set.isCompleted ? "Actual" : "Planned"
         let row = HStack(spacing: 8) {
             Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(set.isCompleted ? Color.accentColor : Color.secondary)
+                .foregroundStyle(set.isCompleted ? GymTheme.accent : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Set \(setIndex + 1)")
                 Text("\(state) · \(valueKind): \(value)")
@@ -480,7 +552,8 @@ struct ProgramView: View {
                             Text(SetDisplayFormatter(unit: weightUnit).string(
                                 reps: set.displayedReps,
                                 weightInKilograms: set.displayedWeight,
-                                timeSeconds: set.displayedTimeSeconds
+                                timeSeconds: set.displayedTimeSeconds,
+                                type: set.displayedType
                             ))
                         }
                         .frame(minHeight: 44)
@@ -491,7 +564,8 @@ struct ProgramView: View {
                     .accessibilityValue(SetDisplayFormatter(unit: weightUnit).string(
                         reps: set.displayedReps,
                         weightInKilograms: set.displayedWeight,
-                        timeSeconds: set.displayedTimeSeconds
+                        timeSeconds: set.displayedTimeSeconds,
+                        type: set.displayedType
                     ))
                     .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
 
@@ -521,6 +595,7 @@ struct ProgramView: View {
             .accessibilityIdentifier("programAddSet-\(exercise.id.rawValue.uuidString)")
         }
         .accessibilityElement(children: .contain)
+        .gymCard()
         .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
         .accessibilityHint("Exercise \(index + 1) of \(orderedExercises.count)")
     }
@@ -528,6 +603,11 @@ struct ProgramView: View {
     private var weekRangeLabel: String {
         guard let first = calendarState.weekDates.first, let last = calendarState.weekDates.last else { return "Week" }
         return "\(shortDateLabel(for: first)) - \(shortDateLabel(for: last))"
+    }
+
+    private var monthRangeLabel: String {
+        guard let date = displayedMonth.date(in: calendarState.calendar) else { return "Month" }
+        return date.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "en")))
     }
 
     private func shortWeekday(for date: LocalDate) -> String {
@@ -565,6 +645,11 @@ struct ProgramView: View {
     private func moveWeek(by offset: Int) {
         guard let date = displayedSelectedDate.adding(weeks: offset, calendar: viewModel.calendar) else { return }
         displayedSelectedDate = date
+    }
+
+    private func moveMonth(by offset: Int) {
+        guard let date = displayedMonth.adding(months: offset, calendar: viewModel.calendar) else { return }
+        displayedMonth = date
     }
 
     private func moveExercise(_ id: WorkoutExerciseID, by offset: Int) {
@@ -644,6 +729,17 @@ struct ProgramView: View {
             get: { pendingWorkoutDeletion != nil },
             set: { if !$0 { pendingWorkoutDeletion = nil } }
         )
+    }
+}
+
+private enum CalendarMode: CaseIterable, Hashable {
+    case week, month
+
+    var title: String {
+        switch self {
+        case .week: "Week"
+        case .month: "Month"
+        }
     }
 }
 
@@ -807,10 +903,11 @@ private struct RepeatWorkoutSheet: View {
     let setCount: Int
     let calendar: Calendar
     let isDestinationOccupied: (LocalDate) -> Bool
-    let onRepeat: (LocalDate) throws -> WorkoutRepeatResult
+    let onRepeat: (LocalDate, WorkoutRepeatCadence) throws -> WorkoutRepeatResult
 
     @Environment(\.dismiss) private var dismiss
     @State private var duration: Duration = .fourWeeks
+    @State private var cadenceWeeks = 1
     @State private var untilDate: Date
     @State private var showsRepeatError = false
 
@@ -820,7 +917,7 @@ private struct RepeatWorkoutSheet: View {
         setCount: Int,
         calendar: Calendar,
         isDestinationOccupied: @escaping (LocalDate) -> Bool,
-        onRepeat: @escaping (LocalDate) throws -> WorkoutRepeatResult
+        onRepeat: @escaping (LocalDate, WorkoutRepeatCadence) throws -> WorkoutRepeatResult
     ) {
         self.sourceDate = sourceDate
         self.exerciseCount = exerciseCount
@@ -834,14 +931,19 @@ private struct RepeatWorkoutSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Repeat weekly") {
+                Section("Repeat workout") {
                     Text(fullDateLabel(for: sourceDate))
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("repeatWorkoutSourceDate")
                     Text("\(exerciseCount) \(exerciseCount == 1 ? "exercise" : "exercises") · \(setCount) \(setCount == 1 ? "set" : "sets")")
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("repeatWorkoutSourceSummary")
-                    LabeledContent("Cadence", value: "Weekly")
+                    Picker("Cadence", selection: $cadenceWeeks) {
+                        ForEach(1...4, id: \.self) { weeks in
+                            Text(weeks == 1 ? "Every week" : "Every \(weeks) weeks").tag(weeks)
+                        }
+                    }
+                    .accessibilityIdentifier("repeatWorkoutCadence")
                     Picker("Duration", selection: $duration) {
                         ForEach(Duration.allCases) { duration in
                             Text(duration.rawValue).tag(duration)
@@ -857,7 +959,7 @@ private struct RepeatWorkoutSheet: View {
                     }
                 }
 
-                Section("Schedule") {
+                Section {
                     Text(scheduleSummary)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("repeatWorkoutSummary")
@@ -876,9 +978,9 @@ private struct RepeatWorkoutSheet: View {
                         .accessibilityIdentifier("repeatWorkoutCancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create \(availableDates.count) \(availableDates.count == 1 ? "workout" : "workouts")") {
+                    Button("Create") {
                         do {
-                            _ = try onRepeat(endDate)
+                            _ = try onRepeat(endDate, WorkoutRepeatCadence(intervalWeeks: cadenceWeeks))
                             dismiss()
                         } catch {
                             showsRepeatError = true
@@ -907,7 +1009,7 @@ private struct RepeatWorkoutSheet: View {
         guard endDate > sourceDate else { return [] }
         var dates: [LocalDate] = []
         var date = sourceDate
-        while let nextDate = date.adding(weeks: 1, calendar: calendar), nextDate <= endDate {
+        while let nextDate = date.adding(weeks: cadenceWeeks, calendar: calendar), nextDate <= endDate {
             dates.append(nextDate)
             date = nextDate
         }
@@ -924,7 +1026,7 @@ private struct RepeatWorkoutSheet: View {
 
     private var scheduleSummary: String {
         guard !candidateDates.isEmpty else {
-            return "Choose an end date at least one week after the source workout."
+            return "Choose an end date that includes at least one repetition."
         }
         let occupiedCount = occupiedDates.count
         guard !availableDates.isEmpty else {
@@ -946,20 +1048,21 @@ private struct ProgramSetEditorSheet: View {
     let set: WorkoutSet?
     let exerciseName: String
     let weightUnit: WeightUnit
-    let onSave: (Int, Double, Int) throws -> Void
+    let onSave: (Int, Double, Int, WorkoutSetType) throws -> Void
     let onDelete: () throws -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var reps: Int
     @State private var weight: Double
     @State private var timeSeconds: Int
+    @State private var type: WorkoutSetType
     @State private var showsValidationError = false
 
     init(
         set: WorkoutSet?,
         exerciseName: String,
         weightUnit: WeightUnit,
-        onSave: @escaping (Int, Double, Int) throws -> Void,
+        onSave: @escaping (Int, Double, Int, WorkoutSetType) throws -> Void,
         onDelete: @escaping () throws -> Void
     ) {
         self.set = set
@@ -970,6 +1073,7 @@ private struct ProgramSetEditorSheet: View {
         _reps = State(initialValue: set?.reps ?? 0)
         _weight = State(initialValue: weightUnit.displayWeight(fromCanonicalKilograms: set?.weight ?? 0))
         _timeSeconds = State(initialValue: set?.timeSeconds ?? 0)
+        _type = State(initialValue: set?.type ?? .repsOnly)
     }
 
     var body: some View {
@@ -980,15 +1084,26 @@ private struct ProgramSetEditorSheet: View {
                         Text("Actual results are unchanged.")
                             .foregroundStyle(.secondary)
                     }
-                    TextField("Reps", value: $reps, format: .number)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("programSetEditorReps")
-                    TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
-                        .keyboardType(.decimalPad)
-                        .accessibilityIdentifier("programSetEditorWeight")
-                    TextField("Time (seconds)", value: $timeSeconds, format: .number)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("programSetEditorTime")
+                    Picker("Set type", selection: $type) {
+                        ForEach(WorkoutSetType.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("programSetEditorType")
+                    if type != .timed {
+                        TextField("Reps", value: $reps, format: .number)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("programSetEditorReps")
+                    }
+                    if type == .weighted {
+                        TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
+                            .keyboardType(.decimalPad)
+                            .accessibilityIdentifier("programSetEditorWeight")
+                    }
+                    if type == .timed {
+                        TextField("Time (seconds)", value: $timeSeconds, format: .number)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("programSetEditorTime")
+                    }
                 }
 
                 if set != nil {
@@ -1013,7 +1128,7 @@ private struct ProgramSetEditorSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         do {
-                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
+                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds, type)
                             dismiss()
                         } catch {
                             showsValidationError = true
@@ -1060,15 +1175,24 @@ private struct HistoricalActualEditorSheet: View {
         NavigationStack {
             Form {
                 Section("Actual results") {
-                    TextField("Reps", value: $reps, format: .number)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("programHistoryActualEditorReps")
-                    TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
-                        .keyboardType(.decimalPad)
-                        .accessibilityIdentifier("programHistoryActualEditorWeight")
-                    TextField("Time (seconds)", value: $timeSeconds, format: .number)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("programHistoryActualEditorTime")
+                    Text(route.workoutSet.displayedType.title)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    if route.workoutSet.displayedType != .timed {
+                        TextField("Reps", value: $reps, format: .number)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("programHistoryActualEditorReps")
+                    }
+                    if route.workoutSet.displayedType == .weighted {
+                        TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
+                            .keyboardType(.decimalPad)
+                            .accessibilityIdentifier("programHistoryActualEditorWeight")
+                    }
+                    if route.workoutSet.displayedType == .timed {
+                        TextField("Time (seconds)", value: $timeSeconds, format: .number)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("programHistoryActualEditorTime")
+                    }
                 }
             }
             .navigationTitle("Edit actual")

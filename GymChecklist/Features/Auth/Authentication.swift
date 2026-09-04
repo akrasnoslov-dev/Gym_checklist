@@ -11,6 +11,13 @@ import UIKit
 
 struct AuthenticatedUser: Equatable {
     let id: UserID
+    /// Display-only account context. It is never persisted with workout data.
+    let email: String?
+
+    init(id: UserID, email: String? = nil) {
+        self.id = id
+        self.email = email
+    }
 }
 
 enum RegistrationError: Error, Equatable {
@@ -327,7 +334,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
     }
 
     var currentUser: AuthenticatedUser? {
-        auth.currentUser.map { AuthenticatedUser(id: UserID(rawValue: $0.uid)) }
+        auth.currentUser.map { AuthenticatedUser(id: UserID(rawValue: $0.uid), email: $0.email) }
     }
 
     var requiresAppleTokenRevocationForAccountDeletion: Bool {
@@ -340,7 +347,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
 
     func observeAuthentication(_ observer: @escaping @MainActor (AuthenticatedUser?) -> Void) -> AuthenticationObservation {
         let handle = auth.addStateDidChangeListener { _, user in
-            let authenticatedUser = user.map { AuthenticatedUser(id: UserID(rawValue: $0.uid)) }
+            let authenticatedUser = user.map { AuthenticatedUser(id: UserID(rawValue: $0.uid), email: $0.email) }
             Task { @MainActor in observer(authenticatedUser) }
         }
         return FirebaseAuthenticationObservation { [weak auth] in
@@ -354,7 +361,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
                 if let error {
                     continuation.resume(throwing: Self.map(error))
                 } else if let user = result?.user {
-                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid)))
+                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid), email: user.email))
                 } else {
                     continuation.resume(throwing: RegistrationError.unavailable)
                 }
@@ -368,7 +375,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
                 if let error {
                     continuation.resume(throwing: Self.map(error))
                 } else if let user = result?.user {
-                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid)))
+                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid), email: user.email))
                 } else {
                     continuation.resume(throwing: RegistrationError.unavailable)
                 }
@@ -387,7 +394,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
                 if let error {
                     continuation.resume(throwing: Self.map(error))
                 } else if let user = result?.user {
-                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid)))
+                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid), email: user.email))
                 } else {
                     continuation.resume(throwing: RegistrationError.unavailable)
                 }
@@ -402,7 +409,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
                 if let error {
                     continuation.resume(throwing: Self.map(error))
                 } else if let user = result?.user {
-                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid)))
+                    continuation.resume(returning: AuthenticatedUser(id: UserID(rawValue: user.uid), email: user.email))
                 } else {
                     continuation.resume(throwing: RegistrationError.unavailable)
                 }

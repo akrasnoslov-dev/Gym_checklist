@@ -15,6 +15,10 @@ enum FirestoreDocumentPath {
         "users/\(validatedUserID(userID))/settings/default"
     }
 
+    static func bodyWeightMeasurement(userID: UserID, measurementID: BodyWeightMeasurementID) -> String {
+        "users/\(validatedUserID(userID))/bodyWeightMeasurements/\(measurementID.rawValue.uuidString)"
+    }
+
     private static func validatedUserID(_ userID: UserID) -> String {
         precondition(!userID.rawValue.isEmpty && !userID.rawValue.contains("/"), "Firestore user ID must be a path component")
         return userID.rawValue
@@ -27,6 +31,7 @@ enum FirestoreMappingError: Error, Equatable {
     case invalidSetValues
     case invalidCompletionState
     case systemExerciseCannotBeMapped
+    case invalidBodyWeightMeasurement
 }
 
 struct FirestoreWorkoutSnapshotEntry {
@@ -202,10 +207,12 @@ struct FirestoreWorkoutSetDocument: Codable, Equatable {
     let reps: Int
     let weight: Double
     let timeSeconds: Int
+    let type: WorkoutSetType?
     let isCompleted: Bool
     let actualReps: Int?
     let actualWeight: Double?
     let actualTimeSeconds: Int?
+    let actualType: WorkoutSetType?
     let completedAt: Date?
 
     init(set: WorkoutSet) {
@@ -214,10 +221,12 @@ struct FirestoreWorkoutSetDocument: Codable, Equatable {
         reps = set.reps
         weight = set.weight
         timeSeconds = set.timeSeconds
+        type = set.type
         isCompleted = set.isCompleted
         actualReps = set.actualReps
         actualWeight = set.actualWeight
         actualTimeSeconds = set.actualTimeSeconds
+        actualType = set.actualType
         completedAt = set.completedAt
     }
 
@@ -227,10 +236,12 @@ struct FirestoreWorkoutSetDocument: Codable, Equatable {
         reps: Int,
         weight: Double,
         timeSeconds: Int,
+        type: WorkoutSetType? = nil,
         isCompleted: Bool,
         actualReps: Int?,
         actualWeight: Double?,
         actualTimeSeconds: Int?,
+        actualType: WorkoutSetType? = nil,
         completedAt: Date?
     ) {
         self.id = id
@@ -238,10 +249,12 @@ struct FirestoreWorkoutSetDocument: Codable, Equatable {
         self.reps = reps
         self.weight = weight
         self.timeSeconds = timeSeconds
+        self.type = type
         self.isCompleted = isCompleted
         self.actualReps = actualReps
         self.actualWeight = actualWeight
         self.actualTimeSeconds = actualTimeSeconds
+        self.actualType = actualType
         self.completedAt = completedAt
     }
 
@@ -257,9 +270,9 @@ struct FirestoreWorkoutSetDocument: Codable, Equatable {
         do {
             return try WorkoutSet(
                 id: WorkoutSetID(rawValue: id), order: order, reps: reps,
-                weight: weight, timeSeconds: timeSeconds, isCompleted: isCompleted,
+                weight: weight, timeSeconds: timeSeconds, type: type, isCompleted: isCompleted,
                 actualReps: actualReps, actualWeight: actualWeight,
-                actualTimeSeconds: actualTimeSeconds, completedAt: completedAt
+                actualTimeSeconds: actualTimeSeconds, actualType: actualType, completedAt: completedAt
             )
         } catch {
             throw FirestoreMappingError.invalidCompletionState
@@ -292,24 +305,73 @@ struct FirestoreCustomExerciseDocument: Codable, Equatable {
 struct FirestoreUserSettingsDocument: Codable, Equatable {
     let appearance: Appearance
     let weightUnit: WeightUnit
+    let sex: Sex?
+    let dateOfBirth: String?
+    let heightCentimeters: Double?
 
     private enum CodingKeys: String, CodingKey {
         case appearance
         case weightUnit
+        case sex
+        case dateOfBirth
+        case heightCentimeters
     }
 
     init(settings: UserSettings) {
         appearance = settings.appearance
         weightUnit = settings.weightUnit
+        sex = settings.profile.sex
+        dateOfBirth = settings.profile.dateOfBirth?.description
+        heightCentimeters = settings.profile.heightCentimeters
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         appearance = try container.decodeIfPresent(Appearance.self, forKey: .appearance) ?? .system
         weightUnit = try container.decodeIfPresent(WeightUnit.self, forKey: .weightUnit) ?? .kilograms
+        sex = try container.decodeIfPresent(Sex.self, forKey: .sex)
+        dateOfBirth = try container.decodeIfPresent(String.self, forKey: .dateOfBirth)
+        heightCentimeters = try container.decodeIfPresent(Double.self, forKey: .heightCentimeters)
     }
 
     func settings(userID: UserID) -> UserSettings {
-        UserSettings(userID: userID, appearance: appearance, weightUnit: weightUnit)
+        UserSettings(
+            userID: userID,
+            appearance: appearance,
+            weightUnit: weightUnit,
+            profile: UserProfile(
+                sex: sex,
+                dateOfBirth: dateOfBirth.flatMap(FirestoreWorkoutDocument.localDate),
+                heightCentimeters: heightCentimeters
+            )
+        )
+    }
+}
+
+struct FirestoreBodyWeightMeasurementDocument: Codable, Equatable {
+    let id: String
+    let localDate: String
+    let weightInKilograms: Double
+    let measuredAt: Date
+    let updatedAt: Date
+
+    init(measurement: BodyWeightMeasurement) {
+        id = measurement.id.rawValue.uuidString
+        localDate = measurement.localDate.description
+        weightInKilograms = measurement.weightInKilograms
+        measuredAt = measurement.measuredAt
+        updatedAt = measurement.updatedAt
+    }
+
+    func measurement(userID: UserID) throws -> BodyWeightMeasurement {
+        guard let identifier = UUID(uuidString: id),
+              let date = FirestoreWorkoutDocument.localDate(localDate),
+              weightInKilograms.isFinite, weightInKilograms > 0
+        else { throw FirestoreMappingError.invalidBodyWeightMeasurement }
+        return BodyWeightMeasurement(
+            id: BodyWeightMeasurementID(rawValue: identifier), userID: userID,
+            localDate: date, weightInKilograms: weightInKilograms,
+            measuredAt: measuredAt, updatedAt: updatedAt
+        )
     }
 }

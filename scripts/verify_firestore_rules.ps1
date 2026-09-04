@@ -11,6 +11,7 @@ $requiredFragments = @(
     'match /users/{userId}/workouts/{workoutDate}',
     'match /users/{userId}/customExercises/{exerciseId}',
     'match /users/{userId}/settings/default',
+    'match /users/{userId}/bodyWeightMeasurements/{measurementId}',
     'allow get, list, create, update, delete: if ownsUserData(userId);',
     'allow get, create, update, delete: if ownsUserData(userId);'
 )

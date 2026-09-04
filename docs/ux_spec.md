@@ -111,6 +111,9 @@ Program is allowed to be denser than Today because it is an editing/planning sur
 Header with previous/next week controls and a 7-day selector.
 Each date may visually communicate empty/planned/partial/completed/incomplete state.
 
+### Month navigation
+Program also offers a Month mode with previous/next month controls and a compact local-calendar grid. Week and Month share one selected date and the same workout-detail surface. Every date communicates state with an accessible icon/label, not color alone.
+
 ### Workout editor
 For selected date:
 - exercise sections,
@@ -119,7 +122,7 @@ For selected date:
 - add exercise,
 - edit/remove/reorder,
 - copy workout,
-- repeat weekly,
+- repeat every 1–4 weeks,
 - delete workout.
 
 Do not surface history analytics here; past dates simply show actual completion/results.
@@ -146,8 +149,7 @@ Do not copy completion state.
 
 ## 11. Repeat workout
 Compact sheet:
-- `Repeat weekly`
-- cadence fixed to weekly for MVP,
+- configurable cadence of every 1–4 weeks,
 - end choice: 4 weeks / 8 weeks / Until date.
 
 Generated dates become independent workouts.
@@ -167,12 +169,11 @@ Keep minimal:
 After successful authentication, go directly to Today. No onboarding carousel.
 
 ## 14. Settings
-Simple iOS settings-list pattern:
-- Appearance
-- Weight unit
-- Account
-- About/version
-- Log out
+Profile-first iOS settings pattern:
+- profile (optional sex, date of birth, height and neutral BMI presentation);
+- compact dated body-weight history with edit/delete;
+- Appearance and Weight unit;
+- Account and destructive actions kept separate.
 
 ## 15. Accessibility
 - Minimum practical touch targets.

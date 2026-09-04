@@ -17,5 +17,9 @@ service cloud.firestore {
     match /users/{userId}/settings/default {
       allow get, create, update, delete: if ownsUserData(userId);
     }
+
+    match /users/{userId}/bodyWeightMeasurements/{measurementId} {
+      allow get, list, create, update, delete: if ownsUserData(userId);
+    }
   }
 }

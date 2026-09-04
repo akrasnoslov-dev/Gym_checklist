@@ -244,7 +244,7 @@ struct TodayView: View {
         HStack(spacing: 12) {
             Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
-                .foregroundStyle(set.isCompleted ? Color.accentColor : Color.secondary)
+                .foregroundStyle(set.isCompleted ? GymTheme.accent : Color.secondary)
             Text(setDescription(for: set))
                 .font(.body)
                 .multilineTextAlignment(.leading)
@@ -294,7 +294,8 @@ struct TodayView: View {
         SetDisplayFormatter(unit: weightUnit).string(
             reps: set.displayedReps,
             weightInKilograms: set.displayedWeight,
-            timeSeconds: set.displayedTimeSeconds
+            timeSeconds: set.displayedTimeSeconds,
+            type: set.displayedType
         )
     }
 
@@ -374,14 +375,21 @@ private struct TodayCompletionOverlay: View {
             Color.black.opacity(0.28)
                 .ignoresSafeArea()
             VStack(spacing: 16) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(Color.accentColor)
+                ZStack {
+                    Circle().fill(GymTheme.accentSoft).frame(width: 78, height: 78)
+                    Image(systemName: "dumbbell.fill")
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(GymTheme.accent)
+                }
                     .accessibilityHidden(true)
-                Text("Another one done.")
-                    .font(.title3.weight(.semibold))
+                Text("You crushed it!")
+                    .font(.title2.weight(.bold))
+                Text("Gym survived. Barely.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 Button("Done", action: onDismiss)
                     .buttonStyle(.borderedProminent)
+                    .tint(GymTheme.accent)
                     .accessibilityIdentifier("todayCompletionDismiss")
             }
             .padding(28)
@@ -430,15 +438,24 @@ private struct TodaySetEditorSheet: View {
         NavigationStack {
             Form {
                 Section(route.workoutSet.isCompleted ? "Actual results" : "Planned set") {
-                    TextField("Reps", value: $reps, format: .number)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("todaySetEditorReps")
-                    TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
-                        .keyboardType(.decimalPad)
-                        .accessibilityIdentifier("todaySetEditorWeight")
-                    TextField("Time (seconds)", value: $timeSeconds, format: .number)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("todaySetEditorTime")
+                    Text(route.workoutSet.displayedType.title)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    if route.workoutSet.displayedType != .timed {
+                        TextField("Reps", value: $reps, format: .number)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("todaySetEditorReps")
+                    }
+                    if route.workoutSet.displayedType == .weighted {
+                        TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
+                            .keyboardType(.decimalPad)
+                            .accessibilityIdentifier("todaySetEditorWeight")
+                    }
+                    if route.workoutSet.displayedType == .timed {
+                        TextField("Time (seconds)", value: $timeSeconds, format: .number)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("todaySetEditorTime")
+                    }
                 }
             }
             .navigationTitle(route.workoutSet.isCompleted ? "Edit actual" : "Edit set")

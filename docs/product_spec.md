@@ -50,7 +50,7 @@ The product differentiator for MVP is simplicity, not feature count.
 - Exercise images/videos/instructions.
 - Rest timers.
 - Social features, sharing, leaderboards.
-- Nutrition/body measurements.
+- Nutrition, coaching, or body-composition analytics. A compact user-owned body-weight history is approved; it is not a dashboard.
 - Payments/subscriptions.
 - Multiple workouts per date.
 - Android/web.
@@ -114,6 +114,8 @@ with seven date selectors.
 
 Users can navigate past and future weeks.
 
+Program also offers a Month view with local-calendar navigation and the same selected-date detail surface.
+
 A day can be:
 - empty,
 - planned,
@@ -142,9 +144,8 @@ System categories may exist for organization (Chest, Back, Legs, Shoulders, Bice
 
 ## 9. Set data and display rules
 Canonical set fields:
-- reps
-- weight
-- timeSeconds
+- execution type: weighted, reps-only, or timed
+- only the relevant value fields for that type
 
 User explicitly enters technical values even when zero/one is used for model consistency.
 
@@ -178,18 +179,17 @@ Copy workout:
 MVP uses simple repeat generation, not a persistent complex template engine.
 
 Preferred interaction:
-- `Repeat weekly`
+- select cadence every 1, 2, 3, or 4 weeks
 - choose duration such as 4 weeks, 8 weeks, or Until date.
 
 The feature generates independent future workout records.
 
 ## 13. Settings
-Minimum:
-- Appearance: System / Light / Dark
-- Weight unit: kg / lb
-- Account
-- Logout
-- App version / policy links as needed
+Profile-first settings:
+- optional sex, date of birth, and height; age and neutral BMI are calculated locally;
+- a compact dated body-weight history with edit/delete; canonical storage remains kg;
+- Appearance: System / Light / Dark and Weight unit: kg / lb;
+- Account, Logout, and Delete account remain separate from preferences.
 
 ## 14. Authentication
 - Register with email/password.

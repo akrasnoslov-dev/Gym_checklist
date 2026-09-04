@@ -37,6 +37,120 @@ struct UserSettings: Codable, Equatable, Sendable {
     var userID: UserID
     var appearance: Appearance = .system
     var weightUnit: WeightUnit = .kilograms
+    var profile: UserProfile = .init()
+
+    init(
+        userID: UserID,
+        appearance: Appearance = .system,
+        weightUnit: WeightUnit = .kilograms,
+        profile: UserProfile = .init()
+    ) {
+        self.userID = userID
+        self.appearance = appearance
+        self.weightUnit = weightUnit
+        self.profile = profile
+    }
+
+    private enum CodingKeys: String, CodingKey { case userID, appearance, weightUnit, profile }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        userID = try container.decode(UserID.self, forKey: .userID)
+        appearance = try container.decodeIfPresent(Appearance.self, forKey: .appearance) ?? .system
+        weightUnit = try container.decodeIfPresent(WeightUnit.self, forKey: .weightUnit) ?? .kilograms
+        profile = try container.decodeIfPresent(UserProfile.self, forKey: .profile) ?? .init()
+    }
+}
+
+enum Sex: String, Codable, CaseIterable, Hashable, Sendable {
+    case female, male, preferNotToSay
+
+    var title: String {
+        switch self {
+        case .female: "Female"
+        case .male: "Male"
+        case .preferNotToSay: "Prefer not to say"
+        }
+    }
+}
+
+struct UserProfile: Codable, Equatable, Sendable {
+    var sex: Sex?
+    var dateOfBirth: LocalDate?
+    /// Stored in centimetres regardless of the user's weight-unit preference.
+    var heightCentimeters: Double?
+
+    init(sex: Sex? = nil, dateOfBirth: LocalDate? = nil, heightCentimeters: Double? = nil) {
+        self.sex = sex
+        self.dateOfBirth = dateOfBirth
+        self.heightCentimeters = heightCentimeters
+    }
+
+    func age(on date: LocalDate, calendar: Calendar) -> Int? {
+        guard let birthDate = dateOfBirth,
+              let birth = birthDate.date(in: calendar),
+              let now = date.date(in: calendar),
+              birth <= now
+        else { return nil }
+        return calendar.dateComponents([.year], from: birth, to: now).year
+    }
+
+    func bmi(weightInKilograms: Double?) -> Double? {
+        guard let heightCentimeters, heightCentimeters.isFinite, heightCentimeters > 0,
+              let weightInKilograms, weightInKilograms.isFinite, weightInKilograms > 0
+        else { return nil }
+        let heightInMeters = heightCentimeters / 100
+        return weightInKilograms / (heightInMeters * heightInMeters)
+    }
+}
+
+struct BodyWeightMeasurementID: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
+    let rawValue: UUID
+    init(rawValue: UUID = UUID()) { self.rawValue = rawValue }
+    var id: UUID { rawValue }
+}
+
+struct BodyWeightMeasurement: Codable, Equatable, Identifiable, Sendable {
+    var id: BodyWeightMeasurementID
+    var userID: UserID
+    var localDate: LocalDate
+    /// Canonical kilograms; presentation converts at the view boundary.
+    var weightInKilograms: Double
+    var measuredAt: Date
+    var updatedAt: Date
+
+    init(
+        id: BodyWeightMeasurementID = .init(),
+        userID: UserID,
+        localDate: LocalDate,
+        weightInKilograms: Double,
+        measuredAt: Date,
+        updatedAt: Date
+    ) {
+        self.id = id
+        self.userID = userID
+        self.localDate = localDate
+        self.weightInKilograms = weightInKilograms
+        self.measuredAt = measuredAt
+        self.updatedAt = updatedAt
+    }
+}
+
+enum WorkoutSetType: String, Codable, CaseIterable, Hashable, Sendable {
+    case weighted, repsOnly, timed
+
+    var title: String {
+        switch self {
+        case .weighted: "Weighted"
+        case .repsOnly: "Reps only"
+        case .timed: "Timed"
+        }
+    }
+
+    static func inferred(reps: Int, weight: Double, timeSeconds: Int) -> Self {
+        if timeSeconds > 0 { return .timed }
+        return weight > 0 ? .weighted : .repsOnly
+    }
 }
 
 struct Exercise: Codable, Equatable, Identifiable, Sendable {
@@ -82,25 +196,30 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
     var reps: Int
     var weight: Double
     var timeSeconds: Int
+    var type: WorkoutSetType
     private(set) var isCompleted: Bool
     private(set) var actualReps: Int?
     private(set) var actualWeight: Double?
     private(set) var actualTimeSeconds: Int?
+    private(set) var actualType: WorkoutSetType?
     private(set) var completedAt: Date?
 
     init(
         id: WorkoutSetID = WorkoutSetID(), order: Int, reps: Int = 0,
-        weight: Double = 0, timeSeconds: Int = 0
+        weight: Double = 0, timeSeconds: Int = 0, type: WorkoutSetType? = nil
     ) {
         self.id = id
         self.order = order
-        self.reps = reps
-        self.weight = weight
-        self.timeSeconds = timeSeconds
+        self.type = type ?? WorkoutSetType.inferred(reps: reps, weight: weight, timeSeconds: timeSeconds)
+        let normalized = Self.normalizedValues(reps: reps, weight: weight, timeSeconds: timeSeconds, type: self.type)
+        self.reps = normalized.reps
+        self.weight = normalized.weight
+        self.timeSeconds = normalized.timeSeconds
         self.isCompleted = false
         self.actualReps = nil
         self.actualWeight = nil
         self.actualTimeSeconds = nil
+        self.actualType = nil
         self.completedAt = nil
     }
 
@@ -110,10 +229,12 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         reps: Int,
         weight: Double,
         timeSeconds: Int,
+        type: WorkoutSetType? = nil,
         isCompleted: Bool,
         actualReps: Int?,
         actualWeight: Double?,
         actualTimeSeconds: Int?,
+        actualType: WorkoutSetType? = nil,
         completedAt: Date?
     ) throws {
         guard !isCompleted || (actualReps != nil && actualWeight != nil && actualTimeSeconds != nil && completedAt != nil) else {
@@ -122,15 +243,18 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         guard isCompleted || (actualReps == nil && actualWeight == nil && actualTimeSeconds == nil && completedAt == nil) else {
             throw WorkoutSetPersistenceError.incompleteSetHasActualValues
         }
+        self.type = type ?? WorkoutSetType.inferred(reps: reps, weight: weight, timeSeconds: timeSeconds)
+        let normalized = Self.normalizedValues(reps: reps, weight: weight, timeSeconds: timeSeconds, type: self.type)
         self.id = id
         self.order = order
-        self.reps = reps
-        self.weight = weight
-        self.timeSeconds = timeSeconds
+        self.reps = normalized.reps
+        self.weight = normalized.weight
+        self.timeSeconds = normalized.timeSeconds
         self.isCompleted = isCompleted
         self.actualReps = actualReps
         self.actualWeight = actualWeight
         self.actualTimeSeconds = actualTimeSeconds
+        self.actualType = isCompleted ? (actualType ?? self.type) : nil
         self.completedAt = completedAt
     }
 
@@ -138,13 +262,20 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(WorkoutSetID.self, forKey: .id)
         order = try container.decode(Int.self, forKey: .order)
-        reps = try container.decode(Int.self, forKey: .reps)
-        weight = try container.decode(Double.self, forKey: .weight)
-        timeSeconds = try container.decode(Int.self, forKey: .timeSeconds)
+        let decodedReps = try container.decode(Int.self, forKey: .reps)
+        let decodedWeight = try container.decode(Double.self, forKey: .weight)
+        let decodedTimeSeconds = try container.decode(Int.self, forKey: .timeSeconds)
+        type = try container.decodeIfPresent(WorkoutSetType.self, forKey: .type)
+            ?? WorkoutSetType.inferred(reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds)
+        let normalized = Self.normalizedValues(reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds, type: type)
+        reps = normalized.reps
+        weight = normalized.weight
+        timeSeconds = normalized.timeSeconds
         isCompleted = try container.decode(Bool.self, forKey: .isCompleted)
         actualReps = try container.decodeIfPresent(Int.self, forKey: .actualReps)
         actualWeight = try container.decodeIfPresent(Double.self, forKey: .actualWeight)
         actualTimeSeconds = try container.decodeIfPresent(Int.self, forKey: .actualTimeSeconds)
+        actualType = try container.decodeIfPresent(WorkoutSetType.self, forKey: .actualType)
         completedAt = try container.decodeIfPresent(Date.self, forKey: .completedAt)
         if isCompleted && (actualReps == nil || actualWeight == nil || actualTimeSeconds == nil || completedAt == nil) {
             throw DecodingError.dataCorruptedError(forKey: .isCompleted, in: container, debugDescription: "Completed sets require actual values and a completion timestamp")
@@ -152,6 +283,8 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         if !isCompleted && (actualReps != nil || actualWeight != nil || actualTimeSeconds != nil || completedAt != nil) {
             throw DecodingError.dataCorruptedError(forKey: .isCompleted, in: container, debugDescription: "Incomplete sets cannot contain actual values or a completion timestamp")
         }
+        if isCompleted { actualType = actualType ?? type }
+        if !isCompleted { actualType = nil }
     }
 }
 
@@ -166,12 +299,14 @@ extension WorkoutSet {
     var displayedReps: Int { isCompleted ? actualReps ?? reps : reps }
     var displayedWeight: Double { isCompleted ? actualWeight ?? weight : weight }
     var displayedTimeSeconds: Int { isCompleted ? actualTimeSeconds ?? timeSeconds : timeSeconds }
+    var displayedType: WorkoutSetType { isCompleted ? actualType ?? type : type }
 
     mutating func complete(at date: Date = Date()) {
         guard !isCompleted else { return }
         actualReps = reps
         actualWeight = weight
         actualTimeSeconds = timeSeconds
+        actualType = type
         completedAt = date
         isCompleted = true
     }
@@ -181,6 +316,7 @@ extension WorkoutSet {
         actualReps = nil
         actualWeight = nil
         actualTimeSeconds = nil
+        actualType = nil
         completedAt = nil
     }
 
@@ -188,16 +324,29 @@ extension WorkoutSet {
         isCompleted ? undoCompletion() : complete(at: date)
     }
 
-    mutating func editPlan(reps: Int, weight: Double, timeSeconds: Int) {
-        self.reps = reps
-        self.weight = weight
-        self.timeSeconds = timeSeconds
+    mutating func editPlan(reps: Int, weight: Double, timeSeconds: Int, type: WorkoutSetType? = nil) {
+        self.type = type ?? WorkoutSetType.inferred(reps: reps, weight: weight, timeSeconds: timeSeconds)
+        let normalized = Self.normalizedValues(reps: reps, weight: weight, timeSeconds: timeSeconds, type: self.type)
+        self.reps = normalized.reps
+        self.weight = normalized.weight
+        self.timeSeconds = normalized.timeSeconds
     }
 
     mutating func editActual(reps: Int, weight: Double, timeSeconds: Int) {
         guard isCompleted else { return }
-        actualReps = reps
-        actualWeight = weight
-        actualTimeSeconds = timeSeconds
+        let normalized = Self.normalizedValues(reps: reps, weight: weight, timeSeconds: timeSeconds, type: displayedType)
+        actualReps = normalized.reps
+        actualWeight = normalized.weight
+        actualTimeSeconds = normalized.timeSeconds
+    }
+
+    private static func normalizedValues(
+        reps: Int, weight: Double, timeSeconds: Int, type: WorkoutSetType
+    ) -> (reps: Int, weight: Double, timeSeconds: Int) {
+        switch type {
+        case .weighted: (reps, weight, 0)
+        case .repsOnly: (reps, 0, 0)
+        case .timed: (0, 0, timeSeconds)
+        }
     }
 }

@@ -57,7 +57,7 @@ Do not deploy it before reviewing the Firebase project billing/runtime policy an
    code before the server-side erase.
 3. Invoke an authenticated, server-side Firebase deletion job that derives the
    UID only from the verified request context. It must delete every document in
-   `users/{uid}/workouts`, `customExercises`, and `settings`, then delete the
+   `users/{uid}/workouts`, `customExercises`, `bodyWeightMeasurements`, and `settings`, then delete the
    Firebase Auth user. The job must be idempotent and safely resume partial
    Firestore batch work without accepting a caller-supplied UID.
 4. Clear local repositories/session only after the job reports success. A

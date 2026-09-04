@@ -4,19 +4,21 @@ struct SetDisplayFormatter {
     var unit: WeightUnit
 
     /// `weightInKilograms` is the canonical stored weight for every workout set.
-    func string(reps: Int, weightInKilograms: Double, timeSeconds: Int) -> String {
-        if timeSeconds > 0 && weightInKilograms <= 0 && reps <= 1 {
+    func string(
+        reps: Int,
+        weightInKilograms: Double,
+        timeSeconds: Int,
+        type: WorkoutSetType? = nil
+    ) -> String {
+        switch type ?? WorkoutSetType.inferred(reps: reps, weight: weightInKilograms, timeSeconds: timeSeconds) {
+        case .timed:
             return "\(timeSeconds) sec"
-        }
-        if weightInKilograms > 0 {
+        case .weighted:
             let displayWeight = unit.displayWeight(fromCanonicalKilograms: weightInKilograms)
-            let weighted = "\(reps) reps × \(formatted(displayWeight)) \(unit.rawValue)"
-            return timeSeconds > 0 ? "\(weighted) × \(timeSeconds) sec" : weighted
+            return "\(reps) reps × \(formatted(displayWeight)) \(unit.rawValue)"
+        case .repsOnly:
+            return "\(reps) reps"
         }
-        if timeSeconds > 0 {
-            return reps > 1 ? "\(reps) reps × \(timeSeconds) sec" : "\(timeSeconds) sec"
-        }
-        return "\(reps) reps"
     }
 
     private func formatted(_ value: Double) -> String {

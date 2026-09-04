@@ -62,6 +62,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
 
+        app.buttons["programWorkoutActions"].tap()
         app.buttons["programCopyWorkout"].tap()
         XCTAssertTrue(app.navigationBars["Copy workout"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["copyWorkoutSourceDate"].exists)
@@ -71,11 +72,13 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertFalse(app.buttons["copyWorkoutAction"].isEnabled)
         app.buttons["copyWorkoutCancel"].tap()
 
+        app.buttons["programWorkoutActions"].tap()
         app.buttons["programRepeatWorkout"].tap()
         XCTAssertTrue(app.navigationBars["Repeat workout"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["repeatWorkoutSourceDate"].exists)
         XCTAssertTrue(app.staticTexts["repeatWorkoutSourceSummary"].exists)
         XCTAssertTrue(app.buttons["repeatWorkoutDuration"].exists)
+        XCTAssertTrue(app.buttons["repeatWorkoutCadence"].exists)
         XCTAssertTrue(app.staticTexts["repeatWorkoutSummary"].exists)
         XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
         app.buttons["repeatWorkoutCancel"].tap()
@@ -113,7 +116,7 @@ final class GymChecklistUITests: XCTestCase {
         firstBenchSet.tap()
         XCTAssertTrue(app.textFields["programSetEditorReps"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
-        XCTAssertTrue(app.textFields["programSetEditorTime"].exists)
+        XCTAssertFalse(app.textFields["programSetEditorTime"].exists)
         app.buttons["programSetEditorSave"].tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
@@ -161,6 +164,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(nordicName.waitForExistence(timeout: 2))
         XCTAssertFalse(benchName.exists)
 
+        app.buttons["programWorkoutActions"].tap()
         app.buttons["programDeleteWorkout"].tap()
         let confirmWorkoutDeletion = app.buttons
             .matching(identifier: "programConfirmDeleteWorkout")
@@ -1064,7 +1068,7 @@ final class TodayCompletionUITests: XCTestCase {
 
         rowSet.tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Another one done."].exists)
+        XCTAssertTrue(app.staticTexts["You crushed it!"].exists)
         XCTAssertTrue(app.buttons["Done"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
         app.buttons["todayCompletionDismiss"].tap()

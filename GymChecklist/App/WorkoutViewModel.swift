@@ -154,7 +154,11 @@ final class WorkoutViewModel: ObservableObject {
         analytics.log(.workoutCopied)
     }
 
-    func repeatWorkout(from sourceDate: LocalDate, through endDate: LocalDate) throws -> WorkoutRepeatResult {
+    func repeatWorkout(
+        from sourceDate: LocalDate,
+        through endDate: LocalDate,
+        cadence: WorkoutRepeatCadence = .weekly
+    ) throws -> WorkoutRepeatResult {
         guard let source = repository.workout(on: sourceDate) else {
             throw ProgramPlanningError.workoutNotFound(sourceDate)
         }
@@ -162,7 +166,7 @@ final class WorkoutViewModel: ObservableObject {
             throw ProgramPlanningError.repeatEndDateMustFollowSource(endDate)
         }
 
-        let candidateDates = weeklyDates(after: sourceDate, through: endDate)
+        let candidateDates = repeatDates(after: sourceDate, through: endDate, cadence: cadence)
         let skippedOccupiedDates = candidateDates.filter { repository.workout(on: $0) != nil }
         let destinations = candidateDates.filter { repository.workout(on: $0) == nil }
         var createdDates: [LocalDate] = []
@@ -215,7 +219,8 @@ final class WorkoutViewModel: ObservableObject {
                         order: setIndex,
                         reps: sourceSet.reps,
                         weight: sourceSet.weight,
-                        timeSeconds: sourceSet.timeSeconds
+                        timeSeconds: sourceSet.timeSeconds,
+                        type: sourceSet.type
                     )
                 }
             )
@@ -229,10 +234,14 @@ final class WorkoutViewModel: ObservableObject {
         }
     }
 
-    private func weeklyDates(after sourceDate: LocalDate, through endDate: LocalDate) -> [LocalDate] {
+    func repeatDates(
+        after sourceDate: LocalDate,
+        through endDate: LocalDate,
+        cadence: WorkoutRepeatCadence
+    ) -> [LocalDate] {
         var dates: [LocalDate] = []
         var date = sourceDate
-        while let nextDate = date.adding(weeks: 1, calendar: calendar), nextDate <= endDate {
+        while let nextDate = date.adding(weeks: cadence.intervalWeeks, calendar: calendar), nextDate <= endDate {
             dates.append(nextDate)
             date = nextDate
         }
@@ -326,7 +335,8 @@ final class WorkoutViewModel: ObservableObject {
         on workoutDate: LocalDate,
         reps: Int,
         weight: Double,
-        timeSeconds: Int
+        timeSeconds: Int,
+        type: WorkoutSetType? = nil
     ) throws {
         try requireCurrentTodayDate(workoutDate)
         guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
@@ -347,7 +357,7 @@ final class WorkoutViewModel: ObservableObject {
                     exercise.sets[setIndex].editActual(reps: reps, weight: weight, timeSeconds: timeSeconds)
                 }
             } else {
-                exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds)
+                exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds, type: type)
             }
         }
         if actualValuesChanged {
@@ -474,7 +484,7 @@ final class WorkoutViewModel: ObservableObject {
     func addSet(to exerciseID: WorkoutExerciseID, on workoutDate: LocalDate) throws {
         try mutateExercise(exerciseID, on: workoutDate) { exercise in
             let sets = normalizedSets(exercise.sets)
-            let copiedValues = sets.last.map { (reps: $0.reps, weight: $0.weight, timeSeconds: $0.timeSeconds) }
+            let copiedValues = sets.last.map { (reps: $0.reps, weight: $0.weight, timeSeconds: $0.timeSeconds, type: $0.type) }
             guard copiedValues.map({ Self.areValidSetValues(reps: $0.reps, weight: $0.weight, timeSeconds: $0.timeSeconds) }) ?? true else {
                 throw ProgramPlanningError.invalidSetValues
             }
@@ -483,7 +493,8 @@ final class WorkoutViewModel: ObservableObject {
                 order: sets.count,
                 reps: copiedValues?.reps ?? 0,
                 weight: copiedValues?.weight ?? 0,
-                timeSeconds: copiedValues?.timeSeconds ?? 0
+                timeSeconds: copiedValues?.timeSeconds ?? 0,
+                type: copiedValues?.type
             )]
         }
     }
@@ -494,7 +505,8 @@ final class WorkoutViewModel: ObservableObject {
         on workoutDate: LocalDate,
         reps: Int,
         weight: Double,
-        timeSeconds: Int
+        timeSeconds: Int,
+        type: WorkoutSetType? = nil
     ) throws {
         guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
             throw ProgramPlanningError.invalidSetValues
@@ -503,7 +515,7 @@ final class WorkoutViewModel: ObservableObject {
             guard let setIndex = exercise.sets.firstIndex(where: { $0.id == setID }) else {
                 throw ProgramPlanningError.workoutSetNotFound(setID)
             }
-            exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds)
+            exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds, type: type)
         }
     }
 

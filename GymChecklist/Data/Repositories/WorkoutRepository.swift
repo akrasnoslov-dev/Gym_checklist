@@ -97,3 +97,25 @@ protocol UserSettingsRepository: AnyObject {
     func saveAppearance(_ appearance: Appearance) throws
     func saveWeightUnit(_ weightUnit: WeightUnit) throws
 }
+
+enum BodyWeightRepositoryError: Error, Equatable {
+    case ownerMismatch
+    case invalidMeasurement
+    case measurementNotFound(BodyWeightMeasurementID)
+}
+
+@MainActor
+protocol BodyWeightObservation: AnyObject {
+    func cancel()
+}
+
+/// A small owner-bound history. Repositories publish local mutations before a
+/// provider acknowledges them so Settings stays useful while offline.
+@MainActor
+protocol BodyWeightRepository: AnyObject {
+    var userID: UserID { get }
+    var measurements: [BodyWeightMeasurement] { get }
+    func observeMeasurements(_ observer: @escaping @MainActor ([BodyWeightMeasurement]) -> Void) -> BodyWeightObservation
+    func save(_ measurement: BodyWeightMeasurement) throws
+    func deleteMeasurement(id: BodyWeightMeasurementID) throws
+}

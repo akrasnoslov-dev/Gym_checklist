@@ -1,5 +1,14 @@
 # Gym Checklist — Autonomous Implementation Plan
 
+> ## 2026-09-04 physical-acceptance expansion
+>
+> The user approved the following as current scope: profile (sex/date of birth/height), neutral BMI, a compact
+> owner-scoped body-weight history, explicit set execution types, configurable 1–4-week repeat cadence, Program
+> Month view, and the ACC-01 through ACC-09 visual/interaction findings recorded in
+> `docs/mvp_iphone_acceptance_findings_2026-09-04.md`. These replace stale weekly-only, no-body-measurement, and
+> no-set-type statements in older task bodies. They remain subject to offline, owner-isolation, and zero-cost
+> acceptance constraints.
+
 This is the execution backlog for Codex. It is intentionally detailed enough to support long autonomous runs with minimal user interaction.
 
 Codex must not implement tasks from titles alone. For every task, read the full task body and all referenced sections of `docs/product_spec.md`, `docs/ux_spec.md`, and `docs/architecture.md` before editing code.
@@ -1552,7 +1561,7 @@ Prepare stable/release integration only after explicit user approval.
 ## Future candidates — never implement automatically
 - Exercise images/videos/instructions.
 - Rest timer.
-- Progress graphs, PR analytics, body measurements.
+- Progress graphs and PR analytics. The compact body-weight history is explicitly approved above, but broader body-composition analytics remain out of scope.
 - Apple Watch / HealthKit.
 - AI workout generation, coaching, recommendations.
 - Social, sharing, leaderboards, challenges.

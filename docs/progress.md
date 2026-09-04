@@ -1,21 +1,13 @@
 # Gym Checklist — Progress Checkpoint
 
 ## Current state
-- Workflow/docs HEAD: `dev` (after the physical-iPhone acceptance IPA workflow commit); accepted app source remains `ee579d0`, intentionally checked out by the workflow.
-- Physical-device IPA: run `33261496979` passed the prior GTMAppAuth stage, then failed only in the accepted source's enabled Crashlytics dSYM phase: it expects `DerivedData/SourcePackages`, while the workflow resolves the same graph at `$RUNNER_TEMP/SourcePackages`. Replacement run `33262381993` has been dispatched from workflow/docs SHA `16b3ce3`, which symlinks that resolved package directory at the expected DerivedData path and checks out accepted app source `ee579d0`. Do not poll it from this task.
-- Candidate app source: `ee579d0`; the Program blocker CI gate is green. The consolidated no-cost external handoff is prepared; its live evidence remains.
-- Current phase: **pre-payment functional MVP acceptance**. Use only zero-cost development/validation.
-- Program week/date navigation has passed its final candidate CI gate; physical-iPhone confirmation remains part of acceptance.
-- The previous in-memory `MVP_DEMO` is still only an intermediate preview.
+- Branch: `dev`; the user approved the 2026-09-04 post-acceptance scope expansion (profile/body weight/BMI, set types, repeat cadence, Month view, and the listed visual hierarchy work). It supersedes the former scope freeze for those items.
+- Working checkpoint adds a lime/mint semantic theme; owner-scoped profile/body-weight persistence; explicit set types with legacy inference and completed actual-type preservation; 1–4-week repeat cadence; Month navigation sharing the repaired Program selection; and focused Program/Today/Settings polish.
+- Current phase remains **pre-payment functional MVP acceptance**: no billing, paid Apple, TestFlight, App Store, or Blaze work.
 
 ## Latest verification
-- On app candidate `672fc66`, Linux passed.
-- Run `33210615203` failed before tests: `.searchFocused` is iOS 18-only but every app target supports iOS 17. The picker’s search field is already explicitly tapped by the blocker test, so the unsupported autofocus code was removed.
-- `CI_GREEN 33211219461`: `candidate` scope passed its blocker test and full suite on exact SHA `ee579d0`.
-- Static free-validation contracts pass: Firestore owner rules, offline/reconnect, Google callback configuration, security hygiene, and account-deletion behavior. The local Firebase plist is present and ignored; no configuration values were read or recorded.
-- The prior process wasted substantial Codex runtime by polling separate focused/smoke/full runs. The CI workflow now has a `candidate` scope that builds once, runs one exact blocker test, and if it passes automatically runs the full suite on the same runner/build/SHA.
-- CI now emits compact failure output and retains detailed diagnostics as a short-lived artifact. Swift package sources are cached.
-- The approved lime/green Gym Checklist mark is now wired as the iOS `AppIcon`; the same master/vector assets are stored under `docs/brand/`. This branding change should ride the next justified candidate gate rather than consuming a separate macOS run.
+- Previous-scope evidence only: IPA run `33262381993` is green; it built source `ee579d0`. That workflow currently hard-codes this old source and must be updated only after the new final candidate SHA exists.
+- Current static checks: Firestore owner-rule contract and account-deletion contract pass. Windows has no local Swift/Xcode toolchain.
 
 ## CI operating rule
 - During diagnosis: one focused `unit`/`ui` run per code change when needed.
@@ -31,4 +23,4 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. On the next task, inspect the terminal result of IPA run `33262381993` once. If green, download `GymChecklist-MVP-ee579d0` and complete the one external handoff in `docs/mvp_external_acceptance_handoff.md` against `ee579d0`.
+1. Finish local review/targeted tests for the expanded data and Program surfaces, commit a coherent candidate, then run the authoritative macOS candidate gate on that exact SHA. Update the IPA workflow source/artifact only once its final SHA is green.

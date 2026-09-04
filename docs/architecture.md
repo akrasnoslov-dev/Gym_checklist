@@ -63,6 +63,12 @@ Avoid introducing extra layers unless a real testing or separation problem appea
 - userId
 - theme: system/light/dark
 - weightUnit: kg/lb
+- optional profile: sex, local date of birth, canonical centimetres height
+
+### BodyWeightMeasurement
+- id, userId, localDate, measuredAt, updatedAt
+- canonical kilograms, converted only at the UI boundary
+- latest measurement is the current profile weight; BMI is derived locally and never stored
 
 All `WorkoutSet.weight` and `WorkoutSet.actualWeight` values are stored as
 canonical kilograms. `weightUnit` is only a user-scoped display/input
@@ -103,6 +109,7 @@ places; the stored canonical value retains its full precision.
 - actualWeight optional
 - actualTimeSeconds optional
 - completedAt optional
+- type: weighted / reps-only / timed. Only relevant execution values are presented; legacy records infer this type safely.
 
 ## 6. Date handling
 Workout identity is based on local calendar date, not UTC day.
@@ -131,6 +138,7 @@ A practical starting point:
 users/{userId}/settings/default
 users/{userId}/workouts/{yyyy-MM-dd}
 users/{userId}/customExercises/{exerciseId}
+users/{userId}/bodyWeightMeasurements/{measurementId}
 ```
 
 Each workout date document contains its ordered exercise/set aggregate. This

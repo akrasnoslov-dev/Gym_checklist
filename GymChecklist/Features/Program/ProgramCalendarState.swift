@@ -74,4 +74,17 @@ struct ProgramCalendarState {
         guard let workout = workoutsByDate[date] else { return .empty }
         return .workout(workout.calendarStatus(asOf: currentDate))
     }
+
+    /// A fixed six-row grid avoids layout jumps and keeps every date in the
+    /// local calendar. Dates outside the visible month remain selectable.
+    func monthDates(containing anchor: LocalDate) -> [LocalDate] {
+        guard let date = anchor.date(in: calendar),
+              let monthStart = calendar.dateInterval(of: .month, for: date)?.start,
+              let gridStart = calendar.dateInterval(of: .weekOfYear, for: monthStart)?.start
+        else { return [] }
+        return (0..<42).compactMap { offset in
+            calendar.date(byAdding: .day, value: offset, to: gridStart)
+                .map { LocalDate(date: $0, calendar: calendar) }
+        }
+    }
 }

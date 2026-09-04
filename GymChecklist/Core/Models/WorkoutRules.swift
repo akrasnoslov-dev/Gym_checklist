@@ -20,6 +20,19 @@ enum WorkoutScheduleError: Error, Equatable {
     case duplicateDate(WorkoutDateKey)
 }
 
+struct WorkoutRepeatCadence: Equatable, Hashable, Sendable {
+    let intervalWeeks: Int
+
+    init(intervalWeeks: Int) {
+        precondition(intervalWeeks > 0, "Repeat cadence must be positive")
+        self.intervalWeeks = intervalWeeks
+    }
+
+    static let weekly = WorkoutRepeatCadence(intervalWeeks: 1)
+
+    var title: String { intervalWeeks == 1 ? "Every week" : "Every \(intervalWeeks) weeks" }
+}
+
 enum WorkoutScheduleRules {
     static func validateUniqueDates(in workouts: [Workout]) throws {
         var dates = Set<WorkoutDateKey>()

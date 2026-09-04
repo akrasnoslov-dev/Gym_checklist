@@ -6,6 +6,7 @@ Firestore schema:
 - `users/{uid}/workouts/{yyyy-MM-dd}`
 - `users/{uid}/customExercises/{uuid}`
 - `users/{uid}/settings/default`
+- `users/{uid}/bodyWeightMeasurements/{uuid}`
 
 Every allowed operation requires an authenticated user whose Firebase Auth UID
 matches the enclosing `{uid}`. Workout/custom-exercise collection queries are
@@ -38,7 +39,8 @@ Before production use, run an emulator or non-production-project validation
 with two authenticated test users and confirm all of the following:
 
 1. User A can create, read, update, delete, and query only A's workout,
-   custom-exercise, and `settings/default` documents.
+   custom-exercise, and body-weight measurement documents, plus A's
+   `settings/default` document.
 2. User A cannot read, query, create, update, or delete User B's documents.
 3. An unauthenticated client cannot read or write any of those documents.
 4. A user cannot access a settings document with an ID other than `default`.

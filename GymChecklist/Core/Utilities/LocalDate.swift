@@ -64,6 +64,13 @@ struct LocalDate: Codable, Hashable, Comparable, Sendable, CustomStringConvertib
         adding(days: weeks * 7, calendar: calendar)
     }
 
+    func adding(months: Int, calendar: Calendar = .autoupdatingCurrent) -> LocalDate? {
+        guard let date = date(in: calendar),
+              let result = calendar.date(byAdding: .month, value: months, to: date)
+        else { return nil }
+        return LocalDate(date: result, calendar: calendar)
+    }
+
     var description: String { String(format: "%04d-%02d-%02d", year, month, day) }
 
     static func < (lhs: LocalDate, rhs: LocalDate) -> Bool {

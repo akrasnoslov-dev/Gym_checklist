@@ -90,6 +90,7 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(reread.actualTimeSeconds, 50)
     }
 
+    @MainActor
     func testLegacyMixedCodableCopyRepeatAndAddSetKeepRawValuesUntilAnExplicitTypeIsChosen() throws {
         let legacyID = WorkoutSetID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000011")!)
         let legacy = WorkoutSet(

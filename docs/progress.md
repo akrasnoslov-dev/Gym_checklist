@@ -8,8 +8,7 @@
 ## Latest verification
 - Previous-scope evidence only: IPA run `33262381993` is green; it built source `ee579d0`. That workflow currently hard-codes this old source and must be updated only after the new final candidate SHA exists.
 - Current static checks: whitespace, Google Sign-In configuration, account deletion, Firestore owner rules, offline cache/reconnect, release workflow, and security hygiene all pass. Windows has no local Swift/Xcode toolchain.
-- `33905390516` is terminal red on `5f27622282cea2127637f294dcd82584bfbd4d40`. Production code compiled far enough to reach the test target, but `candidate-build` failed compiling `GymChecklistTests/ExpandedFeatureTests.swift`: the new legacy copy/repeat/add-set regression test calls `@MainActor` repositories/view-model APIs from a synchronous nonisolated XCTest method. The focused test and full suite never ran.
-- The failure is test-source concurrency isolation, not evidence that the legacy migration behavior itself failed.
+- `33905390516` is terminal red on `5f27622282cea2127637f294dcd82584bfbd4d40`. Production code compiled far enough to reach the test target, but `candidate-build` failed compiling `GymChecklistTests/ExpandedFeatureTests.swift`: the new legacy copy/repeat/add-set regression test called `@MainActor` repositories/view-model APIs from a synchronous nonisolated XCTest method. The focused test and full suite never ran. The test is now annotated `@MainActor`; every expanded-scope model/repository/view-model test was audited for the same boundary and the other production API call sites are already isolated.
 - No new physical-iPhone IPA should be produced until the expanded checkpoint is implementation-complete and a green authoritative candidate/full result exists on its exact SHA.
 
 ## CI operating rule
@@ -29,7 +28,4 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. Resume from live `dev`; inspect terminal run `33905390516` once and fix the XCTest actor-isolation compile failure (the new legacy copy/repeat/add-set test must run on the main actor, consistent with the APIs it exercises).
-2. Before any new macOS dispatch, audit all tests changed in the expanded-acceptance work for the same Swift concurrency/isolation class of mistake and for other source-level compile/type risks; batch any related fixes and rerun every available static check.
-3. Re-audit remaining ACC-01 through ACC-09 work and any independent runnable task before declaring the repository locally exhausted.
-4. Only then commit/push and dispatch one justified `candidate` run; record exact SHA/run ID/scope and do not poll.
+1. Push the locally exhausted actor-isolation correction plus this checkpoint, then dispatch one replacement `candidate` scope on its exact SHA using the legacy migration test filter. Do not produce an IPA unless that candidate's focused test and authoritative full suite are green.

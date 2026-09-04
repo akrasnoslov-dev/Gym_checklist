@@ -8,6 +8,7 @@
 ## Latest verification
 - Previous-scope evidence only: IPA run `33262381993` is green; it built source `ee579d0`. That workflow currently hard-codes this old source and must be updated only after the new final candidate SHA exists.
 - Current static checks: Firestore owner-rule contract and account-deletion contract pass. Windows has no local Swift/Xcode toolchain.
+- `CI_PENDING 33879273252`: `candidate` scope for `GymChecklistTests/ExpandedFeatureTests/testBodyWeightHistoryIsOwnerBoundAndSortedByMostRecentMeasurement` on exact source SHA `c9c4c241effa2839a6e84b4fe5238a368b3c05aa`; focused pass automatically proceeds to the full suite. Do not poll from this task.
 
 ## CI operating rule
 - During diagnosis: one focused `unit`/`ui` run per code change when needed.
@@ -23,4 +24,4 @@ Live Spark/device proof remains: email/password auth/reset/logout, Google Sign-I
 Apple Developer Program, TestFlight/App Store, paid release signing/secrets, Firebase Blaze/billing, live Cloud Function deployment if Blaze is required, paid-only Apple configuration, final release work, and `dev -> main`.
 
 ## Next action
-1. Finish local review/targeted tests for the expanded data and Program surfaces, commit a coherent candidate, then run the authoritative macOS candidate gate on that exact SHA. Update the IPA workflow source/artifact only once its final SHA is green.
+1. Resume only after `33879273252` is terminal: process its concise failure summary or, if green, update the physical-IPA workflow to the final accepted source SHA and prepare the next device candidate.

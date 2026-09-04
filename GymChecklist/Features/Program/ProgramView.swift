@@ -875,7 +875,7 @@ private struct CopyWorkoutSheet: View {
                     }
                     .gymCard()
 
-                    Button("Copy workout") {
+                    Button("Copy") {
                         do {
                             try onCopy(destinationDate)
                             dismiss()
@@ -1036,7 +1036,7 @@ private struct RepeatWorkoutSheet: View {
                     }
                     .gymCard()
 
-                    Button("Create \(availableDates.count) \(availableDates.count == 1 ? "workout" : "workouts")") {
+                    Button("Create") {
                         do {
                             _ = try onRepeat(endDate, WorkoutRepeatCadence(intervalWeeks: cadenceWeeks))
                             dismiss()
@@ -1153,6 +1153,12 @@ private struct ProgramSetEditorSheet: View {
                     if set?.isCompleted == true {
                         Text("Actual results are unchanged.")
                             .foregroundStyle(.secondary)
+                    }
+                    if set?.type == .legacyMixed {
+                        Text("This legacy set keeps its recorded values until you choose a new set type.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("programSetEditorLegacyNotice")
                     }
                     Picker("Set type", selection: $type) {
                         ForEach(WorkoutSetType.editableCases, id: \.self) { Text($0.title).tag($0) }

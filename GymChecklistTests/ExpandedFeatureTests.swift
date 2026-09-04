@@ -36,6 +36,16 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(viewModel.currentWeightInKilograms, 80)
         XCTAssertEqual(viewModel.bmi ?? 0, 24.691_358, accuracy: 0.000_001)
 
+        let sameDateLaterMeasurement = BodyWeightMeasurement(
+            userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 2),
+            weightInKilograms: 79.5, measuredAt: .distantFuture, updatedAt: .distantFuture
+        )
+        try repository.save(sameDateLaterMeasurement)
+        XCTAssertEqual(repository.measurements.first?.id, sameDateLaterMeasurement.id)
+        XCTAssertEqual(viewModel.currentWeightInKilograms, 79.5)
+        try repository.deleteMeasurement(id: sameDateLaterMeasurement.id)
+        XCTAssertEqual(viewModel.currentWeightInKilograms, 80)
+
         let future = BodyWeightMeasurement(
             userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 3),
             weightInKilograms: 79, measuredAt: .distantPast, updatedAt: .distantPast
@@ -80,7 +90,77 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(reread.actualTimeSeconds, 50)
     }
 
+    func testLegacyMixedCodableCopyRepeatAndAddSetKeepRawValuesUntilAnExplicitTypeIsChosen() throws {
+        let legacyID = WorkoutSetID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000011")!)
+        let legacy = WorkoutSet(
+            id: legacyID, order: 0, reps: 8, weight: 60, timeSeconds: 45, type: .legacyMixed
+        )
+        let encoded = try JSONEncoder().encode(legacy)
+        var payload = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        payload.removeValue(forKey: "type")
+        let legacyJSON = try JSONSerialization.data(withJSONObject: payload)
+        let decoded = try JSONDecoder().decode(WorkoutSet.self, from: legacyJSON)
+        XCTAssertEqual(decoded.type, .legacyMixed)
+        XCTAssertEqual(decoded.reps, 8)
+        XCTAssertEqual(decoded.weight, 60)
+        XCTAssertEqual(decoded.timeSeconds, 45)
+
+        let owner = UserID(rawValue: "owner")
+        let sourceDate = LocalDate(year: 2026, month: 9, day: 4)
+        let copyDate = LocalDate(year: 2026, month: 9, day: 5)
+        let repository = InMemoryWorkoutRepository(userID: owner)
+        var source = repository.createEmptyWorkout(on: sourceDate, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000012")!)
+        source.exercises = [WorkoutExercise(
+            id: exerciseID, exerciseID: SystemExerciseCatalog.all[0].id, customName: nil,
+            order: 0, isSkipped: false, sets: [decoded]
+        )]
+        try repository.save(source)
+        let viewModel = WorkoutViewModel(
+            repository: repository, initialDate: sourceDate, currentDate: sourceDate,
+            calendar: mondayCalendar()
+        )
+
+        try viewModel.copyWorkout(from: sourceDate, to: copyDate)
+        let copiedExercise = try XCTUnwrap(repository.workout(on: copyDate)?.exercises.first)
+        let copied = try XCTUnwrap(copiedExercise.sets.first)
+        XCTAssertEqual(copied.type, .legacyMixed)
+        XCTAssertEqual(copied.reps, 8)
+        XCTAssertEqual(copied.weight, 60)
+        XCTAssertEqual(copied.timeSeconds, 45)
+
+        let repeated = try viewModel.repeatWorkout(
+            from: sourceDate,
+            through: LocalDate(year: 2026, month: 9, day: 11),
+            cadence: WorkoutRepeatCadence(intervalWeeks: 1)
+        )
+        let repeatedDate = try XCTUnwrap(repeated.createdDates.first)
+        let repeatedSet = try XCTUnwrap(repository.workout(on: repeatedDate)?.exercises.first?.sets.first)
+        XCTAssertEqual(repeatedSet.type, .legacyMixed)
+        XCTAssertEqual(repeatedSet.reps, 8)
+        XCTAssertEqual(repeatedSet.weight, 60)
+        XCTAssertEqual(repeatedSet.timeSeconds, 45)
+
+        try viewModel.addSet(to: copiedExercise.id, on: copyDate)
+        let added = try XCTUnwrap(repository.workout(on: copyDate)?.exercises.first?.sets.last)
+        XCTAssertEqual(added.type, .legacyMixed)
+        XCTAssertEqual(added.reps, 8)
+        XCTAssertEqual(added.weight, 60)
+        XCTAssertEqual(added.timeSeconds, 45)
+
+        try viewModel.editSet(
+            added.id, in: copiedExercise.id, on: copyDate,
+            reps: 10, weight: 70, timeSeconds: 30, type: .weighted
+        )
+        let explicitlyTyped = try XCTUnwrap(repository.workout(on: copyDate)?.exercises.first?.sets.last)
+        XCTAssertEqual(explicitlyTyped.type, .weighted)
+        XCTAssertEqual(explicitlyTyped.reps, 10)
+        XCTAssertEqual(explicitlyTyped.weight, 70)
+        XCTAssertEqual(explicitlyTyped.timeSeconds, 0)
+    }
+
     func testSetTypesHideIrrelevantMetricsAndFormatterUsesOnlyTheChosenType() {
+        XCTAssertEqual(WorkoutSetType.editableCases, [.weighted, .repsOnly, .timed])
         let timed = WorkoutSet(order: 0, reps: 10, weight: 30, timeSeconds: 45, type: .timed)
         XCTAssertEqual(timed.reps, 0)
         XCTAssertEqual(timed.weight, 0)
@@ -125,5 +205,30 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(dates.first?.day, 31)
         XCTAssertEqual(state.weekDates.first, LocalDate(year: 2026, month: 8, day: 31))
         XCTAssertEqual(state.weekDates.map(\.day), [31, 1, 2, 3, 4, 5, 6])
+    }
+
+    func testWeekAndMonthUseTheSameMondayFirstLocalDateSelection() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        var state = ProgramCalendarState(
+            selectedDate: LocalDate(year: 2026, month: 9, day: 4),
+            currentDate: LocalDate(year: 2026, month: 9, day: 4), calendar: calendar
+        )
+        let outsideMonth = LocalDate(year: 2026, month: 8, day: 31)
+        XCTAssertTrue(state.monthDates(containing: state.selectedDate).contains(outsideMonth))
+        state.select(outsideMonth)
+        XCTAssertEqual(state.selectedDate, outsideMonth)
+        XCTAssertEqual(state.weekDates.first, outsideMonth)
+        state.moveWeek(by: 1)
+        XCTAssertEqual(state.selectedDate, LocalDate(year: 2026, month: 9, day: 7))
+        XCTAssertEqual(state.weekDates.first, LocalDate(year: 2026, month: 9, day: 7))
+    }
+
+    private func mondayCalendar() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Copenhagen")!
+        calendar.firstWeekday = 2
+        calendar.minimumDaysInFirstWeek = 4
+        return calendar
     }
 }

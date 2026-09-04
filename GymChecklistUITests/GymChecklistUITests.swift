@@ -69,6 +69,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["copyWorkoutSummary"].exists)
         XCTAssertTrue(app.datePickers["copyWorkoutDestination"].exists)
         XCTAssertTrue(app.buttons["copyWorkoutAction"].exists)
+        XCTAssertEqual(app.buttons["copyWorkoutAction"].label, "Copy")
         XCTAssertFalse(app.buttons["copyWorkoutAction"].isEnabled)
         app.buttons["copyWorkoutCancel"].tap()
 
@@ -81,6 +82,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["repeatWorkoutCadence"].exists)
         XCTAssertTrue(app.staticTexts["repeatWorkoutSummary"].exists)
         XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
+        XCTAssertEqual(app.buttons["repeatWorkoutAction"].label, "Create")
         app.buttons["repeatWorkoutCancel"].tap()
 
         app.buttons["programDate-2026-08-13"].tap()
@@ -185,6 +187,29 @@ final class GymChecklistUITests: XCTestCase {
 
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
+    }
+
+    func testProgramMonthUsesMondayFirstHeadersAndPreservesSelectionWhenReturningToWeek() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-09-04"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-09-04"
+        app.launch()
+
+        openProgram(app)
+        let mode = app.segmentedControls["programViewMode"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 5))
+        mode.buttons["Month"].tap()
+        XCTAssertTrue(app.staticTexts["programMonthHeader"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["programMonthWeekday-0"].exists)
+        XCTAssertTrue(app.staticTexts["programMonthWeekday-6"].exists)
+        let selectedDate = app.buttons["programMonthDate-2026-09-04"]
+        XCTAssertTrue(selectedDate.waitForExistence(timeout: 2))
+        selectedDate.tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, September 4, 2026"))
+        mode.buttons["Week"].tap()
+        XCTAssertTrue(app.buttons["programDate-2026-09-04"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, September 4, 2026"))
     }
 
     func testAppearanceSelectionKeepsTodayAvailable() {

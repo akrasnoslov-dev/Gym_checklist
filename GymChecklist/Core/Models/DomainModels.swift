@@ -269,9 +269,14 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         }
         let storedType = type ?? WorkoutSetType.inferred(reps: reps, weight: weight, timeSeconds: timeSeconds)
         self.type = storedType
-        let normalized = type == nil
-            ? (reps, weight, timeSeconds)
-            : Self.normalizedValues(reps: reps, weight: weight, timeSeconds: timeSeconds, type: storedType)
+        let normalized: (reps: Int, weight: Double, timeSeconds: Int)
+        if type == nil {
+            // A document without a type predates mode-specific editing. Keep
+            // its raw values intact until the user deliberately chooses one.
+            normalized = (reps: reps, weight: weight, timeSeconds: timeSeconds)
+        } else {
+            normalized = Self.normalizedValues(reps: reps, weight: weight, timeSeconds: timeSeconds, type: storedType)
+        }
         self.id = id
         self.order = order
         self.reps = normalized.reps
@@ -298,9 +303,16 @@ struct WorkoutSet: Codable, Equatable, Identifiable, Sendable {
         let decodedTimeSeconds = try container.decode(Int.self, forKey: .timeSeconds)
         let decodedType = try container.decodeIfPresent(WorkoutSetType.self, forKey: .type)
         type = decodedType ?? WorkoutSetType.inferred(reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds)
-        let normalized = decodedType == nil
-            ? (decodedReps, decodedWeight, decodedTimeSeconds)
-            : Self.normalizedValues(reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds, type: type)
+        let normalized: (reps: Int, weight: Double, timeSeconds: Int)
+        if decodedType == nil {
+            // Preserve legacy mixed payloads during decode/re-save. Explicit
+            // type selections still normalize through the branch below.
+            normalized = (reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds)
+        } else {
+            normalized = Self.normalizedValues(
+                reps: decodedReps, weight: decodedWeight, timeSeconds: decodedTimeSeconds, type: type
+            )
+        }
         reps = normalized.reps
         weight = normalized.weight
         timeSeconds = normalized.timeSeconds

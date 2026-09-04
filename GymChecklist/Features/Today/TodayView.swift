@@ -236,8 +236,9 @@ struct TodayView: View {
                     }
                 }
             }
-            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+            .background(GymTheme.elevatedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
+        .gymCard()
     }
 
     private func setRow(_ set: WorkoutSet) -> some View {
@@ -390,6 +391,7 @@ private struct TodayCompletionOverlay: View {
                 Button("Done", action: onDismiss)
                     .buttonStyle(.borderedProminent)
                     .tint(GymTheme.accent)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .accessibilityIdentifier("todayCompletionDismiss")
             }
             .padding(28)

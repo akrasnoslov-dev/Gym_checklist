@@ -19,8 +19,12 @@ Authoritative iOS verification runs in `.github/workflows/ios-ci.yml` on macOS/X
 Current pre-payment strategy:
 - macOS/Xcode CI is a scarce authoritative gate, not the normal development loop;
 - do not dispatch it after each fix, commit, or individual finding;
+- any task that changes production/test/project code must finish the whole batch, commit/push, mark `REMOTE_GATE_READY_FOR_AUDIT <SHA>`, and stop without macOS;
+- macOS may be dispatched only from a separate fresh preflight-audit task on that exact SHA;
+- if that audit finds anything requiring production/test/project code changes, make/batch those fixes, mark the new SHA ready for audit, and stop again without macOS;
+- only a clean audit pass with no production/test/project code changes may mark `REMOTE_GATE_APPROVED <SHA>` and dispatch one candidate/full gate;
+- any red candidate revokes approval and restarts this two-pass process;
 - first finish all implementation, migration, test maintenance, UX work, self-review, documentation, and available static/security/offline checks that can be completed without Xcode;
-- dispatch remote macOS verification only when the repository is locally exhausted and compiler/runtime feedback is the remaining blocker, or when the implementation is otherwise ready to become the next physical-acceptance candidate;
 - use focused `unit`/`ui` only for a genuinely isolated remaining blocker;
 - use `verification_scope=candidate` only for an implementation-complete candidate checkpoint; GitHub builds once, runs the exact blocker regression, then automatically runs the full suite if that passes;
 - after a failed run, batch all related fixes and review the same defect class across the repository before another dispatch;

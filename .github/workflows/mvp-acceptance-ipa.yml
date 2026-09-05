@@ -11,7 +11,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     env:
-      APP_SOURCE_SHA: ee579d06cedaffad8c6e5b563aacdcf6ecd7a00b
+      APP_SOURCE_SHA: 306d36a120894065e2ffa7ea4eef6a10513aaac2
       APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
       APP_DISPLAY_NAME: Gym Checklist
 
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout accepted MVP app source
         uses: actions/checkout@v4
         with:
-          ref: ee579d06cedaffad8c6e5b563aacdcf6ecd7a00b
+          ref: 306d36a120894065e2ffa7ea4eef6a10513aaac2
           fetch-depth: 1
           persist-credentials: false
 
@@ -147,7 +147,7 @@ jobs:
       - name: Upload physical iPhone acceptance IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-MVP-ee579d0
+          name: GymChecklist-MVP-306d36a
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

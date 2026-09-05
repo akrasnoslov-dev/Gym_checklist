@@ -25,6 +25,11 @@ on:
         required: false
         default: ""
         type: string
+      candidate_source_sha:
+        description: "Required 40-character source commit SHA for candidate verification"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -43,10 +48,16 @@ jobs:
     env:
       VERIFICATION_SCOPE: ${{ inputs.verification_scope || 'full' }}
       TEST_FILTER: ${{ inputs.test_filter || '' }}
+      CANDIDATE_SOURCE_SHA: ${{ inputs.candidate_source_sha || '' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # workflow_dispatch itself accepts only a branch or tag ref. Candidate
+          # gates therefore receive and verify the immutable source commit here.
+          ref: ${{ inputs.candidate_source_sha || github.sha }}
+          fetch-depth: 1
 
       - name: Show Xcode version
         run: xcodebuild -version
@@ -166,6 +177,11 @@ jobs:
                 echo "candidate scope requires an exact test_filter" >&2
                 exit 2
               fi
+              if ! [[ "$CANDIDATE_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "candidate scope requires a 40-character lowercase candidate_source_sha" >&2
+                exit 2
+              fi
+              test "$(git rev-parse HEAD)" = "$CANDIDATE_SOURCE_SHA"
               case "$TEST_FILTER" in
                 GymChecklistTests/*|GymChecklistUITests/*) ;;
                 *)

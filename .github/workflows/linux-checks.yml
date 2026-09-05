@@ -94,6 +94,10 @@ jobs:
         shell: pwsh
         run: ./scripts/verify_release_workflow_contract.ps1
 
+      - name: Verify iOS CI candidate contract
+        shell: pwsh
+        run: ./scripts/verify_ios_ci_contract.ps1
+
       - name: Run Swift package tests when available
         shell: bash
         run: |

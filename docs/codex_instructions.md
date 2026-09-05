@@ -28,6 +28,7 @@ Current pre-payment strategy:
 - first finish all implementation, migration, test maintenance, UX work, self-review, documentation, and available static/security/offline checks that can be completed without Xcode;
 - use focused `unit`/`ui` only for a genuinely isolated remaining blocker;
 - use `verification_scope=candidate` only for an implementation-complete candidate checkpoint; GitHub builds once, runs the exact blocker regression, then automatically runs the full suite if that passes;
+- candidate dispatches must provide the exact 40-character `candidate_source_sha`; the workflow checks out and asserts that immutable commit even though GitHub dispatch itself uses a branch/tag ref;
 - after a failed run, batch all related fixes and review the same defect class across the repository before another dispatch;
 - do not insert a separate smoke run between focused and final verification;
 - a green `candidate` run is the required green full evidence for that exact SHA;

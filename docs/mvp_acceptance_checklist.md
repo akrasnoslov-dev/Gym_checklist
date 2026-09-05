@@ -6,7 +6,7 @@ Current rule: verify everything that can be implemented and proven at zero cost 
 
 ## Current blocker status
 
-- Program week/date navigation remains regression-covered. The current source `73c9dd5a50825afbc0ff38471c8530012aefaf7e` also preserves cached custom exercises through malformed snapshots and restores a body-weight row if its delete is rejected; its required authoritative candidate/full gate is pending a fresh Pass B audit.
+- Program week/date navigation remains regression-covered. The current source `e17cb8173a6373059729226453c568e976954d33` also checks out and asserts its exact source before candidate/full verification, preserving valid proof for custom-exercise cache recovery and body-weight delete rollback; its required authoritative candidate/full gate is pending a fresh Pass B audit.
 - Physical-iPhone confirmation remains required; do not treat simulator CI as that evidence.
 
 ## Free acceptance matrix

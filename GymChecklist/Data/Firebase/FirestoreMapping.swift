@@ -334,6 +334,16 @@ struct FirestoreUserSettingsDocument: Codable, Equatable {
         heightCentimeters = try container.decodeIfPresent(Double.self, forKey: .heightCentimeters)
     }
 
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(appearance, forKey: .appearance)
+        try container.encode(weightUnit, forKey: .weightUnit)
+        // Explicit nulls clear optional profile fields when settings are merged.
+        try container.encode(sex, forKey: .sex)
+        try container.encode(dateOfBirth, forKey: .dateOfBirth)
+        try container.encode(heightCentimeters, forKey: .heightCentimeters)
+    }
+
     func settings(userID: UserID) -> UserSettings {
         UserSettings(
             userID: userID,

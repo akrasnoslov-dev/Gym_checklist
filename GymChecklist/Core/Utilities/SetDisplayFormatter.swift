@@ -14,6 +14,7 @@ struct SetDisplayFormatter {
         case .timed:
             return "\(timeSeconds) sec"
         case .weighted:
+            guard weightInKilograms > 0 else { return "\(reps) reps" }
             let displayWeight = unit.displayWeight(fromCanonicalKilograms: weightInKilograms)
             return "\(reps) reps × \(formatted(displayWeight)) \(unit.rawValue)"
         case .repsOnly:
@@ -34,7 +35,9 @@ struct SetDisplayFormatter {
     }
 
     private func formatted(_ value: Double) -> String {
-        if value.rounded() == value { return String(Int(value)) }
+        if value.rounded() == value {
+            return String(format: "%.0f", locale: Locale(identifier: "en_US_POSIX"), value)
+        }
         return String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), value)
             .replacingOccurrences(of: #"0+$"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"\.$"#, with: "", options: .regularExpression)

@@ -135,6 +135,7 @@ struct TodayView: View {
                 .foregroundStyle(.secondary)
             Button("Create workout", action: onOpenProgram)
                 .buttonStyle(.borderedProminent)
+                .tint(GymTheme.accent)
                 .accessibilityIdentifier("todayCreateWorkout")
         }
         .accessibilityElement(children: .contain)

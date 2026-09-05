@@ -359,7 +359,7 @@ struct SettingsView: View {
             values.append("Age \(age)")
         }
         if let height = viewModel.settings.profile.heightCentimeters {
-            values.append("\(Int(height.rounded())) cm")
+            values.append("\(height.formatted(.number.precision(.fractionLength(0)))) cm")
         }
         if let bmi = viewModel.bmi {
             values.append("BMI \(bmi.formatted(.number.precision(.fractionLength(1))))")
@@ -581,6 +581,7 @@ private struct BodyWeightHistorySheet: View {
                         .accessibilityIdentifier("bodyWeightDate")
                     Button(editingMeasurement == nil ? "Save measurement" : "Update measurement") { saveMeasurement() }
                         .buttonStyle(.borderedProminent)
+                        .tint(GymTheme.accent)
                         .accessibilityIdentifier("bodyWeightSave")
                 }
                 Section("Recent measurements") {

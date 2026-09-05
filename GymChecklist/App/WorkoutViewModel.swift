@@ -357,7 +357,8 @@ final class WorkoutViewModel: ObservableObject {
                     exercise.sets[setIndex].editActual(reps: reps, weight: weight, timeSeconds: timeSeconds)
                 }
             } else {
-                exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds, type: type)
+                let retainedType = type ?? exercise.sets[setIndex].type
+                exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds, type: retainedType)
             }
         }
         if actualValuesChanged {

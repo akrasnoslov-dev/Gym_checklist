@@ -374,7 +374,7 @@ private struct AuthenticatedContentView: View {
             settingsViewModel.refreshCurrentDate()
         }
         .preferredColorScheme(settingsViewModel.preferredColorScheme)
-        .tint(GymTheme.accent)
+        .tint(GymTheme.accentForeground)
         .accessibilityIdentifier("authenticatedContent")
         .accessibilityValue(settingsViewModel.settings.appearance.rawValue)
     }

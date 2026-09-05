@@ -401,6 +401,7 @@ struct ProgramView: View {
                         viewModel.createSelectedWorkout()
                     }
                     .buttonStyle(.borderedProminent)
+                    .tint(GymTheme.accent)
                     .accessibilityIdentifier("programCreateWorkout")
                 }
             }
@@ -871,17 +872,19 @@ private struct CopyWorkoutSheet: View {
                     }
                     .gymCard()
 
-                    Button("Copy") {
+                    Button {
                         do {
                             try onCopy(destinationDate)
                             dismiss()
                         } catch {
                             showsCopyError = true
                         }
+                    } label: {
+                        Text("Copy")
+                            .frame(maxWidth: .infinity, minHeight: 48)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(GymTheme.accent)
-                    .frame(maxWidth: .infinity, minHeight: 48)
                     .disabled(destinationMessage != nil)
                     .accessibilityIdentifier("copyWorkoutAction")
                 }
@@ -1032,17 +1035,19 @@ private struct RepeatWorkoutSheet: View {
                     }
                     .gymCard()
 
-                    Button("Create") {
+                    Button {
                         do {
                             _ = try onRepeat(endDate, WorkoutRepeatCadence(intervalWeeks: cadenceWeeks))
                             dismiss()
                         } catch {
                             showsRepeatError = true
                         }
+                    } label: {
+                        Text("Create")
+                            .frame(maxWidth: .infinity, minHeight: 48)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(GymTheme.accent)
-                    .frame(maxWidth: .infinity, minHeight: 48)
                     .disabled(candidateDates.isEmpty || availableDates.isEmpty)
                     .accessibilityIdentifier("repeatWorkoutAction")
                 }

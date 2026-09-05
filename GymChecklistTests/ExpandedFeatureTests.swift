@@ -2,6 +2,79 @@ import XCTest
 @testable import GymChecklist
 
 final class ExpandedFeatureTests: XCTestCase {
+    func testClearedProfileEncodesNullsThatReplacePreviouslySavedValues() throws {
+        let owner = UserID(rawValue: "owner")
+        let original = UserSettings(
+            userID: owner, appearance: .dark, weightUnit: .pounds,
+            profile: UserProfile(
+                sex: .female, dateOfBirth: LocalDate(year: 1990, month: 1, day: 2), heightCentimeters: 180
+            )
+        )
+        let cleared = UserSettings(userID: owner, appearance: .dark, weightUnit: .pounds)
+        let encoder = JSONEncoder()
+        var stored = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: encoder.encode(FirestoreUserSettingsDocument(settings: original))
+        ) as? [String: Any])
+        let update = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: encoder.encode(FirestoreUserSettingsDocument(settings: cleared))
+        ) as? [String: Any])
+        for key in ["sex", "dateOfBirth", "heightCentimeters"] {
+            XCTAssertTrue(update[key] is NSNull, "Cleared \(key) must be present in a merged write")
+        }
+        stored.merge(update) { _, newValue in newValue }
+        let reread = try JSONDecoder().decode(
+            FirestoreUserSettingsDocument.self, from: JSONSerialization.data(withJSONObject: stored)
+        )
+        XCTAssertEqual(reread.settings(userID: owner), cleared)
+    }
+
+    @MainActor
+    func testTodayPlanEditsRetainExplicitTypesAtZeroAndAfterCompletion() throws {
+        let date = LocalDate(year: 2026, month: 9, day: 4)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "owner"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID()
+        let weighted = WorkoutSet(order: 0, reps: 8, weight: 0, type: .weighted)
+        let timed = WorkoutSet(order: 1, timeSeconds: 45, type: .timed)
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID, exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil, order: 0, isSkipped: false, sets: [weighted, timed]
+        )]
+        try repository.save(workout)
+        let model = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date)
+
+        try model.editTodaySet(weighted.id, in: exerciseID, on: date, reps: 8, weight: 0, timeSeconds: 0)
+        try model.editTodaySet(timed.id, in: exerciseID, on: date, reps: 0, weight: 0, timeSeconds: 0)
+        let atZero = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(atZero.map(\.type), [.weighted, .timed])
+        try model.editTodaySet(weighted.id, in: exerciseID, on: date, reps: 8, weight: 60, timeSeconds: 0)
+        try model.editTodaySet(timed.id, in: exerciseID, on: date, reps: 0, weight: 0, timeSeconds: 30)
+        try model.toggleCompletion(of: timed.id, in: exerciseID, on: date)
+        try model.editTodaySet(timed.id, in: exerciseID, on: date, reps: 0, weight: 0, timeSeconds: 0)
+        let updated = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(updated[0].weight, 60)
+        XCTAssertEqual(updated[0].type, .weighted)
+        XCTAssertEqual(updated[1].type, .timed)
+        XCTAssertEqual(updated[1].actualType, .timed)
+        XCTAssertEqual(updated[1].timeSeconds, 30)
+        XCTAssertEqual(updated[1].actualTimeSeconds, 0)
+        XCTAssertTrue(updated[1].isCompleted)
+    }
+
+    func testWeightedDisplayOmitsZeroAndFormatsValuesBeyondIntegerRange() {
+        for unit in [WeightUnit.kilograms, .pounds] {
+            XCTAssertEqual(SetDisplayFormatter(unit: unit).string(
+                reps: 8, weightInKilograms: 0, timeSeconds: 0, type: .weighted
+            ), "8 reps")
+        }
+        XCTAssertEqual(SetDisplayFormatter(unit: .kilograms).string(
+            reps: 8, weightInKilograms: 1e20, timeSeconds: 0, type: .weighted
+        ), "8 reps × 100000000000000000000 kg")
+        XCTAssertTrue(SetDisplayFormatter(unit: .pounds).string(
+            reps: 8, weightInKilograms: 1e20, timeSeconds: 0, type: .weighted
+        ).hasSuffix(" lb"))
+    }
+
     func testProfileCalculatesBMIOnlyWhenHeightAndWeightExist() {
         let profile = UserProfile(heightCentimeters: 180)
         XCTAssertNil(profile.bmi(weightInKilograms: nil))

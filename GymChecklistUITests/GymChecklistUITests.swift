@@ -78,8 +78,14 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Repeat workout"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["repeatWorkoutSourceDate"].exists)
         XCTAssertTrue(app.staticTexts["repeatWorkoutSourceSummary"].exists)
-        XCTAssertTrue(app.buttons["repeatWorkoutDuration"].exists)
-        XCTAssertTrue(app.buttons["repeatWorkoutCadence"].exists)
+        let repeatDuration = app.segmentedControls["repeatWorkoutDuration"]
+        let repeatCadence = app.segmentedControls["repeatWorkoutCadence"]
+        XCTAssertTrue(repeatDuration.waitForExistence(timeout: 2))
+        XCTAssertTrue(repeatCadence.exists)
+        repeatCadence.buttons["Every 2 weeks"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "2 independent workouts will be created."))
+        repeatDuration.buttons["8 weeks"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "4 independent workouts will be created."))
         XCTAssertTrue(app.staticTexts["repeatWorkoutSummary"].exists)
         XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
         XCTAssertEqual(app.buttons["repeatWorkoutAction"].label, "Create")
@@ -245,6 +251,10 @@ final class GymChecklistUITests: XCTestCase {
         replaceText(in: weight, with: "81")
         app.buttons["bodyWeightSave"].tap()
         let measurement = app.buttons["bodyWeightMeasurement"]
+        XCTAssertTrue(measurement.waitForExistence(timeout: 2))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.staticTexts["180 cm · BMI 25.0"].waitForExistence(timeout: 2))
+        app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
         measurement.tap()
         replaceText(in: weight, with: "80")

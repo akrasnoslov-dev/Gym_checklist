@@ -79,6 +79,7 @@ final class ExpandedFeatureTests: XCTestCase {
         let profile = UserProfile(heightCentimeters: 180)
         XCTAssertNil(profile.bmi(weightInKilograms: nil))
         XCTAssertEqual(profile.bmi(weightInKilograms: 81) ?? 0, 25, accuracy: 0.000_1)
+        XCTAssertNil(UserProfile(heightCentimeters: .leastNonzeroMagnitude).bmi(weightInKilograms: 81))
     }
 
     @MainActor
@@ -116,7 +117,7 @@ final class ExpandedFeatureTests: XCTestCase {
         try repository.save(sameDateLaterMeasurement)
         XCTAssertEqual(repository.measurements.first?.id, sameDateLaterMeasurement.id)
         XCTAssertEqual(viewModel.currentWeightInKilograms, 79.5)
-        try repository.deleteMeasurement(id: sameDateLaterMeasurement.id)
+        try repository.deleteMeasurement(id: sameDateLaterMeasurement.id, onFailure: {})
         XCTAssertEqual(viewModel.currentWeightInKilograms, 80)
 
         let future = BodyWeightMeasurement(
@@ -156,6 +157,49 @@ final class ExpandedFeatureTests: XCTestCase {
         ], userID: owner)
 
         XCTAssertEqual(snapshot.measurementsPreservingCachedEntries([cached]), [fresh, cached])
+    }
+
+    func testBodyWeightDeleteFailureRestoresTheOptimisticallyRemovedRowOnce() {
+        let owner = UserID(rawValue: "owner")
+        let removed = BodyWeightMeasurement(
+            id: BodyWeightMeasurementID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000012")!),
+            userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 2),
+            weightInKilograms: 80, measuredAt: .distantPast, updatedAt: .distantPast
+        )
+        let newer = BodyWeightMeasurement(
+            id: BodyWeightMeasurementID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000013")!),
+            userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 3),
+            weightInKilograms: 79, measuredAt: .distantFuture, updatedAt: .distantFuture
+        )
+
+        let restored = BodyWeightDeletionFailureRecovery.measurementsRestoring(removed, to: [newer])
+        XCTAssertEqual(restored, [newer, removed])
+        XCTAssertEqual(
+            BodyWeightDeletionFailureRecovery.measurementsRestoring(removed, to: restored),
+            restored
+        )
+    }
+
+    func testCustomExerciseSnapshotPreservesCachedExerciseWhenItsDocumentIsUnreadable() throws {
+        let owner = UserID(rawValue: "owner")
+        let cached = Exercise(
+            id: ExerciseID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000014")!),
+            name: "Cached custom", category: nil, isSystem: false, createdByUserID: owner
+        )
+        let fresh = Exercise(
+            id: ExerciseID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000015")!),
+            name: "Fresh custom", category: nil, isSystem: false, createdByUserID: owner
+        )
+        let snapshot = FirestoreCustomExerciseSnapshotDecoder.decode([
+            FirestoreCustomExerciseSnapshotEntry(documentID: cached.id.rawValue.uuidString, payload: nil),
+            FirestoreCustomExerciseSnapshotEntry(
+                documentID: fresh.id.rawValue.uuidString,
+                payload: try FirestoreCustomExerciseDocument(exercise: fresh)
+            )
+        ], userID: owner)
+
+        XCTAssertEqual(snapshot.discardedExerciseIDs, Set([cached.id]))
+        XCTAssertEqual(snapshot.exercisesPreservingCachedEntries([cached]), [fresh, cached])
     }
 
     func testLegacyMixedSetRoundTripsWithoutDiscardingPlanOrActualValues() throws {

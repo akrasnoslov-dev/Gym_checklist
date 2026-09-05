@@ -57,10 +57,27 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
             .setData(from: payload)
     }
 
-    func deleteMeasurement(id: BodyWeightMeasurementID) throws {
+    func deleteMeasurement(
+        id: BodyWeightMeasurementID,
+        onFailure: @escaping @MainActor () -> Void
+    ) throws {
+        guard let removedMeasurement = measurements.first(where: { $0.id == id }) else {
+            throw BodyWeightRepositoryError.measurementNotFound(id)
+        }
         measurements.removeAll { $0.id == id }
         publish()
-        store.document(FirestoreDocumentPath.bodyWeightMeasurement(userID: userID, measurementID: id)).delete()
+        store.document(FirestoreDocumentPath.bodyWeightMeasurement(userID: userID, measurementID: id)).delete { [weak self] error in
+            guard error != nil else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.measurements = BodyWeightDeletionFailureRecovery.measurementsRestoring(
+                    removedMeasurement,
+                    to: self.measurements
+                )
+                self.publish()
+                onFailure()
+            }
+        }
     }
 
     private var collection: CollectionReference {

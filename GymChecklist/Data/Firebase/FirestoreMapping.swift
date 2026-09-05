@@ -386,6 +386,21 @@ struct FirestoreBodyWeightMeasurementDocument: Codable, Equatable {
     }
 }
 
+/// Restores a locally removed measurement when Firestore rejects an
+/// optimistic delete. A later snapshot may already have restored it, so IDs
+/// remain unique.
+enum BodyWeightDeletionFailureRecovery {
+    static func measurementsRestoring(
+        _ removedMeasurement: BodyWeightMeasurement,
+        to measurements: [BodyWeightMeasurement]
+    ) -> [BodyWeightMeasurement] {
+        guard !measurements.contains(where: { $0.id == removedMeasurement.id }) else { return measurements }
+        return (measurements + [removedMeasurement]).sorted {
+            BodyWeightMeasurement.isMoreRecent($0, than: $1)
+        }
+    }
+}
+
 /// Decode body-weight snapshots without letting a malformed document erase a
 /// usable cached measurement for the same document ID. Firestore's cache can
 /// still provide the earlier value while the invalid remote record is fixed.
@@ -430,6 +445,54 @@ enum FirestoreBodyWeightSnapshotDecoder {
         return DecodedFirestoreBodyWeightSnapshot(
             measurements: measurements.sorted { BodyWeightMeasurement.isMoreRecent($0, than: $1) },
             discardedMeasurementIDs: discardedMeasurementIDs
+        )
+    }
+}
+
+/// Decode custom-exercise snapshots without letting an unreadable document
+/// erase a usable cached exercise for that same ID.
+struct FirestoreCustomExerciseSnapshotEntry {
+    let documentID: String
+    let payload: FirestoreCustomExerciseDocument?
+}
+
+struct DecodedFirestoreCustomExerciseSnapshot: Equatable {
+    let exercises: [Exercise]
+    let discardedExerciseIDs: Set<ExerciseID>
+
+    func exercisesPreservingCachedEntries(_ cachedExercises: [Exercise]) -> [Exercise] {
+        let decodedIDs = Set(exercises.map(\.id))
+        let preserved = cachedExercises.filter {
+            discardedExerciseIDs.contains($0.id) && !decodedIDs.contains($0.id)
+        }
+        return exercises + preserved
+    }
+}
+
+enum FirestoreCustomExerciseSnapshotDecoder {
+    static func decode(
+        _ entries: [FirestoreCustomExerciseSnapshotEntry],
+        userID: UserID
+    ) -> DecodedFirestoreCustomExerciseSnapshot {
+        var exercises: [Exercise] = []
+        var discardedExerciseIDs: Set<ExerciseID> = []
+
+        for entry in entries {
+            guard let payload = entry.payload,
+                  entry.documentID == payload.id,
+                  let exercise = try? payload.exercise(userID: userID)
+            else {
+                if let identifier = UUID(uuidString: entry.documentID) {
+                    discardedExerciseIDs.insert(ExerciseID(rawValue: identifier))
+                }
+                continue
+            }
+            exercises.append(exercise)
+        }
+
+        return DecodedFirestoreCustomExerciseSnapshot(
+            exercises: exercises,
+            discardedExerciseIDs: discardedExerciseIDs
         )
     }
 }

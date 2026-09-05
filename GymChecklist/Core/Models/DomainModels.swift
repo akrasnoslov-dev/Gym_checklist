@@ -100,7 +100,8 @@ struct UserProfile: Codable, Equatable, Sendable {
               let weightInKilograms, weightInKilograms.isFinite, weightInKilograms > 0
         else { return nil }
         let heightInMeters = heightCentimeters / 100
-        return weightInKilograms / (heightInMeters * heightInMeters)
+        let value = weightInKilograms / (heightInMeters * heightInMeters)
+        return value.isFinite ? value : nil
     }
 }
 

@@ -117,5 +117,10 @@ protocol BodyWeightRepository: AnyObject {
     var measurements: [BodyWeightMeasurement] { get }
     func observeMeasurements(_ observer: @escaping @MainActor ([BodyWeightMeasurement]) -> Void) -> BodyWeightObservation
     func save(_ measurement: BodyWeightMeasurement) throws
-    func deleteMeasurement(id: BodyWeightMeasurementID) throws
+    /// Deletes optimistically so an offline user can continue immediately.
+    /// `onFailure` is invoked if the provider later rejects the pending delete.
+    func deleteMeasurement(
+        id: BodyWeightMeasurementID,
+        onFailure: @escaping @MainActor () -> Void
+    ) throws
 }

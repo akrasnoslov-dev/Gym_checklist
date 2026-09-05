@@ -125,26 +125,26 @@ macOS/Xcode CI is an expensive authoritative remote verification gate, **not** t
 
 #### Two-pass remote-gate lock
 
-To prevent using macOS CI as a repeated compiler/test oracle, authoritative macOS dispatch now requires a clean two-task preflight:
+To prevent using macOS CI as a repeated compiler/test oracle, authoritative macOS dispatch requires one locally exhaustive hardening pass and a separate clean final audit:
 
 **Pass A — implementation/hardening task**
 - Any Codex task that changes production Swift, XCTest/UI-test code, persistence/migration behavior, Xcode project configuration, or CI-relevant app code is **not allowed to dispatch macOS CI in that same task**.
-- Finish and batch all runnable implementation, regression review, test maintenance, documentation, and local/static checks.
-- Commit/push the coherent checkpoint.
-- Record `REMOTE_GATE_READY_FOR_AUDIT <SHA>` in `docs/progress.md`.
+- Repeat local inspection, audit, fixes, regression coverage, re-audit, and local/static validation in the same task until the active MVP scope is genuinely locally exhausted. A finding during local review must not force a new task.
+- Finish and batch all runnable implementation, regression review, test maintenance, documentation, and local/static checks, then commit/push one coherent candidate checkpoint.
+- Record `REMOTE_GATE_READY_FOR_FINAL_AUDIT <SHA>` in `docs/progress.md`.
 - Stop without dispatching macOS.
 
-**Pass B — fresh preflight-audit task**
+**Pass B — fresh final remote-gate audit task**
 - Start from the exact recorded SHA and perform an independent repository-wide preflight review before any macOS dispatch.
 - The preflight must inspect changed production/test code, compile/type/concurrency risks, stale assertions, migration/backward-compatibility paths, and active acceptance requirements.
 - Run all available local/static/security/offline checks again.
-- If the audit requires **any** production/test/project code change, the remote gate is automatically locked again: make/batch the fixes, commit/push, record a new `REMOTE_GATE_READY_FOR_AUDIT <new SHA>`, and stop **without** macOS CI.
+- If the audit requires **any** production/test/project code change, it becomes Pass A: make and re-audit every related fix in the same task until locally exhausted, then commit/push and record a new `REMOTE_GATE_READY_FOR_FINAL_AUDIT <new SHA>` without macOS CI.
 - Only when the fresh preflight task requires no production/test/project code changes and finds no remaining runnable work may it record `REMOTE_GATE_APPROVED <SHA>` and dispatch exactly one justified macOS candidate/full gate.
 
 Docs-only edits that merely record the audit/CI state do not invalidate approval.
 
 **After any red macOS candidate/full run, `REMOTE_GATE_APPROVED` is revoked automatically.**
-The next task must return to Pass A, batch all fixes, and then a separate fresh Pass B audit is required before another macOS dispatch.
+The next task becomes Pass A, completes all related local hardening, and then requires a separate fresh Pass B audit before another macOS dispatch.
 
 This two-pass lock is mandatory even when the reported CI failure looks small. Do not bypass it to "quickly check" one fix.
 
@@ -164,7 +164,7 @@ A checkpoint is **locally exhausted** only when all of the following are true:
 7. no known issue remains that can reasonably be diagnosed or fixed by repository inspection;
 8. no independent runnable work remains elsewhere in the active task.
 
-Local exhaustion is necessary but no longer sufficient by itself. Codex may dispatch macOS CI only from a fresh Pass B preflight task on an exact `REMOTE_GATE_READY_FOR_AUDIT` SHA, and only if that audit makes no production/test/project code changes.
+Local exhaustion is necessary but no longer sufficient by itself. Codex may dispatch macOS CI only from a fresh Pass B final-audit task on an exact `REMOTE_GATE_READY_FOR_FINAL_AUDIT` SHA, and only if that audit makes no production/test/project code changes.
 
 Scope selection:
 - `build`: only when compilation itself is the remaining blocker and further useful repository work cannot resolve the uncertainty;

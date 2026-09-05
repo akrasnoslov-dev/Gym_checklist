@@ -8,6 +8,7 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var settings: UserSettings
     @Published private(set) var measurements: [BodyWeightMeasurement]
     @Published private(set) var errorMessage: String?
+    @Published private(set) var bodyWeightDeletionFailed = false
 
     private let repository: UserSettingsRepository
     private let bodyWeightRepository: BodyWeightRepository
@@ -93,8 +94,13 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func deleteMeasurement(_ measurement: BodyWeightMeasurement) throws {
-        try bodyWeightRepository.deleteMeasurement(id: measurement.id)
+        bodyWeightDeletionFailed = false
+        try bodyWeightRepository.deleteMeasurement(id: measurement.id) { [weak self] in
+            self?.bodyWeightDeletionFailed = true
+        }
     }
+
+    func acknowledgeBodyWeightDeletionFailure() { bodyWeightDeletionFailed = false }
 
     deinit { MainActor.assumeIsolated { observation?.cancel(); bodyWeightObservation?.cancel() } }
 }
@@ -289,7 +295,9 @@ struct SettingsView: View {
                     unit: viewModel.settings.weightUnit,
                     measurements: viewModel.measurements,
                     onSave: viewModel.saveMeasurement,
-                    onDelete: viewModel.deleteMeasurement
+                    onDelete: viewModel.deleteMeasurement,
+                    deleteFailed: viewModel.bodyWeightDeletionFailed,
+                    onDeleteFailureAcknowledged: viewModel.acknowledgeBodyWeightDeletionFailure
                 )
             }
             .sheet(isPresented: $isAppleAccountDeletionReauthenticationPresented) {
@@ -562,6 +570,8 @@ private struct BodyWeightHistorySheet: View {
     let measurements: [BodyWeightMeasurement]
     let onSave: (BodyWeightMeasurement) throws -> Void
     let onDelete: (BodyWeightMeasurement) throws -> Void
+    let deleteFailed: Bool
+    let onDeleteFailureAcknowledged: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var weightText = ""
@@ -569,6 +579,16 @@ private struct BodyWeightHistorySheet: View {
     @State private var editingMeasurement: BodyWeightMeasurement?
     @State private var showsValidationError = false
     @State private var showsDeleteError = false
+
+    private var deleteFailureAlertBinding: Binding<Bool> {
+        Binding(
+            get: { showsDeleteError || deleteFailed },
+            set: { isPresented in
+                showsDeleteError = isPresented
+                if !isPresented { onDeleteFailureAcknowledged() }
+            }
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -622,7 +642,7 @@ private struct BodyWeightHistorySheet: View {
             .alert("Enter a valid weight", isPresented: $showsValidationError) {
                 Button("OK", role: .cancel) {}
             } message: { Text("Weight must be greater than zero.") }
-            .alert("Couldn't delete measurement", isPresented: $showsDeleteError) {
+            .alert("Couldn't delete measurement", isPresented: deleteFailureAlertBinding) {
                 Button("OK", role: .cancel) {}
             } message: { Text("Try again. Your saved measurement is still available.") }
         }

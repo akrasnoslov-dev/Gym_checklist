@@ -134,7 +134,10 @@ final class InMemoryBodyWeightRepository: BodyWeightRepository {
         publish()
     }
 
-    func deleteMeasurement(id: BodyWeightMeasurementID) throws {
+    func deleteMeasurement(
+        id: BodyWeightMeasurementID,
+        onFailure _: @escaping @MainActor () -> Void
+    ) throws {
         guard storage.removeValue(forKey: id) != nil else { throw BodyWeightRepositoryError.measurementNotFound(id) }
         publish()
     }

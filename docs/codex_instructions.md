@@ -19,9 +19,10 @@ Authoritative iOS verification runs in `.github/workflows/ios-ci.yml` on macOS/X
 Current pre-payment strategy:
 - macOS/Xcode CI is a scarce authoritative gate, not the normal development loop;
 - do not dispatch it after each fix, commit, or individual finding;
-- any task that changes production/test/project code must finish the whole batch, commit/push, mark `REMOTE_GATE_READY_FOR_AUDIT <SHA>`, and stop without macOS;
-- macOS may be dispatched only from a separate fresh preflight-audit task on that exact SHA;
-- if that audit finds anything requiring production/test/project code changes, make/batch those fixes, mark the new SHA ready for audit, and stop again without macOS;
+- a hardening task repeats local audit/fix/test cycles until the active MVP scope is locally exhausted; a later finding does not require a new task;
+- any task that changes production/test/project code must finish the whole batch, commit/push, mark `REMOTE_GATE_READY_FOR_FINAL_AUDIT <SHA>`, and stop without macOS;
+- macOS may be dispatched only from a separate fresh final-audit task on that exact SHA;
+- if that audit finds anything requiring production/test/project code changes, it becomes the hardening task: make and re-audit the full batch in that same task, then mark the new SHA ready for final audit without macOS;
 - only a clean audit pass with no production/test/project code changes may mark `REMOTE_GATE_APPROVED <SHA>` and dispatch one candidate/full gate;
 - any red candidate revokes approval and restarts this two-pass process;
 - first finish all implementation, migration, test maintenance, UX work, self-review, documentation, and available static/security/offline checks that can be completed without Xcode;

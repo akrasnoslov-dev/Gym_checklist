@@ -17,14 +17,20 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         self.store = store
         listener = collection.addSnapshotListener { [weak self] snapshot, _ in
             guard let snapshot else { return }
-            let exercises = snapshot.documents.compactMap { document -> Exercise? in
-                guard let payload = try? document.data(as: FirestoreCustomExerciseDocument.self),
-                      document.documentID == payload.id else { return nil }
-                return try? payload.exercise(userID: user)
-            }
+            let decoded = FirestoreCustomExerciseSnapshotDecoder.decode(
+                snapshot.documents.map { document in
+                    FirestoreCustomExerciseSnapshotEntry(
+                        documentID: document.documentID,
+                        payload: try? document.data(as: FirestoreCustomExerciseDocument.self)
+                    )
+                },
+                userID: user
+            )
             Task { @MainActor in
                 guard let self else { return }
-                self.customExercises = self.sorted(exercises)
+                self.customExercises = self.sorted(
+                    decoded.exercisesPreservingCachedEntries(self.customExercises)
+                )
                 self.publish()
             }
         }

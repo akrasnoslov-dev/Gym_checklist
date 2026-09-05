@@ -23,7 +23,7 @@ Current pre-payment strategy:
 - any task that changes production/test/project code must finish the whole batch, commit/push, mark `REMOTE_GATE_READY_FOR_FINAL_AUDIT <SHA>`, and stop without macOS;
 - macOS may be dispatched only from a separate fresh final-audit task on that exact SHA;
 - if that audit finds anything requiring production/test/project code changes, it becomes the hardening task: make and re-audit the full batch in that same task, then mark the new SHA ready for final audit without macOS;
-- only a clean audit pass with no production/test/project code changes may mark `REMOTE_GATE_APPROVED <SHA>` and dispatch one candidate/full gate;
+- only a clean final-audit pass with no production/test/project code changes may mark `REMOTE_GATE_APPROVED <SHA>` and dispatch one candidate/full gate;
 - any red candidate revokes approval and restarts this two-pass process;
 - first finish all implementation, migration, test maintenance, UX work, self-review, documentation, and available static/security/offline checks that can be completed without Xcode;
 - use focused `unit`/`ui` only for a genuinely isolated remaining blocker;

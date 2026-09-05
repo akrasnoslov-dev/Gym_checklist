@@ -1,6 +1,6 @@
 # No-cost external MVP acceptance handoff
 
-This is the one external handoff for the current functional MVP. It validates the app source at `306d36a120894065e2ffa7ea4eef6a10513aaac2` after its required authoritative macOS candidate/full gate is green.
+This is the one external handoff for the current functional MVP. It validates the app source at `73c9dd5a50825afbc0ff38471c8530012aefaf7e` after its required authoritative macOS candidate/full gate is green.
 
 Use one non-production Firebase **Spark** project with billing off, one Mac
 with Xcode, and one iPhone on iOS 17 or later. Do not use the old `MVP_DEMO`
@@ -39,7 +39,7 @@ Crashlytics checks while retaining the required owner-only policy.
 On a clean Mac checkout, use:
 
 ```sh
-git checkout 306d36a120894065e2ffa7ea4eef6a10513aaac2
+git checkout 73c9dd5a50825afbc0ff38471c8530012aefaf7e
 open GymChecklist.xcodeproj
 ```
 

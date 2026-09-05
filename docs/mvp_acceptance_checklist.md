@@ -6,7 +6,7 @@ Current rule: verify everything that can be implemented and proven at zero cost 
 
 ## Current blocker status
 
-- Program week/date navigation remains regression-covered. The current source `306d36a120894065e2ffa7ea4eef6a10513aaac2` also corrects the stale Repeat segmented-control assertion identified by the obsolete macOS run; its required authoritative candidate/full gate is pending a fresh Pass B audit.
+- Program week/date navigation remains regression-covered. The current source `73c9dd5a50825afbc0ff38471c8530012aefaf7e` also preserves cached custom exercises through malformed snapshots and restores a body-weight row if its delete is rejected; its required authoritative candidate/full gate is pending a fresh Pass B audit.
 - Physical-iPhone confirmation remains required; do not treat simulator CI as that evidence.
 
 ## Free acceptance matrix

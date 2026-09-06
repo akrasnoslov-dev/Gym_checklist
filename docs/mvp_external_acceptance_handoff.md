@@ -1,6 +1,6 @@
 # No-cost external MVP acceptance handoff
 
-This is the one external handoff for the current functional MVP. It validates the app source at `e17cb8173a6373059729226453c568e976954d33` after its required authoritative macOS candidate/full gate is green.
+This is the one external handoff for the current functional MVP. It validates the app source at `e17cb8173a6373059729226453c568e976954d33`; authoritative macOS candidate/full run `33991955146` has already checked out/asserted that source and passed. Do not run another macOS verification gate.
 
 Use one non-production Firebase **Spark** project with billing off, one Mac
 with Xcode, and one iPhone on iOS 17 or later. Do not use the old `MVP_DEMO`
@@ -81,8 +81,13 @@ or plist content.
    selection, create/edit/delete, copy/repeat, historical actual editing,
    Today one-tap completion/undo, long-press edits, rest/no-program, the
    completion overlay, System/Light/Dark, kg/lb, VoiceOver labels/actions,
-   largest Dynamic Type, contrast, and touch targets. Do not exercise account
-   deletion; its live Function is deferred if it needs Blaze.
+   largest Dynamic Type, contrast, and touch targets. Include every device
+   finding: ACC-01 profile/body-weight history, ACC-02 set types, ACC-03
+   repeat cadence/collision, ACC-04 destructive Program confirmations and
+   hierarchy, ACC-05 Today/overlay contrast, ACC-06 copy feedback, ACC-07
+   Program editor layout/reorder, ACC-08 Week/Month/date navigation, and
+   ACC-09 past-workout actual editing. Do not exercise account deletion; its
+   live Function is deferred if it needs Blaze.
 5. **Analytics and Crashlytics:** add `-FIRDebugEnabled` in Xcode's Run scheme
    launch arguments and check Firebase Analytics DebugView for parameter-free
    successful event names such as `sign_up`, `login`, `workout_created`,

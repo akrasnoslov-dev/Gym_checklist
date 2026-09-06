@@ -6,8 +6,8 @@ Current rule: verify everything that can be implemented and proven at zero cost 
 
 ## Current blocker status
 
-- Program week/date navigation remains regression-covered. The current source `e17cb8173a6373059729226453c568e976954d33` also checks out and asserts its exact source before candidate/full verification, preserving valid proof for custom-exercise cache recovery and body-weight delete rollback; its required authoritative candidate/full gate is pending a fresh Pass B audit.
-- Physical-iPhone confirmation remains required; do not treat simulator CI as that evidence.
+- Program week/date navigation remains regression-covered. Approved source `e17cb8173a6373059729226453c568e976954d33` was checked out and asserted by green authoritative macOS candidate run `33991955146`; its focused regression and candidate-full suite passed.
+- Physical-iPhone and live Spark confirmation remain required; do not treat simulator CI as that evidence.
 
 ## Free acceptance matrix
 
@@ -40,9 +40,8 @@ Current rule: verify everything that can be implemented and proven at zero cost 
 
 ## Current CI gates
 
-- Iteration may use focused diagnostics and `smoke`.
-- Before physical-iPhone acceptance, the exact candidate SHA must have all required CI green.
-- In particular, the final authoritative macOS `full` run must conclude **success**. A known red test is not an acceptable final state.
+- The required exact-candidate gate is satisfied: `33991955146` completed successfully after checking out and asserting `e17cb8173a6373059729226453c568e976954d33`, then running the focused blocker regression and candidate-full suite.
+- Do not dispatch another macOS build/unit/UI/smoke/full run for this unchanged candidate. A later production, test, or project change requires the normal two-pass gate policy.
 - A failure independently reproduced in the product cannot be waived as a test flake.
 
 ## Paid/billing-dependent checks deliberately deferred

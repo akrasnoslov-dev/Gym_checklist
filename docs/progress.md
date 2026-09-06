@@ -17,7 +17,7 @@
 
 ## Remaining external proof
 - The one consolidated Spark/device flow is documented in `docs/mvp_external_acceptance_handoff.md`: email/password and Google auth; persistence and two-user isolation; cached offline execution and reconnect; Analytics and Crashlytics where available; accessibility/appearance; and ACC-01 through ACC-09 on the physical iPhone.
-- `.github/workflows/mvp-acceptance-ipa.yml` is prepared to build the exact approved source into an unsigned Firebase-backed IPA. It requires the existing repository secret `GOOGLE_SERVICE_INFO_PLIST_B64`; no acceptance IPA has been produced or dispatched in this checkpoint.
+- `.github/workflows/mvp-acceptance-ipa.yml` is prepared to build the exact approved source into an unsigned Firebase-backed IPA. It requires the repository secret `GOOGLE_SERVICE_INFO_PLIST_B64`; no acceptance IPA has been produced or dispatched in this checkpoint.
 - Paid-only Apple distribution, live paid Apple capabilities, Blaze/billing, paid deletion-function deployment if required, and `dev -> main` remain deferred.
 
 ## Next action

@@ -2,17 +2,17 @@
 
 ## Purpose
 
-Create one approved visual source of truth for Gym Checklist before changing production SwiftUI.
+Create one approved Pencil visual source of truth for Gym Checklist before changing production SwiftUI.
 
 The project currently has three different visual representations:
 1. the historical reference image `today-program-mockup.png`;
-2. the current Figma file;
+2. the current Pencil design file;
 3. the current implementation in the iOS repository.
 
-This plan reconciles them into one approved Figma design and only then implements that design in the app.
+This plan reconciles them into one approved Pencil design and only then implements that design in the app.
 
-Figma working file:
-https://www.figma.com/design/6S8BogxRmIgH22WqsPQl4v
+Pencil working file:
+`design/GymChecklist_Redesign.pen` (tracked in the repository)
 
 ## Governing rules
 
@@ -21,7 +21,7 @@ https://www.figma.com/design/6S8BogxRmIgH22WqsPQl4v
 - Current explicit user decisions have highest priority.
 - Product behavior must remain consistent with `docs/product_spec.md` and `docs/ux_spec.md` unless the user explicitly approves a behavior change.
 - Existing application behavior and repository state must be inspected before adapting the historical mockup.
-- Figma becomes the visual source of truth only after explicit user approval.
+- Pencil becomes the visual source of truth only after explicit user approval.
 - After design approval, update relevant UX documentation before or together with implementation so Figma, specs, and code do not diverge again.
 - Any production/test/project-code change after the current approved candidate invalidates the existing authoritative macOS candidate evidence and must follow the repository's two-pass remote-gate policy.
 - Protect the core invariant:
@@ -44,11 +44,11 @@ The historical reference must first be reproduced faithfully for comparison, eve
 
 ## Phase 1 — Reconstruct the historical reference
 
-**Tooling:** ChatGPT + Figma.
+**Tooling:** ChatGPT + Pencil.
 
-Create a Figma page named:
+Create a Pencil canvas section using this frame-name prefix:
 
-`01 — Original Reference`
+`01 — Original Reference / …`
 
 Tasks:
 - reproduce every screen/state visible in `today-program-mockup.png` as faithfully as possible;
@@ -61,18 +61,18 @@ Tasks:
 Acceptance:
 - no source screen/state is omitted;
 - screen count and ordering are documented;
-- visual comparison against the source image is possible;
+- visual comparison against the source image is possible, including exported frame screenshots;
 - the page is clearly labeled as historical/non-authoritative.
 
 ---
 
 ## Phase 2 — Audit the current application
 
-**Tooling:** ChatGPT + GitHub/repository + Figma.
+**Tooling:** ChatGPT + GitHub/repository + Pencil.
 
-Create a Figma page named:
+Create a Pencil canvas section using this frame-name prefix:
 
-`02 — Current App`
+`02 — Current App / …`
 
 Inspect the live `dev` branch, including:
 - `AGENTS.md`;
@@ -108,11 +108,11 @@ Do not modify production SwiftUI in this phase.
 
 ## Phase 3 — Reconcile the product and visual models
 
-**Tooling:** ChatGPT + Figma.
+**Tooling:** ChatGPT + Pencil.
 
-Create a Figma page named:
+Create a Pencil canvas section using this frame-name prefix:
 
-`03 — Adapted`
+`03 — Adapted / …`
 
 Tasks:
 - combine useful structure from the historical reference with current approved features and behavior;
@@ -176,13 +176,13 @@ Do not turn the product into a generic fitness dashboard. Research must support 
 
 ## Phase 5 — Create Final Design Candidate
 
-**Tooling:** ChatGPT + Figma.
+**Tooling:** ChatGPT + Pencil.
 
-Create:
+Create a Pencil canvas section using this frame-name prefix:
 
-`04 — Final Candidate`
+`04 — Final Candidate / …`
 
-Also create a reusable `Components / Tokens` area or page.
+Also create a reusable `Components / Tokens` area in the same Pencil file.
 
 The candidate should cover all relevant MVP surfaces and important states, including:
 - Today with incomplete/partial/completed sets;
@@ -235,7 +235,7 @@ Acceptance:
 
 Stop before implementation.
 
-The user reviews the Figma candidate and records changes.
+The user reviews the Pencil candidate and records changes.
 
 No production SwiftUI changes during this phase.
 
@@ -243,7 +243,7 @@ No production SwiftUI changes during this phase.
 
 ## Phase 7 — Iterate to approval
 
-Apply user feedback only in Figma until the design is explicitly approved.
+Apply user feedback only in Pencil until the design is explicitly approved.
 
 Repeat as needed:
 
@@ -257,8 +257,8 @@ Do not treat silence or partial acceptance as design approval.
 
 After explicit approval:
 
-1. mark the approved Figma page/version clearly;
-2. treat approved Figma as the visual source of truth;
+1. mark the approved Pencil canvas section/version clearly;
+2. treat approved Pencil as the visual source of truth;
 3. update `docs/ux_spec.md` and any other affected product documentation so approved behavior and visual rules are durable;
 4. prepare an implementation mapping from approved Figma screens/components to SwiftUI files/components;
 5. record any deliberate implementation tolerances or native-system substitutions.
@@ -285,13 +285,13 @@ Implement in coherent batches rather than one giant task:
 10. separate Pass B final remote-gate audit and authoritative macOS verification when justified.
 
 Implementation rules:
-- approved Figma is the visual reference;
+- approved Pencil is the visual reference;
 - `product_spec.md` remains authoritative for product behavior;
 - do not invent missing UI in Codex without returning to the approved design/spec decision;
 - preserve offline behavior, ownership/security, migrations, and existing data semantics;
 - prefer native SwiftUI and system components where they match the approved design;
 - keep Today interaction count minimal;
-- compare implementation screenshots against approved Figma before final acceptance.
+- compare implementation screenshots against approved Pencil before final acceptance.
 
 ---
 
@@ -299,16 +299,16 @@ Implementation rules:
 
 | Work | Primary tool |
 | --- | --- |
-| Historical mockup reconstruction | ChatGPT + Figma |
-| Current app/repository audit | ChatGPT + GitHub |
-| Reconciliation | ChatGPT + Figma |
+| Historical mockup reconstruction | ChatGPT + Pencil |
+| Current app/repository audit | ChatGPT + GitHub + Pencil |
+| Reconciliation | ChatGPT + Pencil |
 | Design research | ChatGPT; Work optional for deep research |
-| Final design | ChatGPT + Figma |
-| User review/iterations | ChatGPT + Figma |
+| Final design | ChatGPT + Pencil |
+| User review/iterations | ChatGPT + Pencil |
 | Design freeze/spec update | ChatGPT + repository |
 | SwiftUI implementation | Codex |
 | Tests/hardening/CI | Codex |
-| Final visual QA | ChatGPT + Figma + real screenshots |
+| Final visual QA | ChatGPT + Pencil + real screenshots |
 
 ## Current checkpoint at plan creation
 

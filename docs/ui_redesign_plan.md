@@ -99,7 +99,8 @@ Inspect the live `dev` branch, including:
 Where source code is insufficient to prove actual rendering, use current screenshots from the physical iPhone or simulator when available.
 
 Output:
-- a visual reconstruction/inventory of the current app;
+- a complete source-backed implementation-state inventory of the current app; this remains exhaustive even when conditional states are not rendered as independent phone frames;
+- a representative Pencil visual set of 22 ordered frames, each mapped back to the implementation inventory, with compact adjacent variants or annotations for conditional/error states where that conveys the implementation more clearly;
 - a short gap matrix between historical mockup, current product requirements, and current implementation.
 
 Do not modify production SwiftUI in this phase.

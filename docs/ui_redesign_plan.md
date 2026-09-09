@@ -99,9 +99,20 @@ Inspect the live `dev` branch, including:
 Where source code is insufficient to prove actual rendering, use current screenshots from the physical iPhone or simulator when available.
 
 Output:
-- a complete source-backed implementation-state inventory of the current app; this remains exhaustive even when conditional states are not rendered as independent phone frames;
-- a representative Pencil visual set of 22 ordered frames, each mapped back to the implementation inventory, with compact adjacent variants or annotations for conditional/error states where that conveys the implementation more clearly;
+- a complete source-backed implementation-state inventory of the current app; this remains exhaustive even when conditional states are not captured separately;
+- a representative collection of real current-MVP runtime screenshots in Pencil under `02 — Current App / Runtime References`;
 - a short gap matrix between historical mockup, current product requirements, and current implementation.
+
+The runtime screenshots may remain locked bitmap references. Phase 2 does not require editable reconstruction of the current application. Controlled Pencil AI reconstruction attempts materially changed native geometry, typography, spacing, content, and controls, so artificial editable copies are not accepted as evidence of the current MVP.
+
+Conditional/error states that are not worth reproducing manually remain documented in the implementation inventory and may be captured later only when they are needed for a concrete design decision.
+
+Acceptance:
+- the exhaustive current implementation/state inventory is present;
+- representative real runtime screenshots cover the main current MVP surfaces;
+- those screenshots are preserved as visual evidence in the working Pencil file;
+- the historical/current/requirements gap matrix is present;
+- no editable clone of the current app is required.
 
 Do not modify production SwiftUI in this phase.
 

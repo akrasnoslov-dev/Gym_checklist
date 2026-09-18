@@ -23,6 +23,12 @@ Read only the core context first:
 
 Then inspect Git/worktree state, recent commits/diffs, relevant source/tests, and current CI.
 
+For a UI/UX redesign, Phase 5 design candidate, design prototype or
+design-freeze task, also read:
+- `docs/ui_redesign_plan.md`;
+- `docs/ui_research_phase4.md`.
+- `docs/ui_ux_design_rules.md`.
+
 Do **not** preload the whole `docs/` directory. Setup, Firebase, security, offline, acceptance, and release documents are reference material; read them only when the current task needs them.
 
 `docs/codex_instructions.md` is a small compatibility/command reference, not a second scheduler.
@@ -68,13 +74,26 @@ This lock remains active until the completed original-MVP candidate—not an int
 
 Rules:
 - Freeze scope. Do not add features, opportunistic refactors, architecture cleanup, test-suite cleanup, or documentation expansion unless required to fix a confirmed MVP blocker.
-- The Program week/date selector is a **confirmed product defect**: the user observed it failing on a previously installed physical-iPhone build, and the final macOS run reproduced failure on the same surface. The old `KNOWN_UI_TEST_HARNESS_FLAKE` classification is revoked. Reproduce, diagnose, fix production behavior as needed, add regression coverage, and verify it before acceptance.
+- The prior Program week/date-selector defect was fixed and regression-verified by the green authoritative candidate on `e17cb8173a6373059729226453c568e976954d33`. Confirm it during the remaining physical-iPhone acceptance flow; reopen M9.2 only if a current candidate reproduces the failure. Do not misclassify a real recurrence as a harness-only flake.
 - A green smoke run is a checkpoint, not a handoff. Continue resolving all technically achievable original-MVP implementation and verification work, including free Firebase Spark auth/persistence/offline/security paths.
 - The final candidate must have a **green authoritative macOS `full` run on its exact SHA**. If `full` fails, diagnose the failure, fix any product/test defect that can affect acceptance, and rerun the required gates until the final run is green. A red final run is never an acceptable handoff.
 - The final handoff is one completed physical-iPhone candidate using the real MVP architecture and all no-cost live services that can be validated on Spark. The prior in-memory `MVP_DEMO` preview does not satisfy this lock.
 - Do not activate TestFlight, App Store, paid signing, release automation, Firebase Blaze/billing, or `dev -> main` work. The current approved app icon/logo may be maintained as normal product UI/branding.
-- M9.2 is active now for the confirmed Program date-selector defect. After that defect is resolved, M9.2 remains runnable only for real acceptance blockers/regressions.
+- M9.2 remains runnable only for real acceptance blockers/regressions.
 - Stop voluntarily only when all no-cost implementation/verification work is complete, the final exact candidate SHA has green required CI, and the completed physical-iPhone candidate is ready for product acceptance; or after the consolidated external handoff below when execution genuinely requires an unavailable user/external environment.
+
+## UI/UX redesign track
+
+The user explicitly cancelled historical reconstruction (Phase 1) and
+reconciliation (Phase 3). The active design path is the Phase 2 current-app
+evidence plus Phase 4 UI/UX research -> Phase 5 final design candidate.
+
+Until the user explicitly approves and freezes that candidate, redesign work is
+limited to the repository-backed deterministic HTML/CSS prototype and
+documentation. Do not change production SwiftUI, tests, CI, Firebase
+configuration or product behavior. The approved Phase 5 prototype plus
+`docs/ui_ux_design_rules.md` become the visual implementation reference.
+Pencil/Figma are optional reference surfaces, not Phase 5 dependencies.
 
 ## External handoff batching rule
 
@@ -189,7 +208,7 @@ A failed run does **not** automatically justify an immediate replacement run. Mu
 Do not spend an entire Codex task chasing XCTest-only instability.
 - Maximum: two consecutive focused reruns of the same UI test **only when there is no independent product-failure evidence**.
 - If the remaining failure is accessibility/selector/timing instability, domain/unit coverage is green, and the product behavior is not independently proven broken, record `KNOWN_UI_TEST_HARNESS_FLAKE` and continue MVP work.
-- The Program week/date-selector failure is explicitly excluded from this flake allowance because the user independently reproduced the broken behavior on a physical iPhone.
+- A recurrence of the prior Program week/date-selector defect is excluded from this flake allowance until current physical-device evidence shows the product behavior is fixed.
 - Keep flaky tests in the regression suite for later hardening; do not silently delete coverage.
 - Never change production behavior solely to make XCTest discover an element. Production changes require independent product/UX/state evidence.
 

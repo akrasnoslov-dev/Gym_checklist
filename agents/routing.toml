@@ -7,6 +7,13 @@ high_risk_skip_requires_written_reason = true
 prefer_parallel_subagents_when_available = true
 
 [[rules]]
+id = "ui_redesign_or_design_prototype"
+description = "Phase 5 final UI/UX design, the required HTML/CSS prototype, design tokens, screen mockups or design freeze."
+must_use = ["design_prototype_guardian", "ios_ux_guardian", "product_spec_guardian"]
+also_consider = ["architecture_guardian"]
+triggers = ["UI redesign", "Phase 5", "design prototype", "HTML/CSS prototype", "design tokens", "design system", "screen mockup", "design freeze"]
+
+[[rules]]
 id = "today_or_user_visible_ux"
 description = "Today screen, workout interactions, navigation, accessibility, or user-visible workflow changes."
 must_use = ["ios_ux_guardian", "product_spec_guardian"]

@@ -15,6 +15,8 @@ Codex must not implement tasks from titles alone. For every task, read the full 
 
 Status legend: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`. Pending qualifiers such as `IN PROGRESS (PENDING CI)`, `IN PROGRESS (PENDING LIVE)`, and `IN PROGRESS (PENDING EXTERNAL)` are allowed and are not equivalent to `DONE`.
 
+The detailed historical task headers below predate the green exact-candidate gate. For current status, use `docs/progress.md`: implementation/hardening is complete for this candidate, while live Spark and physical-iPhone evidence remain open.
+
 Task completion rule: a task may be marked `DONE` only when all listed acceptance criteria and verification steps pass, or when an explicitly documented environment limitation prevents only non-authoritative local verification and authoritative CI passes instead.
 
 Continuity rule: after each meaningful checkpoint, update `docs/progress.md` with verification, relevant review notes, blockers/deferred external actions, and the exact next safe action. Runtime status in `docs/progress.md` plus actual Git/code state is authoritative if a task header in this plan is stale.
@@ -42,7 +44,7 @@ Until the user explicitly accepts the functional MVP:
 - use exact focused diagnostics only when a specific compiler/runtime/test uncertainty is genuinely the remaining blocker; use the macOS `candidate` scope only for an implementation-complete checkpoint intended to become the next acceptance candidate;
 - do not insert a separate smoke run between a green blocker-focused check and final full verification;
 - if candidate/full fails, classify all failures, batch related fixes plus any other runnable work, review for the same defect class elsewhere, and dispatch again only after the repository is locally exhausted; a red final run is not an acceptable product handoff;
-- the Program week/date-selector issue is now a **confirmed product defect** because the user reproduced it on a physical iPhone. Revoke the old `KNOWN_UI_TEST_HARNESS_FLAKE` treatment and fix it under M9.2;
+- the prior Program week/date-selector defect is fixed and regression-verified on the approved candidate; confirm it in the remaining physical-iPhone acceptance flow and reopen M9.2 only for a real current recurrence;
 - a green smoke run is a checkpoint, not a handoff;
 - do not stop after an intermediate simulator/device preview or in-memory demo;
 - prepare one completed physical-iPhone candidate using the real MVP architecture and all free live services available for acceptance;
@@ -1497,20 +1499,20 @@ Validate every approved MVP scenario against `docs/product_spec.md`.
 
 ---
 
-### M9.2 `IN PROGRESS (CONFIRMED PROGRAM DATE-SELECTOR DEFECT)` Fix acceptance blockers and regressions
+### M9.2 `IN PROGRESS (ACCEPTANCE REGRESSIONS ONLY)` Fix acceptance blockers and regressions
 **Goal**
 Resolve only issues that block approved MVP quality.
 
 **Requirements**
-- First fix the confirmed Program week/date-selector failure reproduced by the user on a physical iPhone and by final macOS CI.
+- The prior Program week/date-selector defect is fixed and covered by the green candidate's focused regression. Confirm it during physical-iPhone acceptance; investigate only a real recurrence on the current candidate.
 - Keep the approved ACC-01 through ACC-09 expansion hardened: local-date BMI must refresh across a date rollover, malformed body-weight snapshots must retain usable cached values, and destructive Program mutations require native confirmation.
-- Do not classify that surface as a harness-only flake without new independent evidence that the product behavior is fixed.
+- Do not classify a reproduced current product failure as a harness-only flake.
 - Do not opportunistically add future features.
 - Add regression tests for fixed critical bugs.
 
 **Acceptance criteria**
-- Program date/week navigation works manually and in regression coverage.
-- Focused/current-head smoke verification passes.
+- Program date/week navigation remains covered by the approved candidate regression and must work in the physical-iPhone acceptance flow.
+- Any new real acceptance blocker has focused regression coverage where feasible.
 - The final exact candidate SHA has a green authoritative macOS `full` run.
 - M9.1 free acceptance can continue without a known blocker.
 

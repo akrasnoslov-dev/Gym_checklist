@@ -20,11 +20,9 @@ Reconstruct the real local Git/worktree state, recent commits/diffs, relevant so
 
 Current phase is pre-payment functional MVP acceptance. Use only zero-cost development and validation paths. Do not buy/activate Apple Developer membership, App Store Connect, TestFlight, paid release signing, Firebase Blaze/billing, or any other paid service.
 
-The Program week/date selector is a confirmed product bug: the user reproduced broken date switching on a physical iPhone, and final CI failed on the same surface. Revoke the prior harness-flake treatment. Reproduce the real failure, fix it, add/adjust regression coverage, and verify it.
-
 Continue every technically safe item in current scope. Use Firebase Spark for every no-cost live path that can be validated: email/password auth, Google Sign-In, Firestore persistence/owner isolation, offline cache/reconnect, Analytics, Crashlytics, and manual/device validation. If a live action requires Blaze/billing or paid Apple capabilities, defer only that exact action and continue everything else.
 
-Use focused CI while diagnosing. For the candidate fix of a known blocker, use the `candidate` CI scope with the exact test filter; it builds once, runs the blocker test, then automatically runs full on the same runner/build/SHA. Do not run a separate smoke between those stages.
+Follow the two-pass macOS remote-gate policy in AGENTS.md. A task that changes production, test or project code must finish local hardening, commit/push, record `REMOTE_GATE_READY_FOR_FINAL_AUDIT <SHA>`, and stop without dispatching macOS CI. Only a separate fresh audit with no such changes may record `REMOTE_GATE_APPROVED <SHA>` and dispatch the justified candidate/full gate.
 
 Do not waste Codex runtime waiting or polling for CI. After dispatching CI, record the run ID/scope/SHA. Continue only useful work that cannot invalidate the candidate; if none exists, end the task immediately. A later task checks that exact run once and processes the terminal result. If it is still running, end quickly rather than polling.
 

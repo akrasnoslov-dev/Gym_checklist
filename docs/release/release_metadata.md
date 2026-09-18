@@ -9,7 +9,7 @@
 | Minimum iOS | 17.0 | Confirm final TestFlight device support before release. |
 | Device family | iPhone | Keep aligned with the approved MVP scope. |
 | Category | Health & Fitness | Confirm in App Store Connect metadata. |
-| App icon | No asset catalog is currently tracked | Add a final App Store-compliant icon asset catalog before archive/signing. |
+| App icon | `GymChecklist/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` from the approved brand master | Validate the rendered icon in an archive and replace only after explicit brand approval. |
 
 Release builds must preserve the bundle identifier, use a new build number, and
 be tied to the exact `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` used for

@@ -34,9 +34,7 @@ Current pre-payment strategy:
 - a green `candidate` run is the required green full evidence for that exact SHA;
 - use standalone `smoke` or `full` only when explicitly justified.
 
-The Program week/date-selector failure is not eligible for the old harness-flake waiver because the user reproduced it on a physical iPhone.
-
-For one known failing test, use the optional `test_filter` workflow input instead of rerunning the entire target during diagnosis. Example:
+For one isolated known failing test, use the optional `test_filter` workflow input instead of rerunning the entire target during diagnosis. This does not bypass the two-pass macOS remote-gate policy in `AGENTS.md`. Example:
 
 ```powershell
 gh workflow run ios-ci.yml --repo akrasnoslov-dev/Gym_checklist --ref dev -f verification_scope=ui -f "test_filter=GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs"

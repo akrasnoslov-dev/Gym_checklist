@@ -21,6 +21,9 @@ I already know my program. Show me today's work and let me tick it off.
 ### Reference mockup status
 `today-program-mockup.png` is a non-authoritative visual reference. If it conflicts with this specification, this specification wins. In particular, any `Delete set` action shown in the Today long-press editor is obsolete: set deletion belongs to Program editing only and must not be exposed as a Today long-press action unless explicitly approved later.
 
+### Current UI/UX design rules
+`docs/ui_research_phase4.md` and `docs/ui_ux_design_rules.md` are the current UI/UX handoff for the final redesign candidate. They define visual hierarchy, native iOS patterns, semantic tokens, Light/Dark direction, accessibility limits and explicit “do not do” rules. They do not change product behavior in this specification. The approved Phase 5 HTML/CSS prototype becomes the visual implementation reference only after an explicit design freeze.
+
 ## 3. Today — highest priority screen
 ### Content hierarchy
 1. `Today`

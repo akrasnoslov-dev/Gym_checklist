@@ -141,9 +141,51 @@ Excluded:
 
 ### Goal
 
-Create the final UI/UX for the approved MVP.
+Create the final UI/UX for the approved MVP as a **deterministic HTML/CSS design prototype**.
 
-The tool may be Figma, a deterministic code-based visual prototype, or another reliable editable design surface. The tool is not the source of product truth; the approved design decisions are.
+The prototype is the Phase 5 visual design surface. It must be stored in the repository and must be inspectable in a normal desktop browser.
+
+Figma and Pencil are not part of the critical Phase 5 workflow. They may be used later only as optional documentation/reference surfaces.
+
+The prototype must distinguish two layers:
+
+1. **app-owned content layer** — layout, spacing, typography hierarchy, colors, set rows, exercise groups, calendar cells, empty states, completion overlay and other product-specific visuals are represented precisely in HTML/CSS;
+2. **native iOS system layer** — navigation bars, tab bars, sheets, menus, pickers, forms, alerts and other system-owned controls are represented only to communicate structure and intent. They must not be treated as pixel-perfect web replacements for native SwiftUI controls.
+
+The approved Phase 5 prototype plus `docs/ui_ux_design_rules.md` will be the visual input to Phase 9 SwiftUI implementation.
+
+### Phase 5 delivery sequence
+
+Do not design every screen at once.
+
+#### Phase 5A — Foundation + control screen
+
+1. Create the prototype shell under `design/prototype/`.
+2. Create semantic design tokens and reusable CSS components.
+3. Build one representative **Today / active workout / partial completion** screen.
+4. Build its Light and Dark appearances.
+5. Make it easy to run locally in a browser.
+6. Review the control screen with the user.
+7. Do not expand to the full screen set until the visual direction is accepted.
+
+The purpose of the control screen is to validate:
+- overall visual language;
+- typography hierarchy;
+- green/lime/mint usage;
+- spacing and density;
+- exercise grouping;
+- set-row styling;
+- completion state;
+- native-vs-custom boundary.
+
+#### Phase 5B — Full candidate
+
+After the control screen direction is accepted:
+- expand the same design system to all required MVP surfaces/states;
+- keep components reusable;
+- preserve Light/Dark;
+- add only interactions needed to inspect states and flows;
+- do not implement product/backend logic.
 
 ### Required design-system output
 
@@ -201,7 +243,9 @@ At minimum:
 - design remains feasible in native SwiftUI iOS 17+;
 - native system chrome is not unnecessarily re-created;
 - accessibility is considered;
-- user can inspect the final result visually before implementation.
+- user can inspect the final result visually in a browser before implementation;
+- prototype avoids web-specific visual patterns that would force a non-native SwiftUI implementation;
+- no Phase 5 dependency on Figma AI credits, Figma Professional credits or Pencil AI generation.
 
 ---
 

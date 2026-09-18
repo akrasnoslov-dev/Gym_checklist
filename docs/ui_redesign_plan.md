@@ -1,332 +1,264 @@
 # Gym Checklist — UI Redesign Plan
 
-## Purpose
+## Current direction
 
-Create one approved Pencil visual source of truth for Gym Checklist before changing production SwiftUI.
+The redesign path is intentionally simplified.
 
-The project currently has three different visual representations:
-1. the historical reference image `today-program-mockup.png`;
-2. the current Pencil design file;
-3. the current implementation in the iOS repository.
+```text
+Phase 2 — Current app baseline
+        +
+Phase 4 — UI/UX design research
+        ↓
+Phase 5 — Final UI/UX candidate
+        ↓
+Phase 6 — User review
+        ↓
+Phase 7 — Iterate to approval
+        ↓
+Phase 8 — Design freeze
+        ↓
+Phase 9 — SwiftUI implementation
+```
 
-This plan reconciles them into one approved Pencil design and only then implements that design in the app.
-
-Pencil working file:
-`design/GymChecklist_Redesign.pen` (tracked in the repository)
+Phase 1 and Phase 3 are retired by explicit user decision.
 
 ## Governing rules
 
-- Do not change production UI while the design is still being explored.
-- The historical mockup is a visual baseline, not an authoritative product specification.
+- Production SwiftUI must not be redesigned before Phase 5 is reviewed, explicitly approved and frozen.
 - Current explicit user decisions have highest priority.
-- Product behavior must remain consistent with `docs/product_spec.md` and `docs/ux_spec.md` unless the user explicitly approves a behavior change.
-- Existing application behavior and repository state must be inspected before adapting the historical mockup.
-- Pencil becomes the visual source of truth only after explicit user approval.
-- After design approval, update relevant UX documentation before or together with implementation so Figma, specs, and code do not diverge again.
-- Any production/test/project-code change after the current approved candidate invalidates the existing authoritative macOS candidate evidence and must follow the repository's two-pass remote-gate policy.
+- `docs/product_spec.md` is authoritative for product behavior.
+- `docs/ux_spec.md` is authoritative for approved UX behavior.
+- Phase 2 is the factual baseline for how the current MVP actually looks and behaves.
+- Phase 4 defines the UI/UX research conclusions and design constraints.
+- `docs/ui_ux_design_rules.md` contains durable visual/interaction rules for Phase 5 and implementation.
+- The historical mockup and Phase 1 reconstruction are no longer design inputs.
 - Protect the core invariant:
 
 ```text
 Open app -> Today -> one tap per completed set -> close app
 ```
 
-## Source-of-truth priority during redesign
+---
+
+## Phase 1 — RETIRED
+
+Historical reference reconstruction is no longer required.
+
+Existing Phase 1 assets may remain in the repository as historical material, but:
+- do not spend time improving them;
+- do not use them to drive Phase 5;
+- do not require editable reconstruction;
+- do not compare Phase 5 against them for acceptance.
+
+---
+
+## Phase 2 — Current application baseline
+
+**Status:** complete enough to drive Phase 5.
+
+Authoritative inputs:
+- `docs/design/current-app-inventory.md`;
+- `docs/design/current-app-gap-matrix.md`;
+- real current-MVP runtime screenshots;
+- relevant current SwiftUI/source when exact behavior needs confirmation.
+
+Phase 2 defines:
+- current screens and states;
+- current visual hierarchy and native rendering;
+- implemented behavior;
+- existing tokens/components;
+- current limitations and conditional states.
+
+Runtime screenshots are preferred over AI reconstructions for visual truth.
+
+No editable clone of the current app is required.
+
+---
+
+## Phase 3 — REMOVED
+
+No separate reconciliation phase.
+
+Conflicts are resolved directly during Phase 5 using this priority:
 
 1. explicit current user decision;
-2. approved product behavior in `docs/product_spec.md`;
-3. approved UX rules in `docs/ux_spec.md`;
-4. current implemented behavior where it does not conflict with the above;
-5. historical reference mockup.
-
-The historical reference must first be reproduced faithfully for comparison, even where parts of it are later rejected as obsolete.
+2. product spec;
+3. UX spec;
+4. Phase 4 UI/UX design rules;
+5. current implementation/Phase 2 visual baseline.
 
 ---
 
-## Phase 1 — Reconstruct the historical reference
+## Phase 4 — UI/UX Design Research
 
-**Tooling:** ChatGPT + Pencil.
+**Status:** complete and refreshed 2026-09-18.
 
-Create a Pencil canvas section using this frame-name prefix:
+Primary document:
+- `docs/ui_research_phase4.md`
 
-`01 — Original Reference / …`
+Durable rules:
+- `docs/ui_ux_design_rules.md`
 
-Tasks:
-- reproduce every screen/state visible in `today-program-mockup.png` as faithfully as possible;
-- current expected inventory is 17 screens/states;
-- match layout, hierarchy, spacing, typography, light/dark appearance, sheets, navigation, empty states, authentication, and other visible states;
-- make UI elements editable rather than placing the whole source image as one bitmap;
-- preserve the original visual decisions at this stage;
-- do not redesign, modernize, recolor, simplify, or reconcile with the current app yet.
+Phase 4 covers both UX and UI:
+- interaction patterns;
+- native iOS component grammar;
+- visual hierarchy;
+- typography;
+- colors and brand usage;
+- Light/Dark;
+- density;
+- spacing/radii;
+- surfaces;
+- iconography;
+- state design;
+- accessibility;
+- SwiftUI feasibility for iOS 17+.
 
-Acceptance:
-- no source screen/state is omitted;
-- screen count and ordering are documented;
-- visual comparison against the source image is possible, including exported frame screenshots;
-- the page is clearly labeled as historical/non-authoritative.
+Research sources include Apple HIG/Design Resources, current Apple first-party patterns, Reminders, Calendar, Settings, Health/Fitness, Strong, Hevy and Liftin'.
+
+Phase 4 exists to constrain Phase 5. It does not itself redesign production UI.
 
 ---
 
-## Phase 2 — Audit the current application
+## Phase 5 — Final UI/UX Candidate
 
-**Tooling:** ChatGPT + GitHub/repository + Pencil.
+**Next design phase.**
 
-Create a Pencil canvas section using this frame-name prefix:
+### Inputs
 
-`02 — Current App / …`
-
-Inspect the live `dev` branch, including:
-- `AGENTS.md`;
-- `docs/progress.md`;
+Mandatory:
+- Phase 2 current-app inventory;
+- Phase 2 real runtime screenshots;
 - `docs/product_spec.md`;
 - `docs/ux_spec.md`;
-- `docs/architecture.md`;
-- relevant SwiftUI views;
-- shared UI components;
-- design tokens;
-- colors;
+- `docs/ui_research_phase4.md`;
+- `docs/ui_ux_design_rules.md`.
+
+Excluded:
+- Phase 1 historical reconstruction;
+- historical mockup as a design source;
+- invented product behavior.
+
+### Goal
+
+Create the final UI/UX for the approved MVP.
+
+The tool may be Figma, a deterministic code-based visual prototype, or another reliable editable design surface. The tool is not the source of product truth; the approved design decisions are.
+
+### Required design-system output
+
+Define:
+- semantic color tokens;
 - typography;
-- spacing and radii;
-- navigation;
-- Today;
-- Program Week and Month;
-- Program editing flows;
-- sheets and menus;
-- Settings/Profile;
-- authentication;
-- empty/completion states;
-- System/Light/Dark behavior.
+- spacing;
+- radii;
+- surface hierarchy;
+- separators/borders;
+- icons;
+- buttons;
+- set rows;
+- exercise groups;
+- calendar cells;
+- summary/settings rows;
+- sheets/forms;
+- completion/destructive/disabled/error states;
+- Light/Dark behavior.
 
-Where source code is insufficient to prove actual rendering, use current screenshots from the physical iPhone or simulator when available.
+### Required surfaces
 
-Output:
-- a complete source-backed implementation-state inventory of the current app; this remains exhaustive even when conditional states are not captured separately;
-- a representative collection of real current-MVP runtime screenshots in Pencil under `02 — Current App / Runtime References`;
-- a short gap matrix between historical mockup, current product requirements, and current implementation.
-
-The runtime screenshots may remain locked bitmap references. Phase 2 does not require editable reconstruction of the current application. Controlled Pencil AI reconstruction attempts materially changed native geometry, typography, spacing, content, and controls, so artificial editable copies are not accepted as evidence of the current MVP.
-
-Conditional/error states that are not worth reproducing manually remain documented in the implementation inventory and may be captured later only when they are needed for a concrete design decision.
-
-Acceptance:
-- the exhaustive current implementation/state inventory is present;
-- representative real runtime screenshots cover the main current MVP surfaces;
-- those screenshots are preserved as visual evidence in the working Pencil file;
-- the historical/current/requirements gap matrix is present;
-- no editable clone of the current app is required.
-
-Do not modify production SwiftUI in this phase.
-
----
-
-## Phase 3 — Reconcile the product and visual models
-
-**Tooling:** ChatGPT + Pencil.
-
-Create a Pencil canvas section using this frame-name prefix:
-
-`03 — Adapted / …`
-
-Tasks:
-- combine useful structure from the historical reference with current approved features and behavior;
-- preserve the current green/lime/mint brand direction unless the user changes it;
-- remove historical interactions that conflict with current specs;
-- keep native iOS behavior where it improves clarity and reduces maintenance;
-- explicitly record important conflicts and the chosen resolution.
-
-Examples of historical content that must not be copied blindly:
-- Today must not gain a Start Workout flow;
-- Today long-press editing must not expose obsolete set deletion if current UX rules prohibit it;
-- top-level navigation and Program behavior must match current product rules.
-
-Acceptance:
-- every major screen has a defined role;
-- no known product requirement is accidentally lost;
-- no obsolete historical behavior is reintroduced silently.
-
----
-
-## Phase 4 — Design research
-
-**Tooling:** ChatGPT web research; Work may be used for a deeper dedicated research pass.
-
-Research:
-- Apple Human Interface Guidelines;
-- current Apple first-party iOS patterns;
-- Apple Health / Fitness;
-- Reminders;
-- relevant modern checklist/productivity apps;
-- Strong;
-- Hevy;
-- Fitbod;
-- Liftin';
-- other high-quality workout/planning apps when useful.
-
-Research topics:
-- checklist completion;
-- tappable set rows;
-- hierarchy and density;
-- week/month navigation;
-- list editing;
-- sheets;
-- menus;
-- destructive actions;
-- empty states;
-- completion feedback;
-- settings;
-- dark mode;
-- accessibility;
-- Dynamic Type;
-- native iOS 17+ patterns.
-
-Research output should be decision-oriented:
-
-`Problem -> references -> chosen pattern -> why it fits Gym Checklist`
-
-Do not turn the product into a generic fitness dashboard. Research must support the core invariant and minimalist checklist mental model.
-
----
-
-## Phase 5 — Create Final Design Candidate
-
-**Tooling:** ChatGPT + Pencil.
-
-Create a Pencil canvas section using this frame-name prefix:
-
-`04 — Final Candidate / …`
-
-Also create a reusable `Components / Tokens` area in the same Pencil file.
-
-The candidate should cover all relevant MVP surfaces and important states, including:
-- Today with incomplete/partial/completed sets;
-- skipped/restored exercise handling;
+At minimum:
+- Today incomplete/partial/completed;
+- Today skipped/restored;
 - Today rest day;
-- Today no-program state;
-- long-press set editor;
+- Today no-program/empty;
+- Today long-press set editor;
 - workout completion overlay;
 - Program Week;
 - Program Month;
-- selected-date workout details;
-- add/edit/remove/reorder exercise and set flows;
+- selected-date workout editing;
+- add/edit/remove/reorder exercise/set;
 - exercise picker;
 - custom exercise;
 - copy workout;
 - repeat workout;
 - historical workout editing;
-- Settings/Profile;
+- Settings;
+- Profile;
 - body-weight history;
-- appearance and unit settings;
-- authentication;
+- appearance/unit preferences;
 - account/destructive actions;
-- relevant loading/offline/error states where they materially affect UX;
-- Light and Dark appearance.
+- sign in/sign up/reset;
+- important loading/offline/error states;
+- representative Light/Dark states.
 
-Reusable foundations should cover:
-- color tokens;
-- typography;
-- spacing;
-- radii;
-- buttons;
-- rows;
-- cards/sections;
-- navigation;
-- sheets;
-- form controls;
-- completion states;
-- destructive states.
+### Acceptance
 
-Acceptance:
-- screens form one coherent design system;
-- Today remains the simplest and fastest surface;
+- one coherent visual system;
+- Today remains fastest and quietest;
+- no approved feature is lost;
+- no out-of-scope dashboard/fitness features added;
 - important states are represented;
+- design remains feasible in native SwiftUI iOS 17+;
+- native system chrome is not unnecessarily re-created;
 - accessibility is considered;
-- design is feasible in native SwiftUI without unnecessary custom frameworks.
+- user can inspect the final result visually before implementation.
 
 ---
 
 ## Phase 6 — User review
 
-Stop before implementation.
+Stop before production implementation.
 
-The user reviews the Pencil candidate and records changes.
+User reviews the Phase 5 candidate and records changes.
 
-No production SwiftUI changes during this phase.
+Silence or partial acceptance is not approval.
 
 ---
 
 ## Phase 7 — Iterate to approval
 
-Apply user feedback only in Pencil until the design is explicitly approved.
+Iterate only in the design artifact/specification:
 
-Repeat as needed:
+```text
+Final v1 -> v2 -> ... -> APPROVED
+```
 
-`Final v1 -> v2 -> ... -> APPROVED`
-
-Do not treat silence or partial acceptance as design approval.
+Do not redesign production SwiftUI during this loop.
 
 ---
 
 ## Phase 8 — Design freeze
 
-After explicit approval:
+After explicit user approval:
 
-1. mark the approved Pencil canvas section/version clearly;
-2. treat approved Pencil as the visual source of truth;
-3. update `docs/ux_spec.md` and any other affected product documentation so approved behavior and visual rules are durable;
-4. prepare an implementation mapping from approved Figma screens/components to SwiftUI files/components;
-5. record any deliberate implementation tolerances or native-system substitutions.
-
-Only after this freeze may production UI implementation begin.
+1. mark the approved design version;
+2. treat it as the visual reference for implementation;
+3. update `docs/ux_spec.md` where approved design changes make durable clarification necessary;
+4. ensure `docs/ui_ux_design_rules.md` matches the approved result;
+5. map approved screens/components to SwiftUI files/components;
+6. record deliberate native-system substitutions/tolerances.
 
 ---
 
 ## Phase 9 — Implement in SwiftUI
 
-**Tooling:** Codex/repository task workflow.
+Implement in coherent batches:
 
-Implement in coherent batches rather than one giant task:
-
-1. design tokens and shared UI components;
+1. design tokens/shared components;
 2. Today;
-3. Program navigation and date surfaces;
-4. Program editors, sheets, copy/repeat flows;
+3. Program date navigation;
+4. Program editors/copy/repeat/history;
 5. Settings/Profile;
-6. Auth and empty/completion states;
-7. final visual consistency and accessibility pass;
-8. regression tests and relevant UI tests;
+6. Auth and supporting states;
+7. accessibility/visual consistency;
+8. tests/regression coverage;
 9. Pass A implementation/hardening;
-10. separate Pass B final remote-gate audit and authoritative macOS verification when justified.
+10. separate Pass B remote-gate audit and justified authoritative macOS verification.
 
-Implementation rules:
-- approved Pencil is the visual reference;
-- `product_spec.md` remains authoritative for product behavior;
-- do not invent missing UI in Codex without returning to the approved design/spec decision;
-- preserve offline behavior, ownership/security, migrations, and existing data semantics;
-- prefer native SwiftUI and system components where they match the approved design;
-- keep Today interaction count minimal;
-- compare implementation screenshots against approved Pencil before final acceptance.
-
----
-
-## Tool responsibility
-
-| Work | Primary tool |
-| --- | --- |
-| Historical mockup reconstruction | ChatGPT + Pencil |
-| Current app/repository audit | ChatGPT + GitHub + Pencil |
-| Reconciliation | ChatGPT + Pencil |
-| Design research | ChatGPT; Work optional for deep research |
-| Final design | ChatGPT + Pencil |
-| User review/iterations | ChatGPT + Pencil |
-| Design freeze/spec update | ChatGPT + repository |
-| SwiftUI implementation | Codex |
-| Tests/hardening/CI | Codex |
-| Final visual QA | ChatGPT + Pencil + real screenshots |
-
-## Current checkpoint at plan creation
-
-At the time this plan was created:
-- branch: `dev`;
-- current approved candidate source recorded in `docs/progress.md`: `e17cb8173a6373059729226453c568e976954d33`;
-- authoritative macOS candidate run `33991955146` is green for that exact candidate;
-- production UI implementation must not be changed until the design has been approved and frozen;
-- any later production/test/project-code change invalidates that current remote-gate evidence and must follow the repository rules again.
+Rules:
+- approved Phase 5 design is the visual reference;
+- product spec remains behavior authority;
+- native SwiftUI/system controls are preferred where they match the approved intent;
+- do not invent missing design in implementation;
+- preserve offline behavior, security/ownership and data semantics;
+- compare implementation screenshots against the approved candidate before acceptance.

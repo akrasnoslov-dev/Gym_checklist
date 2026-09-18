@@ -1,203 +1,447 @@
-# Gym Checklist — Phase 4 Design Research Handoff
+# Gym Checklist — Phase 4 UI/UX Design Research
 
-**Status:** research complete; input to Phase 5 only. No Pencil or production UI was changed.  
-**Research date:** 2026-09-07  
-**Implementation inspected:** `dev` at `6343b7606421288a3f651dd69c331ab2a7a1d9ac`.
+**Status:** complete and current as of 2026-09-18.  
+**Purpose:** direct input to Phase 5 final UI/UX design.  
+**Baseline:** Phase 2 current-app inventory + real runtime screenshots.  
+**Not an implementation change:** this document does not modify product behavior or production SwiftUI.
 
-## Scope and evidence boundary
+## 1. Research scope
 
-This document makes visual and interaction recommendations for the approved MVP. It does not change product behavior. Source-of-truth priority remains: current explicit user decisions -> `product_spec.md` -> `ux_spec.md` -> current implementation -> historical mockup.
+Phase 4 covers both **UX interaction patterns** and **UI visual-system decisions**.
 
-### Verified current product behavior
+The previous title, “Design Research”, understated the visual/UI work. The research now explicitly covers:
+- interaction model and information hierarchy;
+- native iOS navigation, tabs, toolbars, menus, sheets, forms, lists and destructive actions;
+- visual hierarchy, density and surfaces;
+- typography and Dynamic Type;
+- semantic color and brand-accent usage;
+- Light/Dark behavior;
+- iconography and SF Symbols;
+- spacing, radii and touch targets;
+- checklist completion states;
+- week/month calendar states;
+- empty, loading, offline, error and completion feedback;
+- accessibility;
+- implementation feasibility for SwiftUI on iOS 17+.
 
-- App opens authenticated users on **Today**; top-level tabs are Today, Program, Settings.
-- Today has one independent, immediately tappable set row; a second tap undoes completion. Sets can be completed in any order. There is no Start Workout flow.
-- Long press opens a compact Today set editor. Exercise skip is a secondary context-menu action; skipped exercises can be restored from a low-prominence menu.
-- Workout completion is a dismissible in-place overlay, not navigation. Today supports no-program, rest-day, loading, unavailable, and cached-offline states.
-- Program has Week/Month modes, one shared selected date, day-state icon/VoiceOver text, date-scoped editing, copy/repeat sheets, and destructive confirmations.
-- Settings has profile, compact body-weight history, System/Light/Dark, kg/lb, logout, and protected account deletion. Body-weight deletion uses native destructive swipe actions.
-- Current shared implementation already has semantic green/mint tokens (`GymTheme`), semantic system surfaces, native `Form`/`List`/`sheet`/`Menu`/`confirmationDialog`, and substantial VoiceOver identifiers/labels.
+## 2. Evidence priority
 
-### Research interpretation
+For Phase 5:
 
-Apple’s HIG and first-party applications are strongest evidence for interaction grammar: platform navigation, controls, accessibility, system color, sheets, menus and destructive confirmation. Apple Health/Fitness and market leaders are useful *contrast cases*, not templates: their dashboards, coaching, charts, timers and social systems are outside Gym Checklist MVP. Strong, Hevy and Liftin’ validate that a workout logger can be fast; their extra scope is deliberately excluded.
+1. current explicit user decisions;
+2. `docs/product_spec.md`;
+3. `docs/ux_spec.md`;
+4. Phase 2 current-app inventory and real runtime screenshots;
+5. this Phase 4 UI/UX research;
+6. external references.
 
-## 1. Executive decisions
+The historical mockup and Phase 1 reconstruction are retired from the redesign path and are not Phase 5 inputs.
 
-These are mandatory rules for the **Pencil Final Candidate** unless a later explicit user decision overrides them.
+## 3. Primary external references
 
-1. Make Today a completion-first checklist: exercise heading, then full-width set rows. One row is one target and one tap completes/undoes it.
-2. Keep Today visually quieter than every other surface. No metrics, charts, progress ring, workout timer, recommendation, warm-up or start/finish control.
-3. Use one primary completion affordance per row: leading check circle plus tappable row surface. Completed state changes icon, text treatment and accessibility state; never color alone.
-4. Preserve 44 pt minimum interactive height; use 48–52 pt set rows where copy can wrap. Do not make a small icon the only tappable target.
-5. Group sets inside their exercise, with modest internal dividers. Exercise groups may use a subtle surface/container, but individual set rows must not become stacked cards.
-6. Put rare Today actions behind a header overflow/context action: Skip exercise. Put Restore skipped exercises below active content as one low-prominence menu.
-7. Use a medium/large native-style bottom sheet for set editing and compact one-purpose flows; retain Cancel/Save in navigation-bar positions. Do not use a custom modal for ordinary edits.
-8. Keep destructive actions only in Program/account contexts. Mark them red, explain the deleted scope, and require a native confirmation before deleting a set, exercise, workout, or account.
-9. Keep Program denser than Today. Use a single selected-date model across Week and Month, clear prev/next controls, and state icon + accessible text for every non-empty day.
-10. Keep Week as fast planning navigation: seven equal date targets. Keep Month as a compact, fixed grid with readable day numbers and subordinate state marks; never turn it into an analytics heatmap.
-11. Use native grouped forms/lists for editors, custom exercise, profile, body weight, auth and account actions. Custom card styling is for summary/navigation surfaces, not every input.
-12. Give empty states one clear message, one relevant action at most, and no decorative dashboard substitute. Offline cache messaging must remain non-blocking and secondary.
-13. Completion feedback is a short, dismissible celebration overlay above Today. It has one action, returns to same screen/context, contains no statistics, and must be accessible as a modal.
-14. Keep approved green/lime/mint direction. Accent conveys selected/completed/primary action; neutral system surfaces and primary text carry most hierarchy. Purple from the historical reference is excluded.
-15. Design light and dark together with semantic tokens, not two independent palettes. Avoid hard-coded white/black/gray and avoid low-contrast lime text on light surfaces.
-16. Support Dynamic Type by allowing headers, row values and summaries to wrap; do not use compressed fixed-height text. Calendar may keep fixed cell geometry, but must preserve minimum target size and use VoiceOver labels for full dates/state.
-17. Use SF Symbols only when their meaning is familiar and pair them with text/VoiceOver labels for actions and state. Do not rely on an icon-only destructive action.
-18. Preserve native tab bar, navigation-stack titles, system keyboard/form behavior and standard swipe/menu affordances unless a Pencil decision has a clear, task-specific benefit.
+### Apple — authoritative platform references
+- Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines/
+- Apple Design Resources: https://developer.apple.com/design/resources/
+- Apple Branding guidance: https://developer.apple.com/design/human-interface-guidelines/branding
+- Apple Dark Mode guidance: https://developer.apple.com/design/human-interface-guidelines/dark-mode
+- Apple Lists and Tables guidance: https://developer.apple.com/design/human-interface-guidelines/lists-and-tables
+- Apple Toolbars guidance: https://developer.apple.com/design/human-interface-guidelines/toolbars
+- Apple Segmented Controls guidance: https://developer.apple.com/design/human-interface-guidelines/segmented-controls
+- Apple Sign in with Apple guidance: https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple/
+- Apple 2026 brand/UI design session: https://developer.apple.com/videos/play/wwdc2026/251/
 
-## 2. Decision matrix
+Apple’s current design resources include official iOS/iPadOS UI kits for Figma. These are reference material for native geometry and component vocabulary, not a replacement for SwiftUI system controls.
 
-| Problem | Reliable references | Chosen pattern | Why it fits Gym Checklist | Affected Phase 5 screens/components | Accessibility / dark-mode implications |
-| --- | --- | --- | --- | --- | --- |
-| Marking a completed set fast without accidental ambiguity | [Apple HIG — Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons), [Apple Reminders](https://apps.apple.com/us/app/reminders/id1108187841) | Entire 48–52 pt set row toggles; leading `circle` / `checkmark.circle.fill`; value stays primary content. | Directly protects one-tap invariant and familiar checklist mental model. | Today incomplete/partial/completed; reusable `SetCompletionRow`. | VoiceOver says exercise, ordinal set, value, completion state and toggle action. Use icon/text-opacity/state together; accent contrast safe in both themes. |
-| Avoiding Today card overload while grouping exercises | [Apple HIG](https://developer.apple.com/design/human-interface-guidelines/), [Strong](https://www.strong.app/), [Liftin’](https://www.liftinapp.co/) | One calm exercise container with internal edge-to-edge rows and dividers; no card per set. | Workout use is repetitive and glance-driven; card-per-set adds scanning and tap friction. | Today, Program detail; `ExerciseChecklistGroup`, divider token. | Let exercise names and values wrap. Container/separator use semantic system surfaces, not fixed gray. |
-| Hiding uncommon Today actions without losing them | [Apple HIG — Menus](https://developer.apple.com/design/human-interface-guidelines/menus), [Apple Reminders](https://apps.apple.com/us/app/reminders/id1108187841) | Text exercise header with discreet overflow/context menu for Skip; one Restore skipped exercises menu after visible groups. | Skip/restore remains discoverable but does not compete with set completion. Matches verified behavior. | Today active/skip/restore states; `ExerciseHeaderActions`. | Header has 44 pt target and named VoiceOver custom action. Do not hide restore through color or gesture only. |
-| Editing one set without leaving task context | [Apple HIG — Sheets](https://developer.apple.com/design/human-interface-guidelines/sheets), [Apple HIG](https://developer.apple.com/design/human-interface-guidelines/) | Native bottom sheet containing one `Form`: only relevant Reps/Weight/Time fields, Cancel and Save. | Long press is already approved; a sheet preserves Today position and isolates edit from checklist execution. | Today set editor, Program set editor, historical actual editor; `SetEditorSheet`. | Use labelled fields, correct decimal/number keyboards, visible validation, keyboard-safe layout, Dynamic Type scrolling. Sheet must present an accessible title. |
-| Planning across dates without losing selected-day context | [Apple HIG](https://developer.apple.com/design/human-interface-guidelines/), [Apple HIG — Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons) | Week/Month segmented mode, explicit previous/next controls, one selected date shared by both modes and same detail below. | Matches current data model and keeps calendar navigation separate from execution. | Program Week, Program Month, selected-date detail; `ProgramDateNavigator`. | Date control labels use full localized date plus state/selected/today. Month day mark supplements, never replaces, text/accessibility state. |
-| Showing plan/completion status in a dense calendar | [Apple HIG — Color](https://developer.apple.com/design/human-interface-guidelines/color), current `ProgramCalendarState` behavior | Small SF Symbol/state mark plus selected outline; status pill in detail. Use no heatmap and no percentage. | State awareness helps planning; analytics would violate scope and crowd Program. | Week cells, Month cells, Program detail status; `WorkoutDayStateIndicator`. | State has icon + VoiceOver label. Current-date outline and selection must remain distinguishable at increased contrast and in dark mode. |
-| Editing and reordering program content | [Apple HIG — Lists and tables](https://developer.apple.com/design/human-interface-guidelines/lists-and-tables), [Apple HIG — Menus](https://developer.apple.com/design/human-interface-guidelines/menus) | Dense ordered exercise sections; labelled `Add set`/`Add exercise`; overflow menus for move/delete; sheets for content edits. | Program is planned work, so density is useful, while destructive/reorder controls remain secondary. | Program workout editor, exercise picker, custom exercise. | Every move action needs text label and position context. Avoid drag-only reorder as sole interaction. Preserve 44 pt targets. |
-| Copy/repeat without accidental overwrite | [Apple HIG](https://developer.apple.com/design/human-interface-guidelines/), [Strong App Store listing](https://apps.apple.com/us/app/strong-workout-tracker-gym-log/id464254577) | Purpose-built sheet: source summary, native date/cadence choice, resulting-workout summary, disabled primary action on invalid/occupied destinations. | Supports approved independent copies/repeats and communicates outcome before mutation. | Copy workout sheet, Repeat workout sheet; `WorkflowSummaryCard`, validation message token. | Validation is written, not only disabled color. Date/cadence controls need labels and value announcements. Use destructive color only for errors that block action. |
-| Destructive actions and deletion recovery | [Apple HIG — Alerts](https://developer.apple.com/design/human-interface-guidelines/alerts), [Apple HIG — Menus](https://developer.apple.com/design/human-interface-guidelines/menus) | Red action in Program/account; native confirmation names object and scope. Body-weight rows use native destructive swipe; retain row on failed deletion and show error. | Matches verified behavior and prevents data loss while keeping common flows light. | Program delete set/exercise/workout; Settings delete account/body weight. | Destructive label must be explicit (for example, “Delete workout”), not only trash icon. Confirmation supports VoiceOver focus and system dark mode automatically. |
-| Empty, loading, offline and rest-day states | [Apple HIG](https://developer.apple.com/design/human-interface-guidelines/), [Apple Health](https://apps.apple.com/us/app/apple-health/id1242545199) | One short status + one contextual action: create workout, view program, or passive retry message. Small illustration only for no-program/rest if it does not push CTA below fold. | Keeps no-workout moments calm; Health’s data-rich pattern is intentionally not used. | Today no program/rest/empty/loading/unavailable; Program empty/loading/unavailable. | All copy remains readable at large Dynamic Type. Loading/unavailable announce status; cached data stays usable and is not obscured. |
-| Finishing a workout with motivation, not another workflow | [Apple HIG](https://developer.apple.com/design/human-interface-guidelines/), [Apple Fitness](https://www.apple.com/uk/health/) | In-place celebratory overlay: small brand/SF Symbol illustration, one short line plus optional subline, one “Done” action. | Meets explicit completion requirement and returns immediately to completed Today; Fitness-style rings/stats are out of scope. | Today completion overlay; `WorkoutCompletionOverlay`. | Treat as modal; move VoiceOver focus in, then return it to prior set/header. Respect Reduce Motion: static or nonessential animation only. Light/dark overlay and card contrast must be checked. |
-| Profile, body weight, preferences and account | [Apple HIG — Settings](https://developer.apple.com/design/human-interface-guidelines/settings), [Apple Health](https://apps.apple.com/us/app/apple-health/id1242545199) | Profile-first settings: compact summary rows into native form/detail sheets; body-weight history is a short dated list, not a chart/dashboard; account/danger separated. | Preserves approved profile/body-weight scope without becoming Health clone. | Settings, Profile editor, Body weight history, Appearance/units, Account. | BMI remains neutral informational copy and no medical color grading. Segment choices expose labels/value; edit/delete rows retain standard semantics. |
-| Auth with lowest possible visual and cognitive load | [Apple HIG](https://developer.apple.com/design/human-interface-guidelines/), [Sign in with Apple](https://developer.apple.com/sign-in-with-apple/) | Native `Form`/labelled fields, Apple’s supplied Sign in with Apple control, Google control, error inline near fields, no onboarding carousel. | Matches approved no-onboarding behavior and keeps authentication separate from workout product. | Sign up, Sign in, reset password, auth errors. | Use supplied Apple control unchanged; error gets accessible focus. Respect keyboard focus/content types and Dynamic Type. |
-| Brand expression across system appearances | [Apple HIG — Color](https://developer.apple.com/design/human-interface-guidelines/color), [Apple HIG — Dark mode](https://developer.apple.com/design/human-interface-guidelines/dark-mode) | Semantic tokens: accent fill, accent foreground, soft accent, primary/secondary text, grouped surface, elevated surface, separator, destructive. Accent is restrained. | Existing code already follows this direction; tokens make Pencil and SwiftUI implementable without light/dark drift. | All screens; `GymTheme` successor / Components & Tokens area. | Test contrast per token pairing. Do not place lime text on white; do not use fixed white cards or black overlays without dark-mode token behavior. |
+### Product references — contrast and pattern evidence
+- Apple Reminders: closest reference for checklist-first completion.
+- Apple Calendar: reference for date navigation and segmented Week/Month switching.
+- Apple Settings: reference for profile/preferences/account grouping.
+- Strong: useful for workout data density, but too session-centric for Gym Checklist.
+- Hevy: useful for workout-planning density, but social/analytics surfaces are out of scope.
+- Liftin': useful for restrained native-feeling workout UI, but timers/progression/graphs remain out of scope.
+- Apple Health/Fitness: useful for system polish and state presentation, but not for dashboard structure.
 
-## 3. Do not do
+## 4. Core design conclusion
 
-Do not copy these patterns into Gym Checklist:
+Gym Checklist should look like a **native iOS checklist/planning app that happens to be for gym workouts**, not like a generic fitness dashboard.
 
-- Do not add a Start Workout / End Workout lifecycle, timer, rest countdown, automatic exercise advance, rings, streaks, PRs, charts, calorie cards, coaching, recommendations, social feed, sharing, HealthKit surface, Apple Watch UI, widgets, or AI generation. Strong, Hevy, Fitbod and Fitness offer many of these because they are broader products; Gym Checklist does not.
-- Do not turn Today into a generic dashboard or make it resemble Apple Health/Fitness. Their data hierarchy is wrong for a pre-planned, one-tap checklist.
-- Do not revive historical purple styling. Approved direction is green/lime/mint.
-- Do not use a card for every set, nested cards, heavy shadows, glassmorphism, decorative gradients, giant hero artwork, or persistent motivational copy above a live workout.
-- Do not make the checkbox, chevron, or overflow icon the only hit target; do not make completion depend on swipe, long press, drag, or a confirmation dialog.
-- Do not show Skip, Delete, Edit, Copy, Repeat, or account actions beside each set as permanent controls.
-- Do not expose Delete set in Today’s long-press editor. Set deletion belongs to Program editing only.
-- Do not represent calendar state with color alone, a dense heatmap, tiny unreadable dots, or an overloaded multi-metric cell.
-- Do not replace native tab bar, navigation semantics, sheet dismissal, standard date picker, destructive confirmation, text fields, Apple Sign In button, or body-weight swipe-delete merely for visual novelty.
-- Do not use bespoke controls that cannot grow with Dynamic Type, truncate set values, hide keyboard focus, or depend on a gesture unavailable to VoiceOver.
-- Do not show network status as a blocking full-screen state when a cached workout is available; do not introduce manual Sync.
-- Do not present completion as a new screen, request a rating/share, or display statistics in its overlay.
+The primary mental model remains:
 
-## 4. Phase 5 handoff
+```text
+I already know my workout.
+Show today's work.
+One tap per completed set.
+Close the app.
+```
 
-### Mandatory design rules
+This means:
+- Today is visually quieter than Program and Settings;
+- completion is the strongest state change;
+- planning controls stay out of the execution path;
+- native platform components are preferred over custom chrome;
+- the brand is expressed through content/state, not by recoloring the whole interface.
 
-- Build only in Pencil section `04 — Final Candidate / …`; keep `Components / Tokens` in same Pencil file. Do not modify SwiftUI in Phase 5.
-- Draw all meaningful visual states in Light and Dark at least once. Use same semantic token names; do not create separate arbitrary layouts.
-- Use iPhone-safe-area layouts, native tab bar, navigation titles and iOS 17+ controls as default implementation target.
-- Treat 44 pt as minimum practical target. Design Today set rows at 48–52 pt minimum before Dynamic Type expansion.
-- Use system semantic colors/surfaces as base. Brand accent is emphasis, not background paint across every surface.
-- Follow current product behavior exactly unless a conflict is called out below as unresolved and taken to the user.
-- Include visible selected/focused/disabled/error/destructive states where relevant. Completion and calendar statuses need a non-color cue.
+## 5. UI research decisions
 
-### Recommended reusable components and tokens
+### 5.1 Native platform layer
 
-| Foundation | Phase 5 definition |
-| --- | --- |
-| Color | `accentFill`, `accentForeground`, `accentSoft`, `surfaceGrouped`, `surfaceElevated`, `textPrimary`, `textSecondary`, `separator`, `destructive`, `scrim`. Each must specify Light/Dark values and intended text/icon pairings. |
-| Type | Prefer native Dynamic Type text styles: large navigation/title, `title3`/headline exercise name, body set value, subheadline summary, caption/footnote metadata. No fixed point sizes for ordinary text. |
-| Spacing / shape | 4 pt base rhythm; 12–16 pt internal group padding; 16–20 pt screen inset; 8–12 pt row/group gap; 12 pt row-group radius; 16–20 pt summary/card radius. Verify against current `GymCard` only as implementation reference, not an obligation to retain every card. |
-| `SetCompletionRow` | Leading state symbol, set value, full-row hit area, divider, incomplete/completed state, VoiceOver value. No trailing action needed. |
-| `ExerciseChecklistGroup` | Exercise header + overflow/Skip, stacked `SetCompletionRow`s, optional low-key skipped state. |
-| `WorkoutDayStateIndicator` | Symbol plus semantic label for planned/partial/completed/incomplete; current-day outline and selected-date treatment are separate. |
-| `ProgramDateNavigator` | Week and Month variants with one selected-date state, labelled previous/next controls and full date context. |
-| `GymSummaryRow` / `GymSection` | Reusable settings/program navigation row: leading optional icon, title, summary, chevron; grouped surface only where it improves scan. |
-| `WorkflowSheet` | Navigation title, Cancel/Done or primary action, source/result summary, native form controls, inline validation. Used by set edit, copy, repeat, profile and body weight. |
-| `DestructiveConfirmation` | System confirmation dialog copy template: title names object; message states exactly what disappears; red action has explicit verb. |
-| `EmptyState` / `OfflineNotice` | Small icon/illustration slot, one title, optional one-line explanation, one contextual CTA maximum. Offline notice is inline/non-blocking. |
-| `WorkoutCompletionOverlay` | Dimming scrim, one small illustration/SF Symbol, short encouragement, one dismissal, VoiceOver modal focus, Reduce Motion variant. |
+Gym Checklist targets iOS 17+.
 
-### Screen-by-screen rules
+Use standard SwiftUI navigation, tab bars, menus, sheets, forms, lists, pickers, alerts and confirmation dialogs wherever they satisfy the product need.
 
-#### Today
+Do **not** manually imitate a specific generation of Apple system chrome such as Liquid Glass. Newer iOS versions can render newer system styling automatically; older supported versions must remain native to their OS. The custom design system belongs mainly in the app's content layer.
 
-- Highest visual priority: `Today`, local date, exercise name, set rows, tab bar. Do not insert a progress dashboard.
-- Build explicit frames for: active incomplete, partial, all completed behind overlay, skipped exercise + restore affordance, no workout ever, rest day, empty configured workout, cached-offline, unavailable-without-cache, long-press editor, completion overlay.
-- Exercise container gives structure; rows carry interaction. Display canonical set copy exactly as current formatter/spec: weighted, reps-only, or timed without meaningless zero/one values.
-- One-tap completion must retain scroll location in implementation; design must not imply a transition or auto-scroll.
+Implication for Phase 5:
+- design custom content/components precisely;
+- show standard system chrome as native/system-owned;
+- do not freeze native bars, sheets and controls into bespoke pixel copies that will become wrong across iOS versions.
 
-#### Program
+### 5.2 Brand and color
 
-- Build Week and Month as two views of same selected date; selected-date detail must be visually/structurally identical after either navigation path.
-- Week: seven readable date targets; Month: six-row fixed grid with out-of-month dates visually subordinate but selectable.
-- Give date state both visible symbol and full accessible label. Program detail may show a compact status pill.
-- Editor hierarchy: selected date -> exercises -> sets -> Add set / Add exercise. Put reordering/delete in labelled overflow/context actions.
-- Show future editing, historical completed actual-value edit, empty future/past, copy, repeat, and delete confirmations. Do not invent template engine or multi-workout-per-day UI.
+Keep the approved green/lime/mint direction.
 
-#### Editors and sheets
+Apple’s current branding guidance recommends restrained brand color usage. Apply the accent primarily to:
+- completed/selected states;
+- primary actions;
+- selected tab/icon where the system permits;
+- compact status feedback.
 
-- Set editor displays only fields allowed by set type. Today edits plan before completion and actual after completion; Program completed-set plan edits must not imply it changes actual results.
-- Use native form sections, readable labels, primary Save in nav bar/bottom only where keyboard-safe, and Cancel. Program-only deletion is separate, red, confirmed.
-- Copy/repeat must preview source/date/result and invalid destination. Copy stays independent; repeat communicates cadence/duration and skipped occupied dates.
-- Exercise picker begins with search; custom exercise is visible but secondary. No media tiles or exercise coaching.
+Do not use green as a broad page background or on every control.
 
-#### Settings and authentication
+Use semantic tokens, not hard-coded Light-only values:
+- `accentFill`
+- `accentForeground`
+- `accentSoft`
+- `surfaceBase`
+- `surfaceGrouped`
+- `surfaceElevated`
+- `textPrimary`
+- `textSecondary`
+- `separator`
+- `destructive`
+- `scrim`
 
-- Settings order: health profile, body weight, appearance/weight unit, account, danger zone. Keep BMI neutral and compact; no health dashboard or BMI category judgement.
-- Body-weight history is dated list with edit-on-tap and destructive swipe; explicit form for new/edit measurement. No chart in MVP.
-- Authentication stays a short form with official Apple control, Google control, password reset and inline error. Successful auth goes directly to Today; no onboarding.
-- Account deletion has a clearly separated danger zone and explicit confirmation/re-auth steps.
+System surfaces should remain dominant. Accent is emphasis.
 
-#### Empty and completion states
+### 5.3 Typography
 
-- No program: “No workout planned yet.” + Create workout. Rest day: “Rest day.” / “See you tomorrow.” + View program. Keep one action per state.
-- Completion overlay: one upbeat line plus optional subline, little illustration, “Done.” It overlays Today and dismisses back to it. No stats, next-workout CTA or special full screen.
-- Loading/unavailable variants are functional system states, not marketing scenes. Cached offline workout remains visible and actionable.
+Use San Francisco/system typography for MVP.
 
-### User decisions still needed
+Use semantic Dynamic Type styles rather than a custom fixed-size scale:
+- large navigation title;
+- title/headline for exercise or section identity;
+- body for set values and standard rows;
+- subheadline/footnote/caption for metadata and state explanations.
 
-No unresolved **product** decision blocks Phase 5; specs already settle the core behavior.
+Rules:
+- no custom brand font for MVP;
+- no fixed-height text container that truncates Dynamic Type;
+- avoid excessive bolding;
+- numeric workout values should remain highly scannable;
+- secondary metadata must not compete with the set value.
 
-Before Phase 6 approval, user should choose only these visual details from the Pencil candidate:
+### 5.4 Density and spacing
 
-1. Completion tone: restrained “You crushed it!” style versus more playful meme-like copy. Both comply with `ux_spec.md`; no extra actions or statistics.
-2. Completion visual: SF Symbol/brand-shape treatment versus a small bespoke non-character illustration. It must remain lightweight, static under Reduce Motion, and use the approved green/lime/mint direction.
-3. Exact final Light/Dark accent token swatches and completion-state treatment after contrast review. Purple remains excluded.
+Today must be the lowest-density cognitive surface, not necessarily the sparsest pixel surface.
 
-## 5. Sources
+Recommended baseline:
+- screen inset: 16–20 pt;
+- 4 pt spacing rhythm;
+- exercise-to-exercise separation: 16–24 pt;
+- exercise header to rows: 6–10 pt;
+- row minimum hit height: 48–52 pt;
+- all interactive controls: practical minimum 44 pt;
+- group/card radius: about 12–16 pt;
+- avoid large empty decorative gaps that push workout content below the fold.
 
-### Apple — primary interaction and accessibility references
+Program may be denser because it is an editing/planning surface.
 
-- [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/)
-- [HIG: Buttons](https://developer.apple.com/design/human-interface-guidelines/buttons)
-- [HIG: Sheets](https://developer.apple.com/design/human-interface-guidelines/sheets)
-- [HIG: Menus](https://developer.apple.com/design/human-interface-guidelines/menus)
-- [HIG: Alerts](https://developer.apple.com/design/human-interface-guidelines/alerts)
-- [HIG: Lists and tables](https://developer.apple.com/design/human-interface-guidelines/lists-and-tables)
-- [HIG: Color](https://developer.apple.com/design/human-interface-guidelines/color)
-- [HIG: Dark mode](https://developer.apple.com/design/human-interface-guidelines/dark-mode)
-- [HIG: Accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)
-- [Apple: Sign in with Apple](https://developer.apple.com/sign-in-with-apple/)
-- [Apple Reminders — App Store](https://apps.apple.com/us/app/reminders/id1108187841)
-- [Apple Health — App Store](https://apps.apple.com/us/app/apple-health/id1242545199)
-- [Apple Health/Fitness overview](https://www.apple.com/uk/health/)
+### 5.5 Surface hierarchy
 
-### Relevant workout-product references (scope contrast, not feature copying)
+Avoid “card for everything”.
 
-- [Strong — official site](https://www.strong.app/)
-- [Strong — App Store](https://apps.apple.com/us/app/strong-workout-tracker-gym-log/id464254577)
-- [Hevy — official site](https://www.hevyapp.com/)
-- [Hevy — App Store](https://apps.apple.com/us/app/hevy-workout-tracker-gym-log/id1458862350)
-- [Liftin’ — official site](https://www.liftinapp.co/)
-- [Liftin’ — App Store](https://apps.apple.com/us/app/liftin-gym-workout-tracker/id1445041669)
-- [Fitbod — official site](https://fitbod.me/)
-- [Fitbod — App Store](https://apps.apple.com/us/app/fitbod-gym-fitness-planner/id1041517543)
+Today:
+- one subtle visual group per exercise;
+- set rows live inside that group;
+- internal separators instead of independent cards per set;
+- no heavy shadow;
+- no nested floating cards.
 
-### Repository sources used to verify current behavior
+Program/Settings:
+- native grouped lists/forms are preferred for editable data;
+- summary/navigation content may use restrained grouped surfaces;
+- destructive areas are visually separated but not theatrically styled.
 
-- `AGENTS.md`
-- `docs/ui_redesign_plan.md`
-- `docs/progress.md`
-- `docs/product_spec.md`
-- `docs/ux_spec.md`
-- `docs/architecture.md`
-- `GymChecklist/Core/UI/GymTheme.swift`
-- `GymChecklist/Features/Today/TodayView.swift`
-- `GymChecklist/Features/Program/ProgramView.swift`
-- `GymChecklist/Features/Exercises/ExercisePickerView.swift`
-- `GymChecklist/Features/Settings/SettingsView.swift`
-- `GymChecklist/Features/Auth/RegistrationView.swift`
-- `GymChecklist/App/ContentView.swift`
+### 5.6 Checklist completion
+
+Closest interaction reference: Reminders.
+
+One set row is one completion target:
+- whole row is tappable;
+- leading circle/check-circle state;
+- completed state changes icon plus text treatment/state semantics;
+- never rely on green alone;
+- second tap undoes completion;
+- no confirmation and no navigation.
+
+Do not add:
+- Start Workout;
+- Finish Workout button;
+- timer;
+- automatic next exercise;
+- swipe-only completion;
+- tiny checkbox as the only hit target.
+
+### 5.7 Exercise grouping and secondary actions
+
+Exercise name is the group header.
+
+Rare actions such as Skip remain secondary:
+- overflow/context action on the exercise header;
+- restore skipped exercises through one low-prominence entry below active content;
+- no permanent Skip/Edit/Delete controls beside every set.
+
+### 5.8 Sheets and editors
+
+Use native-style bottom sheets for compact focused editing.
+
+Set editor:
+- only fields relevant to the set type;
+- Cancel + Save/Done in standard positions;
+- same context retained after dismissal;
+- no Today set deletion.
+
+Program-only destructive edits:
+- destructive action clearly labelled;
+- native confirmation states exact object/scope.
+
+### 5.9 Program Week and Month
+
+Use one selected-date model.
+
+Week:
+- seven equal date targets;
+- clear selected date;
+- simple state indicator;
+- fast previous/next navigation.
+
+Month:
+- compact fixed calendar grid;
+- readable day number;
+- subordinate workout-state mark;
+- selected/today/outside-month are separate visual concepts.
+
+Do not use:
+- analytics heatmap;
+- multiple tiny status dots;
+- percentage/progress metrics in date cells;
+- color-only status.
+
+Week/Month switch should use a native segmented control because they are closely related views of the same Program content.
+
+### 5.10 Navigation and tabs
+
+Keep top-level tabs:
+- Today
+- Program
+- Settings
+
+Use standard tab-bar behavior and familiar symbols.
+
+Use large navigation titles where they improve orientation, but do not duplicate the same title again inside content.
+
+Toolbar actions must be limited to essential current-context actions; overflow handles secondary actions.
+
+### 5.11 Settings/Profile
+
+Use a profile-first grouped settings structure:
+1. Profile;
+2. Body weight;
+3. Preferences;
+4. Account;
+5. Danger zone.
+
+Body weight remains a compact dated list, not a chart.
+
+BMI remains neutral information only.
+
+Use standard row, picker, segmented-control and swipe-delete conventions.
+
+### 5.12 Authentication
+
+Keep auth visually quiet and native.
+
+Use:
+- labelled system fields;
+- one clear primary action;
+- provider controls using provider/system requirements;
+- inline or nearby error feedback;
+- no onboarding carousel;
+- no decorative dashboard or fitness imagery.
+
+Do not recolor or redraw Sign in with Apple outside Apple’s allowed styling.
+
+### 5.13 Empty, loading, offline and error states
+
+Each state should answer:
+1. what happened;
+2. whether the user can act;
+3. what the next useful action is.
+
+Rules:
+- one short message;
+- at most one primary contextual action;
+- cached Today content remains usable when offline;
+- offline/sync messaging stays secondary;
+- no manual Sync button;
+- no large decorative illustration unless it materially improves an otherwise empty state without hiding the action.
+
+### 5.14 Workout completion
+
+Use a short in-place modal/overlay over Today:
+- small illustration or symbol;
+- one short line;
+- optional short subline;
+- one dismiss action;
+- no stats;
+- no share/rating prompt;
+- no new screen.
+
+Motion must be nonessential and respect Reduce Motion.
+
+### 5.15 Iconography
+
+Prefer SF Symbols for familiar platform actions and states.
+
+Rules:
+- completion circle/check;
+- standard chevrons, ellipsis, calendar/navigation symbols where appropriate;
+- no mixed icon families;
+- no icon-only destructive action when text is needed for clarity;
+- use text/VoiceOver labels where meaning is not obvious.
+
+### 5.16 Light/Dark
+
+Use one semantic system, not two independent designs.
+
+Prefer system background/label/separator colors and semantic custom accent variants.
+
+Dark mode is not a simple color inversion.
+
+Every Phase 5 component must be checked for:
+- contrast;
+- selected/completed distinction;
+- separators;
+- elevated sheet/surface distinction;
+- destructive state;
+- disabled state.
+
+### 5.17 Accessibility
+
+Phase 5 must design for:
+- Dynamic Type expansion;
+- VoiceOver labels and state;
+- non-color-only state;
+- minimum practical touch targets;
+- sufficient contrast;
+- Reduce Motion;
+- standard focus/dismissal behavior.
+
+Calendar cells can keep fixed geometry, but the accessible label must expose the full date and workout state.
+
+## 6. Product-reference conclusions
+
+### Apple Reminders
+Adopt:
+- immediate check-off mental model;
+- quiet row hierarchy;
+- completion as direct manipulation;
+- secondary actions behind menus.
+
+Reject:
+- reminder-specific metadata density on Today.
+
+### Strong / Hevy
+Adopt:
+- compact readable exercise/set grouping;
+- efficient workout-data scanning;
+- clear separation between exercise identity and per-set data.
+
+Reject:
+- Start/Finish workout lifecycle;
+- rest timer;
+- analytics;
+- social/feed;
+- PRs/streaks;
+- persistent workout controls.
+
+### Liftin'
+Adopt:
+- restraint;
+- native-feeling hierarchy;
+- workout data first.
+
+Reject:
+- automatic progression/coaching;
+- graph-heavy progress surfaces;
+- timers.
+
+### Apple Health / Fitness
+Adopt:
+- semantic system styling;
+- accessible typography;
+- polished empty/state feedback.
+
+Reject:
+- dashboard cards;
+- rings;
+- trends;
+- metric-first home screen.
+
+## 7. Phase 5 mandatory inputs
+
+Phase 5 must use:
+- `docs/design/current-app-inventory.md`;
+- `docs/design/current-app-gap-matrix.md`;
+- the real Phase 2 runtime screenshots;
+- `docs/product_spec.md`;
+- `docs/ux_spec.md`;
+- this research;
+- `docs/ui_ux_design_rules.md`.
+
+Phase 5 must **not** use the historical mockup/Phase 1 as a design source.
+
+## 8. Phase 5 target
+
+Create the final UI/UX for every relevant MVP surface and important state.
+
+The candidate must define:
+- visual design system;
+- reusable component states;
+- Light/Dark behavior;
+- Today;
+- Program Week/Month and editing;
+- exercise picker/custom exercise;
+- copy/repeat;
+- historical workout editing;
+- Settings/Profile/body weight/account;
+- authentication;
+- empty/loading/offline/error states;
+- workout completion;
+- accessibility-sensitive variants.
+
+The final design can be produced in a tool that gives reliable, inspectable, editable output. The tool is secondary to fidelity and determinism. Production SwiftUI remains unchanged until the design is reviewed, approved and frozen.
+
+## 9. Decision summary
+
+```text
+Phase 2 current app
+        +
+Phase 4 UI/UX research
+        +
+approved product/UX behavior
+        ↓
+Phase 5 final UI/UX candidate
+```
+
+No Phase 1 dependency. No Phase 3 reconciliation step.

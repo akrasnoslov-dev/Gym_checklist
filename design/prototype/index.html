@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Gym Checklist — Phase 5A</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="prototype-stage">
+      <section class="prototype-controls" aria-label="Prototype controls">
+        <p class="eyebrow">Gym Checklist · Phase 5A</p>
+        <h1>Today control screen</h1>
+        <p>Active workout, partially completed</p>
+        <div class="theme-switcher" role="group" aria-label="Appearance">
+          <button type="button" class="appearance-button" data-theme-choice="light" aria-pressed="true">Light</button>
+          <button type="button" class="appearance-button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+        </div>
+      </section>
+
+      <section class="phone-shell" aria-label="iPhone-sized Gym Checklist prototype">
+        <div class="system-status" aria-hidden="true">
+          <span>9:41</span>
+          <span class="status-icons">● ● ●</span>
+        </div>
+
+        <div class="app-content">
+          <header class="today-header">
+            <h2>Today</h2>
+            <p>Tuesday, September 8</p>
+          </header>
+
+          <div id="workout" class="workout-list" aria-label="Today's workout"></div>
+        </div>
+
+        <nav class="system-tab-bar" aria-label="Primary navigation">
+          <button type="button" class="tab-item is-selected" aria-current="page">
+            <span class="tab-icon" aria-hidden="true">✓</span>
+            <span>Today</span>
+          </button>
+          <button type="button" class="tab-item">
+            <span class="tab-icon" aria-hidden="true">▦</span>
+            <span>Program</span>
+          </button>
+          <button type="button" class="tab-item">
+            <span class="tab-icon" aria-hidden="true">⚙</span>
+            <span>Settings</span>
+          </button>
+        </nav>
+      </section>
+    </main>
+
+    <template id="exercise-group-template">
+      <section class="exercise-group">
+        <header class="exercise-header">
+          <h3></h3>
+          <button type="button" class="overflow-button" aria-label="Exercise actions">•••</button>
+        </header>
+        <div class="set-list"></div>
+      </section>
+    </template>
+
+    <template id="set-row-template">
+      <button type="button" class="set-row" aria-pressed="false">
+        <span class="completion-icon" aria-hidden="true"></span>
+        <span class="set-copy">
+          <span class="set-value"></span>
+          <span class="set-state"></span>
+        </span>
+      </button>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

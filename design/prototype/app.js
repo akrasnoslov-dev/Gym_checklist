@@ -35,12 +35,12 @@ function renderWorkout() {
     const title = group.querySelector("h3");
     const list = group.querySelector(".set-list");
     title.textContent = exercise.name;
+    group.querySelector(".overflow-button").setAttribute("aria-label", `${exercise.name} actions`);
 
     exercise.sets.forEach((set, index) => {
       const row = rowTemplate.content.cloneNode(true);
       const button = row.querySelector(".set-row");
       button.querySelector(".set-value").textContent = set.value;
-      button.querySelector(".set-state").textContent = "Completed";
       button.dataset.description = `${exercise.name}, set ${index + 1}: ${set.value}`;
       setRowState(button, set.completed);
       button.addEventListener("click", () => {
@@ -66,6 +66,16 @@ document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     const theme = button.dataset.themeChoice;
     document.documentElement.dataset.theme = theme;
     document.querySelectorAll("[data-theme-choice]").forEach((choice) => {
+      choice.setAttribute("aria-pressed", String(choice === button));
+    });
+  });
+});
+
+document.querySelectorAll("[data-variant-choice]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const variant = button.dataset.variantChoice;
+    document.documentElement.dataset.variant = variant;
+    document.querySelectorAll("[data-variant-choice]").forEach((choice) => {
       choice.setAttribute("aria-pressed", String(choice === button));
     });
   });

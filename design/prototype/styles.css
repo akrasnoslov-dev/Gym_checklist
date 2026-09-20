@@ -30,7 +30,6 @@
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
-  --radius-group: 16px;
   --radius-row: 12px;
   --radius-control: 10px;
 }
@@ -98,30 +97,6 @@ button { font: inherit; }
   background: var(--control-surface);
 }
 
-.variant-switcher {
-  display: grid;
-  gap: var(--space-1);
-  margin-top: var(--space-5);
-}
-
-.variant-button {
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--control-surface);
-  color: var(--text-secondary);
-  cursor: pointer;
-  text-align: left;
-}
-
-.variant-button[aria-pressed="true"] {
-  border-color: var(--accent-foreground);
-  background: var(--accent-soft);
-  color: var(--text-primary);
-  font-weight: 650;
-}
-
 .appearance-button {
   min-height: 36px;
   padding: 0 14px;
@@ -182,22 +157,22 @@ button { font: inherit; }
   font-size: var(--type-body);
 }
 
-.workout-list { display: grid; gap: var(--space-5); }
+.workout-list { display: grid; gap: var(--space-6); }
 
-/* Reusable app-owned exercise group */
+/* Reusable app-owned exercise group: direct heading plus one quiet set surface. */
 .exercise-group {
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-group);
-  background: var(--surface-grouped);
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .exercise-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 52px;
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  min-height: 44px;
+  padding: 0 0 var(--space-1);
 }
 
 .exercise-header h3 {
@@ -222,8 +197,9 @@ button { font: inherit; }
 .overflow-button:hover, .overflow-button:focus-visible { background: var(--accent-soft); color: var(--accent-foreground); }
 
 .set-list {
-  margin: 0 var(--space-3) var(--space-3);
+  margin: 0;
   overflow: hidden;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-row);
   background: var(--surface-elevated);
 }
@@ -272,50 +248,6 @@ button { font: inherit; }
 .set-copy { display: grid; min-width: 0; }
 .set-value { font-size: var(--type-body); line-height: 1.28; }
 .set-row.is-completed .set-value { color: var(--text-primary); opacity: 0.72; }
-
-/* Variant B — Native Flat: exercise content belongs directly to the page. */
-:root[data-variant="b"] .workout-list { gap: var(--space-6); }
-:root[data-variant="b"] .exercise-group {
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-:root[data-variant="b"] .exercise-header {
-  min-height: 44px;
-  padding: 0 0 var(--space-1);
-}
-:root[data-variant="b"] .set-list {
-  margin: 0;
-  overflow: visible;
-  border-radius: 0;
-  background: transparent;
-}
-:root[data-variant="b"] .set-row {
-  padding-right: 0;
-  padding-left: 0;
-  border-bottom-color: var(--separator);
-}
-:root[data-variant="b"] .set-row:first-child { border-top: 1px solid var(--separator); }
-
-/* Variant C — Minimal Grouped: direct headings and one quiet set surface. */
-:root[data-variant="c"] .workout-list { gap: var(--space-6); }
-:root[data-variant="c"] .exercise-group {
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-:root[data-variant="c"] .exercise-header {
-  min-height: 44px;
-  padding: 0 0 var(--space-1);
-}
-:root[data-variant="c"] .set-list {
-  margin: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-row);
-  background: var(--surface-elevated);
-}
 
 /* System-owned tab bar: intentional context only, not a bespoke iOS recreation. */
 .system-tab-bar {

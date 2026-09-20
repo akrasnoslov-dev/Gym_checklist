@@ -71,14 +71,4 @@ document.querySelectorAll("[data-theme-choice]").forEach((button) => {
   });
 });
 
-document.querySelectorAll("[data-variant-choice]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const variant = button.dataset.variantChoice;
-    document.documentElement.dataset.variant = variant;
-    document.querySelectorAll("[data-variant-choice]").forEach((choice) => {
-      choice.setAttribute("aria-pressed", String(choice === button));
-    });
-  });
-});
-
 renderWorkout();

@@ -160,6 +160,8 @@ Do not design every screen at once.
 
 #### Phase 5A — Foundation + control screen
 
+**Decision:** Phase 5A visual direction: Minimal Grouped - approved as foundation for Phase 5B.
+
 1. Create the prototype shell under `design/prototype/`.
 2. Create semantic design tokens and reusable CSS components.
 3. Build one representative **Today / active workout / partial completion** screen.

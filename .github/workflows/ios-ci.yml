@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
+      - 'design/**'
   workflow_dispatch:
     inputs:
       verification_scope:

@@ -44,8 +44,11 @@ jobs:
           test -f docs/architecture.md
           test -f docs/implementation_plan.md
           test -f docs/progress.md
+          test -f docs/source_of_truth.md
           test -f docs/codex_instructions.md
           test -f agents/routing.toml
+          test -f .codex/config.toml
+          test -f scripts/verify_agentic_workflow_contract.ps1
 
           if git grep -n -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- . ':!docs/**' ':!*.md' ':!*.xcuserstate'; then
             echo 'Merge-conflict markers found.'

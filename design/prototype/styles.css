@@ -30,7 +30,6 @@
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
-  --radius-group: 16px;
   --radius-row: 12px;
   --radius-control: 10px;
 }
@@ -158,22 +157,22 @@ button { font: inherit; }
   font-size: var(--type-body);
 }
 
-.workout-list { display: grid; gap: var(--space-5); }
+.workout-list { display: grid; gap: var(--space-6); }
 
-/* Reusable app-owned exercise group */
+/* Reusable app-owned exercise group: direct heading plus one quiet set surface. */
 .exercise-group {
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-group);
-  background: var(--surface-grouped);
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .exercise-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 52px;
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  min-height: 44px;
+  padding: 0 0 var(--space-1);
 }
 
 .exercise-header h3 {
@@ -198,8 +197,9 @@ button { font: inherit; }
 .overflow-button:hover, .overflow-button:focus-visible { background: var(--accent-soft); color: var(--accent-foreground); }
 
 .set-list {
-  margin: 0 var(--space-3) var(--space-3);
+  margin: 0;
   overflow: hidden;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-row);
   background: var(--surface-elevated);
 }
@@ -220,7 +220,7 @@ button { font: inherit; }
   cursor: pointer;
 }
 .set-row:last-child { border-bottom: 0; }
-.set-row:hover { background: color-mix(in srgb, var(--accent-soft) 42%, transparent); }
+.set-row:hover { background: var(--accent-soft); }
 .set-row:focus-visible { outline: 3px solid var(--accent-foreground); outline-offset: -3px; }
 
 .completion-icon {
@@ -245,11 +245,9 @@ button { font: inherit; }
   line-height: 1;
 }
 
-.set-copy { display: grid; gap: 1px; min-width: 0; }
+.set-copy { display: grid; min-width: 0; }
 .set-value { font-size: var(--type-body); line-height: 1.28; }
-.set-state { min-height: 15px; color: var(--text-secondary); font-size: var(--type-caption); }
-.set-row:not(.is-completed) .set-state { display: none; }
-.set-row.is-completed .set-value { color: var(--text-secondary); }
+.set-row.is-completed .set-value { color: var(--text-primary); opacity: 0.72; }
 
 /* System-owned tab bar: intentional context only, not a bespoke iOS recreation. */
 .system-tab-bar {

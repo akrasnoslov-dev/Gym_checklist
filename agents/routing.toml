@@ -1,10 +1,21 @@
-version = 1
-description = "Codex task routing rules for Gym Checklist iOS review subagents."
+version = 2
+description = "Codex execution and specialist review routing for Gym Checklist."
 
 [defaults]
 non_trivial_task_requires_agent_check = true
 high_risk_skip_requires_written_reason = true
-prefer_parallel_subagents_when_available = true
+parallelization_policy = "benefit_only"
+
+[execution]
+orchestrator_model = "gpt-5.6-sol"
+orchestrator_reasoning_effort = "medium"
+default_worker_model = "gpt-5.6-terra"
+default_worker_reasoning_effort = "medium"
+low_cost_worker_model = "gpt-5.6-luna"
+worker_count_policy = "adaptive"
+isolation = "git_worktree"
+sol_worker_policy = "escalation_only"
+token_efficiency_objective = true
 
 [[rules]]
 id = "ui_redesign_or_design_prototype"

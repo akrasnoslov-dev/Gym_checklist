@@ -1,7 +1,7 @@
 # Task Spec — Scope automatic macOS CI to iOS-impacting changes
 
 Date: 2026-09-21
-Status: IN PROGRESS
+Status: DONE
 
 ## Goal
 
@@ -72,3 +72,12 @@ The main risk of an allowlist is adding a new iOS build-relevant root later and 
 ## DB/schema/data impact
 
 None.
+
+
+## GREEN evidence
+
+Linux run `35591298735` passed after the allowlist and contract update.
+
+The updated PR head `f414ae03721aa9bd5e1526d001d20481474cee17` has only the Linux workflow run. No automatic macOS/Xcode run was created for this process-only change.
+
+This is the intended post-fix behavior.

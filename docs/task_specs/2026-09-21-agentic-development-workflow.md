@@ -1,7 +1,7 @@
 # Task Spec — Agentic Development Workflow
 
 Date: 2026-09-21
-Status: IMPLEMENTED — GREEN verification pending
+Status: DONE
 
 ## Goal
 
@@ -147,4 +147,18 @@ This confirms the new validation failed for the intended missing-workflow reason
 
 ### GREEN
 
-Pending final branch verification.
+GitHub Actions Linux run `35589274633` passed on the completed branch.
+
+Green checks included:
+- repository consistency;
+- Xcode scheme XML validation;
+- changed-file whitespace validation;
+- Firebase security hygiene;
+- account-deletion contract;
+- Google Sign-In configuration contract;
+- release-workflow contract;
+- iOS CI candidate contract;
+- the new agentic development workflow contract;
+- the existing Linux-compatible test step.
+
+No Swift/SwiftUI, Firebase schema, Xcode project, or product behavior changed. macOS/Xcode verification is therefore not part of this task's acceptance contract.

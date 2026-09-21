@@ -20,4 +20,26 @@ foreach ($pattern in $requiredPatterns) {
     }
 }
 
-Write-Output "iOS CI candidate contract: PASS"
+if ($workflow -match '(?m)^\s*paths-ignore:\s*$') {
+    throw "iOS CI pull-request trigger must use an allowlist (paths), not paths-ignore"
+}
+
+$requiredPullRequestPaths = @(
+    "GymChecklist/**",
+    "GymChecklistTests/**",
+    "GymChecklistUITests/**",
+    "GymChecklist.xcodeproj/**",
+    "Package.swift",
+    "Package.resolved",
+    "**/*.xcconfig",
+    "**/*.entitlements"
+)
+
+foreach ($path in $requiredPullRequestPaths) {
+    $escaped = [regex]::Escape("- '$path'")
+    if ($workflow -notmatch $escaped) {
+        throw "iOS CI workflow is missing required iOS-impacting PR path: $path"
+    }
+}
+
+Write-Output "iOS CI candidate and PR path contract: PASS"

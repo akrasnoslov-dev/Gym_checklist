@@ -3,10 +3,17 @@ name: iOS macOS CI (authoritative)
 on:
   pull_request:
     branches: [dev, main]
-    paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
-      - 'design/**'
+    # Run expensive macOS/Xcode verification only when a PR changes files
+    # that can affect the iOS app build or its automated iOS tests.
+    paths:
+      - 'GymChecklist/**'
+      - 'GymChecklistTests/**'
+      - 'GymChecklistUITests/**'
+      - 'GymChecklist.xcodeproj/**'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - '**/*.xcconfig'
+      - '**/*.entitlements'
   workflow_dispatch:
     inputs:
       verification_scope:

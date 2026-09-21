@@ -1,7 +1,7 @@
 # Task Spec — Agentic Development Workflow
 
 Date: 2026-09-21
-Status: IN PROGRESS
+Status: IMPLEMENTED — GREEN verification pending
 
 ## Goal
 
@@ -131,3 +131,20 @@ Strongest applicable validation:
 No parallel implementation workers for this task.
 
 Reason: the changed files are tightly coupled policy/configuration surfaces. Parallel edits would create more coordination and conflict risk than benefit. The task uses one isolated feature branch. Future implementation workers are required to use separate worktrees.
+
+
+## Validation evidence
+
+### RED
+
+GitHub Actions Linux run `35588865531` executed the new contract before the workflow implementation existed.
+
+Expected failure:
+- `scripts/verify_agentic_workflow_contract.ps1` failed with `Missing required agentic-workflow file: docs/source_of_truth.md`.
+- Existing security, account-deletion, Google Sign-In, release-workflow, and iOS-CI contract checks passed before the new workflow-contract step.
+
+This confirms the new validation failed for the intended missing-workflow reason rather than an unrelated repository failure.
+
+### GREEN
+
+Pending final branch verification.

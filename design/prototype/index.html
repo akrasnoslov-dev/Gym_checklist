@@ -4,71 +4,39 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
-    <title>Gym Checklist — Phase 5A</title>
+    <title>Gym Checklist — Phase 5B candidate</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <main class="prototype-stage">
-      <section class="prototype-controls" aria-label="Prototype controls">
-        <p class="eyebrow">Gym Checklist · Phase 5A foundation</p>
-        <h1>Today · Minimal Grouped</h1>
-        <p>Active workout, partially completed</p>
+      <aside class="prototype-controls" aria-label="Prototype navigation">
+        <p class="eyebrow">Gym Checklist · Phase 5B</p>
+        <h1>Minimal Grouped</h1>
+        <p class="control-copy">Full MVP visual candidate. The phone contains app-owned design; controls labelled <span class="system-key">System intent</span> communicate native SwiftUI structure only.</p>
+        <label class="control-label" for="screen-picker">Screen or state</label>
+        <select id="screen-picker" class="screen-picker" aria-label="Screen or state"></select>
+        <div id="screen-shortcuts" class="screen-shortcuts" aria-label="Surface shortcuts"></div>
+        <p class="control-label">Appearance</p>
         <div class="theme-switcher" role="group" aria-label="Appearance">
           <button type="button" class="appearance-button" data-theme-choice="light" aria-pressed="true">Light</button>
           <button type="button" class="appearance-button" data-theme-choice="dark" aria-pressed="false">Dark</button>
         </div>
-      </section>
-
-      <section class="phone-shell" aria-label="iPhone-sized Gym Checklist prototype">
-        <div class="system-status" aria-hidden="true">
-          <span>9:41</span>
-          <span class="status-icons">● ● ●</span>
-        </div>
-
-        <div class="app-content">
-          <header class="today-header">
-            <h2>Today</h2>
-            <p>Tuesday, September 8</p>
-          </header>
-
-          <div id="workout" class="workout-list" aria-label="Today's workout"></div>
-        </div>
-
-        <nav class="system-tab-bar" aria-label="Primary navigation">
-          <button type="button" class="tab-item is-selected" aria-current="page">
-            <span class="tab-icon" aria-hidden="true">✓</span>
-            <span>Today</span>
-          </button>
-          <button type="button" class="tab-item">
-            <span class="tab-icon" aria-hidden="true">▦</span>
-            <span>Program</span>
-          </button>
-          <button type="button" class="tab-item">
-            <span class="tab-icon" aria-hidden="true">⚙</span>
-            <span>Settings</span>
-          </button>
+        <details class="review-notes">
+          <summary>Review legend</summary>
+          <p><strong>App-owned</strong> surfaces define hierarchy, rows, groups, state, and accent use. <strong>System intent</strong> marks native navigation, sheets, menus, forms, pickers, alerts, and provider controls.</p>
+          <p>Use the screen picker to inspect representative states. Today set rows remain interactive only as a one-tap demonstration.</p>
+        </details>
+      </aside>
+      <section class="phone-shell" aria-label="iPhone-sized Gym Checklist Phase 5B prototype">
+        <div class="system-status" aria-hidden="true"><span>9:41</span><span class="status-icons">● ● ●</span></div>
+        <div id="app" class="app-content"></div>
+        <nav class="system-tab-bar native-intent" aria-label="System intent: primary tab navigation">
+          <button type="button" data-tab="today" class="tab-item"><span aria-hidden="true">✓</span><span>Today</span></button>
+          <button type="button" data-tab="program" class="tab-item"><span aria-hidden="true">▦</span><span>Program</span></button>
+          <button type="button" data-tab="settings" class="tab-item"><span aria-hidden="true">⚙</span><span>Settings</span></button>
         </nav>
       </section>
     </main>
-
-    <template id="exercise-group-template">
-      <section class="exercise-group">
-        <header class="exercise-header">
-          <h3></h3>
-          <button type="button" class="overflow-button" aria-label="Exercise actions">•••</button>
-        </header>
-        <div class="set-list"></div>
-      </section>
-    </template>
-
-    <template id="set-row-template">
-      <button type="button" class="set-row" aria-pressed="false">
-        <span class="completion-icon" aria-hidden="true"></span>
-        <span class="set-copy">
-          <span class="set-value"></span>
-        </span>
-      </button>
-    </template>
 
     <script src="app.js"></script>
   </body>

@@ -189,6 +189,8 @@ After the control screen direction is accepted:
 - add only interactions needed to inspect states and flows;
 - do not implement product/backend logic.
 
+**Status (2026-09-23):** candidate prepared in `design/prototype/` for Phase 6 user review. It remains a review candidate, not an approved/frozen SwiftUI implementation input.
+
 ### Required design-system output
 
 Define:

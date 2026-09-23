@@ -5,6 +5,7 @@
 - Approved candidate source: `e17cb8173a6373059729226453c568e976954d33`. The candidate workflow checked out and asserted this immutable SHA before its focused regression and full suite.
 - The app remains in **pre-payment functional MVP acceptance**. No billing, paid Apple, TestFlight, App Store, or Blaze work was activated.
 - UI/UX redesign now proceeds separately from production implementation: use the current-app audit plus `docs/ui_research_phase4.md` to create the Phase 5 final candidate. Historical reconstruction and reconciliation phases are cancelled. Do not change SwiftUI until the design is approved and frozen.
+- Phase 5B Minimal Grouped full-candidate prototype is prepared for Phase 6 user review in `design/prototype/`; it has not been approved/frozen and does not change production SwiftUI.
 
 ## Latest verification
 - Static contracts pass: security hygiene, account deletion, Firestore owner isolation, offline cache/reconnect, Google Sign-In configuration, release workflow, and `node --check functions/index.js`. Xcode scheme XML, source membership, conflict-marker, whitespace, and contrast checks also pass.

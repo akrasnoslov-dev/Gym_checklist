@@ -14,10 +14,11 @@ on:
       - 'Package.resolved'
       - '**/*.xcconfig'
       - '**/*.entitlements'
+      - '**/*.plist'
   workflow_dispatch:
     inputs:
       verification_scope:
-        description: "Verification scope (use smoke during MVP iteration; full for broad checkpoints)"
+        description: "Manual verification scope (automatic pull-request runs always use smoke)"
         required: true
         default: smoke
         type: choice
@@ -54,7 +55,9 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     env:
-      VERIFICATION_SCOPE: ${{ inputs.verification_scope || 'full' }}
+      # Routine iOS-impacting pull requests get fast feedback. Manual dispatch
+      # retains every diagnostic scope, including authoritative full/candidate.
+      VERIFICATION_SCOPE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.verification_scope }}
       TEST_FILTER: ${{ inputs.test_filter || '' }}
       CANDIDATE_SOURCE_SHA: ${{ inputs.candidate_source_sha || '' }}
 
@@ -67,16 +70,20 @@ jobs:
           ref: ${{ inputs.candidate_source_sha || github.sha }}
           fetch-depth: 1
 
-      - name: Show Xcode version
-        run: xcodebuild -version
+      - name: Record Xcode version
+        id: xcode
+        shell: bash
+        run: |
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | awk 'NR == 1 { print $2 }')" >> "$GITHUB_OUTPUT"
 
       - name: Cache Swift package sources
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/SourcePackages
-          key: ${{ runner.os }}-swiftpm-${{ hashFiles('GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          key: ${{ runner.os }}-xcode-${{ steps.xcode.outputs.version }}-swiftpm-${{ hashFiles('GymChecklist.xcodeproj/project.pbxproj', '**/Package.resolved', 'Package.swift') }}
           restore-keys: |
-            ${{ runner.os }}-swiftpm-
+            ${{ runner.os }}-xcode-${{ steps.xcode.outputs.version }}-swiftpm-
 
       - name: Detect Xcode project
         id: detect

@@ -3,6 +3,11 @@ $ErrorActionPreference = "Stop"
 $workflowPath = Join-Path $PSScriptRoot "..\.github\workflows\ios-ci.yml"
 $workflow = Get-Content -Raw $workflowPath
 
+$pullRequestTrigger = [regex]::Match($workflow, '(?ms)^  pull_request:\r?\n.*?(?=^  workflow_dispatch:)')
+if (-not $pullRequestTrigger.Success) {
+    throw 'iOS CI workflow is missing a pull_request trigger block.'
+}
+
 $requiredPatterns = @(
     'candidate_source_sha:',
     'CANDIDATE_SOURCE_SHA:',
@@ -20,7 +25,7 @@ foreach ($pattern in $requiredPatterns) {
     }
 }
 
-if ($workflow -match '(?m)^\s*paths-ignore:\s*$') {
+if ($pullRequestTrigger.Value -match '(?m)^\s*paths-ignore:\s*$') {
     throw "iOS CI pull-request trigger must use an allowlist (paths), not paths-ignore"
 }
 
@@ -32,14 +37,37 @@ $requiredPullRequestPaths = @(
     "Package.swift",
     "Package.resolved",
     "**/*.xcconfig",
-    "**/*.entitlements"
+    "**/*.entitlements",
+    "**/*.plist"
 )
 
 foreach ($path in $requiredPullRequestPaths) {
     $escaped = [regex]::Escape("- '$path'")
-    if ($workflow -notmatch $escaped) {
+    if ($pullRequestTrigger.Value -notmatch $escaped) {
         throw "iOS CI workflow is missing required iOS-impacting PR path: $path"
     }
 }
 
-Write-Output "iOS CI candidate and PR path contract: PASS"
+$requiredRoutineAndConcurrencyPatterns = @(
+    'VERIFICATION_SCOPE:\s*\$\{\{\s*github\.event_name\s*==\s*''pull_request''\s*&&\s*''smoke''\s*\|\|\s*inputs\.verification_scope\s*\}\}',
+    '(?m)^\s*- full\s*$',
+    '(?m)^\s*- smoke\s*$',
+    '(?m)^\s*- build\s*$',
+    '(?m)^\s*- unit\s*$',
+    '(?m)^\s*- ui\s*$',
+    '(?m)^\s*- candidate\s*$',
+    'run_xcodebuild full',
+    'group: ios-macos-\$\{\{ github\.ref \}\}-\$\{\{ github\.event_name \}\}',
+    'cancel-in-progress: \$\{\{ github\.event_name != ''workflow_dispatch'' \}\}',
+    'id: xcode',
+    'steps\.xcode\.outputs\.version',
+    'hashFiles\(''GymChecklist\.xcodeproj/project\.pbxproj'''
+)
+
+foreach ($pattern in $requiredRoutineAndConcurrencyPatterns) {
+    if ($workflow -notmatch $pattern) {
+        throw "iOS CI workflow is missing required routine-PR, manual-scope, concurrency, or cache contract: $pattern"
+    }
+}
+
+Write-Output "iOS CI candidate, PR path, smoke, concurrency, and cache contract: PASS"

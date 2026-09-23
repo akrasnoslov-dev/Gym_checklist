@@ -1,11 +1,11 @@
 # Task Spec — Scope automatic macOS CI to iOS-impacting changes
 
 Date: 2026-09-21
-Status: DONE
+Status: IN PROGRESS (PENDING LINUX CI)
 
 ## Goal
 
-Finish PR #3 so expensive automatic macOS/Xcode CI runs only when a pull request changes files that can affect the iOS app build or automated iOS tests.
+Finish PR #3 so expensive automatic macOS/Xcode CI runs only when a pull request changes files that can affect the iOS app build or automated iOS tests, and routine code PRs use the smoke suite rather than the complete suite.
 
 ## Clarified requirement
 
@@ -17,6 +17,7 @@ Use an allowlist of iOS-impacting paths instead of continuously growing a list o
 
 - `.github/workflows/ios-ci.yml` pull-request path trigger
 - `scripts/verify_ios_ci_contract.ps1` contract coverage
+- automatic pull-request scope selection, concurrency, and SwiftPM source-cache identity
 - PR #3 metadata and verification evidence
 
 ## Out of scope
@@ -36,10 +37,13 @@ Use an allowlist of iOS-impacting paths instead of continuously growing a list o
   - `GymChecklistUITests/**`
   - `GymChecklist.xcodeproj/**`
   - root Swift package manifests if introduced
-  - `*.xcconfig` or `*.entitlements` files
+  - `*.xcconfig`, `*.entitlements`, or `*.plist` files
 - Documentation-only, design-only, agent/config/workflow-support, ordinary script, and backend-only changes do not automatically start macOS CI.
 - Mixed PRs still run macOS whenever at least one iOS-impacting path is changed.
-- Manual macOS workflow dispatch remains available.
+- Automatic iOS-impacting pull-request runs use `smoke`; they are not authoritative final verification.
+- Manual macOS workflow dispatch remains available with `build`, `unit`, `ui`, `smoke`, `full`, and `candidate`.
+- Manual `full` and `candidate` retain exact-SHA candidate validation, focused regression, build-once execution, and the complete candidate suite.
+- Obsolete pull-request runs cancel, while manually dispatched diagnostic and authoritative runs do not.
 - Linux CI contract protects the allowlist from accidental regression.
 
 ## RED evidence
@@ -54,16 +58,17 @@ Extend `scripts/verify_ios_ci_contract.ps1` to require:
 - an allowlist-based `paths:` trigger;
 - the known iOS-impacting roots/files;
 - absence of `paths-ignore:`.
+- automatic pull-request `smoke` selection, preserved manual scopes, concurrency semantics, and cache-key dependency/toolchain inputs.
 
 Then update the workflow until Linux CI is GREEN.
 
 ## Implementation plan
 
-1. Replace the design-specific ignore rule with the iOS-impacting allowlist.
-2. Extend the existing iOS CI contract.
-3. Run PR Linux checks.
-4. Confirm no new automatic macOS run is created for this process-only PR update.
-5. Review the PR diff and update PR #3 description.
+1. Preserve the iOS-impacting allowlist after auditing current build/test surfaces.
+2. Make automatic iOS-impacting pull-request runs select `smoke` explicitly.
+3. Extend the existing iOS CI contract for path gating, routine scope, manual scope, concurrency, and cache identity.
+4. Run the directly affected contract and Linux validation.
+5. Confirm no new automatic macOS run is created for this process-only update and review the PR diff.
 
 ## Risks
 
@@ -74,10 +79,16 @@ The main risk of an allowlist is adding a new iOS build-relevant root later and 
 None.
 
 
-## GREEN evidence
+## Earlier GREEN evidence
 
 Linux run `35591298735` passed after the allowlist and contract update.
 
 The updated PR head `f414ae03721aa9bd5e1526d001d20481474cee17` has only the Linux workflow run. No automatic macOS/Xcode run was created for this process-only change.
 
 This is the intended post-fix behavior.
+
+
+## Current completion verification
+
+- Local CI contracts, JavaScript syntax, and whitespace checks are green.
+- The external Linux workflow run for the implementation commit remains required before this task can be marked `DONE`.

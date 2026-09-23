@@ -195,13 +195,11 @@ Linux CI is non-authoritative for iOS compilation and simulator behavior.
 ### macOS authoritative CI
 `.github/workflows/ios-ci.yml` runs the real Xcode simulator build/unit/UI test path on `macos-latest`.
 
-A normal push to `dev` does not allocate a macOS runner. macOS CI is reserved for:
-- milestone/checkpoint commits explicitly marked `[macos-ci]`;
-- manual `workflow_dispatch` runs;
-- release-oriented pull requests targeting `main`;
-- earlier risk-driven verification when continuing without Xcode evidence would be unsafe.
+A normal push to `dev` does not allocate a macOS runner. Automatic macOS CI runs only for pull requests targeting `dev` or `main` that change an iOS-impacting path in the workflow allowlist: app, unit/UI-test, Xcode-project, Swift-package, or iOS build-configuration files. Documentation, design, process, backend-only, and ordinary script changes do not allocate a macOS runner.
 
-Both workflows cancel obsolete in-progress runs for the same ref. Docs-only changes are excluded from automatic CI.
+Automatic qualifying PRs use the `smoke` scope: all unit tests plus the selected critical UI regressions. This is routine feedback, not final authoritative verification. Manual `workflow_dispatch` retains the explicit `build`, `unit`, `ui`, `smoke`, `full`, and `candidate` scopes. `candidate` keeps exact-SHA validation, one build, a focused regression, and the complete suite.
+
+Obsolete pull-request macOS runs cancel by PR ref; manually dispatched diagnostic and authoritative runs are not cancelled. The SwiftPM cache stores source packages only, is keyed by the Xcode version and current dependency declarations, and deliberately does not cache DerivedData.
 
 Required macOS verification remains mandatory before a checkpoint that explicitly requires it can be marked `DONE`. During current pre-payment acceptance, the final exact candidate SHA must have a green authoritative macOS `full` result; a red final run cannot be waived when the same behavior is observed in the product.
 

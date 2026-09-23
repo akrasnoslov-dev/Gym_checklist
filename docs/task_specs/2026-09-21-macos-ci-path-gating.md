@@ -91,12 +91,12 @@ This is the intended post-fix behavior.
 ## Current completion verification
 
 - Local CI contracts, JavaScript syntax, and whitespace checks are green.
-- Linux run `35870019826` passed on final commit `2be586ca73f0fdc1726adc7c1aa5247e372f3e8f`; no automatic macOS run was created for this process-only change.
+- Linux run `35870202237` passed on final PR head `6efd51d261fed715ccd0fa2fed965e64c77234fa`; no automatic macOS run was created for this process-only change.
 
 ## Completion evidence
 
 - Automatic iOS-impacting PRs now resolve to `smoke`; manual `full` and `candidate` behavior is structurally preserved.
 - SwiftPM source caching now keys from the current Xcode version and Xcode project dependency declarations. DerivedData remains uncached.
 - Local contracts passed: agentic workflow, security hygiene, account deletion, Google Sign-In configuration, release workflow, and iOS CI. `node --check functions/index.js` and `git diff --check` also passed.
-- GitHub Actions Linux run `35870019826` passed for final commit `2be586ca73f0fdc1726adc7c1aa5247e372f3e8f`; the only automatic run was Linux.
+- GitHub Actions Linux run `35870202237` passed for final PR head `6efd51d261fed715ccd0fa2fed965e64c77234fa`; the only automatic run was Linux.
 - Independent review found and the follow-up commit fixed the broad plist glob and weak cache/trigger contract checks.

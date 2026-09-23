@@ -1,7 +1,7 @@
 # Task Spec — Scope automatic macOS CI to iOS-impacting changes
 
 Date: 2026-09-21
-Status: DONE
+Status: IN PROGRESS (PENDING LINUX CI)
 
 ## Goal
 
@@ -37,7 +37,7 @@ Use an allowlist of iOS-impacting paths instead of continuously growing a list o
   - `GymChecklistUITests/**`
   - `GymChecklist.xcodeproj/**`
   - root Swift package manifests if introduced
-  - `*.xcconfig`, `*.entitlements`, or `*.plist` files
+  - `*.xcconfig`, `*.entitlements`, or app-owned `GymChecklist/**/*.plist` files
 - Documentation-only, design-only, agent/config/workflow-support, ordinary script, and backend-only changes do not automatically start macOS CI.
 - Mixed PRs still run macOS whenever at least one iOS-impacting path is changed.
 - Automatic iOS-impacting pull-request runs use `smoke`; they are not authoritative final verification.
@@ -91,11 +91,11 @@ This is the intended post-fix behavior.
 ## Current completion verification
 
 - Local CI contracts, JavaScript syntax, and whitespace checks are green.
-- Linux run `35869049678` passed on `79621c199b9ce41fcc81f11a9834ee231ab604f7`; no automatic macOS run was created for this process-only change.
+- Linux run `35869049678` passed for the initial implementation; the review-hardening commit requires a follow-up Linux run before this task can be marked `DONE`.
 
 ## Completion evidence
 
 - Automatic iOS-impacting PRs now resolve to `smoke`; manual `full` and `candidate` behavior is structurally preserved.
 - SwiftPM source caching now keys from the current Xcode version and Xcode project dependency declarations. DerivedData remains uncached.
 - Local contracts passed: agentic workflow, security hygiene, account deletion, Google Sign-In configuration, release workflow, and iOS CI. `node --check functions/index.js` and `git diff --check` also passed.
-- GitHub Actions Linux run `35869049678` passed for `79621c199b9ce41fcc81f11a9834ee231ab604f7`; the only automatic run was Linux.
+- GitHub Actions Linux run `35869049678` passed for the initial implementation; review hardening is locally validated and pending its own Linux run.

@@ -25,6 +25,10 @@ foreach ($pattern in $requiredPatterns) {
     }
 }
 
+if ($pullRequestTrigger.Value -notmatch '(?m)^    paths:\s*$') {
+    throw 'iOS CI pull-request trigger must contain a paths allowlist.'
+}
+
 if ($pullRequestTrigger.Value -match '(?m)^\s*paths-ignore:\s*$') {
     throw "iOS CI pull-request trigger must use an allowlist (paths), not paths-ignore"
 }
@@ -38,7 +42,7 @@ $requiredPullRequestPaths = @(
     "Package.resolved",
     "**/*.xcconfig",
     "**/*.entitlements",
-    "**/*.plist"
+    "GymChecklist/**/*.plist"
 )
 
 foreach ($path in $requiredPullRequestPaths) {
@@ -48,6 +52,32 @@ foreach ($path in $requiredPullRequestPaths) {
     }
 }
 
+$swiftPMCache = [regex]::Match($workflow, '(?ms)^      - name: Cache Swift package sources\r?\n.*?(?=^      - name:|\z)')
+if (-not $swiftPMCache.Success) {
+    throw 'iOS CI workflow is missing the SwiftPM source-cache step.'
+}
+
+$requiredCachePatterns = @(
+    'uses: actions/cache@',
+    '(?m)^\s+path: \$\{\{ runner\.temp \}\}/SourcePackages\s*$',
+    'key: \$\{\{ runner\.os \}\}-xcode-\$\{\{ steps\.xcode\.outputs\.version \}\}-swiftpm-\$\{\{ hashFiles\(''GymChecklist\.xcodeproj/project\.pbxproj'', ''\*\*/Package\.resolved'', ''Package\.swift''\) \}\}',
+    'restore-keys:\s*\|\r?\n\s+\$\{\{ runner\.os \}\}-xcode-\$\{\{ steps\.xcode\.outputs\.version \}\}-swiftpm-'
+)
+
+foreach ($pattern in $requiredCachePatterns) {
+    if ($swiftPMCache.Value -notmatch $pattern) {
+        throw "iOS CI SwiftPM cache is missing required contract: $pattern"
+    }
+}
+
+if ($swiftPMCache.Value -match '(?i)DerivedData') {
+    throw 'iOS CI must not cache DerivedData.'
+}
+
+$xcodeVersionStep = [regex]::Match($workflow, '(?ms)^      - name: Record Xcode version\r?\n.*?(?=^      - name:|\z)')
+if (-not $xcodeVersionStep.Success -or $xcodeVersionStep.Value -notmatch '(?m)^        id: xcode\s*$' -or $xcodeVersionStep.Value -notmatch 'xcodebuild -version') {
+    throw 'iOS CI must record the Xcode version used by the SwiftPM cache.'
+}
 $requiredRoutineAndConcurrencyPatterns = @(
     'VERIFICATION_SCOPE:\s*\$\{\{\s*github\.event_name\s*==\s*''pull_request''\s*&&\s*''smoke''\s*\|\|\s*inputs\.verification_scope\s*\}\}',
     '(?m)^\s*- full\s*$',

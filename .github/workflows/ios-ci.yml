@@ -14,7 +14,7 @@ on:
       - 'Package.resolved'
       - '**/*.xcconfig'
       - '**/*.entitlements'
-      - '**/*.plist'
+      - 'GymChecklist/**/*.plist'
   workflow_dispatch:
     inputs:
       verification_scope:

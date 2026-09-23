@@ -1,7 +1,7 @@
 # Task Spec — Scope automatic macOS CI to iOS-impacting changes
 
 Date: 2026-09-21
-Status: IN PROGRESS (PENDING LINUX CI)
+Status: DONE
 
 ## Goal
 
@@ -91,11 +91,12 @@ This is the intended post-fix behavior.
 ## Current completion verification
 
 - Local CI contracts, JavaScript syntax, and whitespace checks are green.
-- Linux run `35869049678` passed for the initial implementation; the review-hardening commit requires a follow-up Linux run before this task can be marked `DONE`.
+- Linux run `35870019826` passed on final commit `2be586ca73f0fdc1726adc7c1aa5247e372f3e8f`; no automatic macOS run was created for this process-only change.
 
 ## Completion evidence
 
 - Automatic iOS-impacting PRs now resolve to `smoke`; manual `full` and `candidate` behavior is structurally preserved.
 - SwiftPM source caching now keys from the current Xcode version and Xcode project dependency declarations. DerivedData remains uncached.
 - Local contracts passed: agentic workflow, security hygiene, account deletion, Google Sign-In configuration, release workflow, and iOS CI. `node --check functions/index.js` and `git diff --check` also passed.
-- GitHub Actions Linux run `35869049678` passed for the initial implementation; review hardening is locally validated and pending its own Linux run.
+- GitHub Actions Linux run `35870019826` passed for final commit `2be586ca73f0fdc1726adc7c1aa5247e372f3e8f`; the only automatic run was Linux.
+- Independent review found and the follow-up commit fixed the broad plist glob and weak cache/trigger contract checks.

@@ -16,6 +16,7 @@
         <label class="control-label" for="screen-picker">Screen or state</label>
         <select id="screen-picker" class="screen-picker" aria-label="Screen or state"></select>
         <div id="screen-shortcuts" class="screen-shortcuts" aria-label="Surface shortcuts"></div>
+        <button type="button" id="gallery-mode" class="gallery-button" aria-pressed="false">Review gallery</button>
         <p class="control-label">Appearance</p>
         <div class="theme-switcher" role="group" aria-label="Appearance">
           <button type="button" class="appearance-button" data-theme-choice="light" aria-pressed="true">Light</button>
@@ -24,7 +25,8 @@
         <details class="review-notes">
           <summary>Review legend</summary>
           <p><strong>App-owned</strong> surfaces define hierarchy, rows, groups, state, and accent use. <strong>System intent</strong> marks native navigation, sheets, menus, forms, pickers, alerts, and provider controls.</p>
-          <p>Use the screen picker to inspect representative states. Today set rows remain interactive only as a one-tap demonstration.</p>
+          <p>Use the screen picker to inspect representative states. Press and hold a Today set to inspect its editor: incomplete sets edit planned values; completed sets edit actual values.</p>
+          <p>Review gallery renders the same screen definitions in deterministic flow order. Native-system intent belongs in this review chrome and ARIA labels, never as product copy inside a phone frame.</p>
         </details>
       </aside>
       <section class="phone-shell" aria-label="iPhone-sized Gym Checklist Phase 5B prototype">
@@ -36,6 +38,7 @@
           <button type="button" data-tab="settings" class="tab-item"><span aria-hidden="true">⚙</span><span>Settings</span></button>
         </nav>
       </section>
+      <section id="gallery-root" class="gallery-root" aria-label="Phase 5B Gallery review"></section>
     </main>
 
     <script src="app.js"></script>

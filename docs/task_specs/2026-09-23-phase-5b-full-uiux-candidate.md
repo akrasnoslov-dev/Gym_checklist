@@ -64,7 +64,7 @@ Expand the approved Minimal Grouped Phase 5A HTML/CSS foundation into a determin
 ## Validation evidence
 
 - RED: the initial 29-route version of `node design/prototype/verify-prototype.mjs` failed against the Phase 5A foundation because its required route IDs and the native-intent marker were absent. The final contract adds the explicit actual-editor variant.
-- GREEN: `node design/prototype/verify-prototype.mjs` passes with all 30 required routes and semantic markers.
+- GREEN: `node design/prototype/verify-prototype.mjs` passes with all 41 required routes and semantic markers.
 - GREEN: `node --check design/prototype/app.js` and `node --check design/prototype/verify-prototype.mjs` pass.
 - GREEN: `git diff --check` passes.
 - GREEN: repository Linux-contract equivalents pass: security hygiene, account deletion, Google Sign-In configuration, release workflow, iOS CI policy, and agentic workflow.
@@ -75,4 +75,36 @@ Expand the approved Minimal Grouped Phase 5A HTML/CSS foundation into a determin
 - Initial design-prototype review found Program remove/reorder actions were only implied. Resolved with explicit native-intent exercise and set menus, reorder affordances, destructive actions, and object-scoped confirmation intent. Re-review: approved.
 - Initial iOS UX review found calendar state semantics and 44 pt target gaps. Resolved with distinct state symbols and specific accessible labels in Week/Month plus 44 pt segmented, calendar-navigation, and Month-cell targets. Re-review: approved.
 - Initial product-spec review found skipped content remained visible, planned-set editing was omitted, Program mutation actions were implied, and calendar states were generic. Resolved by filtering skipped content while retaining restore, adding planned/actual editor variants, adding Program menus, and adding named calendar states. Re-review: approved.
-- `graphify update .` was attempted as required after code changes, but the local Graphify launcher is misconfigured (it invokes a missing `C:\\Users\\Andrei\\.local\\bin\\graphify` script). No graph output was changed.
+- `graphify update .` was attempted again after the correction on 2026-09-30, but the local Graphify launcher remains unavailable (`uv trampoline failed to canonicalize script path`). No graph output was changed.
+
+## Phase 7 correction pass — 2026-09-29
+
+### Clarification record
+
+The Phase 6 user review is authoritative and answers the clarification gate for this iteration. Preserve the approved Minimal Grouped Phase 5A foundation; make no production SwiftUI, Xcode, iOS-test, product-logic, or macOS-CI change. The correction remains prototype/docs-only and updates this existing PR branch.
+
+### Corrected acceptance scope
+
+- Today exposes an exercise menu before `Skip exercise`; skipped exercises leave active content and restore stays secondary.
+- No program (no workouts exist) and Rest day (program exists, no workout today) remain distinct and understandable.
+- Long-press planned/actual editors are reachable from their set rows, compact, safe-area-aware native-sheet intent; Today cannot delete a set.
+- Completion uses a compact gym-themed illustration, encouragement, optional meme line, and one dismissal action.
+- Week/Month use only Empty, Planned, Partial, Completed, and Incomplete calendar states; every state is named/iconic as well as colored.
+- Program editing uses one add-exercise entry point, exercise-local add set, selected-set editing, contextual exercise/set/workout menus, and object-scoped delete confirmation. Historical editing is visibly Program date navigation.
+- Picker represents all 34 bundled system exercises and search density; custom exercise is name-only.
+- Copy and Repeat communicate native DatePicker/segmented-picker structures from the current application.
+- Settings and related screens receive a shared-component Light/Dark consistency pass.
+- A normal interactive mode and shared-renderer Gallery mode make all routes inspectable in deterministic order, with annotations only outside phone frames.
+
+### Validation plan and RED evidence
+
+- Extend the static route contract before prototype changes; RED on 2026-09-29: missing Today exercise-menu and Program contextual/editor/confirmation routes plus Gallery/native DatePicker markers.
+- Add browser-level route/layout inspection and screenshot evidence for normal and Gallery modes in Light/Dark where material; report any environment limits honestly.
+- Run the focused static contract, syntax checks, whitespace check, relevant Linux/static policy checks, the three required specialist reviews, and a full-candidate visual audit after correction.
+
+### Correction resolution evidence
+
+- Historical actual editing, set actions, object-specific delete confirmations, direct exercise-local Add set, conditional Repeat-until DatePicker, and search filtering are reachable in normal mode as well as Review Gallery.
+- Week/Month states use named icons plus semantic color classes; today/selected styling and calendar navigation labels are present.
+- Gallery cards include native-intent annotations outside their fixed phone frames. Sheets and menus are contained within the phone content safe area above the tab bar.
+- The second specialist pass resolved the reported P1/P2 gaps. GREEN on 2026-09-30: 41-route prototype contract, JavaScript syntax, diff whitespace, and six repository static-policy contracts. Browser audit found no phone-frame overflow, horizontal content overflow, or prototype-only system copy inside a phone frame; searchable picker, protected delete, Repeat-until DatePicker, and Dark Gallery were inspected interactively.

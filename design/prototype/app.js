@@ -2,6 +2,7 @@ const screens = [
   { id: "today-incomplete", group: "Today", label: "Incomplete", tab: "today", type: "today", done: 0 },
   { id: "today-partial", group: "Today", label: "Partial", tab: "today", type: "today", done: 3 },
   { id: "today-completed", group: "Today", label: "Completed", tab: "today", type: "today", done: 7 },
+  { id: "today-exercise-menu", group: "Today", label: "Exercise actions", tab: "today", type: "today", done: 3, overlay: "exercise-menu" },
   { id: "today-skipped", group: "Today", label: "Skipped / restore", tab: "today", type: "today", done: 3, skipped: true },
   { id: "today-rest-day", group: "Today", label: "Rest day", tab: "today", type: "empty", state: "rest" },
   { id: "today-no-program", group: "Today", label: "No program", tab: "today", type: "empty", state: "no-program" },
@@ -11,11 +12,21 @@ const screens = [
   { id: "program-week", group: "Program", label: "Week", tab: "program", type: "week" },
   { id: "program-month", group: "Program", label: "Month", tab: "program", type: "month" },
   { id: "program-edit", group: "Program", label: "Selected-date editing", tab: "program", type: "edit" },
+  { id: "program-add-set", group: "Program", label: "Add set", tab: "program", type: "edit", addedSet: true },
+  { id: "program-set-editor", group: "Program", label: "Edit set", tab: "program", type: "edit", overlay: "set-editor" },
+  { id: "program-exercise-menu", group: "Program", label: "Exercise actions", tab: "program", type: "edit", overlay: "exercise-menu" },
+  { id: "program-set-menu", group: "Program", label: "Set actions", tab: "program", type: "edit", overlay: "set-menu" },
+  { id: "program-workout-menu", group: "Program", label: "Workout actions", tab: "program", type: "edit", overlay: "workout-menu" },
+  { id: "program-delete-confirm", group: "Program", label: "Delete set confirmation", tab: "program", type: "edit", overlay: "delete-confirm", deleteTarget: "set" },
+  { id: "program-delete-exercise", group: "Program", label: "Delete exercise confirmation", tab: "program", type: "edit", overlay: "delete-confirm", deleteTarget: "exercise" },
+  { id: "program-delete-workout", group: "Program", label: "Delete workout confirmation", tab: "program", type: "edit", overlay: "delete-confirm", deleteTarget: "workout" },
   { id: "program-history", group: "Program", label: "Historical workout editing", tab: "program", type: "history" },
+  { id: "program-history-set-editor", group: "Program", label: "Historical actual editor", tab: "program", type: "history", overlay: "actual-set-editor" },
   { id: "exercise-picker", group: "Workout flows", label: "Exercise picker", tab: "program", type: "picker" },
   { id: "custom-exercise", group: "Workout flows", label: "Custom exercise", tab: "program", type: "custom" },
   { id: "copy-workout", group: "Workout flows", label: "Copy workout", tab: "program", type: "copy" },
   { id: "repeat-workout", group: "Workout flows", label: "Repeat workout", tab: "program", type: "repeat" },
+  { id: "repeat-workout-until", group: "Workout flows", label: "Repeat until date", tab: "program", type: "repeat", untilDate: true },
   { id: "settings-main", group: "Settings", label: "Main Settings", tab: "settings", type: "settings" },
   { id: "settings-profile", group: "Settings", label: "Profile", tab: "settings", type: "profile" },
   { id: "settings-body-weight", group: "Settings", label: "Body-weight history", tab: "settings", type: "weight" },
@@ -40,7 +51,12 @@ const workout = [
 const app = document.querySelector("#app");
 const picker = document.querySelector("#screen-picker");
 const shortcuts = document.querySelector("#screen-shortcuts");
+const galleryRoot = document.querySelector("#gallery-root");
+const galleryButton = document.querySelector("#gallery-mode");
 let current = screens[1];
+let galleryMode = false;
+let longPressTimer;
+let pickerQuery = "";
 
 function route(label, id, style) {
   return "<button type=\"button\" class=\"button button-" + (style || "secondary") + "\" data-route=\"" + id + "\">" + label + "</button>";
@@ -56,82 +72,131 @@ function todayRows(done, skippedName) {
     const rows = exercise[1].map(function (value, index) {
       number += 1;
       const completed = number <= done;
-      return "<button class=\"set-row " + (completed ? "is-completed" : "") + "\" data-set aria-pressed=\"" + completed + "\" aria-label=\"" + exercise[0] + ", set " + (index + 1) + ": " + value + ", " + (completed ? "completed. Tap to undo." : "incomplete. Tap to complete.") + "\"><span class=\"completion-icon\" aria-hidden=\"true\"></span><span>" + value + "</span></button>";
+      const editorRoute = completed ? "today-set-editor-actual" : "today-set-editor";
+      return "<div class=\"set-row-wrap\"><button class=\"set-row " + (completed ? "is-completed" : "") + "\" data-set data-action=\"long-press-editor\" data-editor=\"" + editorRoute + "\" data-set-name=\"" + exercise[0] + "\" data-set-number=\"" + (index + 1) + "\" data-set-value=\"" + value + "\" aria-keyshortcuts=\"Shift+F10\" aria-pressed=\"" + completed + "\" aria-label=\"" + exercise[0] + ", set " + (index + 1) + ": " + value + ", " + (completed ? "completed. Tap to mark incomplete; press and hold or use Shift+F10 to edit actual results." : "incomplete. Tap to complete; press and hold or use Shift+F10 to edit planned values.") + "\"><span class=\"completion-icon\" aria-hidden=\"true\"></span><span>" + value + "</span></button></div>";
     }).join("");
-    return "<section class=\"exercise-group\"><header class=\"exercise-header\"><h3>" + exercise[0] + "</h3><button class=\"icon-button native-intent\" data-route=\"today-skipped\" aria-label=\"System intent: " + exercise[0] + " actions\">•••</button></header><div class=\"set-list\">" + rows + "</div></section>";
+    return "<section class=\"exercise-group\"><header class=\"exercise-header\"><h3>" + exercise[0] + "</h3><button class=\"icon-button native-intent\" data-route=\"today-exercise-menu\" aria-label=\"" + exercise[0] + " actions\">•••</button></header><div class=\"set-list\">" + rows + "</div></section>";
   }).join("");
 }
 
 function today(screen) {
-  let extra = screen.skipped ? "<button class=\"restore-row native-intent\" data-route=\"today-incomplete\">Skipped exercises <span>Restore Barbell Row ›</span></button>" : "";
+  let extra = screen.skipped ? "<button class=\"restore-row native-intent\" data-route=\"today-incomplete\" aria-label=\"Restore Barbell Row\"><span>Skipped exercises</span><span>Restore Barbell Row</span></button>" : "";
   if (screen.overlay === "editor-planned" || screen.overlay === "editor-actual") extra += editorOverlay(screen.overlay === "editor-actual");
+  if (screen.overlay === "exercise-menu") extra += exerciseMenu();
   if (screen.overlay === "completion") extra += completionOverlay();
   return heading("Today", "Tuesday, September 8") + "<div class=\"workout-list\">" + todayRows(screen.done, screen.skipped ? "Barbell Row" : "") + extra + "</div>";
 }
 
 function empty(screen) {
   const rest = screen.state === "rest";
-  return heading("Today", "Tuesday, September 8") + "<section class=\"empty-state app-owned\"><span class=\"empty-symbol\" aria-hidden=\"true\">" + (rest ? "☀" : "✓") + "</span><h3>" + (rest ? "Rest day." : "No workout planned yet.") + "</h3><p>" + (rest ? "See you tomorrow." : "Create a workout when you are ready.") + "</p>" + route(rest ? "View program" : "Create workout", "program-week", "primary") + "</section>";
+  return heading("Today", "Tuesday, September 8") + "<section class=\"empty-state app-owned\"><span class=\"empty-symbol\" aria-hidden=\"true\">" + (rest ? "☀" : "✓") + "</span><h3>" + (rest ? "Rest day." : "No program yet.") + "</h3><p>" + (rest ? "Your program has workouts, just none scheduled for today." : "You have no workouts in your program. Create your first one when you are ready.") + "</p>" + route(rest ? "View program" : "Create workout", "program-week", "primary") + "</section>";
 }
 
 function editorOverlay(actual) {
   const titleText = actual ? "Edit actual" : "Edit set";
-  const note = actual ? "Actual results · completion stays checked" : "Planned set · before completion";
-  return "<div class=\"sheet-scrim\"><section class=\"sheet native-intent\" aria-label=\"System intent: compact " + (actual ? "actual" : "planned") + " set editor\"><div class=\"sheet-grabber\"></div><header><button data-route=\"today-partial\">Cancel</button><h3>" + titleText + "</h3><button class=\"accent-action\" data-route=\"today-partial\">Save</button></header><p>" + note + "</p><div class=\"form-card\"><label>Reps<input value=\"8\"></label><label>Weight<input value=\"60 kg\"></label></div></section></div>";
+  const note = actual ? "Actual results · completed set stays completed" : "Planned set · before completion";
+  return "<div class=\"sheet-scrim\"><section class=\"sheet native-intent\" aria-label=\"Native bottom sheet: compact " + (actual ? "actual" : "planned") + " set editor\"><div class=\"sheet-grabber\"></div><header><button data-route=\"today-partial\">Cancel</button><h3>" + titleText + "</h3><button class=\"accent-action\" data-route=\"today-partial\">Save</button></header><p>" + note + "</p><div class=\"form-card\"><label>Reps<input value=\"8\"></label><label>Weight<input value=\"60 kg\"></label></div></section></div>";
+}
+
+function exerciseMenu() {
+  return "<div class=\"menu-scrim\"><section class=\"context-menu native-intent\" aria-label=\"Native exercise actions\"><button data-route=\"today-skipped\">Skip exercise</button><button data-route=\"today-partial\">Cancel</button></section></div>";
 }
 
 function completionOverlay() {
-  return "<div class=\"sheet-scrim\"><section class=\"completion-overlay app-owned\"><span class=\"completion-burst\" aria-hidden=\"true\">✓</span><h3>Gym survived. Barely.</h3><p>Another one done.</p>" + route("Done", "today-completed", "primary") + "</section></div>";
+  return "<div class=\"sheet-scrim\"><section class=\"completion-overlay app-owned\"><div class=\"gym-illustration\" aria-hidden=\"true\"><span>🏋</span><i>●━━━━●</i></div><h3>You crushed it!</h3><p>Gym survived. Barely.</p>" + route("Done", "today-completed", "primary") + "</section></div>";
+}
+
+function calendarLegend() {
+  return "<div class=\"calendar-legend\"><span class=\"state-empty\">○ Empty</span><span class=\"state-planned\">• Planned</span><span class=\"state-partial\">◐ Partial</span><span class=\"state-completed\">✓ Completed</span><span class=\"state-incomplete\">! Incomplete</span></div>";
 }
 
 function dayStrip() {
-  const dates = [["M", "7", "empty", "○"], ["T", "8", "partial workout", "◐"], ["W", "9", "planned workout", "•"], ["T", "10", "completed workout", "✓"], ["F", "11", "incomplete workout", "!"], ["S", "12", "skipped workout", "–"], ["S", "13", "empty", "○"]];
+  const dates = [["M", "7", "Empty", "○"], ["T", "8", "Partial", "◐"], ["W", "9", "Planned", "•"], ["T", "10", "Completed", "✓"], ["F", "11", "Incomplete", "!"], ["S", "12", "Empty", "○"], ["S", "13", "Empty", "○"]];
   return "<div class=\"day-strip\">" + dates.map(function (item, index) {
-    return "<button class=\"day-cell " + (index === 1 ? "is-selected" : "") + "\" aria-label=\"September " + item[1] + ", " + item[2] + (index === 1 ? ", selected" : "") + "\"><span>" + item[0] + "</span><strong>" + item[1] + "</strong><i aria-hidden=\"true\">" + item[3] + "</i></button>";
+    const stateClass = "state-" + item[2].toLowerCase();
+    return "<button class=\"day-cell " + stateClass + " " + (index === 1 ? "is-selected is-today" : "") + "\" aria-label=\"September " + item[1] + ", " + item[2] + (index === 1 ? ", today and selected" : "") + "\"><span>" + item[0] + "</span><strong>" + item[1] + "</strong><i aria-hidden=\"true\">" + item[3] + "</i></button>";
   }).join("") + "</div>";
 }
 
-function detail(historical, editable) {
+function setEditorRow(number, label, routeId, actual, actions) {
+  const row = routeId ? "<button class=\"editor-row " + (actual ? "is-completed" : "") + "\" data-route=\"" + routeId + "\"><span>" + number + "</span><strong>" + label + "</strong><em>" + (actual ? "Edit actual" : "Edit") + "</em></button>" : "<div class=\"editor-row " + (actual ? "is-completed" : "") + "\"><span>" + number + "</span><strong>" + label + "</strong><em>Recorded</em></div>";
+  return "<div class=\"editor-row-wrap\">" + row + (actions ? "<button class=\"editor-more\" data-route=\"program-set-menu\" aria-label=\"Set " + number + " actions\">•••</button>" : "") + "</div>";
+}
+
+function detail(historical, editable, addedSet) {
   const actual = historical ? "7 reps × 65 kg · actual" : "8 reps × 60 kg";
-  return "<section class=\"program-detail\"><p class=\"selected-date-label\">" + (historical ? "Friday, September 4 · History" : "Tuesday, September 8") + "</p><section class=\"program-exercise\"><header><h3>Bench Press</h3><button class=\"icon-button native-intent\" aria-label=\"System intent: exercise actions\">•••</button></header><div class=\"editor-list\"><button class=\"editor-row\" data-route=\"program-edit\"><span>1</span><strong>8 reps × 60 kg</strong><em>Edit</em></button><button class=\"editor-row is-completed\" data-route=\"" + (historical ? "program-history" : "program-edit") + "\"><span>2</span><strong>" + actual + "</strong><em>" + (historical ? "Edit actual" : "Edit") + "</em></button><button class=\"editor-row\" data-route=\"program-edit\"><span>3</span><strong>6 reps × 60 kg</strong><em>Edit</em></button></div>" + (editable ? "<div class=\"inline-actions\">" + route("+ Add set", "program-edit") + route("+ Add exercise", "exercise-picker") + "</div>" : "") + "</section>" + (editable ? "<button class=\"destructive-row native-intent\">Remove workout <em>System confirmation required</em></button>" : "") + "</section>";
+  const actualRoute = historical ? "program-history-set-editor" : "program-set-editor";
+  const rows = setEditorRow(1, "8 reps × 60 kg" + (historical ? " · planned" : ""), historical ? "" : "program-set-editor", false, !historical) + setEditorRow(2, actual, actualRoute, true, !historical) + setEditorRow(3, "6 reps × 60 kg" + (historical ? " · planned" : ""), historical ? "" : "program-set-editor", false, !historical) + (addedSet ? setEditorRow(4, "New set · choose reps and weight", "program-set-editor", false, true) : "");
+  return "<section class=\"program-detail\"><p class=\"selected-date-label\">" + (historical ? "Friday, September 4 · Past date" : "Tuesday, September 8") + "</p><section class=\"program-exercise\"><header><h3>Bench Press</h3>" + (historical ? "" : "<button class=\"icon-button native-intent\" data-route=\"program-exercise-menu\" aria-label=\"Bench Press actions\">•••</button>") + "</header><div class=\"editor-list\">" + rows + "</div>" + (editable ? "<div class=\"exercise-local-action\">" + route("Add set", "program-add-set") + "</div>" : "") + "</section></section>";
 }
 
 function week() {
-  return heading("Program", "", "<button class=\"add-button\" data-route=\"program-edit\">+</button>") + "<div class=\"segmented native-intent\"><button class=\"is-selected\">Week</button><button data-route=\"program-month\">Month</button></div><div class=\"calendar-nav native-intent\"><button>‹</button><strong>Sep 7 – Sep 13</strong><button>›</button></div>" + dayStrip() + detail(false, false);
+  return heading("Program", "", "<button class=\"add-button\" data-route=\"program-edit\" aria-label=\"Edit selected workout\">+</button>") + "<div class=\"segmented native-intent\"><button class=\"is-selected\">Week</button><button data-route=\"program-month\">Month</button></div><div class=\"calendar-nav native-intent\"><button aria-label=\"Previous week\">‹</button><strong>Sep 7 – Sep 13</strong><button aria-label=\"Next week\">›</button></div>" + dayStrip() + calendarLegend() + detail(false, false);
 }
 
 function month() {
   const dayNames = ["M", "T", "W", "T", "F", "S", "S"].map(function (day) { return "<span>" + day + "</span>"; }).join("");
-  const states = { 1: ["planned workout", "•"], 8: ["partial workout", "◐"], 11: ["completed workout", "✓"], 18: ["incomplete workout", "!"], 22: ["skipped workout", "–"] };
+  const states = { 1: ["Planned", "•"], 8: ["Partial", "◐"], 11: ["Completed", "✓"], 18: ["Incomplete", "!"] };
   const cells = Array.from({ length: 35 }, function (_, i) {
-    const day = i;
-    const status = states[day] || ["empty", "○"];
-    return "<button class=\"" + (day === 8 ? "is-selected " : "") + (day === 0 || day > 30 ? "is-muted" : "") + "\" aria-label=\"September " + (day || 31) + ", " + status[0] + (day === 8 ? ", selected" : "") + "\">" + (day || 31) + "<i aria-hidden=\"true\">" + status[1] + "</i></button>";
+    const day = i === 0 ? 31 : i <= 30 ? i : i - 30;
+    const monthName = i === 0 ? "August" : i > 30 ? "October" : "September";
+    const status = states[i] || ["Empty", "○"];
+    const today = i === 8;
+    return "<button class=\"state-" + status[0].toLowerCase() + " " + (today ? "is-selected is-today " : "") + (i === 0 || i > 30 ? "is-muted" : "") + "\" aria-label=\"" + monthName + " " + day + ", " + status[0] + (today ? ", today and selected" : "") + "\">" + day + "<i aria-hidden=\"true\">" + status[1] + "</i></button>";
   }).join("");
-  return heading("Program") + "<div class=\"segmented native-intent\"><button data-route=\"program-week\">Week</button><button class=\"is-selected\">Month</button></div><div class=\"calendar-nav native-intent\"><button>‹</button><strong>September 2026</strong><button>›</button></div><section class=\"month-grid\">" + dayNames + cells + "</section>" + detail(false, false);
+  return heading("Program") + "<div class=\"segmented native-intent\"><button data-route=\"program-week\">Week</button><button class=\"is-selected\">Month</button></div><div class=\"calendar-nav native-intent\"><button aria-label=\"Previous month\">‹</button><strong>September 2026</strong><button aria-label=\"Next month\">›</button></div><section class=\"month-grid\">" + dayNames + cells + "</section>" + calendarLegend() + detail(false, false);
 }
 
-function edit() {
-  return heading("Edit workout", "Tuesday, September 8", "<button class=\"add-button\" data-route=\"exercise-picker\">+</button>") + "<p class=\"system-caption native-intent\">System intent: List editing, menus, sheets and confirmation dialog</p>" + detail(false, true) + "<section class=\"edit-actions native-intent\"><strong>Exercise menu · Bench Press</strong><button>↕ Move exercise</button><button class=\"is-destructive\">Delete exercise</button></section><section class=\"edit-actions native-intent\"><strong>Set menu · Set 2</strong><button>↕ Move set</button><button class=\"is-destructive\">Delete set</button></section><p class=\"system-caption native-intent\">Destructive choices open a native confirmation naming the exercise or set.</p><div class=\"editor-tools\"><button data-route=\"copy-workout\">Copy workout</button><button data-route=\"repeat-workout\">Repeat workout</button></div>";
+function programMenu(kind) {
+  const actions = kind === "exercise-menu" ? [["Move exercise", "program-edit"], ["Delete exercise", "program-delete-exercise"]] : kind === "set-menu" ? [["Move set", "program-edit"], ["Delete set", "program-delete-confirm"]] : [["Copy workout", "copy-workout"], ["Repeat workout", "repeat-workout"], ["Delete workout", "program-delete-workout"]];
+  return "<div class=\"menu-scrim\"><section class=\"context-menu native-intent\" aria-label=\"Native " + kind.replace("-", " ") + "\">" + actions.map(function (action) { return "<button class=\"" + (action[0].indexOf("Delete") === 0 ? "is-destructive" : "") + "\" data-route=\"" + action[1] + "\">" + action[0] + "</button>"; }).join("") + "<button data-route=\"program-edit\">Cancel</button></section></div>";
 }
 
-function history() {
-  return heading("Workout", "Friday, September 4") + "<p class=\"history-note\">Actual results remain editable. Planned changes do not overwrite them.</p>" + detail(true, false);
+function setSheet(actual, returnRoute) {
+  const title = actual ? "Edit actual" : "Edit set";
+  const note = actual ? "Actual result · saved workout history stays intact" : "Planned set";
+  const destination = returnRoute || "program-edit";
+  return "<div class=\"sheet-scrim\"><section class=\"sheet native-intent\" aria-label=\"Native bottom sheet: " + title + "\"><div class=\"sheet-grabber\"></div><header><button data-route=\"" + destination + "\">Cancel</button><h3>" + title + "</h3><button class=\"accent-action\" data-route=\"" + destination + "\">Save</button></header><p>" + note + "</p><div class=\"form-card\"><label>Reps<input value=\"" + (actual ? "7" : "8") + "\"></label><label>Weight<input value=\"" + (actual ? "65 kg" : "60 kg") + "\"></label></div></section></div>";
+}
+
+function deleteConfirm(target) {
+  const copy = {
+    set: ["Delete this set?", "This removes Set 2 from Bench Press. This can’t be undone.", "Delete set"],
+    exercise: ["Delete Bench Press?", "This removes Bench Press and its 3 planned sets. This can’t be undone.", "Delete exercise"],
+    workout: ["Delete this workout?", "This removes the workout scheduled for Tuesday, September 8. This can’t be undone.", "Delete workout"]
+  }[target || "set"];
+  return "<div class=\"menu-scrim\"><section class=\"alert-card native-intent\" aria-label=\"Native delete confirmation\"><span class=\"error-symbol\">!</span><h3>" + copy[0] + "</h3><p>" + copy[1] + "</p><div>" + route("Cancel", "program-edit") + "<button class=\"button button-destructive\" data-route=\"program-edit\">" + copy[2] + "</button></div></section></div>";
+}
+
+function edit(screen) {
+  let overlay = "";
+  if (screen.overlay === "set-editor") overlay = setSheet(false);
+  if (["exercise-menu", "set-menu", "workout-menu"].includes(screen.overlay)) overlay = programMenu(screen.overlay);
+  if (screen.overlay === "delete-confirm") overlay = deleteConfirm(screen.deleteTarget);
+  return heading("Program", "Tuesday, September 8", "<button class=\"icon-button native-intent\" data-route=\"program-workout-menu\" aria-label=\"Workout actions\">•••</button>") + "<section class=\"program-editor\"><div class=\"editor-toolbar\">" + route("Add exercise", "exercise-picker", "primary") + "</div>" + detail(false, true, screen.addedSet) + "</section>" + overlay;
+}
+
+function history(screen) {
+  const overlay = screen.overlay === "actual-set-editor" ? setSheet(true, "program-history") : "";
+  return heading("Program", "Past date selected") + "<div class=\"segmented native-intent\"><button class=\"is-selected\">Week</button><button data-route=\"program-month\">Month</button></div><div class=\"history-path\"><span>Program</span><b>→</b><span>Friday, September 4</span></div><p class=\"history-note\">Recorded results stay editable. Planning changes never overwrite completed actual results.</p>" + detail(true, false) + overlay;
 }
 
 function pickerView() {
-  const names = ["Bench Press", "Barbell Row", "Cable Face Pull", "Goblet Squat"];
-  return heading("Add exercise") + "<div class=\"search native-intent\">⌕ <span>Search exercises</span></div><p class=\"list-label\">COMMON</p><section class=\"grouped-list\">" + names.map(function (name) { return "<button class=\"list-row\" data-route=\"program-edit\">" + name + "<span>+</span></button>"; }).join("") + "</section>" + route("Add custom exercise", "custom-exercise");
+  const catalogue = [["Bench Press", "Chest"], ["Incline Dumbbell Press", "Chest"], ["Push-Up", "Chest"], ["Cable Fly", "Chest"], ["Pull-Up", "Back"], ["Lat Pulldown", "Back"], ["Barbell Row", "Back"], ["Seated Cable Row", "Back"], ["Back Squat", "Legs"], ["Front Squat", "Legs"], ["Romanian Deadlift", "Legs"], ["Leg Press", "Legs"], ["Walking Lunge", "Legs"], ["Standing Calf Raise", "Legs"], ["Overhead Press", "Shoulders"], ["Dumbbell Lateral Raise", "Shoulders"], ["Reverse Fly", "Shoulders"], ["Arnold Press", "Shoulders"], ["Barbell Curl", "Biceps"], ["Dumbbell Curl", "Biceps"], ["Hammer Curl", "Biceps"], ["Preacher Curl", "Biceps"], ["Cable Triceps Pushdown", "Triceps"], ["Skull Crusher", "Triceps"], ["Overhead Triceps Extension", "Triceps"], ["Close-Grip Bench Press", "Triceps"], ["Plank", "Core"], ["Hanging Knee Raise", "Core"], ["Cable Crunch", "Core"], ["Russian Twist", "Core"], ["Treadmill Run", "Cardio/Other"], ["Stationary Bike", "Cardio/Other"], ["Rowing Machine", "Cardio/Other"], ["Elliptical", "Cardio/Other"]];
+  const visible = catalogue.filter(function (item) { return item[0].toLowerCase().includes(pickerQuery.toLowerCase()); });
+  const rows = visible.length ? visible.map(function (item) { return "<button class=\"picker-row\" data-route=\"program-edit\"><span><strong>" + item[0] + "</strong><em>" + item[1] + "</em></span><b>+</b></button>"; }).join("") : "<p class=\"empty-list\">No system exercises match this search.</p>";
+  return heading("Add exercise", "", "<button class=\"text-button\" data-route=\"program-edit\">Cancel</button>") + "<label class=\"search native-intent\" aria-label=\"Native searchable list\">⌕ <input data-picker-search value=\"" + pickerQuery + "\" placeholder=\"Search exercises\" aria-label=\"Search exercises\"></label><p class=\"list-label\">EXERCISES · " + visible.length + " OF " + catalogue.length + "</p><section class=\"grouped-list picker-list\">" + rows + "</section>" + route("Add custom exercise", "custom-exercise");
 }
 
 function custom() {
-  return heading("New exercise") + "<p class=\"system-caption native-intent\">System intent: focused form sheet</p><section class=\"form-card\"><label>Exercise name<input placeholder=\"e.g. Romanian Deadlift\"></label><label>Category<select><option>Optional</option><option>Legs</option><option>Back</option></select></label></section><button class=\"button button-primary\" disabled>Save exercise</button>";
+  return heading("Custom exercise", "", "<button class=\"text-button\" data-route=\"exercise-picker\">Cancel</button>") + "<section class=\"form-card native-intent\" aria-label=\"Native focused form\"><label>Exercise name<input placeholder=\"e.g. Romanian Deadlift\" aria-label=\"Exercise name\"></label></section>" + route("Add", "program-edit", "primary");
 }
 
 function flow(screen) {
   const copy = screen.type === "copy";
-  const form = copy ? "<label>Destination date<input value=\"September 15, 2026\"></label><p>Completion state is not copied.</p>" : "<label>Repeat every<select><option>1 week</option><option>2 weeks</option><option>3 weeks</option><option>4 weeks</option></select></label><label>For<select><option>4 weeks</option><option>8 weeks</option><option>Until date</option></select></label><p>Generated workouts are independent.</p>";
-  return heading(copy ? "Copy workout" : "Repeat workout") + "<section class=\"flow-summary\"><span>▦</span><div><strong>Tuesday, September 8</strong><p>3 exercises · 7 sets</p></div></section><section class=\"form-card native-intent\">" + form + "</section>" + route(copy ? "Copy workout" : "Create repeats", "program-week", "primary");
+  if (copy) return heading("Copy workout", "", "<button class=\"text-button\" data-route=\"program-edit\">Cancel</button>") + "<p class=\"form-label\">SOURCE</p><section class=\"flow-summary\"><span>▣</span><div><strong>Tuesday, September 8</strong><p>3 exercises · 7 sets</p></div></section><p class=\"form-label\">DESTINATION</p><section class=\"form-card\"><button class=\"date-picker-row native-intent\" aria-label=\"native DatePicker intent: Destination date\"><span>Destination date</span><strong>▣ Sep 15, 2026</strong></button><p>Creates an independent planned workout. Completion and history are not copied. The destination cannot be the source date or overwrite an existing workout.</p></section>" + route("Copy", "program-week", "primary");
+  const until = screen.untilDate;
+  return heading("Repeat workout", "", "<button class=\"text-button\" data-route=\"program-edit\">Cancel</button>") + "<p class=\"form-label\">SOURCE WORKOUT</p><section class=\"flow-summary\"><span>↻</span><div><strong>Tuesday, September 8</strong><p>3 exercises · 7 sets</p></div></section><section class=\"schedule-card native-intent\" aria-label=\"Native segmented picker intent\"><p>Cadence</p><div class=\"compact-segmented\"><button class=\"is-selected\">Every 1 week</button><button>2 weeks</button><button>3 weeks</button><button>4 weeks</button></div><p>Duration</p><div class=\"compact-segmented three\"><button class=\"" + (until ? "" : "is-selected") + "\">4 weeks</button><button>8 weeks</button><button class=\"" + (until ? "is-selected" : "") + "\" data-route=\"repeat-workout-until\">Until date</button></div>" + (until ? "<button class=\"date-picker-row native-intent\" aria-label=\"native DatePicker intent: Repeat until\"><span>Repeat until</span><strong>▣ Oct 27, 2026</strong></button>" : "") + "</section><p class=\"form-label\">RESULT</p><section class=\"result-card\">" + (until ? "7" : "4") + " independent workouts will be created. Existing workouts are not replaced.</section>" + route("Create", "program-week", "primary");
 }
 
 function settings() {
@@ -155,11 +220,11 @@ function weight() {
 }
 
 function preference(screen) {
-  return heading(screen.preference) + "<p class=\"system-caption native-intent\">System intent: native picker</p><section class=\"preference-options\">" + screen.choices.map(function (choice, index) { return "<button class=\"preference-row " + (index === 0 ? "is-selected" : "") + "\"><span>" + choice + "</span><b>" + (index === 0 ? "✓" : "") + "</b></button>"; }).join("") + "</section>";
+  return heading(screen.preference) + "<section class=\"preference-options native-intent\" aria-label=\"Native picker\">" + screen.choices.map(function (choice, index) { return "<button class=\"preference-row " + (index === 0 ? "is-selected" : "") + "\"><span>" + choice + "</span><b>" + (index === 0 ? "✓" : "") + "</b></button>"; }).join("") + "</section>";
 }
 
 function account() {
-  return heading("Account") + "<section class=\"account-card\"><p>andrei@example.com</p>" + route("Log out", "auth-sign-in") + "</section>" + settingsSection("Danger zone", "<button class=\"destructive-row native-intent\" data-route=\"state-disabled\"><span>Delete account</span><em>System confirmation ›</em></button>") + "<p class=\"danger-note\">Deletion is separate from preferences and requires clear confirmation.</p>";
+  return heading("Account") + "<section class=\"account-card\"><p>andrei@example.com</p>" + route("Log out", "auth-sign-in") + "</section>" + settingsSection("Danger zone", "<button class=\"destructive-row native-intent\" data-route=\"state-disabled\"><span>Delete account</span><em>›</em></button>") + "<p class=\"danger-note\">Deletion is separate from preferences and requires clear confirmation.</p>";
 }
 
 function auth(screen) {
@@ -180,20 +245,50 @@ function state(screen) {
   return heading("Delete account") + "<section class=\"alert-card native-intent\"><span class=\"error-symbol\">!</span><h3>Delete account?</h3><p>This removes your account and workout data. This action cannot be undone.</p><div>" + route("Cancel", "settings-account") + "<button class=\"button button-destructive\" disabled>Delete account</button></div></section>";
 }
 
+function screenMarkup(screen) {
+  const view = { today: today, empty: empty, week: week, month: month, edit: edit, history: history, picker: pickerView, custom: custom, copy: flow, repeat: flow, settings: settings, profile: profile, weight: weight, preference: preference, account: account, auth: auth, loading: state, offline: state, error: state, disabled: state };
+  return view[screen.type](screen);
+}
+
+function galleryPhone(screen) {
+  return "<section class=\"phone-shell gallery-phone\" aria-label=\"iPhone-sized " + screen.label + "\"><div class=\"system-status\" aria-hidden=\"true\"><span>9:41</span><span class=\"status-icons\">● ● ●</span></div><div class=\"app-content\">" + screenMarkup(screen) + "</div><nav class=\"system-tab-bar native-intent\" aria-label=\"Native primary tab navigation\"><button class=\"tab-item " + (screen.tab === "today" ? "is-selected" : "") + "\"><span>✓</span><span>Today</span></button><button class=\"tab-item " + (screen.tab === "program" ? "is-selected" : "") + "\"><span>▦</span><span>Program</span></button><button class=\"tab-item " + (screen.tab === "settings" ? "is-selected" : "") + "\"><span>⚙</span><span>Settings</span></button></nav></section>";
+}
+
+function galleryIntent(screen) {
+  if (screen.overlay) return "Native intent: compact sheet, menu, or confirmation.";
+  if (screen.type === "copy" || screen.untilDate) return "Native intent: DatePicker.";
+  if (screen.type === "repeat" || screen.type === "week" || screen.type === "month") return "Native intent: segmented picker and date navigation.";
+  if (screen.type === "picker" || screen.type === "preference") return "Native intent: searchable list or picker.";
+  return "Native intent: primary navigation where applicable.";
+}
+
 function render() {
   picker.value = current.id;
   const view = { today: today, empty: empty, week: week, month: month, edit: edit, history: history, picker: pickerView, custom: custom, copy: flow, repeat: flow, settings: settings, profile: profile, weight: weight, preference: preference, account: account, auth: auth, loading: state, offline: state, error: state, disabled: state };
   app.innerHTML = view[current.type](current);
+  document.body.classList.toggle("is-gallery", galleryMode);
+  galleryButton.setAttribute("aria-pressed", String(galleryMode));
+  picker.disabled = galleryMode;
+  galleryRoot.innerHTML = galleryMode ? "<div class=\"gallery\">" + screens.map(function (screen) { return "<article class=\"gallery-card\"><header><p>" + screen.group + "</p><h2>" + screen.label + "</h2><small>" + galleryIntent(screen) + "</small></header>" + galleryPhone(screen) + "</article>"; }).join("") + "</div>" : "";
   document.querySelectorAll(".tab-item").forEach(function (tab) { tab.classList.toggle("is-selected", tab.dataset.tab === current.tab); });
   document.querySelectorAll("[data-set]").forEach(function (row) {
     row.addEventListener("click", function () {
       const completed = row.classList.toggle("is-completed");
       row.setAttribute("aria-pressed", String(completed));
+      row.dataset.editor = completed ? "today-set-editor-actual" : "today-set-editor";
+      row.setAttribute("aria-label", row.dataset.setName + ", set " + row.dataset.setNumber + ": " + row.dataset.setValue + ", " + (completed ? "completed. Tap to mark incomplete; press and hold or use Shift+F10 to edit actual results." : "incomplete. Tap to complete; press and hold or use Shift+F10 to edit planned values."));
+    });
+  });
+  document.querySelectorAll("#app [data-route]").forEach(function (button) {
+    button.addEventListener("click", function (event) {
+      event.stopPropagation();
+      selectScreen(button.dataset.route);
     });
   });
 }
 
 function selectScreen(id) {
+  galleryMode = false;
   current = screens.find(function (screen) { return screen.id === id; }) || screens[0];
   render();
 }
@@ -217,7 +312,30 @@ document.addEventListener("click", function (event) {
   if (routed) selectScreen(routed.dataset.route);
   if (tab) selectScreen(tab.dataset.tab === "today" ? "today-partial" : tab.dataset.tab === "program" ? "program-week" : "settings-main");
 });
+document.addEventListener("pointerdown", function (event) {
+  const row = event.target.closest("[data-editor]");
+  if (!row || galleryMode) return;
+  longPressTimer = window.setTimeout(function () { selectScreen(row.dataset.editor); }, 500);
+});
+document.addEventListener("pointerup", function () { window.clearTimeout(longPressTimer); });
+document.addEventListener("pointercancel", function () { window.clearTimeout(longPressTimer); });
+document.addEventListener("contextmenu", function (event) {
+  const row = event.target.closest("[data-editor]");
+  if (row && !galleryMode) { event.preventDefault(); selectScreen(row.dataset.editor); }
+});
+document.addEventListener("keydown", function (event) {
+  const row = event.target.closest("[data-editor]");
+  if (row && !galleryMode && event.shiftKey && event.key === "F10") { event.preventDefault(); selectScreen(row.dataset.editor); }
+});
+document.addEventListener("input", function (event) {
+  if (!event.target.matches("[data-picker-search]")) return;
+  pickerQuery = event.target.value;
+  render();
+  const input = document.querySelector("[data-picker-search]");
+  if (input) { input.focus(); input.setSelectionRange(pickerQuery.length, pickerQuery.length); }
+});
 picker.addEventListener("change", function () { selectScreen(picker.value); });
+galleryButton.addEventListener("click", function () { galleryMode = !galleryMode; if (galleryMode) pickerQuery = ""; render(); });
 document.querySelectorAll("[data-theme-choice]").forEach(function (button) {
   button.addEventListener("click", function () {
     document.documentElement.dataset.theme = button.dataset.themeChoice;

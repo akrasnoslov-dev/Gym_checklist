@@ -36,6 +36,9 @@ AuthKey_*.p8
 .tmp/
 tmp/
 functions/node_modules/
+design/prototype/node_modules/
+design/prototype/test-results/
+design/prototype/playwright-report/
 
 # Fastlane generated artifacts (if added later)
 fastlane/report.xml

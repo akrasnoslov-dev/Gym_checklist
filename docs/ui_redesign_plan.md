@@ -273,6 +273,10 @@ Final v1 -> v2 -> ... -> APPROVED
 
 Do not redesign production SwiftUI during this loop.
 
+### Phase 5B stabilization freeze — 2026-10-01
+
+Before any further Phase 7 visual correction, the prototype structure is frozen by the canonical registry and browser baselines in `design/prototype/`. Until the user explicitly approves a scope change, Phase 7 is bug-fix only: no new canonical screen, UX state, review route, prototype-only flow, or redesign-experiment component. Every fix must name existing registry IDs; if a request truly requires a new state, stop and ask the user. The detailed per-fix and snapshot-update contract is discoverable in `design/prototype/README.md` and the stabilization task record.
+
 ---
 
 ## Phase 8 — Design freeze

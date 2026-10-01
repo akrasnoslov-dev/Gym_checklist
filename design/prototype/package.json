@@ -1,0 +1,15 @@
+{
+  "name": "gym-checklist-phase-5b-visual-regression",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Frozen Phase 5B prototype visual regression harness.",
+  "scripts": {
+    "contract": "node verify-prototype.mjs && node verify-stabilization.mjs && node generate-matrix.mjs --check",
+    "visual:verify": "playwright test",
+    "visual:update": "node update-snapshots.mjs",
+    "test": "npm run contract && npm run visual:verify"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

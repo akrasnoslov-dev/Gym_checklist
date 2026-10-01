@@ -6,13 +6,20 @@ The user selected **Minimal Grouped** in Phase 5A. This Phase 5B prototype expan
 
 Open [index.html](index.html) directly in a modern desktop browser. No install or build step is required.
 
-Alternatively, serve the repository root with any local static server and open `/design/prototype/`.
+For browser review from the repository root:
+
+```powershell
+npx serve . -l 4173
+```
+
+Then open `http://127.0.0.1:4173/design/prototype/`.
 
 ## Inspect
 
-- Use the **Screen or state** picker for every required surface and representative state; the shortcut chips jump to common review points.
+- **Normal mode:** leave **Review gallery** off. Use the **Screen or state** picker or the shortcut chips, then exercise the in-phone paths: tap a Today set to complete/undo it; long-press or context-click a set to edit it; use Program date cells and each `•••` action; open Copy/Repeat calendars; expand skipped exercises; search and scroll the exercise picker; and inspect Settings, Profile, and Body weight dismissal controls.
+- **Gallery mode:** turn **Review gallery** on. Inspect all 66 fixed 390 × 844 frames and the reviewer-only `Trigger:` metadata above each frame. Repeat once in **Light** and once in **Dark**. Trigger metadata is review tooling and must stay outside the phone.
 - Use **Light** and **Dark** to switch the semantic theme. Each route uses the same semantic token set.
-- Tap a Today set row to inspect its complete/undo state. This only demonstrates the one-tap interaction; it does not implement application logic.
+- A normal tap or keyboard activation on a Today set completes/undoes it. Long-press, context-click, the Context Menu key, or Shift+Enter opens the appropriate planned/actual editor.
 - The shell is 390 × 844 px, representing an iPhone-sized viewport. Resize below 760 px to inspect the responsive preview framing.
 - Labels reading **System intent** distinguish native SwiftUI-owned structures (navigation, sheets, menus, forms, pickers, alerts and Google control) from the app-owned visual system.
 

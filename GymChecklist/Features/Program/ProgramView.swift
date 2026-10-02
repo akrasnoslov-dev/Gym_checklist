@@ -15,6 +15,7 @@ struct ProgramView: View {
     @State private var historicalActualEditorRoute: HistoricalActualEditorRoute?
     @State private var copyWorkoutRoute: CopyWorkoutRoute?
     @State private var repeatWorkoutRoute: RepeatWorkoutRoute?
+    @State private var reorderRoute: ProgramReorderRoute?
     @State private var pendingDeletion: PendingExerciseDeletion?
     @State private var pendingWorkoutDeletion: LocalDate?
     @State private var showsMutationError = false
@@ -171,6 +172,24 @@ struct ProgramView: View {
                         try viewModel.repeatWorkout(from: route.sourceDate, through: endDate, cadence: cadence)
                     }
                 )
+            }
+            .sheet(item: $reorderRoute) { route in
+                switch route {
+                case .exercises:
+                    ExerciseReorderSheet(
+                        exercises: orderedExercises,
+                        exerciseName: viewModel.exerciseName(for:),
+                        onReorder: persistOrder
+                    )
+                case .sets(let exercise):
+                    let currentExercise = orderedExercises.first(where: { $0.id == exercise.id }) ?? exercise
+                    SetReorderSheet(
+                        exerciseName: viewModel.exerciseName(for: currentExercise),
+                        sets: viewModel.orderedSets(for: currentExercise.id, on: calendarState.selectedDate),
+                        weightUnit: weightUnit,
+                        onReorder: { persistSetOrder($0, in: currentExercise.id) }
+                    )
+                }
             }
             .alert("Workout could not be updated", isPresented: $showsMutationError) {
                 Button("OK", role: .cancel) {}
@@ -331,15 +350,10 @@ struct ProgramView: View {
                     .font(.caption)
                 Text("\(date.day)")
                     .font(.headline)
-                Group {
-                    if let image = state.systemImage {
-                        Image(systemName: image)
-                    } else {
-                        Color.clear
-                    }
-                }
+                Image(systemName: state.systemImage ?? "circle")
                 .frame(width: 16, height: 16)
                 .font(.caption)
+                .foregroundStyle(state.systemImage == nil ? Color.secondary.opacity(0.45) : GymTheme.accentForeground)
             }
             .frame(maxWidth: .infinity, minHeight: 58)
             .padding(.vertical, 4)
@@ -539,13 +553,11 @@ struct ProgramView: View {
                     .accessibilityIdentifier("programExercise-\(name)")
                 Spacer()
                 Menu {
-                    if index > 0 {
-                        Button("Move up") { moveExercise(exercise.id, by: -1) }
-                            .accessibilityIdentifier("programExerciseMoveUp-\(exercise.id.rawValue.uuidString)")
-                    }
-                    if index < orderedExercises.count - 1 {
-                        Button("Move down") { moveExercise(exercise.id, by: 1) }
-                            .accessibilityIdentifier("programExerciseMoveDown-\(exercise.id.rawValue.uuidString)")
+                    if orderedExercises.count > 1 {
+                        Button("Reorder exercises", systemImage: "arrow.up.arrow.down") {
+                            reorderRoute = .exercises
+                        }
+                        .accessibilityIdentifier("programReorderExercises")
                     }
                     Button("Delete", role: .destructive) { requestDeletion(of: exercise) }
                         .accessibilityIdentifier("programExerciseDelete-\(exercise.id.rawValue.uuidString)")
@@ -590,12 +602,10 @@ struct ProgramView: View {
 
                     if sets.count > 1 {
                         Menu {
-                            if setIndex > 0 {
-                                Button("Move up") { moveSet(set.id, in: exercise.id, by: -1) }
+                            Button("Reorder sets", systemImage: "arrow.up.arrow.down") {
+                                reorderRoute = .sets(exercise)
                             }
-                            if setIndex < sets.count - 1 {
-                                Button("Move down") { moveSet(set.id, in: exercise.id, by: 1) }
-                            }
+                            .accessibilityIdentifier("programReorderSets-\(exercise.id.rawValue.uuidString)")
                         } label: {
                             Image(systemName: "line.3.horizontal")
                                 .frame(width: 44, height: 44)
@@ -689,6 +699,14 @@ struct ProgramView: View {
         }
     }
 
+    private func persistSetOrder(_ ids: [WorkoutSetID], in exerciseID: WorkoutExerciseID) {
+        do {
+            try viewModel.reorderSets(ids, in: exerciseID, on: calendarState.selectedDate)
+        } catch {
+            showsMutationError = true
+        }
+    }
+
     private func deleteExercise(_ id: WorkoutExerciseID) {
         do {
             try viewModel.deleteExercise(id, from: calendarState.selectedDate)
@@ -745,6 +763,92 @@ struct ProgramView: View {
             get: { pendingWorkoutDeletion != nil },
             set: { if !$0 { pendingWorkoutDeletion = nil } }
         )
+    }
+}
+
+private enum ProgramReorderRoute: Identifiable {
+    case exercises
+    case sets(WorkoutExercise)
+
+    var id: String {
+        switch self {
+        case .exercises: "exercises"
+        case .sets(let exercise): "sets-\(exercise.id.rawValue.uuidString)"
+        }
+    }
+}
+
+private struct ExerciseReorderSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var exercises: [WorkoutExercise]
+    let exerciseName: (WorkoutExercise) -> String
+    let onReorder: ([WorkoutExerciseID]) -> Void
+
+    init(
+        exercises: [WorkoutExercise],
+        exerciseName: @escaping (WorkoutExercise) -> String,
+        onReorder: @escaping ([WorkoutExerciseID]) -> Void
+    ) {
+        _exercises = State(initialValue: exercises)
+        self.exerciseName = exerciseName
+        self.onReorder = onReorder
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(exercises) { exercise in
+                    Text(exerciseName(exercise))
+                        .accessibilityLabel("Reorder \(exerciseName(exercise))")
+                }
+                .onMove { source, destination in
+                    exercises.move(fromOffsets: source, toOffset: destination)
+                    onReorder(exercises.map(\.id))
+                }
+            }
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle("Reorder exercises")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: dismiss.callAsFunction) } }
+        }
+    }
+}
+
+private struct SetReorderSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var sets: [WorkoutSet]
+    let exerciseName: String
+    let weightUnit: WeightUnit
+    let onReorder: ([WorkoutSetID]) -> Void
+
+    init(exerciseName: String, sets: [WorkoutSet], weightUnit: WeightUnit, onReorder: @escaping ([WorkoutSetID]) -> Void) {
+        self.exerciseName = exerciseName
+        _sets = State(initialValue: sets)
+        self.weightUnit = weightUnit
+        self.onReorder = onReorder
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(Array(sets.enumerated()), id: \.element.id) { index, set in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Set \(index + 1)")
+                        Text(SetDisplayFormatter(unit: weightUnit).string(reps: set.displayedReps, weightInKilograms: set.displayedWeight, timeSeconds: set.displayedTimeSeconds, type: set.displayedType))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityLabel("Reorder set \(index + 1)")
+                }
+                .onMove { source, destination in
+                    sets.move(fromOffsets: source, toOffset: destination)
+                    onReorder(sets.map(\.id))
+                }
+            }
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle("Reorder sets")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: dismiss.callAsFunction) } }
+        }
     }
 }
 

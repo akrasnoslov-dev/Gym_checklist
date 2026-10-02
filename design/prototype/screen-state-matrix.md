@@ -49,7 +49,7 @@ The current images are regression anchors only. They are not user approval of th
 | program-add-timed-set | Program | Copied timed set | STATE | Program → Plank → Add set | yes | no | light / dark | program-add-timed-set |
 | program-set-editor | Program | Edit plan | OVERLAY | Program → select planned set | yes | no | light / dark | program-set-editor |
 | program-completed-plan-editor | Program | Edit completed set plan | OVERLAY | Program → completed set → Edit plan | yes | no | light / dark | program-completed-plan-editor |
-| program-reorder | Program | Reorder program | STATE | Program → Set or exercise ••• → Move | yes | no | light / dark | program-reorder |
+| program-reorder | Program | Reorder exercises | STATE | Program → exercise ••• → Reorder exercises (representative focused reorder scope) | yes | no | light / dark | program-reorder |
 | program-exercise-menu | Program | Exercise actions | OVERLAY | Program → Bench Press → ••• | yes | no | light / dark | program-exercise-menu |
 | program-set-menu | Program | Set actions | OVERLAY | Program → Set 2 → ••• | yes | no | light / dark | program-set-menu |
 | program-workout-menu | Program | Workout actions | OVERLAY | Program → workout ••• | yes | no | light / dark | program-workout-menu |

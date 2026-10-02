@@ -11,18 +11,21 @@ const missingMarkers = requiredMarkers.filter((marker) => !source.includes(marke
 const requiredReachability = [
   "addEventListener('contextmenu'", "[data-set]", "Skip exercise", "Restore Barbell Row", "Restore Cable Face Pull",
   "program-workout-menu", "Delete workout", "program-history", "copy-workout-calendar", "repeat-workout-calendar",
-  "Weight ('+unit+')", "Time (sec)", "45 sec", "toggleSet", "restoreExercise", "Move exercise", "Move set",
-  "REORDER MODE", "keeps the recorded actual intact", "program-week-prev", "program-month-prev", "data-editor",
-  "completionCards", "pointerdown", "keydown", "data-appearance", "data-unit", "unitPref",
-  "assets/completion-crushed.svg", "assets/completion-barely.svg", "assets/completion-another.svg", "aria-pressed",
-  "summary-icon", "Calendar ›",
+  "Weight ('+unit+')", "Time (sec)", "45 sec", "toggleSet", "restoreExercise",
+  "Reorder exercises", "Reorder sets", "drag-handle", "keeps the recorded actual intact",
+  "program-week-prev", "program-month-prev", "data-editor", "completionCards", "pointerdown", "keydown",
+  "data-appearance", "data-unit", "unitPref", "assets/completion-crushed.svg", "assets/completion-barely.svg",
+  "assets/completion-another.svg", "aria-pressed", "summary-icon", "Calendar ›", "data-lock-scroll",
 ];
 const missingReachability = requiredReachability.filter((marker) => !source.includes(marker));
+const forbiddenMarkers = ["REORDER MODE"];
+const presentForbidden = forbiddenMarkers.filter((marker) => source.includes(marker));
 
-if (missingMarkers.length || missingReachability.length) {
+if (missingMarkers.length || missingReachability.length || presentForbidden.length) {
   console.error("Prototype contract failed.");
   if (missingMarkers.length) console.error(`Missing accessibility/native-intent markers: ${missingMarkers.join(", ")}`);
   if (missingReachability.length) console.error(`Missing reachable interaction markers: ${missingReachability.join(", ")}`);
+  if (presentForbidden.length) console.error(`Forbidden legacy markers still present: ${presentForbidden.join(", ")}`);
   process.exit(1);
 }
 

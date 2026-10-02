@@ -137,3 +137,44 @@ test("normal interaction paths remain reachable", async ({ page }) => {
   await page.locator("[data-route=settings-profile]").click();
   await expect(page.locator("#screen-picker")).toHaveValue("settings-profile");
 });
+
+
+test("final Phase 5B interaction semantics are stable", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#screen-picker").selectOption("today-exercise-menu");
+  await expect(page.locator(".context-menu")).toBeVisible();
+  const lockedOverflow = await page.locator(".app-content").evaluate((element) => getComputedStyle(element).overflowY);
+  expect(lockedOverflow).toBe("hidden");
+  const menuScroll = await page.locator(".context-menu").evaluate((element) => ({ client: element.clientHeight, scroll: element.scrollHeight }));
+  expect(menuScroll.scroll).toBeLessThanOrEqual(menuScroll.client);
+
+  await page.locator("#screen-picker").selectOption("program-week");
+  const weekStates = await page.locator(".day-cell i").allTextContents();
+  expect(weekStates).toEqual(expect.arrayContaining(["\u25CB", "\u2022", "\u25D0", "\u2713", "!"]));
+
+  await page.locator("#screen-picker").selectOption("program-edit");
+  await expect(page.locator(".editor-row em")).toHaveCount(0);
+
+  await page.locator("#screen-picker").selectOption("program-reorder");
+  await expect(page.getByRole("heading", { name: "Reorder exercises" })).toBeVisible();
+  await expect(page.locator(".drag-handle")).toHaveCount(2);
+  await expect(page.getByText("REORDER MODE", { exact: true })).toHaveCount(0);
+
+  await page.locator("#screen-picker").selectOption("program-set-menu");
+  await page.getByRole("button", { name: "Reorder sets" }).click();
+  await expect(page.getByRole("heading", { name: "Reorder sets" })).toBeVisible();
+  await expect(page.locator(".drag-handle")).toHaveCount(3);
+
+  await page.locator("#screen-picker").selectOption("today-completed");
+  await page.locator("[data-set]").first().click();
+  await page.locator("[data-set]").first().click();
+  await expect(page.locator(".completion-overlay")).toBeVisible();
+  await expect(page.locator(".app-content")).toHaveAttribute("data-lock-scroll", "");
+
+  await page.locator("#screen-picker").selectOption("auth-sign-in");
+  const authAlignment = await page.locator(".auth-screen .form-card label").first().evaluate((label) => ({
+    label: getComputedStyle(label).textAlign,
+    input: getComputedStyle(label.querySelector("input")).textAlign,
+  }));
+  expect(authAlignment).toEqual({ label: "left", input: "left" });
+});

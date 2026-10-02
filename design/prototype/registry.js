@@ -69,7 +69,7 @@
     entry("program-add-timed-set", "Program", "Copied timed set", "state", "Program", "Program → Plank → Add set", { v: "edit", addTimed: 1 }, program),
     entry("program-set-editor", "Program", "Edit plan", "overlay", "Program", "Program → select planned set", { v: "edit", o: "plan" }, [...program, "sheet"]),
     entry("program-completed-plan-editor", "Program", "Edit completed set plan", "overlay", "Program", "Program → completed set → Edit plan", { v: "edit", o: "plan", preserveActual: 1 }, [...program, "sheet"]),
-    entry("program-reorder", "Program", "Reorder program", "state", "Program", "Program → Set or exercise ••• → Move", { v: "edit", reorder: 1 }, program),
+    entry("program-reorder", "Program", "Reorder exercises", "state", "Program", "Program → exercise ••• → Reorder exercises (representative focused reorder scope)", { v: "edit", reorder: 1 }, program),
     entry("program-exercise-menu", "Program", "Exercise actions", "overlay", "Program", "Program → Bench Press → •••", { v: "edit", o: "exercise" }, [...program, "context-menu"]),
     entry("program-set-menu", "Program", "Set actions", "overlay", "Program", "Program → Set 2 → •••", { v: "edit", o: "set" }, [...program, "context-menu"]),
     entry("program-workout-menu", "Program", "Workout actions", "overlay", "Program", "Program → workout •••", { v: "edit", o: "workout" }, [...program, "context-menu"]),

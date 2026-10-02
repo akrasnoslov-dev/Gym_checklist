@@ -1,0 +1,72 @@
+name: Prototype visual regression
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - 'design/prototype/**'
+      - '.github/workflows/prototype-visual-regression.yml'
+  push:
+    branches:
+      - dev
+      - 'codex/**'
+    paths:
+      - 'design/prototype/**'
+      - '.github/workflows/prototype-visual-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prototype-visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: design/prototype
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: design/prototype/package-lock.json
+
+      - name: Install pinned test dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify frozen registry and visual baselines
+        run: npm test
+
+      - name: Upload expected, actual, diff, report, and trace evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prototype-visual-failure-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            design/prototype/tests/snapshots/
+            design/prototype/test-results/
+            design/prototype/playwright-report/
+
+      - name: Upload Linux actual images for baseline triage
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prototype-visual-linux-actuals-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: design/prototype/test-results/**/*-actual.png

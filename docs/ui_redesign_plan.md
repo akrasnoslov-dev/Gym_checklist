@@ -189,6 +189,8 @@ After the control screen direction is accepted:
 - add only interactions needed to inspect states and flows;
 - do not implement product/backend logic.
 
+**Status (2026-09-23):** candidate prepared in `design/prototype/` for Phase 6 user review. It remains a review candidate, not an approved/frozen SwiftUI implementation input.
+
 ### Required design-system output
 
 Define:
@@ -271,9 +273,19 @@ Final v1 -> v2 -> ... -> APPROVED
 
 Do not redesign production SwiftUI during this loop.
 
+### Phase 5B stabilization freeze — 2026-10-01
+
+Before any further Phase 7 visual correction, the prototype structure is frozen by the canonical registry and browser baselines in `design/prototype/`. Until the user explicitly approves a scope change, Phase 7 is bug-fix only: no new canonical screen, UX state, review route, prototype-only flow, or redesign-experiment component. Every fix must name existing registry IDs; if a request truly requires a new state, stop and ask the user. The detailed per-fix and snapshot-update contract is discoverable in `design/prototype/README.md` and the stabilization task record.
+
 ---
 
 ## Phase 8 — Design freeze
+
+**Status:** COMPLETE — explicitly approved/frozen on 2026-10-02 after the final user-requested correction pass.
+
+**Frozen visual source:** `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`
+
+The frozen source keeps the stabilized 64-entry review registry (10 canonical surfaces, 26 states, 28 overlays) as review/test coverage, not as 64 production screens. The production mapping and native substitutions are recorded in `docs/phase9_swiftui_mapping.md`.
 
 After explicit user approval:
 
@@ -287,6 +299,8 @@ After explicit user approval:
 ---
 
 ## Phase 9 — Implement in SwiftUI
+
+**Status:** authorized to start from the Phase 8 frozen design. Production implementation must live on a separate implementation branch/PR and must not be mixed into PR #5.
 
 Implement in coherent batches:
 

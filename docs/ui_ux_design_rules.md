@@ -123,13 +123,19 @@ Never add to Today:
 - Week and Month share one selected date.
 - Week: seven equal date targets.
 - Month: compact fixed calendar grid.
-- State indicator uses symbol/shape + accessibility label, not color only.
+- State indicator uses one consistent symbol/shape vocabulary plus accessibility label, not color only.
+- Prefer native SF Symbols for workout state in production: planned circle, partial half-filled circle, completed checkmark circle, incomplete exclamation circle; empty has no workout marker/circle intent as appropriate.
 - Today, selected date, outside-month state and workout state are distinct concepts.
 - Week/Month uses segmented control.
+- Current/future set rows are direct plan-edit affordances; historical recorded rows edit actual values. Do not add repetitive trailing edit-taxonomy labels to every row.
+- Completed primary set values remain readable; completion is communicated by state treatment rather than greying the whole value.
 - Program may expose add/edit/reorder/copy/repeat/delete.
+- Exercise reorder and set reorder use separate focused native lists/move flows; never mix both scopes in one reorder surface.
 - Destructive mutations require native confirmation.
 
 ## 10. Lists, forms and sheets
+
+Compact contextual menus and destructive confirmations behave like native modal/menu presentations: they must not introduce an unnecessary nested scrollbar or allow background interaction while presented. Larger editor sheets may scroll when required for keyboard or Dynamic Type accessibility.
 
 Prefer native grouped structures for:
 - Program editors;
@@ -166,6 +172,7 @@ Order:
 - Minimal native hierarchy.
 - No onboarding carousel.
 - One clear primary submit action.
+- Email/password labels, placeholders and values are leading-aligned in the native form hierarchy.
 - Provider controls follow provider/system rules.
 - Errors are human-readable and near the relevant form context.
 - Sign in with Apple styling follows Apple requirements.

@@ -22,6 +22,10 @@ Canonical document ownership is defined in `docs/source_of_truth.md`.
 The agent-assisted clarification/spec/test-first/worktree/review workflow is defined in `docs/codex_instructions.md`.
 Execution and specialist-review routing lives in `agents/routing.toml`.
 
+## Phase 5B prototype review
+
+Open `design/prototype/index.html` directly in a browser. Use **Review gallery** to show every deterministic state in fixed iPhone-sized frames, then use Light/Dark to inspect both themes. In normal mode, Today sets support one-tap completion and press-and-hold planned/actual editing; keyboard users can use Shift+F10 on a focused set for the same editor.
+
 ## Planned stack
 
 - Swift

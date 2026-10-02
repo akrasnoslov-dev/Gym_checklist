@@ -132,8 +132,10 @@ final class GymChecklistUITests: XCTestCase {
         let secondBenchSetActions = app.buttons["Actions for set 2 for Bench Press"]
         XCTAssertTrue(secondBenchSetActions.waitForExistence(timeout: 2))
         secondBenchSetActions.tap()
-        XCTAssertTrue(app.buttons["Move up"].waitForExistence(timeout: 2))
-        app.buttons["Move up"].tap()
+        XCTAssertTrue(app.buttons["Reorder sets"].waitForExistence(timeout: 2))
+        app.buttons["Reorder sets"].tap()
+        XCTAssertTrue(app.navigationBars["Reorder sets"].waitForExistence(timeout: 2))
+        app.buttons["Done"].tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
         firstBenchSet.tap()
@@ -160,11 +162,14 @@ final class GymChecklistUITests: XCTestCase {
         let nordicName = app.staticTexts["programExercise-Nordic Hop"]
         XCTAssertLessThan(benchName.frame.minY, nordicName.frame.minY)
         app.buttons["Actions for Nordic Hop, exercise 2 of 2"].tap()
-        app.buttons["Move up"].tap()
+        XCTAssertTrue(app.buttons["Reorder exercises"].waitForExistence(timeout: 2))
+        app.buttons["Reorder exercises"].tap()
+        XCTAssertTrue(app.navigationBars["Reorder exercises"].waitForExistence(timeout: 2))
+        app.buttons["Done"].tap()
 
-        let reorderedBenchActions = app.buttons["Actions for Bench Press, exercise 2 of 2"]
-        XCTAssertTrue(reorderedBenchActions.waitForExistence(timeout: 2))
-        reorderedBenchActions.tap()
+        let benchActions = app.buttons["Actions for Bench Press, exercise 1 of 2"]
+        XCTAssertTrue(benchActions.waitForExistence(timeout: 2))
+        benchActions.tap()
         app.buttons["Delete"].tap()
         XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 2))
         app.buttons["Delete"].tap()

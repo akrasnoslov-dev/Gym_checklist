@@ -22,14 +22,20 @@ struct RegistrationView: View {
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .autocorrectionDisabled()
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityIdentifier("authEmail")
                     if !isResettingPassword { SecureField("Password", text: $password)
                         .textContentType(isSignIn ? .password : .newPassword)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityIdentifier("authPassword")
                     }
                     if !isSignIn && !isResettingPassword {
                         SecureField("Confirm password", text: $confirmation)
                             .textContentType(.newPassword)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .accessibilityIdentifier("authConfirmPassword")
                     }
                 } header: {

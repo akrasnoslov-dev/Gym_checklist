@@ -350,15 +350,10 @@ struct ProgramView: View {
                     .font(.caption)
                 Text("\(date.day)")
                     .font(.headline)
-                Group {
-                    if let image = state.systemImage {
-                        Image(systemName: image)
-                    } else {
-                        Color.clear
-                    }
-                }
+                Image(systemName: state.systemImage ?? "circle")
                 .frame(width: 16, height: 16)
                 .font(.caption)
+                .foregroundStyle(state.systemImage == nil ? Color.secondary.opacity(0.45) : GymTheme.accentForeground)
             }
             .frame(maxWidth: .infinity, minHeight: 58)
             .padding(.vertical, 4)

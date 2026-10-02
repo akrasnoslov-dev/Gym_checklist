@@ -129,14 +129,30 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
         addBenchSet.tap()
+        let stableBenchSets = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSet-"))
+        let firstStableBenchSet = stableBenchSets.element(boundBy: 0)
+        let secondStableBenchSet = stableBenchSets.element(boundBy: 1)
+        XCTAssertTrue(firstStableBenchSet.waitForExistence(timeout: 2))
+        XCTAssertTrue(secondStableBenchSet.waitForExistence(timeout: 2))
+        let firstStableBenchSetIdentifier = firstStableBenchSet.identifier
+        let secondStableBenchSetIdentifier = secondStableBenchSet.identifier
         let secondBenchSetActions = app.buttons["Actions for set 2 for Bench Press"]
         XCTAssertTrue(secondBenchSetActions.waitForExistence(timeout: 2))
         secondBenchSetActions.tap()
         XCTAssertTrue(app.buttons["Reorder sets"].waitForExistence(timeout: 2))
         app.buttons["Reorder sets"].tap()
         XCTAssertTrue(app.navigationBars["Reorder sets"].waitForExistence(timeout: 2))
+        let firstSetInReorder = app.tables.staticTexts["Set 1"]
+        let secondSetInReorder = app.tables.staticTexts["Set 2"]
+        XCTAssertTrue(firstSetInReorder.waitForExistence(timeout: 2))
+        XCTAssertTrue(secondSetInReorder.waitForExistence(timeout: 2))
+        secondSetInReorder.press(forDuration: 0.5, thenDragTo: firstSetInReorder)
+        XCTAssertLessThan(secondSetInReorder.frame.minY, firstSetInReorder.frame.minY)
         app.buttons["Done"].tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+        let reorderedFirstStableBenchSet = app.buttons[firstStableBenchSetIdentifier]
+        let reorderedSecondStableBenchSet = app.buttons[secondStableBenchSetIdentifier]
+        XCTAssertLessThan(reorderedSecondStableBenchSet.frame.minY, reorderedFirstStableBenchSet.frame.minY)
 
         firstBenchSet.tap()
         XCTAssertTrue(app.buttons["programSetEditorDelete"].waitForExistence(timeout: 2))
@@ -165,11 +181,17 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reorder exercises"].waitForExistence(timeout: 2))
         app.buttons["Reorder exercises"].tap()
         XCTAssertTrue(app.navigationBars["Reorder exercises"].waitForExistence(timeout: 2))
+        let benchInReorder = app.tables.staticTexts["Bench Press"]
+        let nordicInReorder = app.tables.staticTexts["Nordic Hop"]
+        XCTAssertTrue(benchInReorder.waitForExistence(timeout: 2))
+        XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 2))
+        nordicInReorder.press(forDuration: 0.5, thenDragTo: benchInReorder)
+        XCTAssertLessThan(nordicInReorder.frame.minY, benchInReorder.frame.minY)
         app.buttons["Done"].tap()
 
-        let benchActions = app.buttons["Actions for Bench Press, exercise 1 of 2"]
-        XCTAssertTrue(benchActions.waitForExistence(timeout: 2))
-        benchActions.tap()
+        let reorderedBenchActions = app.buttons["Actions for Bench Press, exercise 2 of 2"]
+        XCTAssertTrue(reorderedBenchActions.waitForExistence(timeout: 2))
+        reorderedBenchActions.tap()
         app.buttons["Delete"].tap()
         XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 2))
         app.buttons["Delete"].tap()

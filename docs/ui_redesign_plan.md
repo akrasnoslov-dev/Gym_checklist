@@ -281,6 +281,12 @@ Before any further Phase 7 visual correction, the prototype structure is frozen 
 
 ## Phase 8 — Design freeze
 
+**Status:** COMPLETE — explicitly approved/frozen on 2026-10-02 after the final user-requested correction pass.
+
+**Frozen visual source:** `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`
+
+The frozen source keeps the stabilized 64-entry review registry (10 canonical surfaces, 26 states, 28 overlays) as review/test coverage, not as 64 production screens. The production mapping and native substitutions are recorded in `docs/phase9_swiftui_mapping.md`.
+
 After explicit user approval:
 
 1. mark the approved design version;
@@ -293,6 +299,8 @@ After explicit user approval:
 ---
 
 ## Phase 9 — Implement in SwiftUI
+
+**Status:** authorized to start from the Phase 8 frozen design. Production implementation must live on a separate implementation branch/PR and must not be mixed into PR #5.
 
 Implement in coherent batches:
 

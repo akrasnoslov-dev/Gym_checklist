@@ -112,7 +112,7 @@ Program is allowed to be denser than Today because it is an editing/planning sur
 
 ### Week navigation
 Header with previous/next week controls and a 7-day selector.
-Each date may visually communicate empty/planned/partial/completed/incomplete state.
+Each date visually communicates empty/planned/partial/completed/incomplete state with the shared symbolic state vocabulary plus an accessibility label; state must not be encoded by color alone.
 
 ### Month navigation
 Program also offers a Month mode with previous/next month controls and a compact local-calendar grid. Week and Month share one selected date and the same workout-detail surface. Every date communicates state with an accessible icon/label, not color alone.
@@ -127,6 +127,10 @@ For selected date:
 - copy workout,
 - repeat every 1–4 weeks,
 - delete workout.
+
+Current/future Program rows use the whole set row as the edit affordance; do not repeat trailing `Edit`, `Edit plan`, or `Edit actual` labels on every row. A completed set remains visually legible and editing its plan must not overwrite its recorded actual value. Past dates use the same Program hierarchy and tapping an editable recorded result edits actual values.
+
+Exercise reorder and set reorder are separate focused native flows. Reorder exercises shows exercise rows only; reorder sets shows only the sets for the selected exercise. Both use native move/drag behavior and a clear Done action.
 
 Do not surface history analytics here; past dates simply show actual completion/results.
 
@@ -168,6 +172,8 @@ Keep minimal:
 - Sign up
 - Continue with Google
 - Forgot password
+
+Email/password labels, placeholders and entered values follow standard leading-aligned native iOS form layout.
 
 After successful authentication, go directly to Today. No onboarding carousel.
 

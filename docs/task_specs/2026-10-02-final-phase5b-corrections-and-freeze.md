@@ -55,4 +55,6 @@ Resolve the five remaining user-reported UI issues on the stabilized Phase 5B pr
 - GREEN (Windows/system Chrome): full Playwright suite passes after explicit baseline updates for affected states; unaffected states remained unchanged.
 - Affected review IDs with intentional visual changes: `program-week`, `program-week-prev`, `program-week-next`, `program-edit`, `program-history-week-prev`, `program-edit-week-next`, `program-add-set`, `program-add-timed-set`, `program-reorder`, `program-history`, `auth-sign-in`, `auth-sign-up`, `auth-reset`.
 - Shared compact-overlay scroll locking is behavior-only for the existing overlay routes; no new registry ID was added.
-- Linux authoritative baselines/CI remain pending until the branch push produces Linux rendering evidence.
+- GREEN (Linux): Linux checks run `37013418934` and Prototype visual regression run `37013419866` pass on frozen visual source `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`.
+- Phase 8 decision: the user explicitly authorized immediate freeze after these corrections and direct Phase 9 implementation. Frozen design source is `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`.
+- Required design-prototype, iOS-UX, and product-spec reviews found no blocking issue after the focused reorder correction. The test/CI evidence is the green local 133-test suite plus the recorded Linux checks and prototype-visual-regression runs.

@@ -1,7 +1,7 @@
 # Phase 9 — Frozen Design to SwiftUI Mapping
 
-**Frozen design source:** `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`  
-**Prototype registry:** 64 review entries = 10 canonical surfaces, 26 states, 28 overlays.  
+**Frozen design source:** `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`
+**Prototype registry:** 64 review entries = 10 canonical surfaces, 26 states, 28 overlays.
 **Important:** review entries are not separate production screens. Phase 9 implements the canonical app hierarchy with native SwiftUI states and presentations.
 
 ## Native-system substitutions

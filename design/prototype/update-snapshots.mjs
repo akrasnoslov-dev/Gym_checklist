@@ -1,5 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { createRequire } from "node:module";
 import { loadRegistry } from "./registry-tools.mjs";
 
 const routeFlag = process.argv.indexOf("--routes");
@@ -24,6 +23,6 @@ if (requested.length > MAX_TARGETED_ROUTES) {
 }
 
 const escaped = requested.map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-const require = createRequire(import.meta.url);
-const result = spawnSync(process.execPath, [require.resolve("playwright/cli"), "test", "--update-snapshots=changed", "--grep", `(${escaped.join("|")})$`], { stdio: "inherit" });
+const playwright = process.platform === "win32" ? "node_modules/.bin/playwright.cmd" : "node_modules/.bin/playwright";
+const result = spawnSync(playwright, ["test", "--update-snapshots=changed", "--grep", `(${escaped.join("|")})$`], { stdio: "inherit" });
 process.exit(result.status ?? 1);

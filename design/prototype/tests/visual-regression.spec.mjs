@@ -159,6 +159,8 @@ test("final Phase 5B interaction semantics are stable", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Reorder exercises" })).toBeVisible();
   await expect(page.locator(".drag-handle")).toHaveCount(2);
   await expect(page.getByText("REORDER MODE", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".segmented")).toHaveCount(0);
+  await expect(page.locator(".system-tab-bar")).toHaveCount(0);
 
   await page.locator("#screen-picker").selectOption("program-set-menu");
   await page.getByRole("button", { name: "Reorder sets" }).click();

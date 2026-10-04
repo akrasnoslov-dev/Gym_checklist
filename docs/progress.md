@@ -15,15 +15,15 @@
 - Local Windows/system-Chrome prototype suite: 133 tests GREEN; stabilization contract remains 64 entries (A10/B26/C28/D0).
 - Static contracts pass: agentic workflow, iOS CI policy, security hygiene, account deletion, Firestore owner isolation, offline cache/reconnect, Google Sign-In configuration, and release workflow.
 - Phase 9 Pass A static evidence on candidate `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a`: `git diff --check`; the eight static contracts above; `node --check functions/index.js`; and completion asset-catalog JSON/path validation are GREEN. Required UX, product, test/CI, and independent code reviews are GREEN after fixes.
-- The automatic PR macOS smoke run `37194228556` is GREEN on PR #6 head `91dafc0e99769f1bd19a5da0033fd0167bff2b5d`; that head differs from candidate `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` only by `docs/progress.md`, so it provides compile/smoke evidence for the candidate code. The authoritative exact-SHA candidate/full gate remains separate.
+- The automatic PR macOS smoke run `37194228556` was GREEN before the candidate gate. Exact-SHA candidate run `37229759591` then built `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` successfully but failed its focused UI regression because the test queried SwiftUI reorder accessibility containers as `staticText`. Production SwiftUI did not fail to build. The selector-only fix is candidate `4c655201082444ea8d9f7f40e585d0850a8cc9d1`; automatic PR smoke run `37230860532` is its current compile/smoke check.
 - Linux checkpoint `33987425470` passed on docs checkpoint `2286b312e8998c8d7c94e9aa3bda64389da4c78c`, including the exact-source candidate workflow contract.
 - PR #3 CI optimization: final Linux run `35870202237` passed on final PR head `6efd51d261fed715ccd0fa2fed965e64c77234fa`. iOS-impacting PRs use automatic `smoke`; process-only changes start no macOS run; manual `full` and exact-SHA `candidate` remain authoritative.
 - Authoritative macOS candidate run `33991955146` is **GREEN**. Its `build-and-test` job completed successfully on 2026-09-05, including the candidate build, the exact Program navigation regression, and `candidate-full` after checking out and asserting approved source `e17cb8173a6373059729226453c568e976954d33`.
 
 ## Remote gate
-- `REMOTE_GATE_APPROVED 4526513a8e9fd855cff55cada9c7cbb8ef8fe67a`
-- Fresh Pass B audited exactly `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a`: full Phase 9 diff reviewed; `git diff --check`, the eight repository static contracts, `node --check functions/index.js`, and completion asset-catalog JSON/path validation are GREEN; the audit worktree remained clean and required no production/test/project changes.
-- The next authoritative action is one exact-SHA `candidate` macOS run with a focused regression followed automatically by `candidate-full`. A red run revokes this approval.
+- `REMOTE_GATE_READY_FOR_FINAL_AUDIT 4c655201082444ea8d9f7f40e585d0850a8cc9d1`
+- Candidate `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` approval was revoked by red run `37229759591`. The only follow-up change is the four-line UI-test selector correction in `4c655201082444ea8d9f7f40e585d0850a8cc9d1`; production SwiftUI is unchanged.
+- A fresh Pass B must audit exactly `4c655201082444ea8d9f7f40e585d0850a8cc9d1`. Only a clean audit may approve and dispatch the next exact-SHA candidate/full run.
 
 ## Remaining external proof
 - The consolidated Spark/device flow remains documented in `docs/mvp_external_acceptance_handoff.md`, but must use the eventual Phase 9 remote-gate-approved source rather than the pre-redesign candidate.
@@ -31,6 +31,6 @@
 - Paid-only Apple distribution, live paid Apple capabilities, Blaze/billing, paid deletion-function deployment if required, and `dev -> main` remain deferred.
 
 ## Next action
-1. Dispatch one exact-SHA macOS `candidate` run for `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` with focused filter `GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs`; the workflow then runs the complete suite on the same build.
-2. If GREEN, build the unsigned Firebase-backed physical-iPhone acceptance IPA from the same approved Phase 9 source and return the artifact for installation/testing.
+1. Let automatic PR smoke finish for `4c655201082444ea8d9f7f40e585d0850a8cc9d1`, then perform fresh Pass B on that exact SHA.
+2. If Pass B is clean, dispatch one exact-SHA candidate/full run; if GREEN, build the unsigned Firebase-backed physical-iPhone acceptance IPA from the same approved source and return the artifact for installation/testing.
 3. Keep PR #6 unmerged until the user explicitly approves merge.

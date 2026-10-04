@@ -15,15 +15,15 @@
 - Local Windows/system-Chrome prototype suite: 133 tests GREEN; stabilization contract remains 64 entries (A10/B26/C28/D0).
 - Static contracts pass: agentic workflow, iOS CI policy, security hygiene, account deletion, Firestore owner isolation, offline cache/reconnect, Google Sign-In configuration, and release workflow.
 - Phase 9 Pass A static evidence on candidate `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a`: `git diff --check`; the eight static contracts above; `node --check functions/index.js`; and completion asset-catalog JSON/path validation are GREEN. Required UX, product, test/CI, and independent code reviews are GREEN after fixes.
-- `xcodebuild`, XCTest, and UI tests are unavailable on the Windows host. No macOS smoke/candidate/full workflow was dispatched in this Pass A task.
+- The automatic PR macOS smoke run `37194228556` is GREEN on PR #6 head `91dafc0e99769f1bd19a5da0033fd0167bff2b5d`; that head differs from candidate `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` only by `docs/progress.md`, so it provides compile/smoke evidence for the candidate code. The authoritative exact-SHA candidate/full gate remains separate.
 - Linux checkpoint `33987425470` passed on docs checkpoint `2286b312e8998c8d7c94e9aa3bda64389da4c78c`, including the exact-source candidate workflow contract.
 - PR #3 CI optimization: final Linux run `35870202237` passed on final PR head `6efd51d261fed715ccd0fa2fed965e64c77234fa`. iOS-impacting PRs use automatic `smoke`; process-only changes start no macOS run; manual `full` and exact-SHA `candidate` remain authoritative.
 - Authoritative macOS candidate run `33991955146` is **GREEN**. Its `build-and-test` job completed successfully on 2026-09-05, including the candidate build, the exact Program navigation regression, and `candidate-full` after checking out and asserting approved source `e17cb8173a6373059729226453c568e976954d33`.
 
 ## Remote gate
-- `REMOTE_GATE_READY_FOR_FINAL_AUDIT 4526513a8e9fd855cff55cada9c7cbb8ef8fe67a`
-- This replaces the pre-redesign candidate's approval for Phase 9. Do not dispatch macOS verification in this task.
-- A fresh independent Pass B audit must start from exactly this SHA. It may run local/static checks again; if it changes production/test/project code, it returns to Pass A with a new recorded SHA. Only a clean Pass B may request one justified candidate/full macOS gate.
+- `REMOTE_GATE_APPROVED 4526513a8e9fd855cff55cada9c7cbb8ef8fe67a`
+- Fresh Pass B audited exactly `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a`: full Phase 9 diff reviewed; `git diff --check`, the eight repository static contracts, `node --check functions/index.js`, and completion asset-catalog JSON/path validation are GREEN; the audit worktree remained clean and required no production/test/project changes.
+- The next authoritative action is one exact-SHA `candidate` macOS run with a focused regression followed automatically by `candidate-full`. A red run revokes this approval.
 
 ## Remaining external proof
 - The consolidated Spark/device flow remains documented in `docs/mvp_external_acceptance_handoff.md`, but must use the eventual Phase 9 remote-gate-approved source rather than the pre-redesign candidate.
@@ -31,6 +31,6 @@
 - Paid-only Apple distribution, live paid Apple capabilities, Blaze/billing, paid deletion-function deployment if required, and `dev -> main` remain deferred.
 
 ## Next action
-1. Stop at `REMOTE_GATE_READY_FOR_FINAL_AUDIT 4526513a8e9fd855cff55cada9c7cbb8ef8fe67a`.
-2. A later independent task performs Pass B from that exact SHA and decides whether the single authoritative macOS candidate/full verification is justified.
-3. Do not merge PR #6 during either Pass A or Pass B without the user's explicit approval.
+1. Dispatch one exact-SHA macOS `candidate` run for `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` with focused filter `GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs`; the workflow then runs the complete suite on the same build.
+2. If GREEN, build the unsigned Firebase-backed physical-iPhone acceptance IPA from the same approved Phase 9 source and return the artifact for installation/testing.
+3. Keep PR #6 unmerged until the user explicitly approves merge.

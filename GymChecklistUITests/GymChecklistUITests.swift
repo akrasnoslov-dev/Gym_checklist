@@ -142,8 +142,8 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reorder sets"].waitForExistence(timeout: 2))
         app.buttons["Reorder sets"].tap()
         XCTAssertTrue(app.navigationBars["Reorder sets"].waitForExistence(timeout: 2))
-        let firstSetInReorder = app.tables.staticTexts["Reorder set 1"]
-        let secondSetInReorder = app.tables.staticTexts["Reorder set 2"]
+        let firstSetInReorder = app.tables.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Reorder set 1")).firstMatch
+        let secondSetInReorder = app.tables.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Reorder set 2")).firstMatch
         XCTAssertTrue(firstSetInReorder.waitForExistence(timeout: 2))
         XCTAssertTrue(secondSetInReorder.waitForExistence(timeout: 2))
         secondSetInReorder.press(forDuration: 0.5, thenDragTo: firstSetInReorder)
@@ -181,8 +181,8 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reorder exercises"].waitForExistence(timeout: 2))
         app.buttons["Reorder exercises"].tap()
         XCTAssertTrue(app.navigationBars["Reorder exercises"].waitForExistence(timeout: 2))
-        let benchInReorder = app.tables.staticTexts["Reorder Bench Press"]
-        let nordicInReorder = app.tables.staticTexts["Reorder Nordic Hop"]
+        let benchInReorder = app.tables.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Reorder Bench Press")).firstMatch
+        let nordicInReorder = app.tables.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Reorder Nordic Hop")).firstMatch
         XCTAssertTrue(benchInReorder.waitForExistence(timeout: 2))
         XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 2))
         nordicInReorder.press(forDuration: 0.5, thenDragTo: benchInReorder)

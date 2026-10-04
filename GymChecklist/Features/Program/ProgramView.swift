@@ -682,15 +682,6 @@ struct ProgramView: View {
         displayedMonth = date
     }
 
-    private func moveExercise(_ id: WorkoutExerciseID, by offset: Int) {
-        var reordered = orderedExercises
-        guard let source = reordered.firstIndex(where: { $0.id == id }) else { return }
-        let destination = source + offset
-        guard reordered.indices.contains(destination) else { return }
-        reordered.swapAt(source, destination)
-        persistOrder(reordered.map(\.id))
-    }
-
     private func persistOrder(_ ids: [WorkoutExerciseID]) {
         do {
             try viewModel.reorderExercises(ids, on: calendarState.selectedDate)
@@ -726,19 +717,6 @@ struct ProgramView: View {
     private func deleteWorkout(on date: LocalDate) {
         do {
             try viewModel.deleteWorkout(on: date)
-        } catch {
-            showsMutationError = true
-        }
-    }
-
-    private func moveSet(_ id: WorkoutSetID, in exerciseID: WorkoutExerciseID, by offset: Int) {
-        var reordered = viewModel.orderedSets(for: exerciseID, on: calendarState.selectedDate)
-        guard let source = reordered.firstIndex(where: { $0.id == id }) else { return }
-        let destination = source + offset
-        guard reordered.indices.contains(destination) else { return }
-        reordered.swapAt(source, destination)
-        do {
-            try viewModel.reorderSets(reordered.map(\.id), in: exerciseID, on: calendarState.selectedDate)
         } catch {
             showsMutationError = true
         }

@@ -142,8 +142,8 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reorder sets"].waitForExistence(timeout: 2))
         app.buttons["Reorder sets"].tap()
         XCTAssertTrue(app.navigationBars["Reorder sets"].waitForExistence(timeout: 2))
-        let firstSetInReorder = app.tables.staticTexts["Set 1"]
-        let secondSetInReorder = app.tables.staticTexts["Set 2"]
+        let firstSetInReorder = app.tables.staticTexts["Reorder set 1"]
+        let secondSetInReorder = app.tables.staticTexts["Reorder set 2"]
         XCTAssertTrue(firstSetInReorder.waitForExistence(timeout: 2))
         XCTAssertTrue(secondSetInReorder.waitForExistence(timeout: 2))
         secondSetInReorder.press(forDuration: 0.5, thenDragTo: firstSetInReorder)
@@ -181,8 +181,8 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reorder exercises"].waitForExistence(timeout: 2))
         app.buttons["Reorder exercises"].tap()
         XCTAssertTrue(app.navigationBars["Reorder exercises"].waitForExistence(timeout: 2))
-        let benchInReorder = app.tables.staticTexts["Bench Press"]
-        let nordicInReorder = app.tables.staticTexts["Nordic Hop"]
+        let benchInReorder = app.tables.staticTexts["Reorder Bench Press"]
+        let nordicInReorder = app.tables.staticTexts["Reorder Nordic Hop"]
         XCTAssertTrue(benchInReorder.waitForExistence(timeout: 2))
         XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 2))
         nordicInReorder.press(forDuration: 0.5, thenDragTo: benchInReorder)
@@ -1177,8 +1177,13 @@ final class TodayCompletionUITests: XCTestCase {
         XCTAssertTrue(rowSet.waitForExistence(timeout: 2))
 
         rowSet.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["You crushed it!"].exists)
+        let completionPopup = app.descendants(matching: .any)["todayCompletionPopup"]
+        XCTAssertTrue(completionPopup.waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            ["You crushed it!", "Gym survived. Barely.", "Another one done."].contains {
+                app.staticTexts[$0].exists
+            }
+        )
         XCTAssertTrue(app.buttons["Done"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
         app.buttons["todayCompletionDismiss"].tap()

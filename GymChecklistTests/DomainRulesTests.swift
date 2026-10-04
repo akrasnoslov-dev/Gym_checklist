@@ -681,6 +681,15 @@ final class WorkoutCompletionTriggerTests: XCTestCase {
         XCTAssertFalse(WorkoutCompletionTrigger.shouldPresent(before: .completed, after: .partial))
         XCTAssertFalse(WorkoutCompletionTrigger.shouldPresent(before: .partial, after: .partial))
     }
+
+    func testCompletionContentUsesFrozenArtworkAndStableSelection() {
+        XCTAssertEqual(WorkoutCompletionContent.allCases.map(\.assetName), ["CompletionCrushed", "CompletionBarely", "CompletionAnother"])
+        XCTAssertEqual(WorkoutCompletionContent.allCases.map(\.title), ["You crushed it!", "Gym survived. Barely.", "Another one done."])
+        XCTAssertEqual(WorkoutCompletionContent.allCases.map(\.message), ["That bar had no chance.", "See you at the next set.", "Consistency looks good on you."])
+
+        let workoutID = WorkoutID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!)
+        XCTAssertEqual(WorkoutCompletionContent.selected(for: workoutID).assetName, "CompletionBarely")
+    }
 }
 
 final class FirebaseBootstrapTests: XCTestCase {

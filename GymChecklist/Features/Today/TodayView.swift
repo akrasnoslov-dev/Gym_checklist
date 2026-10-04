@@ -34,49 +34,61 @@ struct TodayView: View {
     let onOpenProgram: () -> Void
     @State private var editorRoute: TodaySetEditorRoute?
     @State private var showsCompletionPopup = false
+    @State private var completionContent: WorkoutCompletionContent = .crushed
     @State private var mutationError: TodayMutationError?
     @AccessibilityFocusState private var accessibilityFocus: AccessibilityFocusTarget?
     @State private var completionRestoreFocus: AccessibilityFocusTarget?
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
-                header
+        ZStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 24) {
+                    header
 
-                if viewModel.workoutLoadState == .unavailable(hasUsableSnapshot: true) {
-                    syncUnavailableMessage
-                }
-
-                switch TodayContentState.resolve(
-                    workouts: viewModel.workouts,
-                    currentDate: currentDate,
-                    loadState: viewModel.workoutLoadState
-                ) {
-                case .activeWorkout:
-                    if let workout = viewModel.workout(on: currentDate) {
-                        if workout.exercises.isEmpty {
-                            emptyWorkoutState
-                        } else {
-                            let exercises = orderedExercises(in: workout)
-                            ForEach(exercises.filter { !$0.isSkipped }) { exercise in
-                                exerciseSection(exercise)
-                            }
-                            restoreSkippedExercisesMenu(exercises.filter(\.isSkipped))
-                        }
+                    if viewModel.workoutLoadState == .unavailable(hasUsableSnapshot: true) {
+                        syncUnavailableMessage
                     }
-                case .noProgram:
-                    noProgramState
-                case .restDay:
-                    restDayState
-                case .loading:
-                    loadingState
-                case .unavailable:
-                    unavailableState
+
+                    switch TodayContentState.resolve(
+                        workouts: viewModel.workouts,
+                        currentDate: currentDate,
+                        loadState: viewModel.workoutLoadState
+                    ) {
+                    case .activeWorkout:
+                        if let workout = viewModel.workout(on: currentDate) {
+                            if workout.exercises.isEmpty {
+                                emptyWorkoutState
+                            } else {
+                                let exercises = orderedExercises(in: workout)
+                                ForEach(exercises.filter { !$0.isSkipped }) { exercise in
+                                    exerciseSection(exercise)
+                                }
+                                restoreSkippedExercisesMenu(exercises.filter(\.isSkipped))
+                            }
+                        }
+                    case .noProgram:
+                        noProgramState
+                    case .restDay:
+                        restDayState
+                    case .loading:
+                        loadingState
+                    case .unavailable:
+                        unavailableState
+                    }
                 }
+                .padding(.horizontal)
+                .padding(.vertical, 20)
+                .accessibilityHidden(showsCompletionPopup)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 20)
-            .accessibilityHidden(showsCompletionPopup)
+            .allowsHitTesting(!showsCompletionPopup)
+            if showsCompletionPopup {
+                TodayCompletionOverlay(content: completionContent) {
+                    showsCompletionPopup = false
+                    accessibilityFocus = completionRestoreFocus ?? .header
+                    completionRestoreFocus = nil
+                }
+                .accessibilityFocused($accessibilityFocus, equals: .completionOverlay)
+            }
         }
         .accessibilityIdentifier("todayScreen")
         .onChange(of: currentDate) { _, _ in
@@ -96,16 +108,6 @@ struct TodayView: View {
                     weight: weight,
                     timeSeconds: timeSeconds
                 )
-            }
-        }
-        .overlay {
-            if showsCompletionPopup {
-                TodayCompletionOverlay {
-                    showsCompletionPopup = false
-                    accessibilityFocus = completionRestoreFocus ?? .header
-                    completionRestoreFocus = nil
-                }
-                .accessibilityFocused($accessibilityFocus, equals: .completionOverlay)
             }
         }
         .alert(item: $mutationError) { error in
@@ -348,6 +350,9 @@ struct TodayView: View {
             after: statusAfterMutation
         )
         guard showsCompletionPopup else { return }
+        if let workoutID = viewModel.workout(on: currentDate)?.id {
+            completionContent = WorkoutCompletionContent.selected(for: workoutID)
+        }
         completionRestoreFocus = restoreFocus
         DispatchQueue.main.async {
             accessibilityFocus = .completionOverlay
@@ -369,7 +374,46 @@ enum TodayMutationError: Identifiable {
     var message: String { "Check your workout before trying again." }
 }
 
+/// The approved completion artwork is packaged with the app. Selection is
+/// deterministic per workout so presentation is stable for UI tests and does
+/// not depend on a network call or the process-randomized Swift hash seed.
+enum WorkoutCompletionContent: CaseIterable {
+    case crushed
+    case barely
+    case another
+
+    var assetName: String {
+        switch self {
+        case .crushed: "CompletionCrushed"
+        case .barely: "CompletionBarely"
+        case .another: "CompletionAnother"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .crushed: "You crushed it!"
+        case .barely: "Gym survived. Barely."
+        case .another: "Another one done."
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .crushed: "That bar had no chance."
+        case .barely: "See you at the next set."
+        case .another: "Consistency looks good on you."
+        }
+    }
+
+    static func selected(for workoutID: WorkoutID) -> Self {
+        let index = workoutID.rawValue.uuidString.utf8.reduce(0) { $0 + Int($1) } % allCases.count
+        return allCases[index]
+    }
+}
+
 private struct TodayCompletionOverlay: View {
+    let content: WorkoutCompletionContent
     let onDismiss: () -> Void
 
     var body: some View {
@@ -377,16 +421,14 @@ private struct TodayCompletionOverlay: View {
             Color.black.opacity(0.28)
                 .ignoresSafeArea()
             VStack(spacing: 16) {
-                ZStack {
-                    Circle().fill(GymTheme.accentSoft).frame(width: 78, height: 78)
-                    Image(systemName: "dumbbell.fill")
-                        .font(.system(size: 32, weight: .semibold))
-                        .foregroundStyle(GymTheme.accentForeground)
-                }
+                Image(content.assetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 96)
                     .accessibilityHidden(true)
-                Text("You crushed it!")
+                Text(content.title)
                     .font(.title2.weight(.bold))
-                Text("Gym survived. Barely.")
+                Text(content.message)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Button("Done", action: onDismiss)
@@ -450,9 +492,11 @@ private struct TodaySetEditorSheet: View {
                             .accessibilityIdentifier("todaySetEditorReps")
                     }
                     if route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed {
-                        TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
+                        TextField("Weight", value: $weight, format: .number.precision(.fractionLength(0...2)))
                             .keyboardType(.decimalPad)
                             .accessibilityIdentifier("todaySetEditorWeight")
+                        LabeledContent("Unit", value: weightUnit.rawValue)
+                            .accessibilityIdentifier("todaySetEditorWeightUnit")
                     }
                     if route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed {
                         TextField("Time (seconds)", value: $timeSeconds, format: .number)

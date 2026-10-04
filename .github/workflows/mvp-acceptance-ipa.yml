@@ -1,6 +1,8 @@
 name: MVP Physical iPhone Acceptance IPA
 
 on:
+  push:
+    branches: [ci/phase9-acceptance-ipa]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +13,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     env:
-      APP_SOURCE_SHA: e17cb8173a6373059729226453c568e976954d33
+      APP_SOURCE_SHA: 4c655201082444ea8d9f7f40e585d0850a8cc9d1
       APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
       APP_DISPLAY_NAME: Gym Checklist
 
@@ -19,7 +21,7 @@ jobs:
       - name: Checkout accepted MVP app source
         uses: actions/checkout@v4
         with:
-          ref: e17cb8173a6373059729226453c568e976954d33
+          ref: 4c655201082444ea8d9f7f40e585d0850a8cc9d1
           fetch-depth: 1
           persist-credentials: false
 
@@ -147,7 +149,7 @@ jobs:
       - name: Upload physical iPhone acceptance IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-MVP-e17cb81
+          name: GymChecklist-Phase9-4c65520
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

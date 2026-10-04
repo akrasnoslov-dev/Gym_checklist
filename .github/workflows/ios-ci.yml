@@ -1,6 +1,8 @@
 name: iOS macOS CI (authoritative)
 
 on:
+  push:
+    branches: [ci/phase9-candidate-gate]
   pull_request:
     branches: [dev, main]
     # Run expensive macOS/Xcode verification only when a PR changes files
@@ -57,9 +59,9 @@ jobs:
     env:
       # Routine iOS-impacting pull requests get fast feedback. Manual dispatch
       # retains every diagnostic scope, including authoritative full/candidate.
-      VERIFICATION_SCOPE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.verification_scope }}
-      TEST_FILTER: ${{ inputs.test_filter || '' }}
-      CANDIDATE_SOURCE_SHA: ${{ inputs.candidate_source_sha || '' }}
+      VERIFICATION_SCOPE: ${{ github.event_name == 'pull_request' && 'smoke' || github.event_name == 'push' && 'candidate' || inputs.verification_scope }}
+      TEST_FILTER: ${{ github.event_name == 'push' && 'GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs' || inputs.test_filter || '' }}
+      CANDIDATE_SOURCE_SHA: ${{ github.event_name == 'push' && '4526513a8e9fd855cff55cada9c7cbb8ef8fe67a' || inputs.candidate_source_sha || '' }}
 
     steps:
       - name: Checkout
@@ -67,7 +69,7 @@ jobs:
         with:
           # workflow_dispatch itself accepts only a branch or tag ref. Candidate
           # gates therefore receive and verify the immutable source commit here.
-          ref: ${{ inputs.candidate_source_sha || github.sha }}
+          ref: ${{ github.event_name == 'push' && '4526513a8e9fd855cff55cada9c7cbb8ef8fe67a' || inputs.candidate_source_sha || github.sha }}
           fetch-depth: 1
 
       - name: Record Xcode version

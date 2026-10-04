@@ -21,9 +21,9 @@
 - Authoritative macOS candidate run `33991955146` is **GREEN**. Its `build-and-test` job completed successfully on 2026-09-05, including the candidate build, the exact Program navigation regression, and `candidate-full` after checking out and asserting approved source `e17cb8173a6373059729226453c568e976954d33`.
 
 ## Remote gate
-- `REMOTE_GATE_READY_FOR_FINAL_AUDIT 4c655201082444ea8d9f7f40e585d0850a8cc9d1`
-- Candidate `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` approval was revoked by red run `37229759591`. The only follow-up change is the four-line UI-test selector correction in `4c655201082444ea8d9f7f40e585d0850a8cc9d1`; production SwiftUI is unchanged.
-- A fresh Pass B must audit exactly `4c655201082444ea8d9f7f40e585d0850a8cc9d1`. Only a clean audit may approve and dispatch the next exact-SHA candidate/full run.
+- `REMOTE_GATE_APPROVED 4c655201082444ea8d9f7f40e585d0850a8cc9d1`
+- Candidate `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` approval was revoked by red run `37229759591`. The only follow-up change is the four-line UI-test selector correction in `4c655201082444ea8d9f7f40e585d0850a8cc9d1`; production SwiftUI is unchanged. Fresh Pass B audited exact `4c655201082444ea8d9f7f40e585d0850a8cc9d1`, confirmed no production delta, reran the required static contracts and `node --check`, and left the detached audit worktree clean.
+- The next authoritative action is one exact-SHA candidate/full run for `4c655201082444ea8d9f7f40e585d0850a8cc9d1`. A red run revokes this approval.
 
 ## Remaining external proof
 - The consolidated Spark/device flow remains documented in `docs/mvp_external_acceptance_handoff.md`, but must use the eventual Phase 9 remote-gate-approved source rather than the pre-redesign candidate.
@@ -31,6 +31,6 @@
 - Paid-only Apple distribution, live paid Apple capabilities, Blaze/billing, paid deletion-function deployment if required, and `dev -> main` remain deferred.
 
 ## Next action
-1. Let automatic PR smoke finish for `4c655201082444ea8d9f7f40e585d0850a8cc9d1`, then perform fresh Pass B on that exact SHA.
-2. If Pass B is clean, dispatch one exact-SHA candidate/full run; if GREEN, build the unsigned Firebase-backed physical-iPhone acceptance IPA from the same approved source and return the artifact for installation/testing.
+1. Dispatch one exact-SHA candidate/full run for `4c655201082444ea8d9f7f40e585d0850a8cc9d1` with focused filter `GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs`.
+2. If GREEN, build the unsigned Firebase-backed physical-iPhone acceptance IPA from the same approved source and return the artifact for installation/testing.
 3. Keep PR #6 unmerged until the user explicitly approves merge.

@@ -2,35 +2,55 @@
 
 ## Current state
 - The functional MVP baseline remains implemented; paid Apple distribution/release work is still deferred.
-- PR #5's completed Phase 5B design prototype, stabilization harness, final correction pass, and Phase 8 freeze documentation are merged into `dev`.
-- **Phase 8 Design Freeze is APPROVED/COMPLETE (2026-10-02).** Frozen visual source: `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`.
-- The frozen review registry remains exactly 64 entries: 10 canonical surfaces, 26 states, 28 overlays, 0 QA-only. These are review/test states, not 64 production screens.
-- The final correction pass resolves compact-overlay scroll locking, Program state symbols and set-row semantics, focused reorder, and auth-field alignment without adding routes.
-- **Phase 9 Pass A is complete on PR #6 / `codex/phase-9-swiftui-implementation`.** The branch merged current `dev` through `3f2c28c`, keeps the existing focused native Program reorder flows, applies the frozen completion artwork/copy to Today, and fixes the corresponding accessibility/UI-test coverage.
-- `docs/phase9_swiftui_mapping.md` remains the implementation handoff. The frozen review registry remains design evidence only; it does not create 64 production routes.
-- Production SwiftUI changed in Phase 9, so the prior authoritative macOS evidence applies only to the pre-redesign source and is not approval for this candidate.
+- Phase 8 Design Freeze is APPROVED/COMPLETE. Frozen visual source: `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`.
+- PR #5 design/prototype work is merged into `dev`.
+- PR #6 remains the active SwiftUI implementation PR and must stay unmerged until explicit user approval.
+- The earlier Phase 9 completion claim was incorrect: installed IPA evidence showed that only a small subset of the frozen redesign had reached production SwiftUI.
+- Corrective Phase 9 Pass A reopened the implementation and now covers the user-visible canonical hierarchy across app navigation, shared theme, Today, Program, exercise/custom-exercise flows, Settings/Profile/Body weight, authentication, and supporting copy/repeat presentation while preserving existing product/data behavior.
+- `ProgramCalendarState.swift` already matched the frozen semantic state vocabulary and required no corrective production change.
+
+## Corrective candidate
+- Production/test candidate: `ff551d68cce8569529796b1255ffb04965fd0b34`.
+- Changed production areas:
+  - `GymChecklist/App/ContentView.swift`
+  - `GymChecklist/Core/UI/GymTheme.swift`
+  - `GymChecklist/Features/Auth/RegistrationView.swift`
+  - `GymChecklist/Features/Exercises/ExercisePickerView.swift`
+  - `GymChecklist/Features/Program/ProgramView.swift`
+  - `GymChecklist/Features/Settings/SettingsView.swift`
+  - `GymChecklist/Features/Today/TodayView.swift`
+- Focused UI-test expectations were updated only where the frozen design intentionally removed old visible Settings summary text while preserving the same profile/BMI/body-weight behavior through accessibility values.
 
 ## Latest verification
-- Frozen design source `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`: Linux checks run `37013418934` GREEN and Prototype visual regression run `37013419866` GREEN.
-- Local Windows/system-Chrome prototype suite: 133 tests GREEN; stabilization contract remains 64 entries (A10/B26/C28/D0).
-- Static contracts pass: agentic workflow, iOS CI policy, security hygiene, account deletion, Firestore owner isolation, offline cache/reconnect, Google Sign-In configuration, and release workflow.
-- Phase 9 Pass A static evidence on candidate `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a`: `git diff --check`; the eight static contracts above; `node --check functions/index.js`; and completion asset-catalog JSON/path validation are GREEN. Required UX, product, test/CI, and independent code reviews are GREEN after fixes.
-- The automatic PR macOS smoke run `37194228556` was GREEN before the candidate gate. Exact-SHA candidate run `37229759591` then built `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` successfully but failed its focused UI regression because the test queried SwiftUI reorder accessibility containers as `staticText`. Production SwiftUI did not fail to build. The selector-only fix is candidate `4c655201082444ea8d9f7f40e585d0850a8cc9d1`; automatic PR smoke run `37230860532` is its current compile/smoke check.
-- Linux checkpoint `33987425470` passed on docs checkpoint `2286b312e8998c8d7c94e9aa3bda64389da4c78c`, including the exact-source candidate workflow contract.
-- PR #3 CI optimization: final Linux run `35870202237` passed on final PR head `6efd51d261fed715ccd0fa2fed965e64c77234fa`. iOS-impacting PRs use automatic `smoke`; process-only changes start no macOS run; manual `full` and exact-SHA `candidate` remain authoritative.
-- Authoritative macOS candidate run `33991955146` is **GREEN**. Its `build-and-test` job completed successfully on 2026-09-05, including the candidate build, the exact Program navigation regression, and `candidate-full` after checking out and asserting approved source `e17cb8173a6373059729226453c568e976954d33`.
+- Frozen prototype source and snapshots remain the visual reference.
+- Windows static verification is GREEN on the corrective working tree:
+  - `git diff --check`
+  - agentic workflow contract
+  - security hygiene
+  - account deletion contract
+  - Firestore owner-isolation contract
+  - offline cache/reconnect contract
+  - Google Sign-In configuration contract
+  - release workflow contract
+  - iOS CI contract
+  - `node --check functions/index.js`
+- Windows does not provide Xcode/SwiftUI compilation. The next automatic PR macOS smoke run is compile/runtime evidence, not final approval.
+- The previously built Phase 9 acceptance IPA from `4c655201...` is rejected as visual acceptance evidence and must not be reused as the final redesign build.
 
 ## Remote gate
-- `REMOTE_GATE_APPROVED 4c655201082444ea8d9f7f40e585d0850a8cc9d1`
-- Candidate `4526513a8e9fd855cff55cada9c7cbb8ef8fe67a` approval was revoked by red run `37229759591`. The only follow-up change is the four-line UI-test selector correction in `4c655201082444ea8d9f7f40e585d0850a8cc9d1`; production SwiftUI is unchanged. Fresh Pass B audited exact `4c655201082444ea8d9f7f40e585d0850a8cc9d1`, confirmed no production delta, reran the required static contracts and `node --check`, and left the detached audit worktree clean.
-- The next authoritative action is one exact-SHA candidate/full run for `4c655201082444ea8d9f7f40e585d0850a8cc9d1`. A red run revokes this approval.
+- `REMOTE_GATE_READY_FOR_FINAL_AUDIT ff551d68cce8569529796b1255ffb04965fd0b34`
+- Prior approvals for `4526513...` / `4c655201...` are superseded by the corrective production changes.
+- A fresh Pass B must audit exactly `ff551d68cce8569529796b1255ffb04965fd0b34`.
+- If Pass B changes production/test/project code, return to Pass A with a new SHA.
+- Only a clean Pass B may approve and dispatch the exact-SHA macOS candidate/full gate.
 
 ## Remaining external proof
-- The consolidated Spark/device flow remains documented in `docs/mvp_external_acceptance_handoff.md`, but must use the eventual Phase 9 remote-gate-approved source rather than the pre-redesign candidate.
-- `.github/workflows/mvp-acceptance-ipa.yml` remains prepared to build an exact approved source into an unsigned Firebase-backed IPA. It requires the repository secret `GOOGLE_SERVICE_INFO_PLIST_B64`; no acceptance IPA has been produced or dispatched in this checkpoint.
-- Paid-only Apple distribution, live paid Apple capabilities, Blaze/billing, paid deletion-function deployment if required, and `dev -> main` remain deferred.
+- After a GREEN exact-SHA candidate/full gate, build a new unsigned Firebase-backed physical-iPhone acceptance IPA from the same approved corrective source.
+- Install that new IPA on the physical iPhone and compare the main user-visible surfaces with the frozen Phase 8 design.
+- Paid Apple distribution, live paid Apple capabilities, Firebase billing, paid deletion-function deployment if required, and `dev -> main` remain deferred.
 
 ## Next action
-1. Dispatch one exact-SHA candidate/full run for `4c655201082444ea8d9f7f40e585d0850a8cc9d1` with focused filter `GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs`.
-2. If GREEN, build the unsigned Firebase-backed physical-iPhone acceptance IPA from the same approved source and return the artifact for installation/testing.
-3. Keep PR #6 unmerged until the user explicitly approves merge.
+1. Push the corrective Pass A commits to existing PR #6.
+2. Confirm automatic PR checks and independently audit exact candidate `ff551d68cce8569529796b1255ffb04965fd0b34`.
+3. If Pass B is clean, dispatch one exact-SHA macOS candidate/full gate.
+4. If GREEN, build and return a fresh acceptance IPA from that exact approved corrective source.

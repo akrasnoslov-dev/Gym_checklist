@@ -30,33 +30,36 @@ struct ProgramView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    VStack(spacing: 8) {
+                LazyVStack(alignment: .leading, spacing: GymTheme.spacing24) {
+                    Text("Program")
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(GymTheme.textPrimary)
+
+                    VStack(spacing: GymTheme.spacing12) {
                         Picker("Program view", selection: $calendarMode) {
                             ForEach(CalendarMode.allCases, id: \.self) { Text($0.title).tag($0) }
                         }
                         .pickerStyle(.segmented)
-                        .padding(.horizontal)
                         .accessibilityIdentifier("programViewMode")
+
                         calendarHeader
                         dateSelector
+                        programLegend
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
 
-                    // Program navigation must update both the date controls
-                    // and the selected day's content. A List keeps its static
-                    // rows alive across these state changes (and obscures
-                    // sibling controls from accessibility), so this screen
-                    // intentionally uses one dynamic scroll hierarchy.
+                    // Program navigation updates both date controls and the
+                    // selected day's content inside one dynamic hierarchy.
                     ForEach([displayedSelectedDate], id: \.self) { _ in
                         selectedDateSections
                     }
                 }
-                .padding(.vertical, 8)
+                .padding(.horizontal, GymTheme.spacing16)
+                .padding(.vertical, GymTheme.spacing20)
             }
-            .navigationTitle("Program")
+            .gymPageBackground()
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .accessibilityIdentifier("programScreen")
             .onAppear {
                 displayedSelectedDate = viewModel.selectedDate
@@ -92,8 +95,15 @@ struct ProgramView: View {
                         }
                         .accessibilityIdentifier("programDeleteWorkout")
                     } label: {
-                        Label("Workout actions", systemImage: "ellipsis.circle")
+                        Image(systemName: "ellipsis")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .background(
+                                GymTheme.accentSoft,
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
                     }
+                    .accessibilityLabel("Workout actions")
                     .accessibilityIdentifier("programWorkoutActions")
                 }
             }
@@ -230,6 +240,31 @@ struct ProgramView: View {
         Group {
             if calendarMode == .week { weekHeader } else { monthHeader }
         }
+    }
+
+    private var programLegend: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: GymTheme.spacing12) {
+                legendItem("Empty", symbol: "circle", color: GymTheme.textSecondary)
+                legendItem("Planned", symbol: "circle.fill", color: GymTheme.accentForeground)
+                legendItem("Partial", symbol: "circle.lefthalf.filled", color: .orange)
+                legendItem("Completed", symbol: "checkmark.circle.fill", color: GymTheme.accentForeground)
+                legendItem("Incomplete", symbol: "exclamationmark.circle", color: GymTheme.destructive)
+            }
+            .font(.caption2)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Workout status legend")
+    }
+
+    private func legendItem(_ title: String, symbol: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+                .foregroundStyle(color)
+            Text(title)
+                .foregroundStyle(GymTheme.textSecondary)
+        }
+        .fixedSize()
     }
 
     private var weekHeader: some View {
@@ -374,12 +409,16 @@ struct ProgramView: View {
 
     @ViewBuilder
     private var selectedDateSections: some View {
-        Section {
+        VStack(alignment: .leading, spacing: GymTheme.spacing4) {
             Text(fullDateLabel(for: calendarState.selectedDate))
-                .font(.title2.weight(.semibold))
-                .padding(.horizontal)
+                .font(.headline)
+                .foregroundStyle(GymTheme.textPrimary)
                 .accessibilityIdentifier("programSelectedDate")
+            Text(isHistorical ? "Workout history" : "Selected date · current plan")
+                .font(.footnote)
+                .foregroundStyle(GymTheme.textSecondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
 
         if viewModel.workoutLoadState == .loading {
             Section {
@@ -406,19 +445,31 @@ struct ProgramView: View {
 
         switch calendarState.selectedDayState {
         case .empty:
-            Section {
-                Text(isHistorical ? "No recorded workout for this date." : "No workout planned for this date.")
-                    .foregroundStyle(.secondary)
+            VStack(spacing: GymTheme.spacing16) {
+                Image(systemName: isHistorical ? "clock.arrow.circlepath" : "list.clipboard")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(GymTheme.accentForeground)
+                    .frame(width: 72, height: 72)
+                    .background(GymTheme.accentSoft, in: Circle())
+                    .accessibilityHidden(true)
+                Text(isHistorical ? "No recorded workout." : "No workout planned yet.")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(GymTheme.textPrimary)
                     .accessibilityIdentifier("programEmptyState")
+                Text(isHistorical ? "There is no workout history for this date." : "Create your first workout to get started.")
+                    .font(.subheadline)
+                    .foregroundStyle(GymTheme.textSecondary)
+                    .multilineTextAlignment(.center)
                 if !isHistorical {
                     Button("Create workout") {
                         viewModel.createSelectedWorkout()
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(GymTheme.accent)
+                    .buttonStyle(GymPrimaryButtonStyle())
+                    .frame(maxWidth: 240)
                     .accessibilityIdentifier("programCreateWorkout")
                 }
             }
+            .frame(maxWidth: .infinity, minHeight: 280)
         case let .workout(status):
             Section {
                 Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
@@ -430,7 +481,7 @@ struct ProgramView: View {
                     .accessibilityIdentifier("programWorkoutState")
             }
 
-            Section("Exercises") {
+            Group {
                 if orderedExercises.isEmpty {
                     Text("No exercises added yet.")
                         .foregroundStyle(.secondary)
@@ -452,9 +503,8 @@ struct ProgramView: View {
                         exercisePickerRoute = ExercisePickerRoute(workoutDate: calendarState.selectedDate)
                     } label: {
                         Label("Add exercise", systemImage: "plus")
-                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(GymPrimaryButtonStyle())
                     .accessibilityIdentifier("programAddExercise")
                 }
             }
@@ -547,9 +597,12 @@ struct ProgramView: View {
     private func exerciseRow(_ exercise: WorkoutExercise, index: Int) -> some View {
         let name = viewModel.exerciseName(for: exercise)
         let sets = viewModel.orderedSets(for: exercise.id, on: calendarState.selectedDate)
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center) {
+
+        return VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+            HStack(spacing: GymTheme.spacing8) {
                 Text(name)
+                    .font(.headline)
+                    .foregroundStyle(GymTheme.textPrimary)
                     .accessibilityIdentifier("programExercise-\(name)")
                 Spacer()
                 Menu {
@@ -559,73 +612,106 @@ struct ProgramView: View {
                         }
                         .accessibilityIdentifier("programReorderExercises")
                     }
-                    Button("Delete", role: .destructive) { requestDeletion(of: exercise) }
-                        .accessibilityIdentifier("programExerciseDelete-\(exercise.id.rawValue.uuidString)")
+                    Button("Delete", role: .destructive) {
+                        requestDeletion(of: exercise)
+                    }
+                    .accessibilityIdentifier("programExerciseDelete-\(exercise.id.rawValue.uuidString)")
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
+                        .font(.body.weight(.semibold))
                         .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Actions for \(name), exercise \(index + 1) of \(orderedExercises.count)")
             }
-            ForEach(Array(sets.enumerated()), id: \.element.id) { setIndex, set in
-                HStack(spacing: 4) {
-                    Button {
-                        setEditorRoute = SetEditorRoute(
-                            workoutDate: calendarState.selectedDate,
-                            exercise: exercise,
-                            set: set
-                        )
-                    } label: {
-                        HStack {
-                            Text("Set \(setIndex + 1)")
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text(SetDisplayFormatter(unit: weightUnit).string(
-                                reps: set.displayedReps,
-                                weightInKilograms: set.displayedWeight,
-                                timeSeconds: set.displayedTimeSeconds,
-                                type: set.displayedType
-                            ))
-                        }
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Edit set \(setIndex + 1) for \(name)")
-                    .accessibilityValue(SetDisplayFormatter(unit: weightUnit).string(
-                        reps: set.displayedReps,
-                        weightInKilograms: set.displayedWeight,
-                        timeSeconds: set.displayedTimeSeconds,
-                        type: set.displayedType
-                    ))
-                    .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
 
-                    if sets.count > 1 {
-                        Menu {
-                            Button("Reorder sets", systemImage: "arrow.up.arrow.down") {
-                                reorderRoute = .sets(exercise)
-                            }
-                            .accessibilityIdentifier("programReorderSets-\(exercise.id.rawValue.uuidString)")
+            VStack(spacing: 0) {
+                ForEach(Array(sets.enumerated()), id: \.element.id) { setIndex, set in
+                    HStack(spacing: 0) {
+                        Button {
+                            setEditorRoute = SetEditorRoute(
+                                workoutDate: calendarState.selectedDate,
+                                exercise: exercise,
+                                set: set
+                            )
                         } label: {
-                            Image(systemName: "line.3.horizontal")
+                            HStack(spacing: GymTheme.spacing12) {
+                                Text("\(setIndex + 1)")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(GymTheme.textSecondary)
+                                    .frame(width: 28, height: 28)
+                                    .background(GymTheme.surfaceBase, in: Circle())
+                                Text(SetDisplayFormatter(unit: weightUnit).string(
+                                    reps: set.displayedReps,
+                                    weightInKilograms: set.displayedWeight,
+                                    timeSeconds: set.displayedTimeSeconds,
+                                    type: set.displayedType
+                                ))
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(GymTheme.textPrimary)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.leading, GymTheme.spacing12)
+                            .frame(maxWidth: .infinity, minHeight: 52)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Edit set \(setIndex + 1) for \(name)")
+                        .accessibilityValue(SetDisplayFormatter(unit: weightUnit).string(
+                            reps: set.displayedReps,
+                            weightInKilograms: set.displayedWeight,
+                            timeSeconds: set.displayedTimeSeconds,
+                            type: set.displayedType
+                        ))
+                        .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
+
+                        Menu {
+                            if sets.count > 1 {
+                                Button("Reorder sets", systemImage: "arrow.up.arrow.down") {
+                                    reorderRoute = .sets(exercise)
+                                }
+                                .accessibilityIdentifier("programReorderSets-\(exercise.id.rawValue.uuidString)")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
                                 .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .accessibilityLabel("Actions for set \(setIndex + 1) for \(name)")
                     }
+
+                    if set.id != sets.last?.id {
+                        Divider().overlay(GymTheme.separator)
+                    }
                 }
+
+                if !sets.isEmpty {
+                    Divider().overlay(GymTheme.separator)
+                }
+
+                Button {
+                    addSet(to: exercise.id)
+                } label: {
+                    Label("Add set", systemImage: "plus")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(GymTheme.accentForeground)
+                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                        .padding(.horizontal, GymTheme.spacing16)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add set to \(name)")
+                .accessibilityIdentifier("programAddSet-\(exercise.id.rawValue.uuidString)")
             }
-            Button {
-                addSet(to: exercise.id)
-            } label: {
-                Label("Add set", systemImage: "plus")
-                    .frame(maxWidth: .infinity, minHeight: 44)
+            .background(
+                GymTheme.surfaceGrouped,
+                in: RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+                    .stroke(GymTheme.borderSubtle, lineWidth: 1)
             }
-            .buttonStyle(.bordered)
-            .accessibilityLabel("Add set to \(name)")
-            .accessibilityIdentifier("programAddSet-\(exercise.id.rawValue.uuidString)")
         }
         .accessibilityElement(children: .contain)
-        .gymCard()
         .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
         .accessibilityHint("Exercise \(index + 1) of \(orderedExercises.count)")
     }
@@ -965,18 +1051,22 @@ private struct CopyWorkoutSheet: View {
                         Text("Copy")
                             .frame(maxWidth: .infinity, minHeight: 48)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(GymTheme.accent)
+                    .buttonStyle(GymPrimaryButtonStyle())
                     .disabled(destinationMessage != nil)
+                    .opacity(destinationMessage != nil ? 0.55 : 1)
                     .accessibilityIdentifier("copyWorkoutAction")
                 }
-                .padding()
+                .padding(GymTheme.spacing16)
             }
+            .gymPageBackground()
             .navigationTitle("Copy workout")
+            .navigationBarTitleDisplayMode(.large)
             .accessibilityIdentifier("copyWorkoutSheet")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .fontWeight(.semibold)
+                        .foregroundStyle(GymTheme.accentForeground)
                         .accessibilityIdentifier("copyWorkoutCancel")
                 }
             }
@@ -1128,18 +1218,22 @@ private struct RepeatWorkoutSheet: View {
                         Text("Create")
                             .frame(maxWidth: .infinity, minHeight: 48)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(GymTheme.accent)
+                    .buttonStyle(GymPrimaryButtonStyle())
                     .disabled(candidateDates.isEmpty || availableDates.isEmpty)
+                    .opacity(candidateDates.isEmpty || availableDates.isEmpty ? 0.55 : 1)
                     .accessibilityIdentifier("repeatWorkoutAction")
                 }
-                .padding()
+                .padding(GymTheme.spacing16)
             }
+            .gymPageBackground()
             .navigationTitle("Repeat workout")
+            .navigationBarTitleDisplayMode(.large)
             .accessibilityIdentifier("repeatWorkoutSheet")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .fontWeight(.semibold)
+                        .foregroundStyle(GymTheme.accentForeground)
                         .accessibilityIdentifier("repeatWorkoutCancel")
                 }
             }

@@ -280,7 +280,7 @@ final class GymChecklistUITests: XCTestCase {
         let measurement = app.buttons["bodyWeightMeasurement"]
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.staticTexts["180 cm · BMI 25.0"].waitForExistence(timeout: 2))
+        assert(app.buttons["settingsProfile"], hasValue: "180 cm - BMI 25.0")
         app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
         measurement.tap()
@@ -295,8 +295,8 @@ final class GymChecklistUITests: XCTestCase {
         deleteMeasurement.tap()
         XCTAssertFalse(updatedMeasurement.waitForExistence(timeout: 1))
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.staticTexts["180 cm"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Log your first measurement"].exists)
+        assert(app.buttons["settingsProfile"], hasValue: "180 cm")
+        assert(app.buttons["settingsBodyWeight"], hasValue: "Log your first measurement")
     }
 
     func testAppearanceSelectionKeepsTodayAvailable() {

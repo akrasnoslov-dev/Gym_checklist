@@ -10,7 +10,8 @@
 - `ProgramCalendarState.swift` already matched the frozen semantic state vocabulary and required no corrective production change.
 
 ## Corrective candidate
-- Production/test candidate: `ff551d68cce8569529796b1255ffb04965fd0b34`.
+- Corrective production implementation commit: `ff551d68cce8569529796b1255ffb04965fd0b34`.
+- Exact repository candidate after syncing current `dev` workflow policy: `0174f2f75a7f37626f42cc7a1cfd3ad12f9a853c`.
 - Changed production areas:
   - `GymChecklist/App/ContentView.swift`
   - `GymChecklist/Core/UI/GymTheme.swift`
@@ -38,9 +39,9 @@
 - The previously built Phase 9 acceptance IPA from `4c655201...` is rejected as visual acceptance evidence and must not be reused as the final redesign build.
 
 ## Remote gate
-- `REMOTE_GATE_READY_FOR_FINAL_AUDIT ff551d68cce8569529796b1255ffb04965fd0b34`
+- `REMOTE_GATE_READY_FOR_FINAL_AUDIT 0174f2f75a7f37626f42cc7a1cfd3ad12f9a853c`
 - Prior approvals for `4526513...` / `4c655201...` are superseded by the corrective production changes.
-- A fresh Pass B must audit exactly `ff551d68cce8569529796b1255ffb04965fd0b34`.
+- A fresh Pass B must audit exactly `0174f2f75a7f37626f42cc7a1cfd3ad12f9a853c`.
 - If Pass B changes production/test/project code, return to Pass A with a new SHA.
 - Only a clean Pass B may approve and dispatch the exact-SHA macOS candidate/full gate.
 
@@ -51,6 +52,6 @@
 
 ## Next action
 1. Push the corrective Pass A commits to existing PR #6.
-2. Confirm automatic PR checks and independently audit exact candidate `ff551d68cce8569529796b1255ffb04965fd0b34`.
+2. Confirm automatic PR checks and independently audit exact candidate `0174f2f75a7f37626f42cc7a1cfd3ad12f9a853c`.
 3. If Pass B is clean, dispatch one exact-SHA macOS candidate/full gate.
 4. If GREEN, build and return a fresh acceptance IPA from that exact approved corrective source.

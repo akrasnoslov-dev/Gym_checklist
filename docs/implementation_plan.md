@@ -1,4 +1,4 @@
-# Gym Checklist — Autonomous Implementation Plan
+# Gym Checklist — Implementation Plan
 
 > ## 2026-09-04 physical-acceptance expansion
 >
@@ -9,9 +9,9 @@
 > no-set-type statements in older task bodies. They remain subject to offline, owner-isolation, and zero-cost
 > acceptance constraints.
 
-This is the execution backlog for Codex. It is intentionally detailed enough to support long autonomous runs with minimal user interaction.
+This is the long-term implementation backlog and acceptance reference. It does not own the execution workflow.
 
-Codex must not implement tasks from titles alone. For every task, read the full task body and all referenced sections of `docs/product_spec.md`, `docs/ux_spec.md`, and `docs/architecture.md` before editing code.
+When implementing a task, read the full task body and the relevant canonical Product/UX/Architecture sections before editing code. ChatGPT orchestration and Codex delegation rules live in `CHATGPT_PROJECT_SOURCE.md`, `AGENTS.md`, and `docs/codex_instructions.md`.
 
 Status legend: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`. Pending qualifiers such as `IN PROGRESS (PENDING CI)`, `IN PROGRESS (PENDING LIVE)`, and `IN PROGRESS (PENDING EXTERNAL)` are allowed and are not equivalent to `DONE`.
 
@@ -48,7 +48,7 @@ Until the user explicitly accepts the functional MVP:
 - a green smoke run is a checkpoint, not a handoff;
 - do not stop after an intermediate simulator/device preview or in-memory demo;
 - prepare one completed physical-iPhone candidate using the real MVP architecture and all free live services available for acceptance;
-- do not spend Codex runtime waiting for CI. After dispatch, record run ID/scope/SHA; if no non-invalidating independent work remains, end the task and resume only after the run is terminal.
+- do not keep an execution task alive only to wait for CI. After dispatch, record run ID/scope/SHA; if no non-invalidating independent work remains, return control to ChatGPT and resume only after the run is terminal.
 
 This override changes scheduling and the current acceptance boundary only. It does not waive security, data integrity, destructive-action, or later paid-release requirements.
 
@@ -1352,10 +1352,10 @@ Prepare signing/build identity.
 **Goal**
 Obtain the external account/signing prerequisites for device/TestFlight distribution.
 
-**Codex behavior**
+**Execution note**
 - Batch all user actions into one checklist.
 - Do not ask piecemeal questions across multiple tasks.
-- Record the exact blocker in `docs/progress.md`. Stop only if the full remaining backlog scan finds no technically safe work without the external action; otherwise defer this task and continue safe work elsewhere.
+- Record the exact blocker in `docs/progress.md` and return control to ChatGPT. ChatGPT decides whether to continue with another safe backlog item.
 
 **Acceptance criteria**
 - Team/signing/provisioning path is known and available.
@@ -1428,7 +1428,7 @@ Document:
 - how the user sees it in TestFlight;
 - how to install/update;
 - how to report build number with bugs;
-- what Codex should do when the user says a specific beta is broken.
+- how a broken beta is reported back into the ChatGPT-led workflow.
 
 **Acceptance criteria**
 - User can update to the latest internal beta without App Store publication.
@@ -1551,22 +1551,13 @@ Prepare stable/release integration only after explicit user approval.
 
 ---
 
-## Autonomous execution rules
+## Execution ownership
 
-1. Reconstruct actual state from Git/code/tests and `docs/progress.md` before selecting work.
-2. Prefer the active `IN PROGRESS` task. If it is blocked, scan the entire remaining plan for another technically safe task instead of stopping at the first dependency chain.
-3. Task bodies, acceptance criteria, and dependencies in this file remain authoritative. Runtime task status in `docs/progress.md` plus actual Git/code state wins if a header status here is stale.
-4. For scheduling only, an implementation-complete dependency pending solely CI/live/external verification may be treated as provisionally satisfied when later implementation is safe without that missing evidence. This never makes the dependency `DONE` and never waives its acceptance criteria.
-5. Read the full task body plus referenced Product/UX/Architecture sections and apply required agents from `agents/routing.toml`.
-6. Mark active work accurately before substantial implementation.
-7. Implement the smallest complete safe solution, add/update required tests, and run the strongest available verification.
-8. Self-review against acceptance criteria, product scope, Today UX, architecture, security/privacy, offline behavior, and release rules. Fix established failures that can be resolved with available tools.
-9. Mark `DONE` only when all required acceptance and verification genuinely pass. Otherwise keep an accurate pending state such as `PENDING CI`, `PENDING LIVE`, or `PENDING EXTERNAL`.
-10. Update `docs/progress.md` after each meaningful checkpoint and make a focused commit when possible.
-11. Immediately continue to the next technically safe action. A task completion, milestone completion, commit, push, review, CI result, progress update, or known `Next:` action is not a stopping point.
-12. If the current task needs credentials, external configuration, live validation, or unavailable verification, finish every safe local part, record the deferred action, scan the full remaining backlog, and continue independent safe work.
-13. Stop only when all planned work is complete, the platform/model/tool limit actually ends execution, or no technically safe backlog work remains anywhere and one genuine terminal condition from `AGENTS.md` applies.
-14. Do not wait for or request a routine user `continue` message. A later fresh Desktop Codex task, if the platform itself forces an interruption, must reconstruct state from Git/docs and resume without asking the user to restate context.
+This file defines tasks, dependencies, and acceptance criteria only.
+
+Runtime status comes from actual Git/code/tests plus `docs/progress.md`. ChatGPT selects and sequences work under `CHATGPT_PROJECT_SOURCE.md` and `AGENTS.md`. Codex follows `docs/codex_instructions.md` only when ChatGPT delegates a bounded execution task.
+
+This plan does not authorize autonomous backlog scanning, autonomous continuation, parallel workers, or extra worktree checkouts.
 
 ## Future candidates — never implement automatically
 - Exercise images/videos/instructions.

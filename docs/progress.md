@@ -11,7 +11,7 @@
 
 ## Corrective candidate
 - Corrective production implementation commit: `ff551d68cce8569529796b1255ffb04965fd0b34`.
-- Exact repository candidate after syncing current `dev` workflow policy: `0174f2f75a7f37626f42cc7a1cfd3ad12f9a853c`.
+- Exact corrective candidate after the UI-test compile repair: `7e21450918134393d27dbf61737240d63bf75fa9`.
 - Changed production areas:
   - `GymChecklist/App/ContentView.swift`
   - `GymChecklist/Core/UI/GymTheme.swift`
@@ -20,7 +20,7 @@
   - `GymChecklist/Features/Program/ProgramView.swift`
   - `GymChecklist/Features/Settings/SettingsView.swift`
   - `GymChecklist/Features/Today/TodayView.swift`
-- Focused UI-test expectations were updated only where the frozen design intentionally removed old visible Settings summary text while preserving the same profile/BMI/body-weight behavior through accessibility values.
+- Focused UI-test expectations were updated only where the frozen design intentionally removed old visible Settings summary text while preserving the same profile/BMI/body-weight behavior through accessibility values. The follow-up `7e214509...` fixes three Settings assertions to use the helper available in the owning XCTestCase; production SwiftUI is unchanged by that repair.
 
 ## Latest verification
 - Frozen prototype source and snapshots remain the visual reference.
@@ -35,15 +35,15 @@
   - release workflow contract
   - iOS CI contract
   - `node --check functions/index.js`
-- Windows does not provide Xcode/SwiftUI compilation. The next automatic PR macOS smoke run is compile/runtime evidence, not final approval.
+- Automatic PR macOS smoke run `37331193427` is GREEN on exact candidate `7e21450918134393d27dbf61737240d63bf75fa9`, providing fresh SwiftUI compile/runtime and smoke-test evidence.
 - The previously built Phase 9 acceptance IPA from `4c655201...` is rejected as visual acceptance evidence and must not be reused as the final redesign build.
 
 ## Remote gate
-- `REMOTE_GATE_READY_FOR_FINAL_AUDIT 0174f2f75a7f37626f42cc7a1cfd3ad12f9a853c`
-- Prior approvals for `4526513...` / `4c655201...` are superseded by the corrective production changes.
-- A fresh Pass B must audit exactly `0174f2f75a7f37626f42cc7a1cfd3ad12f9a853c`.
-- If Pass B changes production/test/project code, return to Pass A with a new SHA.
-- Only a clean Pass B may approve and dispatch the exact-SHA macOS candidate/full gate.
+- `REMOTE_GATE_APPROVED 7e21450918134393d27dbf61737240d63bf75fa9`
+- Prior approvals for `4526513...` / `4c655201...` / `0174f2f...` are superseded.
+- Fresh independent Pass B audited exactly `7e21450918134393d27dbf61737240d63bf75fa9` in a detached clean worktree: full corrective scope reviewed; static contracts and `node --check functions/index.js` are GREEN; no production/test/project changes were required by the audit.
+- Automatic macOS smoke is GREEN on that same exact SHA.
+- The next authoritative action is one exact-SHA `candidate` macOS run with the focused navigation regression followed automatically by `candidate-full`. A red result revokes this approval.
 
 ## Remaining external proof
 - After a GREEN exact-SHA candidate/full gate, build a new unsigned Firebase-backed physical-iPhone acceptance IPA from the same approved corrective source.
@@ -51,7 +51,6 @@
 - Paid Apple distribution, live paid Apple capabilities, Firebase billing, paid deletion-function deployment if required, and `dev -> main` remain deferred.
 
 ## Next action
-1. Push the corrective Pass A commits to existing PR #6.
-2. Confirm automatic PR checks and independently audit exact candidate `0174f2f75a7f37626f42cc7a1cfd3ad12f9a853c`.
-3. If Pass B is clean, dispatch one exact-SHA macOS candidate/full gate.
-4. If GREEN, build and return a fresh acceptance IPA from that exact approved corrective source.
+1. Dispatch the exact-SHA macOS candidate/full gate for `7e21450918134393d27dbf61737240d63bf75fa9`.
+2. If GREEN, build a fresh unsigned Firebase-backed physical-iPhone acceptance IPA from that exact corrective source.
+3. Return the new artifact with a unique corrective-design filename/SHA and keep PR #6 unmerged until explicit user approval.

@@ -1,50 +1,120 @@
 import SwiftUI
 import UIKit
 
-/// Small semantic palette shared by the three product surfaces. The lime/mint
-/// accent stays restrained: it signals selection, completion, and primary
-/// actions while system surfaces continue to adapt to Light and Dark mode.
+/// Semantic palette and spacing derived from the frozen Phase 8 prototype.
+/// Callers use roles so Light/Dark remain adaptive without duplicating values.
 enum GymTheme {
-    /// Dark enough for white text on a primary control in either appearance.
-    static let accent = Color(red: 0.05, green: 0.40, blue: 0.23)
-    /// Keeps the mint character for icons and selection outlines while using a
-    /// contrast-safe green on light surfaces.
-    static let accentForeground = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.37, green: 0.77, blue: 0.54, alpha: 1)
-            : UIColor(red: 0.05, green: 0.40, blue: 0.23, alpha: 1)
-    })
-    static let accentSoft = accentForeground.opacity(0.16)
-    static let surface = Color(uiColor: .secondarySystemGroupedBackground)
-    static let elevatedSurface = Color(uiColor: .tertiarySystemGroupedBackground)
-    static let separator = Color(uiColor: .separator)
-    static let destructive = Color.red
-    static let mutedText = Color.secondary
-    static let cardBorder = Color.primary.opacity(0.08)
+    static let surfaceBase = semanticColor(light: rgb(245, 245, 247), dark: .black)
+    static let surfaceGrouped = semanticColor(light: .white, dark: rgb(28, 28, 30))
+    static let surfaceElevated = semanticColor(light: rgb(247, 247, 249), dark: rgb(44, 44, 46))
+    static let textPrimary = semanticColor(light: rgb(23, 23, 26), dark: rgb(244, 244, 246))
+    static let textSecondary = semanticColor(light: rgb(109, 109, 115), dark: rgb(166, 166, 171))
+    static let separator = semanticColor(light: rgb(216, 216, 220), dark: rgb(69, 69, 73))
+    static let borderSubtle = semanticColor(light: rgb(227, 227, 231), dark: rgb(52, 52, 56))
+    static let destructive = semanticColor(light: rgb(186, 26, 26), dark: rgb(255, 180, 171))
+    static let scrim = semanticColor(
+        light: UIColor.black.withAlphaComponent(0.28),
+        dark: UIColor.black.withAlphaComponent(0.48)
+    )
+
+    // Frozen green/lime/mint accent family.
+    static let accentFill = semanticColor(light: rgb(13, 102, 59), dark: rgb(32, 126, 76))
+    static let accentForeground = semanticColor(light: rgb(13, 102, 59), dark: rgb(112, 216, 155))
+    static let accentSoft = semanticColor(light: rgb(226, 241, 233), dark: rgb(25, 61, 42))
+
+    static let spacing4: CGFloat = 4
+    static let spacing8: CGFloat = 8
+    static let spacing12: CGFloat = 12
+    static let spacing16: CGFloat = 16
+    static let spacing20: CGFloat = 20
+    static let spacing24: CGFloat = 24
+    static let groupRadius: CGFloat = 14
+
+    // Compatibility aliases for existing callers.
+    static let accent = accentFill
+    static let surface = surfaceGrouped
+    static let elevatedSurface = surfaceElevated
+    static let mutedText = textSecondary
+    static let cardBorder = borderSubtle
+
+    private static func semanticColor(light: UIColor, dark: UIColor) -> Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? dark : light
+        })
+    }
+
+    private static func rgb(_ red: Int, _ green: Int, _ blue: Int) -> UIColor {
+        UIColor(
+            red: CGFloat(red) / 255,
+            green: CGFloat(green) / 255,
+            blue: CGFloat(blue) / 255,
+            alpha: 1
+        )
+    }
 }
 
 struct GymCard: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .padding(16)
-            .background(GymTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(GymTheme.spacing16)
+            .background(
+                GymTheme.surfaceGrouped,
+                in: RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(GymTheme.cardBorder, lineWidth: 1)
+                RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+                    .stroke(GymTheme.borderSubtle, lineWidth: 1)
             }
     }
 }
 
 struct GymSectionHeader: View {
     let title: String
+
     var body: some View {
         Text(title.uppercased())
             .font(.caption.weight(.semibold))
-            .foregroundStyle(GymTheme.mutedText)
+            .foregroundStyle(GymTheme.textSecondary)
             .tracking(0.5)
+    }
+}
+
+struct GymPrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .padding(.horizontal, GymTheme.spacing16)
+            .background(
+                GymTheme.accentFill.opacity(configuration.isPressed ? 0.82 : 1),
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+    }
+}
+
+struct GymSecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundStyle(GymTheme.accentForeground)
+            .frame(maxWidth: .infinity, minHeight: 46)
+            .padding(.horizontal, GymTheme.spacing16)
+            .background(
+                GymTheme.surfaceGrouped.opacity(configuration.isPressed ? 0.82 : 1),
+                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(GymTheme.borderSubtle, lineWidth: 1)
+            }
     }
 }
 
 extension View {
     func gymCard() -> some View { modifier(GymCard()) }
+
+    func gymPageBackground() -> some View {
+        background(GymTheme.surfaceBase.ignoresSafeArea())
+    }
 }

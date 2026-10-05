@@ -375,6 +375,8 @@ private struct AuthenticatedContentView: View {
         }
         .preferredColorScheme(settingsViewModel.preferredColorScheme)
         .tint(GymTheme.accentForeground)
+        .toolbarBackground(GymTheme.surfaceGrouped, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         .accessibilityIdentifier("authenticatedContent")
         .accessibilityValue(settingsViewModel.settings.appearance.rawValue)
     }

@@ -1,6 +1,8 @@
 name: MVP Physical iPhone Acceptance IPA
 
 on:
+  push:
+    branches: [ci/phase9-corrective-ipa]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +13,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     env:
-      APP_SOURCE_SHA: e17cb8173a6373059729226453c568e976954d33
+      APP_SOURCE_SHA: 7e21450918134393d27dbf61737240d63bf75fa9
       APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
       APP_DISPLAY_NAME: Gym Checklist
 
@@ -19,7 +21,7 @@ jobs:
       - name: Checkout accepted MVP app source
         uses: actions/checkout@v4
         with:
-          ref: e17cb8173a6373059729226453c568e976954d33
+          ref: 7e21450918134393d27dbf61737240d63bf75fa9
           fetch-depth: 1
           persist-credentials: false
 
@@ -132,10 +134,10 @@ jobs:
           cp -R "$APP_PATH" "$PACKAGE_DIRECTORY/Payload/GymChecklist.app"
           (
             cd "$PACKAGE_DIRECTORY"
-            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa" Payload
+            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-CorrectivePhase9-7e21450.ipa" Payload
           )
-          test -s "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa"
-          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa.sha256"
+          test -s "$ARTIFACT_DIRECTORY/GymChecklist-CorrectivePhase9-7e21450.ipa"
+          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-CorrectivePhase9-7e21450.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-CorrectivePhase9-7e21450.ipa.sha256"
           printf '%s\n' \
             "app source SHA: $APP_SOURCE_SHA" \
             "bundle ID: $APP_BUNDLE_ID" \
@@ -147,7 +149,7 @@ jobs:
       - name: Upload physical iPhone acceptance IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-MVP-e17cb81
+          name: GymChecklist-CorrectivePhase9-7e21450
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

@@ -127,6 +127,7 @@ struct TodayView: View {
             Text(dateLabel)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .accessibilityIdentifier("todayDate")
         }
         .accessibilityIdentifier("todayHeader")
         .accessibilityFocused($accessibilityFocus, equals: .header)

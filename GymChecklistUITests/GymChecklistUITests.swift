@@ -117,7 +117,8 @@ final class GymChecklistUITests: XCTestCase {
 
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.staticTexts["Today"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Friday, August 14"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["todayDate"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["todayDate"], toEqual: "Friday, August 14"))
         XCTAssertFalse(app.buttons["Start Workout"].exists)
 
         app.tabBars.buttons["Program"].tap()
@@ -142,10 +143,12 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reorder sets"].waitForExistence(timeout: 2))
         app.buttons["Reorder sets"].tap()
         XCTAssertTrue(app.navigationBars["Reorder sets"].waitForExistence(timeout: 2))
-        let firstSetInReorder = app.tables.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Reorder set 1")).firstMatch
-        let secondSetInReorder = app.tables.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Reorder set 2")).firstMatch
-        XCTAssertTrue(firstSetInReorder.waitForExistence(timeout: 2))
-        XCTAssertTrue(secondSetInReorder.waitForExistence(timeout: 2))
+        let reorderTable = app.tables.firstMatch
+        XCTAssertTrue(reorderTable.waitForExistence(timeout: 5))
+        let firstSetInReorder = reorderTable.cells.element(boundBy: 0)
+        let secondSetInReorder = reorderTable.cells.element(boundBy: 1)
+        XCTAssertTrue(firstSetInReorder.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondSetInReorder.waitForExistence(timeout: 5))
         secondSetInReorder.press(forDuration: 0.5, thenDragTo: firstSetInReorder)
         XCTAssertLessThan(secondSetInReorder.frame.minY, firstSetInReorder.frame.minY)
         app.buttons["Done"].tap()

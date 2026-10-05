@@ -61,7 +61,7 @@ jobs:
       # retains every diagnostic scope, including authoritative full/candidate.
       VERIFICATION_SCOPE: ${{ github.event_name == 'pull_request' && 'smoke' || github.event_name == 'push' && 'candidate' || inputs.verification_scope }}
       TEST_FILTER: ${{ github.event_name == 'push' && 'GymChecklistUITests/GymChecklistUITests/testAppLaunchesOnTodayAndNavigatesAllTabs' || inputs.test_filter || '' }}
-      CANDIDATE_SOURCE_SHA: ${{ github.event_name == 'push' && '7441844dd54b4b98094242fd051e5feea111d96e' || inputs.candidate_source_sha || '' }}
+      CANDIDATE_SOURCE_SHA: ${{ github.event_name == 'push' && 'f1e2e8605501351d2ad077eeb693cbbcd1d9ae7c' || inputs.candidate_source_sha || '' }}
 
     steps:
       - name: Checkout
@@ -69,7 +69,7 @@ jobs:
         with:
           # workflow_dispatch itself accepts only a branch or tag ref. Candidate
           # gates therefore receive and verify the immutable source commit here.
-          ref: ${{ github.event_name == 'push' && '7441844dd54b4b98094242fd051e5feea111d96e' || inputs.candidate_source_sha || github.sha }}
+          ref: ${{ github.event_name == 'push' && 'f1e2e8605501351d2ad077eeb693cbbcd1d9ae7c' || inputs.candidate_source_sha || github.sha }}
           fetch-depth: 1
 
       - name: Record Xcode version

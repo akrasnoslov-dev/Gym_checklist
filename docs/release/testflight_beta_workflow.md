@@ -22,10 +22,11 @@ the protected `testflight-internal` GitHub environment exactly as described in
    TestFlight, add the build to the Internal Testing group, then install or
    update it through the TestFlight app on the iPhone.
 6. Report bugs with the TestFlight build number, iPhone/iOS version, screen,
-   expected result, actual result, and reproducible steps. Codex should locate
-   the matching commit/workflow run, reproduce with an equivalent test where
-   possible, add a regression test, and create a newer build number after a
-   fix.
+   expected result, actual result, and reproducible steps. Bring the report back
+   to the ChatGPT project chat. ChatGPT should locate the matching commit/workflow
+   run, reproduce with an equivalent test where possible, add a regression test
+   directly or delegate the bounded execution step, and create a newer build
+   number after a fix.
 
 Apple processes uploaded builds before they appear in TestFlight. Internal
 testing is the first distribution target; external testing remains blocked on

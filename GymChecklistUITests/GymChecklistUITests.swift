@@ -39,7 +39,7 @@ final class GymChecklistUITests: XCTestCase {
 
         app.buttons["programCreateWorkout"].tap()
         XCTAssertTrue(app.buttons["programCreateBlank"].waitForExistence(timeout: 2))
-        app.buttons["programCreateBlank"].tap()
+        app.buttons.matching(identifier: "programCreateBlank").firstMatch.tap()
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
         XCTAssertFalse(app.buttons["programCreateWorkout"].exists)
@@ -468,7 +468,7 @@ final class GymChecklistUITests: XCTestCase {
         app.tabBars.buttons["Program"].tap()
         app.buttons["programCreateWorkout"].tap()
         XCTAssertTrue(app.buttons["programCreateBlank"].waitForExistence(timeout: 2))
-        app.buttons["programCreateBlank"].tap()
+        app.buttons.matching(identifier: "programCreateBlank").firstMatch.tap()
         app.tabBars.buttons["Today"].tap()
 
         XCTAssertTrue(app.descendants(matching: .any)["todayEmptyWorkoutState"].waitForExistence(timeout: 2))

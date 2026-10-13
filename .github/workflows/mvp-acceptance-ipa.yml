@@ -1,4 +1,4 @@
-name: MVP Physical iPhone Acceptance IPA
+name: PR6 iPhone Preview IPA
 
 on:
   push:
@@ -18,49 +18,14 @@ jobs:
       APP_DISPLAY_NAME: Gym Checklist
 
     steps:
-      - name: Require exact-source candidate/full gate success
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          import sys
-          import time
-          from urllib.request import Request, urlopen
-
-          run_url = "https://api.github.com/repos/akrasnoslov-dev/Gym_checklist/actions/runs/38468997022"
-          expected_source = "9af84993ff35e2e915e8efd7d62a0f15be97b320"
-          for _ in range(90):
-              req = Request(run_url, headers={
-                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
-                  "Accept": "application/vnd.github+json",
-                  "User-Agent": "GymChecklist-PR6-IPA",
-              })
-              with urlopen(req, timeout=30) as response:
-                  run = json.load(response)
-              if run.get("status") == "completed":
-                  if run.get("conclusion") != "success":
-                      sys.exit("Candidate/full gate not green: " + str(run.get("conclusion")))
-                  break
-              print("Waiting for exact-source candidate/full gate...", flush=True)
-              time.sleep(30)
-          else:
-              sys.exit("Candidate/full gate timed out")
-
-          # The gate job verifies the immutable source SHA.
-          print("GREEN candidate/full gate for " + expected_source, flush=True)
-          PY
-
-      - name: Checkout accepted MVP app source
+      - name: Checkout exact PR6 preview source
         uses: actions/checkout@v4
         with:
           ref: 9af84993ff35e2e915e8efd7d62a0f15be97b320
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Confirm accepted app source
+      - name: Confirm exact preview source
         shell: bash
         run: |
           set -euo pipefail
@@ -110,7 +75,7 @@ jobs:
           ln -s "$SOURCE_PACKAGES" "$DERIVED_PACKAGES"
           test -x "$DERIVED_PACKAGES/checkouts/firebase-ios-sdk/Crashlytics/run"
 
-      - name: Build unsigned Firebase-backed acceptance app
+      - name: Build unsigned Firebase-backed preview app
         shell: bash
         run: |
           set -euo pipefail
@@ -130,7 +95,7 @@ jobs:
             PRODUCT_BUNDLE_IDENTIFIER="$APP_BUNDLE_ID" \
             INFOPLIST_KEY_CFBundleDisplayName="$APP_DISPLAY_NAME"
 
-      - name: Validate unsigned Firebase acceptance app
+      - name: Validate unsigned Firebase preview app
         shell: bash
         run: |
           set -euo pipefail
@@ -157,7 +122,7 @@ jobs:
           test -n "$GOOGLE_CALLBACK_SCHEME"
           test "$BUILT_CALLBACK_SCHEME" = "$GOOGLE_CALLBACK_SCHEME"
 
-      - name: Package acceptance IPA
+      - name: Package preview IPA
         shell: bash
         run: |
           set -euo pipefail
@@ -169,22 +134,23 @@ jobs:
           cp -R "$APP_PATH" "$PACKAGE_DIRECTORY/Payload/GymChecklist.app"
           (
             cd "$PACKAGE_DIRECTORY"
-            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-9af8499.ipa" Payload
+            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-9af8499.ipa" Payload
           )
-          test -s "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-9af8499.ipa"
-          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-9af8499.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-9af8499.ipa.sha256"
+          test -s "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-9af8499.ipa"
+          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-9af8499.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-9af8499.ipa.sha256"
           printf '%s\n' \
             "app source SHA: $APP_SOURCE_SHA" \
             "bundle ID: $APP_BUNDLE_ID" \
             "configuration: Release" \
             "GitHub run ID: $GITHUB_RUN_ID" \
             "Firebase configuration present: yes" \
+            "QA status: preview only, full CI gate NOT approved" \
             > "$ARTIFACT_DIRECTORY/manifest.txt"
 
-      - name: Upload physical iPhone acceptance IPA
+      - name: Upload physical iPhone preview IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-PR6-Feedback-9af8499
+          name: GymChecklist-PR6-PREVIEW-9af8499
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

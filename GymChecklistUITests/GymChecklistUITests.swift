@@ -138,15 +138,19 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(secondStableBenchSet.waitForExistence(timeout: 2))
         let firstStableBenchSetIdentifier = firstStableBenchSet.identifier
         let secondStableBenchSetIdentifier = secondStableBenchSet.identifier
-        let secondSetDragHandle = app.descendants(matching: .any)
+        let setDragHandles = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSetDragHandle-"))
-            .element(boundBy: 1)
+        let firstSetDragHandle = setDragHandles.element(boundBy: 0)
+        let secondSetDragHandle = setDragHandles.element(boundBy: 1)
+        XCTAssertTrue(firstSetDragHandle.waitForExistence(timeout: 5))
         XCTAssertTrue(secondSetDragHandle.waitForExistence(timeout: 5))
-        secondSetDragHandle.press(forDuration: 0.8, thenDragTo: firstStableBenchSet)
-        XCTAssertTrue(firstStableBenchSet.waitForExistence(timeout: 5))
+        secondSetDragHandle.press(forDuration: 1.0, thenDragTo: firstSetDragHandle)
         let reorderedFirstStableBenchSet = app.buttons[firstStableBenchSetIdentifier]
         let reorderedSecondStableBenchSet = app.buttons[secondStableBenchSetIdentifier]
-        XCTAssertLessThan(reorderedSecondStableBenchSet.frame.minY, reorderedFirstStableBenchSet.frame.minY)
+        let didReorder = NSPredicate { _, _ in
+            reorderedSecondStableBenchSet.frame.minY < reorderedFirstStableBenchSet.frame.minY
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: didReorder, object: nil)], timeout: 5), .completed)
 
         firstBenchSet.tap()
         XCTAssertTrue(app.buttons["programSetEditorDelete"].waitForExistence(timeout: 2))

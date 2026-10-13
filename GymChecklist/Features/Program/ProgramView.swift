@@ -19,7 +19,6 @@ struct ProgramView: View {
     @State private var pendingDeletion: PendingExerciseDeletion?
     @State private var pendingWorkoutDeletion: LocalDate?
     @State private var pendingSetDeletion: PendingSetDeletion?
-    @State private var draggedSetID: WorkoutSetID?
     @State private var revealedDeleteSetID: WorkoutSetID?
     @State private var showsMutationError = false
 
@@ -691,10 +690,7 @@ struct ProgramView: View {
                             .contentShape(Rectangle())
                             .accessibilityLabel("Drag set \(setIndex + 1) to reorder")
                             .accessibilityIdentifier("programSetDragHandle-\(set.id.rawValue.uuidString)")
-                            .onDrag {
-                                draggedSetID = set.id
-                                return NSItemProvider(object: set.id.rawValue.uuidString as NSString)
-                            }
+                            .draggable(set.id.rawValue.uuidString)
                     }
                     .background(GymTheme.surfaceGrouped)
                     .offset(x: revealedDeleteSetID == set.id ? -72 : 0)
@@ -737,14 +733,14 @@ struct ProgramView: View {
                             revealedDeleteSetID = gesture.translation.width < -48 ? set.id : nil
                         }
                     )
-                    .onDrop(of: ["public.utf8-plain-text"], isTargeted: nil) { _ in
-                        guard let draggedSetID, draggedSetID != set.id,
-                              let from = sets.firstIndex(where: { $0.id == draggedSetID }),
+                    .dropDestination(for: String.self) { values, _ in
+                        guard let draggedUUID = values.first,
+                              draggedUUID != set.id.rawValue.uuidString,
+                              let from = sets.firstIndex(where: { $0.id.rawValue.uuidString == draggedUUID }),
                               let to = sets.firstIndex(where: { $0.id == set.id }) else { return false }
                         var ids = sets.map(\.id)
                         ids.move(fromOffsets: IndexSet(integer: from), toOffset: to + (from < to ? 1 : 0))
                         persistSetOrder(ids, in: exercise.id)
-                        self.draggedSetID = nil
                         return true
                     }
 

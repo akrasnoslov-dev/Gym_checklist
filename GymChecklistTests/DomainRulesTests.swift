@@ -163,6 +163,17 @@ final class WorkoutStatusTests: XCTestCase {
         XCTAssertEqual(past.calendarStatus(asOf: LocalDate(year: 2026, month: 8, day: 14)), .incomplete)
     }
 
+    func testPastPlaceholderWithNoScheduledSetsIsNotIncomplete() {
+        let pastDate = LocalDate(year: 2026, month: 8, day: 13)
+        let today = LocalDate(year: 2026, month: 8, day: 14)
+        XCTAssertEqual(workout(exercises: [], date: pastDate).calendarStatus(asOf: today), .planned)
+        XCTAssertEqual(workout(exercises: [exercise(completed: [])], date: pastDate).calendarStatus(asOf: today), .planned)
+        XCTAssertEqual(
+            workout(exercises: [exercise(completed: [false])], date: pastDate).calendarStatus(asOf: today),
+            .incomplete
+        )
+    }
+
     func testWorkoutDatesAreUniquePerUser() throws {
         let first = workout(exercises: [])
         var duplicate = first
@@ -1132,6 +1143,35 @@ final class LocalExerciseLibraryTests: XCTestCase {
         XCTAssertTrue(firstLibrary.search("not an exercise").isEmpty)
         XCTAssertEqual(secondLibrary.customExercises.first?.createdByUserID, UserID(rawValue: "user-b"))
     }
+
+    func testCustomExerciseRenameAndDeletePreserveOwnerAndRejectDuplicateNames() throws {
+        let owner = UserID(rawValue: "user-a")
+        var library = LocalExerciseLibrary(userID: owner)
+        let first = try library.createCustomExercise(name: "Nordic Hop").exercise
+        let second = try library.createCustomExercise(name: "Cable Hop").exercise
+
+        let renamed = try library.renameCustomExercise(id: first.id, to: "  Nordic   Jump  ")
+        XCTAssertEqual(renamed.name, "Nordic Jump")
+        XCTAssertEqual(renamed.id, first.id)
+        XCTAssertEqual(renamed.createdByUserID, owner)
+        XCTAssertEqual(library.search("nordic jump").first?.id, first.id)
+
+        XCTAssertThrowsError(try library.renameCustomExercise(id: first.id, to: " cable  hop ")) { error in
+            XCTAssertEqual(error as? LocalExerciseLibraryError, .duplicateName)
+        }
+        XCTAssertThrowsError(try library.renameCustomExercise(id: first.id, to: "Bench Press")) { error in
+            XCTAssertEqual(error as? LocalExerciseLibraryError, .duplicateName)
+        }
+        XCTAssertThrowsError(try library.renameCustomExercise(id: first.id, to: "   ")) { error in
+            XCTAssertEqual(error as? LocalExerciseLibraryError, .emptyName)
+        }
+
+        try library.removeCustomExercise(id: first.id)
+        XCTAssertEqual(library.customExercises.map(\.id), [second.id])
+        XCTAssertThrowsError(try library.removeCustomExercise(id: first.id)) { error in
+            XCTAssertEqual(error as? LocalExerciseLibraryError, .exerciseNotFound)
+        }
+    }
 }
 
 final class ProgramCalendarStateTests: XCTestCase {
@@ -2077,6 +2117,38 @@ final class WorkoutViewModelTests: XCTestCase {
             }
             XCTAssertEqual(repository.workout(on: date), beforeInvalid)
         }
+    }
+
+    func testFirstConfiguredSetTypeIsInheritedAndConflictsAreRejected() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID()
+        let first = WorkoutSetID()
+        let second = WorkoutSetID()
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [WorkoutSet(id: first, order: 0), WorkoutSet(id: second, order: 1)]
+        )]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date)
+
+        try viewModel.editSet(first, in: exerciseID, on: date, reps: 8, weight: 40, timeSeconds: 0, type: .weighted)
+        let inherited = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(inherited.map(\.type), [.weighted, .weighted])
+        let beforeConflict = repository.workout(on: date)
+        XCTAssertThrowsError(
+            try viewModel.editSet(second, in: exerciseID, on: date, reps: 0, weight: 0, timeSeconds: 30, type: .timed)
+        ) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .inconsistentSetType)
+        }
+        XCTAssertEqual(repository.workout(on: date), beforeConflict)
+        try viewModel.editSet(second, in: exerciseID, on: date, reps: 10, weight: 45, timeSeconds: 0, type: .weighted)
+        XCTAssertEqual(repository.workout(on: date)?.exercises.first?.sets[1].weight, 45)
     }
 
     func testHistoricalActualEditPersistsOnlyCompletedPastSet() throws {

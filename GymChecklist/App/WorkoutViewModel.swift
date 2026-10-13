@@ -16,6 +16,7 @@ enum ProgramPlanningError: Error, Equatable {
     case invalidExerciseOrder
     case invalidSetOrder
     case invalidSetValues
+    case inconsistentSetType
 }
 
 struct WorkoutRepeatResult: Equatable {
@@ -263,6 +264,21 @@ final class WorkoutViewModel: ObservableObject {
             analytics.log(.customExerciseCreated)
         }
         return result.exercise
+    }
+
+    func renameCustomExercise(_ id: ExerciseID, to name: String) throws {
+        var library = exerciseLibrary
+        let updated = try library.renameCustomExercise(id: id, to: name)
+        try customExerciseRepository?.save(updated)
+        exerciseLibrary = library
+    }
+
+    func deleteCustomExercise(_ id: ExerciseID) throws {
+        var library = exerciseLibrary
+        try library.removeCustomExercise(id: id)
+        try customExerciseRepository?.deleteCustomExercise(id: id)
+        // Existing workouts retain customName as a historical fallback.
+        exerciseLibrary = library
     }
 
     func addExercise(_ exercise: Exercise, to workoutDate: LocalDate) throws {
@@ -516,7 +532,30 @@ final class WorkoutViewModel: ObservableObject {
             guard let setIndex = exercise.sets.firstIndex(where: { $0.id == setID }) else {
                 throw ProgramPlanningError.workoutSetNotFound(setID)
             }
-            exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds, type: type)
+            let chosenType = type ?? exercise.sets[setIndex].type
+            let configuredOther = exercise.sets.first {
+                $0.id != setID && ($0.reps > 0 || $0.weight > 0 || $0.timeSeconds > 0)
+            }
+            // Preserve pre-existing mixed/legacy data. Do not allow a newly
+            // configured set to introduce another type into this exercise.
+            if let configuredOther, configuredOther.type != chosenType {
+                let current = exercise.sets[setIndex]
+                let preservesExistingLegacyValues =
+                    (current.reps > 0 || current.weight > 0 || current.timeSeconds > 0)
+                    && current.type == chosenType
+                guard preservesExistingLegacyValues else {
+                    throw ProgramPlanningError.inconsistentSetType
+                }
+            }
+            exercise.sets[setIndex].editPlan(reps: reps, weight: weight, timeSeconds: timeSeconds, type: chosenType)
+            if reps > 0 || weight > 0 || timeSeconds > 0 {
+                for index in exercise.sets.indices where index != setIndex {
+                    let sibling = exercise.sets[index]
+                    if !sibling.isCompleted && sibling.reps == 0 && sibling.weight == 0 && sibling.timeSeconds == 0 {
+                        exercise.sets[index].editPlan(reps: 0, weight: 0, timeSeconds: 0, type: chosenType)
+                    }
+                }
+            }
         }
     }
 

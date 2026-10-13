@@ -383,9 +383,9 @@ struct TodayView: View {
             after: statusAfterMutation
         )
         guard showsCompletionPopup else { return }
-        if let workoutID = viewModel.workout(on: currentDate)?.id {
-            completionContent = WorkoutCompletionContent.selected(for: workoutID)
-        }
+        // Vary the celebration each time. Do not lock artwork to workout ID.
+        let alternatives = WorkoutCompletionContent.allCases.filter { $0 != completionContent }
+        completionContent = alternatives.randomElement() ?? .crushed
         completionRestoreFocus = restoreFocus
         DispatchQueue.main.async {
             accessibilityFocus = .completionOverlay
@@ -542,9 +542,9 @@ private struct TodaySetEditorSheet: View {
     let onSave: (Int, Double, Int) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var reps: Int
-    @State private var weight: Double
-    @State private var timeSeconds: Int
+    @State private var repsText: String
+    @State private var weightText: String
+    @State private var timeText: String
     @State private var showsValidationError = false
     @State private var showsSaveError = false
 
@@ -556,9 +556,18 @@ private struct TodaySetEditorSheet: View {
         self.route = route
         self.weightUnit = weightUnit
         self.onSave = onSave
-        _reps = State(initialValue: route.workoutSet.displayedReps)
-        _weight = State(initialValue: weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight))
-        _timeSeconds = State(initialValue: route.workoutSet.displayedTimeSeconds)
+        _repsText = State(initialValue: String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps))
+        _weightText = State(initialValue: String(weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)) == "0.0" ? "" : String(weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)))
+        _timeText = State(initialValue: String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds))
+    }
+
+    private var reps: Int { Int(repsText) ?? 0 }
+    private var weight: Double { Double(weightText.replacingOccurrences(of: ",", with: ".")) ?? 0 }
+    private var timeSeconds: Int { Int(timeText) ?? 0 }
+    private var inputsAreValid: Bool {
+        (repsText.isEmpty || Int(repsText) != nil)
+            && (timeText.isEmpty || Int(timeText) != nil)
+            && (weightText.isEmpty || Double(weightText.replacingOccurrences(of: ",", with: ".")) != nil)
     }
 
     var body: some View {
@@ -569,19 +578,19 @@ private struct TodaySetEditorSheet: View {
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                     if route.workoutSet.displayedType != .timed {
-                        TextField("Reps", value: $reps, format: .number)
+                        TextField("Reps", text: $repsText)
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("todaySetEditorReps")
                     }
                     if route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed {
-                        TextField("Weight", value: $weight, format: .number.precision(.fractionLength(0...2)))
+                        TextField("Weight", text: $weightText)
                             .keyboardType(.decimalPad)
                             .accessibilityIdentifier("todaySetEditorWeight")
                         LabeledContent("Unit", value: weightUnit.rawValue)
                             .accessibilityIdentifier("todaySetEditorWeightUnit")
                     }
                     if route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed {
-                        TextField("Time (seconds)", value: $timeSeconds, format: .number)
+                        TextField("Time (seconds)", text: $timeText)
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("todaySetEditorTime")
                     }
@@ -595,6 +604,7 @@ private struct TodaySetEditorSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        guard inputsAreValid else { showsValidationError = true; return }
                         do {
                             try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
                             dismiss()

@@ -138,22 +138,12 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(secondStableBenchSet.waitForExistence(timeout: 2))
         let firstStableBenchSetIdentifier = firstStableBenchSet.identifier
         let secondStableBenchSetIdentifier = secondStableBenchSet.identifier
-        let secondBenchSetActions = app.buttons["Actions for set 2 for Bench Press"]
-        XCTAssertTrue(secondBenchSetActions.waitForExistence(timeout: 2))
-        secondBenchSetActions.tap()
-        XCTAssertTrue(app.buttons["Reorder sets"].waitForExistence(timeout: 2))
-        app.buttons["Reorder sets"].tap()
-        XCTAssertTrue(app.navigationBars["Reorder sets"].waitForExistence(timeout: 2))
-        let reorderTable = app.tables.firstMatch
-        XCTAssertTrue(reorderTable.waitForExistence(timeout: 5))
-        let firstSetInReorder = reorderTable.cells.element(boundBy: 0)
-        let secondSetInReorder = reorderTable.cells.element(boundBy: 1)
-        XCTAssertTrue(firstSetInReorder.waitForExistence(timeout: 5))
-        XCTAssertTrue(secondSetInReorder.waitForExistence(timeout: 5))
-        secondSetInReorder.press(forDuration: 0.5, thenDragTo: firstSetInReorder)
-        XCTAssertLessThan(secondSetInReorder.frame.minY, firstSetInReorder.frame.minY)
-        app.buttons["Done"].tap()
-        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+        let secondSetDragHandle = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSetDragHandle-"))
+            .element(boundBy: 1)
+        XCTAssertTrue(secondSetDragHandle.waitForExistence(timeout: 5))
+        secondSetDragHandle.press(forDuration: 0.8, thenDragTo: firstStableBenchSet)
+        XCTAssertTrue(firstStableBenchSet.waitForExistence(timeout: 5))
         let reorderedFirstStableBenchSet = app.buttons[firstStableBenchSetIdentifier]
         let reorderedSecondStableBenchSet = app.buttons[secondStableBenchSetIdentifier]
         XCTAssertLessThan(reorderedSecondStableBenchSet.frame.minY, reorderedFirstStableBenchSet.frame.minY)

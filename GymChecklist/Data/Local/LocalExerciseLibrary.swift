@@ -2,6 +2,8 @@ import Foundation
 
 enum LocalExerciseLibraryError: Error, Equatable {
     case emptyName
+    case exerciseNotFound
+    case duplicateName
 }
 
 enum LocalExerciseCreationResult: Equatable {
@@ -67,6 +69,26 @@ struct LocalExerciseLibrary {
         )
         customExercises.append(exercise)
         return .created(exercise)
+    }
+
+    mutating func renameCustomExercise(id: ExerciseID, to name: String) throws -> Exercise {
+        let normalizedName = Self.collapsingWhitespace(in: name)
+        guard !normalizedName.isEmpty else { throw LocalExerciseLibraryError.emptyName }
+        guard let index = customExercises.firstIndex(where: { $0.id == id }) else {
+            throw LocalExerciseLibraryError.exerciseNotFound
+        }
+        guard !allExercises.contains(where: {
+            $0.id != id && Self.searchKey(for: $0.name) == Self.searchKey(for: normalizedName)
+        }) else { throw LocalExerciseLibraryError.duplicateName }
+        customExercises[index].name = normalizedName
+        return customExercises[index]
+    }
+
+    mutating func removeCustomExercise(id: ExerciseID) throws {
+        guard customExercises.contains(where: { $0.id == id }) else {
+            throw LocalExerciseLibraryError.exerciseNotFound
+        }
+        customExercises.removeAll { $0.id == id }
     }
 
     func search(_ query: String) -> [Exercise] {

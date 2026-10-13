@@ -130,7 +130,7 @@ For selected date:
 
 Current/future Program rows use the whole set row as the edit affordance; do not repeat trailing `Edit`, `Edit plan`, or `Edit actual` labels on every row. A completed set remains visually legible and editing its plan must not overwrite its recorded actual value. Past dates use the same Program hierarchy and tapping an editable recorded result edits actual values.
 
-Exercise reorder and set reorder are separate focused native flows. Reorder exercises shows exercise rows only; reorder sets shows only the sets for the selected exercise. Both use native move/drag behavior and a clear Done action.
+Exercise reorder retains its focused native list. Set reorder happens inline in Program using visible drag handles per set; no separate Reorder sets sheet or per-set ellipsis is required. Swipe left on a Program set row to expose Delete, with confirmation. A tap on the set row still edits the set.
 
 Do not surface history analytics here; past dates simply show actual completion/results.
 
@@ -138,7 +138,8 @@ Do not surface history analytics here; past dates simply show actual completion/
 - Search at top.
 - Common/system exercises listed below.
 - `Add custom exercise` visible but secondary.
-- No exercise images/videos in MVP.
+- User-owned custom exercises offer Rename and Delete in the picker. Existing workout records keep their exercise-name fallback after deletion.
+- A richer system catalog, muscle-group filtering, alphabetical sorting, and per-exercise illustrations are deferred to a separate feature PR. No exercise images/videos in the current MVP.
 
 ## 9. Custom exercise
 Minimum field:
@@ -152,7 +153,19 @@ Compact sheet/flow:
 - destination date selector,
 - Copy action.
 
+Users may copy historical workouts into a different date; source is selectable among existing workouts. A blank future date offers a direct Copy existing workout entry, without first creating an empty workout. Do not replace an occupied destination.
+
 Do not copy completion state.
+
+### Physical-device corrective feedback (October 2026)
+- Empty historical placeholder workouts with no scheduled sets remain Planned, not Incomplete.
+- The Week/Month date symbols and the status legend share one semantic color and symbol vocabulary.
+- Avoid repeating the selected calendar date visually in the workout detail header; preserve it for accessibility.
+- Planning auto-saves. Show clear "Saved on device" feedback and distinguish local persistence from offline/cloud sync where available.
+- Show empty numeric inputs as placeholders rather than pre-filled zeroes; saving an intentionally empty value still uses domain zero.
+- Once the first set has configured nonzero plan values, its type constrains other newly configured sets within that exercise. Preserve pre-existing mixed/legacy workouts and completed actual data.
+- Confirmation dialogs should be attached to the initiating control, not a distant page-level container.
+- Completion feedback uses multiple distinct whimsical illustrations and changes on repeat celebrations.
 
 ## 11. Repeat workout
 Compact sheet:

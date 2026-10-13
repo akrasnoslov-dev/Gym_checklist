@@ -5,10 +5,14 @@ struct ExercisePickerView: View {
     @State private var query = ""
     @State private var showsCustomExercise = false
     @State private var errorMessage: String?
+    @State private var editingCustomExercise: Exercise?
+    @State private var pendingCustomDelete: Exercise?
     @AccessibilityFocusState private var accessibilityFocus: AccessibilityFocusTarget?
 
     let search: (String) -> [Exercise]
     let createCustom: (String) throws -> Exercise
+    let renameCustom: (ExerciseID, String) throws -> Void
+    let deleteCustom: (ExerciseID) throws -> Void
     let onSelect: (Exercise) throws -> Void
 
     private var results: [Exercise] { search(query) }
@@ -52,7 +56,43 @@ struct ExercisePickerView: View {
                 if !customResults.isEmpty {
                     Section("Your exercises") {
                         ForEach(customResults) { exercise in
-                            exerciseButton(exercise)
+                            HStack(spacing: GymTheme.spacing8) {
+                                exerciseButton(exercise)
+                                Menu {
+                                    Button("Rename", systemImage: "pencil") {
+                                        editingCustomExercise = exercise
+                                    }
+                                    Button("Delete", systemImage: "trash", role: .destructive) {
+                                        pendingCustomDelete = exercise
+                                    }
+                                } label: {
+                                    Image(systemName: "ellipsis")
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(Rectangle())
+                                }
+                                .accessibilityLabel("Manage \(exercise.name)")
+                                .accessibilityIdentifier("exercisePickerManage-\(exercise.id.rawValue.uuidString)")
+                                .confirmationDialog(
+                                    "Delete \(exercise.name)?",
+                                    isPresented: Binding(
+                                        get: { pendingCustomDelete?.id == exercise.id },
+                                        set: { if !$0 { pendingCustomDelete = nil } }
+                                    ),
+                                    titleVisibility: .visible
+                                ) {
+                                    Button("Delete exercise", role: .destructive) {
+                                        do {
+                                            try deleteCustom(exercise.id)
+                                        } catch {
+                                            errorMessage = "Exercise could not be deleted. Try again."
+                                        }
+                                        pendingCustomDelete = nil
+                                    }
+                                    Button("Cancel", role: .cancel) { pendingCustomDelete = nil }
+                                } message: {
+                                    Text("Existing workouts will keep their exercise history.")
+                                }
+                            }
                         }
                     }
                 }
@@ -98,6 +138,15 @@ struct ExercisePickerView: View {
                         .accessibilityIdentifier("exercisePickerCancel")
                 }
             }
+            .sheet(item: $editingCustomExercise) { exercise in
+                NavigationStack {
+                    CustomExerciseView(initialName: exercise.name, actionTitle: "Save changes") { name in
+                        try renameCustom(exercise.id, name)
+                        editingCustomExercise = nil
+                    }
+                }
+            }
+
             .navigationDestination(isPresented: $showsCustomExercise) {
                 CustomExerciseView(initialName: normalizedQuery) { name in
                     let exercise = try createCustom(name)
@@ -157,9 +206,11 @@ private struct CustomExerciseView: View {
     @AccessibilityFocusState private var isErrorFocused: Bool
 
     let onSave: (String) throws -> Void
+    let actionTitle: String
 
-    init(initialName: String, onSave: @escaping (String) throws -> Void) {
+    init(initialName: String, actionTitle: String = "Add exercise", onSave: @escaping (String) throws -> Void) {
         _name = State(initialValue: initialName)
+        self.actionTitle = actionTitle
         self.onSave = onSave
     }
 
@@ -201,7 +252,7 @@ private struct CustomExerciseView: View {
                         .accessibilityIdentifier("customExerciseError")
                 }
 
-                Button("Add exercise", action: save)
+                Button(actionTitle, action: save)
                     .buttonStyle(GymPrimaryButtonStyle())
                     .disabled(normalizedName.isEmpty)
                     .opacity(normalizedName.isEmpty ? 0.55 : 1)

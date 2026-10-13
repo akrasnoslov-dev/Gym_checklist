@@ -1,5 +1,12 @@
 # Gym Checklist — Progress Checkpoint
 
+## 2026-10-13 physical-device feedback (IN PROGRESS)
+- User reviewed the PR #6 corrective design on iPhone and approved fixes covering Program statuses, old-workout copying, calmer date hierarchy, contextual delete presentation, custom exercise rename/delete, blank numeric inputs, inline drag/swipe set actions, visible local-save feedback, exercise-wide set type, and varied new completion art.
+- Existing PR #6 remains Draft and unmerged; all these changes belong in the same PR. Expanded exercise catalog/filtering/illustrations is deferred to a separate PR after PR #6 is accepted.
+- Current source changes are a new corrective candidate, NOT yet a passed gate or accepted iPhone build. Do not reuse older green evidence or IPA as acceptance of this new tree.
+- Next gate sequence: validate current diff and relevant tests, push exact commit, inspect macOS smoke, perform independent Pass B, then one exact-SHA candidate/full run. After GREEN only, rebuild Firebase unsigned IPA from the same exact SHA, download to Windows, verify SHA256, and compare on iPhone.
+- The underlying repo `dev` documentation can be stale because active PR #6 remains unmerged; source of truth for current corrective changes is PR #6 head and its actual code/test diff.
+
 ## Current state
 - The functional MVP baseline remains implemented; paid Apple distribution/release work is still deferred.
 - Phase 8 Design Freeze is APPROVED/COMPLETE. Frozen visual source: `2457a7beee4205e4a5e8fb51e219aea1a46ca5fa`.

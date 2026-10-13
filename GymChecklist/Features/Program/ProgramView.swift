@@ -714,10 +714,11 @@ struct ProgramView: View {
                                 }
                                 .onEnded { value in
                                     let delta = value.translation
-                                    guard abs(delta.width) > abs(delta.height) * 1.3 else { return }
                                     withAnimation(.spring(response: 0.25, dampingFraction: 0.86)) {
-                                        let remainsOpen = revealedDeleteSetID == set.id && delta.width < 35
-                                        revealedDeleteSetID = delta.width < -35 || remainsOpen ? set.id : nil
+                                        if abs(delta.width) > abs(delta.height) * 1.3 {
+                                            let remainsOpen = revealedDeleteSetID == set.id && delta.width < 35
+                                            revealedDeleteSetID = delta.width < -35 || remainsOpen ? set.id : nil
+                                        }
                                         draggingDeleteOffsets.removeValue(forKey: set.id)
                                     }
                                 }

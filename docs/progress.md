@@ -1,5 +1,11 @@
 # Gym Checklist — Progress Checkpoint
 
+## 2026-10-13 PR #6 corrective feedback batch (UNVERIFIED)
+- User supplied five further physical-iPhone findings in `design comments5.docx`: date-switch layout movement, mismatched source/destination date pickers, redundant separate create/copy actions, broken inline set reorder/swipe delete, and whole-number weight appearing as `55.0`.
+- Current PR #6 corrective batch: stable toolbar slot and no forced selected-date subtree recreation; Create workout now offers Start blank/Copy existing; source and destination both use compact calendar pickers with valid-source checks; set rows use independent drag handles and a live animated horizontal delete reveal; weight inputs use up-to-two-decimal formatting in Today, Program plan, and past actual editor.
+- Focused iOS UI regressions added for create/copy, Program swipe-to-delete, and decimal-free weight entry.
+- This is an implementation checkpoint only, NOT a GREEN Xcode gate or physical-iPhone acceptance. PR #6 remains Draft/unmerged. Inspect automatic PR smoke, then a separate final audit and exact-SHA candidate/full gate before a new physical-iPhone IPA.
+
 ## 2026-10-13 physical-device feedback (IN PROGRESS)
 - User reviewed the PR #6 corrective design on iPhone and approved fixes covering Program statuses, old-workout copying, calmer date hierarchy, contextual delete presentation, custom exercise rename/delete, blank numeric inputs, inline drag/swipe set actions, visible local-save feedback, exercise-wide set type, and varied new completion art.
 - Existing PR #6 remains Draft and unmerged; all these changes belong in the same PR. Expanded exercise catalog/filtering/illustrations is deferred to a separate PR after PR #6 is accepted.

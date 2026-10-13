@@ -226,6 +226,56 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
     }
 
+    func testProgramSetSwipeRevealsDeleteWithoutOpeningEditor() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let set = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(reveal(set, in: app))
+        set.swipeLeft()
+        let delete = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Delete set ")
+        ).firstMatch
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.navigationBars["Edit set"].exists)
+        delete.tap()
+        XCTAssertTrue(app.buttons["programConfirmDeleteSet"].waitForExistence(timeout: 3))
+    }
+
+    func testWholeWeightInputsShowNoTrailingDecimal() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        let todaySet = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "todaySet-")
+        ).firstMatch
+        XCTAssertTrue(todaySet.waitForExistence(timeout: 5))
+        todaySet.press(forDuration: 0.8)
+        let todayWeight = app.textFields["todaySetEditorWeight"]
+        XCTAssertTrue(todayWeight.waitForExistence(timeout: 3))
+        XCTAssertEqual(todayWeight.value as? String, "60")
+        app.buttons["todaySetEditorCancel"].tap()
+
+        openProgram(app)
+        let programSet = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(reveal(programSet, in: app))
+        programSet.tap()
+        let programWeight = app.textFields["programSetEditorWeight"]
+        XCTAssertTrue(programWeight.waitForExistence(timeout: 3))
+        XCTAssertEqual(programWeight.value as? String, "60")
+    }
+
     func testProgramMonthUsesMondayFirstHeadersAndPreservesSelectionWhenReturningToWeek() {
         let app = XCUIApplication()
         app.launchEnvironment["UITESTING"] = "1"

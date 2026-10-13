@@ -21,6 +21,8 @@ struct ProgramView: View {
     @State private var pendingSetDeletion: PendingSetDeletion?
     @State private var revealedDeleteSetID: WorkoutSetID?
     @State private var draggingDeleteOffsets: [WorkoutSetID: CGFloat] = [:]
+    @State private var draggingSetID: WorkoutSetID?
+    @State private var draggingSetOffset: CGFloat = 0
     @State private var showsCreateOptions = false
     @State private var showsMutationError = false
 
@@ -72,6 +74,8 @@ struct ProgramView: View {
                 displayedMonth = selectedDate
                 revealedDeleteSetID = nil
                 draggingDeleteOffsets.removeAll()
+                draggingSetID = nil
+                draggingSetOffset = 0
             }
             .onChange(of: viewModel.selectedDate) { _, selectedDate in
                 if displayedSelectedDate != selectedDate {
@@ -734,10 +738,43 @@ struct ProgramView: View {
                             .accessibilityLabel("Drag set \(setIndex + 1) to reorder")
                             .accessibilityHint("Press and hold, then move up or down")
                             .accessibilityIdentifier("programSetDragHandle-\(set.id.rawValue.uuidString)")
-                            .draggable(set.id.rawValue.uuidString)
+                            .gesture(
+                                DragGesture(minimumDistance: 5)
+                                    .onChanged { value in
+                                        draggingSetID = set.id
+                                        draggingSetOffset = value.translation.height
+                                        revealedDeleteSetID = nil
+                                    }
+                                    .onEnded { value in
+                                        let rowStep: CGFloat = 53
+                                        let deltaRows = Int((value.translation.height / rowStep).rounded())
+                                        let targetIndex = min(max(setIndex + deltaRows, 0), sets.count - 1)
+                                        if targetIndex != setIndex {
+                                            var ids = sets.map(\.id)
+                                            ids.move(
+                                                fromOffsets: IndexSet(integer: setIndex),
+                                                toOffset: targetIndex + (targetIndex > setIndex ? 1 : 0)
+                                            )
+                                            persistSetOrder(ids, in: exercise.id)
+                                        }
+                                        withAnimation(.spring(response: 0.24, dampingFraction: 0.84)) {
+                                            draggingSetID = nil
+                                            draggingSetOffset = 0
+                                        }
+                                    }
+                            )
                     }
                     .background(GymTheme.surfaceGrouped)
-                    .offset(x: draggingDeleteOffsets[set.id] ?? (revealedDeleteSetID == set.id ? -72 : 0))
+                    .offset(
+                        x: draggingDeleteOffsets[set.id] ?? (revealedDeleteSetID == set.id ? -72 : 0),
+                        y: draggingSetID == set.id ? draggingSetOffset : 0
+                    )
+                    .scaleEffect(draggingSetID == set.id ? 1.015 : 1)
+                    .shadow(
+                        color: draggingSetID == set.id ? .black.opacity(0.16) : .clear,
+                        radius: 5, y: 3
+                    )
+                    .zIndex(draggingSetID == set.id ? 2 : 0)
                     .animation(.easeOut(duration: 0.18), value: revealedDeleteSetID)
                     .background(alignment: .trailing) {
                         Button(role: .destructive) {
@@ -771,16 +808,6 @@ struct ProgramView: View {
                         } message: {
                             Text("This set will be removed from the workout.")
                         }
-                    }
-                    .dropDestination(for: String.self) { values, _ in
-                        guard let draggedUUID = values.first,
-                              draggedUUID != set.id.rawValue.uuidString,
-                              let from = sets.firstIndex(where: { $0.id.rawValue.uuidString == draggedUUID }),
-                              let to = sets.firstIndex(where: { $0.id == set.id }) else { return false }
-                        var ids = sets.map(\.id)
-                        ids.move(fromOffsets: IndexSet(integer: from), toOffset: to + (from < to ? 1 : 0))
-                        persistSetOrder(ids, in: exercise.id)
-                        return true
                     }
 
                     if set.id != sets.last?.id {

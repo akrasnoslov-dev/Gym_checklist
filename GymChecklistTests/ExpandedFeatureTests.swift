@@ -337,15 +337,16 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(added.weight, 60)
         XCTAssertEqual(added.timeSeconds, 45)
 
-        try viewModel.editSet(
+        // Existing mixed sets survive copy/repeat, but an individual set may
+        // not change to a conflicting type while its siblings remain mixed.
+        let beforeRejectedEdit = repository.workout(on: copyDate)
+        XCTAssertThrowsError(try viewModel.editSet(
             added.id, in: copiedExercise.id, on: copyDate,
             reps: 10, weight: 70, timeSeconds: 30, type: .weighted
-        )
-        let explicitlyTyped = try XCTUnwrap(repository.workout(on: copyDate)?.exercises.first?.sets.last)
-        XCTAssertEqual(explicitlyTyped.type, .weighted)
-        XCTAssertEqual(explicitlyTyped.reps, 10)
-        XCTAssertEqual(explicitlyTyped.weight, 70)
-        XCTAssertEqual(explicitlyTyped.timeSeconds, 0)
+        )) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .inconsistentSetType)
+        }
+        XCTAssertEqual(repository.workout(on: copyDate), beforeRejectedEdit)
     }
 
     func testSetTypesHideIrrelevantMetricsAndFormatterUsesOnlyTheChosenType() {

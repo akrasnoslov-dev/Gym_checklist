@@ -557,7 +557,8 @@ private struct TodaySetEditorSheet: View {
         self.weightUnit = weightUnit
         self.onSave = onSave
         _repsText = State(initialValue: String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps))
-        _weightText = State(initialValue: String(weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)) == "0.0" ? "" : String(weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)))
+        let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)
+        _weightText = State(initialValue: displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2))))
         _timeText = State(initialValue: String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds))
     }
 

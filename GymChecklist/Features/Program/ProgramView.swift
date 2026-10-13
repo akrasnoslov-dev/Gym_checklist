@@ -20,6 +20,8 @@ struct ProgramView: View {
     @State private var pendingWorkoutDeletion: LocalDate?
     @State private var pendingSetDeletion: PendingSetDeletion?
     @State private var revealedDeleteSetID: WorkoutSetID?
+    @State private var draggingDeleteOffsets: [WorkoutSetID: CGFloat] = [:]
+    @State private var showsCreateOptions = false
     @State private var showsMutationError = false
 
     init(viewModel: WorkoutViewModel, weightUnit: WeightUnit) {
@@ -52,9 +54,7 @@ struct ProgramView: View {
 
                     // Program navigation updates both date controls and the
                     // selected day's content inside one dynamic hierarchy.
-                    ForEach([displayedSelectedDate], id: \.self) { _ in
-                        selectedDateSections
-                    }
+                    selectedDateSections
                 }
                 .padding(.horizontal, GymTheme.spacing16)
                 .padding(.vertical, GymTheme.spacing20)
@@ -70,6 +70,8 @@ struct ProgramView: View {
             .onChange(of: displayedSelectedDate) { _, selectedDate in
                 viewModel.select(selectedDate)
                 displayedMonth = selectedDate
+                revealedDeleteSetID = nil
+                draggingDeleteOffsets.removeAll()
             }
             .onChange(of: viewModel.selectedDate) { _, selectedDate in
                 if displayedSelectedDate != selectedDate {
@@ -77,7 +79,8 @@ struct ProgramView: View {
                 }
             }
             .toolbar {
-                if let workout = calendarState.selectedWorkout {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if let workout = calendarState.selectedWorkout {
                     Menu {
                         Button {
                             copyWorkoutRoute = CopyWorkoutRoute(
@@ -119,6 +122,11 @@ struct ProgramView: View {
                         Button("Cancel", role: .cancel) { pendingWorkoutDeletion = nil }
                     } message: {
                         Text("All exercises, sets, and recorded results for this date will be removed.")
+                    }
+                    } else {
+                        Color.clear
+                            .frame(width: 44, height: 44)
+                            .accessibilityHidden(true)
                     }
                 }
             }
@@ -467,19 +475,32 @@ struct ProgramView: View {
                     .foregroundStyle(GymTheme.textSecondary)
                     .multilineTextAlignment(.center)
                 if !isHistorical {
-                    if let source = viewModel.workouts.sorted(by: { $0.localDate < $1.localDate }).last {
-                        Button("Copy existing workout") {
-                            copyWorkoutRoute = CopyWorkoutRoute(sourceDate: source.localDate, exerciseCount: source.exercises.count, setCount: source.exercises.flatMap(\.sets).count, destinationDate: calendarState.selectedDate)
-                        }
-                        .buttonStyle(GymSecondaryButtonStyle())
-                        .accessibilityIdentifier("programCopyExistingWorkout")
-                    }
                     Button("Create workout") {
-                        viewModel.createSelectedWorkout()
+                        showsCreateOptions = true
                     }
                     .buttonStyle(GymPrimaryButtonStyle())
                     .frame(maxWidth: 240)
                     .accessibilityIdentifier("programCreateWorkout")
+                    .confirmationDialog("Create workout", isPresented: $showsCreateOptions, titleVisibility: .visible) {
+                        Button("Start blank") {
+                            viewModel.createSelectedWorkout()
+                        }
+                        .accessibilityIdentifier("programCreateBlank")
+                        if let source = viewModel.workouts.sorted(by: { $0.localDate < $1.localDate }).last {
+                            Button("Copy existing workout") {
+                                copyWorkoutRoute = CopyWorkoutRoute(
+                                    sourceDate: source.localDate,
+                                    exerciseCount: source.exercises.count,
+                                    setCount: source.exercises.flatMap(\.sets).count,
+                                    destinationDate: calendarState.selectedDate
+                                )
+                            }
+                            .accessibilityIdentifier("programCopyExistingWorkout")
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Start empty or copy exercises and sets from another day.")
+                    }
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 280)
@@ -683,17 +704,40 @@ struct ProgramView: View {
                             type: set.displayedType
                         ))
                         .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
+                        .highPriorityGesture(
+                            DragGesture(minimumDistance: 18)
+                                .onChanged { value in
+                                    let delta = value.translation
+                                    guard abs(delta.width) > abs(delta.height) * 1.3 else { return }
+                                    let origin: CGFloat = revealedDeleteSetID == set.id ? -72 : 0
+                                    draggingDeleteOffsets[set.id] = max(-72, min(0, origin + delta.width))
+                                }
+                                .onEnded { value in
+                                    let delta = value.translation
+                                    guard abs(delta.width) > abs(delta.height) * 1.3 else { return }
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.86)) {
+                                        let remainsOpen = revealedDeleteSetID == set.id && delta.width < 35
+                                        revealedDeleteSetID = delta.width < -35 || remainsOpen ? set.id : nil
+                                        draggingDeleteOffsets.removeValue(forKey: set.id)
+                                    }
+                                }
+                        )
 
                         Image(systemName: "line.3.horizontal")
-                            .foregroundStyle(GymTheme.textSecondary)
-                            .frame(width: 44, height: 44)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(GymTheme.accentForeground)
+                            .frame(width: 40, height: 40)
+                            .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 9))
+                            .padding(.trailing, 4)
                             .contentShape(Rectangle())
                             .accessibilityLabel("Drag set \(setIndex + 1) to reorder")
+                            .accessibilityHint("Press and hold, then move up or down")
                             .accessibilityIdentifier("programSetDragHandle-\(set.id.rawValue.uuidString)")
                             .draggable(set.id.rawValue.uuidString)
                     }
                     .background(GymTheme.surfaceGrouped)
-                    .offset(x: revealedDeleteSetID == set.id ? -72 : 0)
+                    .offset(x: draggingDeleteOffsets[set.id] ?? (revealedDeleteSetID == set.id ? -72 : 0))
+                    .animation(.easeOut(duration: 0.18), value: revealedDeleteSetID)
                     .background(alignment: .trailing) {
                         Button(role: .destructive) {
                             pendingSetDeletion = PendingSetDeletion(exerciseID: exercise.id, setID: set.id)
@@ -727,12 +771,6 @@ struct ProgramView: View {
                             Text("This set will be removed from the workout.")
                         }
                     }
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 24).onEnded { gesture in
-                            guard abs(gesture.translation.width) > abs(gesture.translation.height) * 1.5 else { return }
-                            revealedDeleteSetID = gesture.translation.width < -48 ? set.id : nil
-                        }
-                    )
                     .dropDestination(for: String.self) { values, _ in
                         guard let draggedUUID = values.first,
                               draggedUUID != set.id.rawValue.uuidString,
@@ -1006,7 +1044,7 @@ private struct CopyWorkoutSheet: View {
     let onCopy: (LocalDate, LocalDate) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedSourceDate: LocalDate
+    @State private var selectedSourceDateValue: Date
     @State private var destination: Date
     @State private var showsCopyError = false
 
@@ -1027,7 +1065,7 @@ private struct CopyWorkoutSheet: View {
         self.availableWorkouts = availableWorkouts
         self.isDestinationOccupied = isDestinationOccupied
         self.onCopy = onCopy
-        _selectedSourceDate = State(initialValue: sourceDate)
+        _selectedSourceDateValue = State(initialValue: sourceDate.date(in: calendar) ?? Date())
         _destination = State(initialValue: (initialDestination ?? sourceDate).date(in: calendar) ?? Date())
     }
 
@@ -1036,13 +1074,10 @@ private struct CopyWorkoutSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     GymSectionHeader(title: "Source")
-                    Picker("Source workout", selection: $selectedSourceDate) {
-                        ForEach(availableWorkouts.sorted(by: { $0.localDate > $1.localDate }), id: \.localDate) { workout in
-                            Text(fullDateLabel(for: workout.localDate)).tag(workout.localDate)
-                        }
-                    }
-                    .tint(GymTheme.accentForeground)
-                    .accessibilityIdentifier("copyWorkoutSourcePicker")
+                    DatePicker("Source workout", selection: $selectedSourceDateValue, displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                        .tint(GymTheme.accentForeground)
+                        .accessibilityIdentifier("copyWorkoutSourcePicker")
                     HStack(spacing: 12) {
                         Image(systemName: "doc.on.doc")
                             .font(.title3)
@@ -1060,10 +1095,17 @@ private struct CopyWorkoutSheet: View {
                         Spacer()
                     }
                     .gymCard()
+                    if !sourceExists {
+                        Text("No workout exists on this date. Select another source date.")
+                            .font(.subheadline)
+                            .foregroundStyle(GymTheme.destructive)
+                            .accessibilityIdentifier("copyWorkoutSourceMessage")
+                    }
 
                     GymSectionHeader(title: "Destination")
                     VStack(alignment: .leading, spacing: 12) {
                         DatePicker("Destination date", selection: $destination, displayedComponents: .date)
+                            .datePickerStyle(.compact)
                             .accessibilityIdentifier("copyWorkoutDestination")
                         Divider()
                         Text(fullDateLabel(for: destinationDate))
@@ -1119,13 +1161,21 @@ private struct CopyWorkoutSheet: View {
         }
     }
 
+    private var selectedSourceDate: LocalDate {
+        LocalDate(date: selectedSourceDateValue, calendar: calendar)
+    }
+
+    private var sourceExists: Bool {
+        availableWorkouts.contains(where: { $0.localDate == selectedSourceDate })
+    }
+
     private var destinationDate: LocalDate {
         LocalDate(date: destination, calendar: calendar)
     }
 
     private var sourceSummary: String {
         guard let source = availableWorkouts.first(where: { $0.localDate == selectedSourceDate }) else {
-            return "\(exerciseCount) exercises · \(setCount) sets"
+            return "No workout on this date"
         }
         let exercises = source.exercises.count
         let sets = source.exercises.flatMap(\.sets).count
@@ -1133,6 +1183,9 @@ private struct CopyWorkoutSheet: View {
     }
 
     private var destinationMessage: String? {
+        if !sourceExists {
+            return "Choose a source date that has a workout."
+        }
         if destinationDate == selectedSourceDate {
             return "Choose a different date."
         }
@@ -1372,7 +1425,8 @@ private struct ProgramSetEditorSheet: View {
         self.onSave = onSave
         self.onDelete = onDelete
         _repsText = State(initialValue: String(set?.reps ?? 0) == "0" ? "" : String(set?.reps ?? 0))
-        _weightText = State(initialValue: String(weightUnit.displayWeight(fromCanonicalKilograms: set?.weight ?? 0)) == "0.0" ? "" : String(weightUnit.displayWeight(fromCanonicalKilograms: set?.weight ?? 0)))
+        let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: set?.weight ?? 0)
+        _weightText = State(initialValue: displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2))))
         _timeText = State(initialValue: String(set?.timeSeconds ?? 0) == "0" ? "" : String(set?.timeSeconds ?? 0))
         let hasConfiguredPlan = (set?.reps ?? 0) > 0 || (set?.weight ?? 0) > 0 || (set?.timeSeconds ?? 0) > 0
         _type = State(initialValue: hasConfiguredPlan ? (set?.type ?? .repsOnly) : (typeLock ?? set?.type ?? .repsOnly))
@@ -1505,7 +1559,8 @@ private struct HistoricalActualEditorSheet: View {
         self.weightUnit = weightUnit
         self.onSave = onSave
         _repsText = State(initialValue: String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps))
-        _weightText = State(initialValue: String(weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)) == "0.0" ? "" : String(weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)))
+        let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)
+        _weightText = State(initialValue: displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2))))
         _timeText = State(initialValue: String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds))
     }
 

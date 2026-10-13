@@ -153,7 +153,7 @@ Compact sheet/flow:
 - destination date selector,
 - Copy action.
 
-Users may copy historical workouts into a different date; source is selectable among existing workouts. A blank future date offers a direct Copy existing workout entry, without first creating an empty workout. Do not replace an occupied destination.
+Users may copy historical workouts into a different date; source is selectable among existing workouts. An empty current/future date offers one Create workout action, with Start blank and Copy existing workout options. Source and destination dates use the same native compact calendar picker; dates with no source workout cannot be copied. Do not replace an occupied destination.
 
 Do not copy completion state.
 

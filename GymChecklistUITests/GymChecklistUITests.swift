@@ -38,6 +38,8 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, August 14, 2026"))
 
         app.buttons["programCreateWorkout"].tap()
+        XCTAssertTrue(app.buttons["programCreateBlank"].waitForExistence(timeout: 2))
+        app.buttons["programCreateBlank"].tap()
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
         XCTAssertFalse(app.buttons["programCreateWorkout"].exists)
@@ -67,6 +69,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Copy workout"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["copyWorkoutSourceDate"].exists)
         XCTAssertTrue(app.staticTexts["copyWorkoutSummary"].exists)
+        XCTAssertTrue(app.datePickers["copyWorkoutSourcePicker"].exists)
         XCTAssertTrue(app.datePickers["copyWorkoutDestination"].exists)
         XCTAssertTrue(app.buttons["copyWorkoutAction"].exists)
         XCTAssertEqual(app.buttons["copyWorkoutAction"].label, "Copy")
@@ -414,6 +417,8 @@ final class GymChecklistUITests: XCTestCase {
 
         app.tabBars.buttons["Program"].tap()
         app.buttons["programCreateWorkout"].tap()
+        XCTAssertTrue(app.buttons["programCreateBlank"].waitForExistence(timeout: 2))
+        app.buttons["programCreateBlank"].tap()
         app.tabBars.buttons["Today"].tap()
 
         XCTAssertTrue(app.descendants(matching: .any)["todayEmptyWorkoutState"].waitForExistence(timeout: 2))

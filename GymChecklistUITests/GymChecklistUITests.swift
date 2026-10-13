@@ -179,10 +179,10 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reorder exercises"].waitForExistence(timeout: 2))
         app.buttons["Reorder exercises"].tap()
         XCTAssertTrue(app.navigationBars["Reorder exercises"].waitForExistence(timeout: 2))
-        let benchInReorder = app.tables.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Reorder Bench Press")).firstMatch
-        let nordicInReorder = app.tables.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Reorder Nordic Hop")).firstMatch
-        XCTAssertTrue(benchInReorder.waitForExistence(timeout: 2))
-        XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 2))
+        let benchInReorder = app.descendants(matching: .any)["programReorderExercise-Bench Press"]
+        let nordicInReorder = app.descendants(matching: .any)["programReorderExercise-Nordic Hop"]
+        XCTAssertTrue(benchInReorder.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 5), app.debugDescription)
         nordicInReorder.press(forDuration: 0.5, thenDragTo: benchInReorder)
         XCTAssertLessThan(nordicInReorder.frame.minY, benchInReorder.frame.minY)
         app.buttons["Done"].tap()

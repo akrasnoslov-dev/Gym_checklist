@@ -924,6 +924,7 @@ private struct ExerciseReorderSheet: View {
                 ForEach(exercises) { exercise in
                     Text(exerciseName(exercise))
                         .accessibilityLabel("Reorder \(exerciseName(exercise))")
+                        .accessibilityIdentifier("programReorderExercise-\(exerciseName(exercise))")
                 }
                 .onMove { source, destination in
                     exercises.move(fromOffsets: source, toOffset: destination)

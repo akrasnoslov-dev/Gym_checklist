@@ -38,12 +38,12 @@
 - Automatic PR macOS smoke run `37331193427` is GREEN on exact candidate `7e21450918134393d27dbf61737240d63bf75fa9`, providing fresh SwiftUI compile/runtime and smoke-test evidence.
 - The previously built Phase 9 acceptance IPA from `4c655201...` is rejected as visual acceptance evidence and must not be reused as the final redesign build.
 
-## Remote gate
-- `REMOTE_GATE_APPROVED 7e21450918134393d27dbf61737240d63bf75fa9`
-- Prior approvals for `4526513...` / `4c655201...` / `0174f2f...` are superseded.
-- Fresh independent Pass B audited exactly `7e21450918134393d27dbf61737240d63bf75fa9` in a detached clean worktree: full corrective scope reviewed; static contracts and `node --check functions/index.js` are GREEN; no production/test/project changes were required by the audit.
-- Automatic macOS smoke is GREEN on that same exact SHA.
-- The next authoritative action is one exact-SHA `candidate` macOS run with the focused navigation regression followed automatically by `candidate-full`. A red result revokes this approval.
+## Remote gate (2026-10-13)
+- The latest tested corrective source `f1e2e8605501351d2ad077eeb693cbbcd1d9ae7c` has GREEN PR Linux and macOS smoke checks (runs `37336705611`, `37336705972`).
+- Exact-source candidate run `37336763051` checked out `f1e2e860...`, passed `candidate-build`, but failed `candidate-focused` before `candidate-full`. At `GymChecklistUITests.swift:120`, the Today date accessibility element was not found after switching back from Program. The failure revokes all prior `REMOTE_GATE_APPROVED` claims for this acceptance candidate.
+- New IPA build `37337156863` succeeded from exact source `f1e2e860...`, but was built before the full gate passed. Its seven-day GitHub artifact retention expired on 2026-10-12. The older 7e21450 IPA is not final acceptance evidence.
+- A minimal accessibility/test hardening patch is being verified: contain Today header accessibility children explicitly, wait for `todayScreen` after tab switch, and inspect `todayDate` with diagnostic output. A full exact-SHA candidate gate and fresh IPA remain required.
+- PR #6 must stay unmerged until explicit user approval.
 
 ## Remaining external proof
 - After a GREEN exact-SHA candidate/full gate, build a new unsigned Firebase-backed physical-iPhone acceptance IPA from the same approved corrective source.
@@ -51,6 +51,6 @@
 - Paid Apple distribution, live paid Apple capabilities, Firebase billing, paid deletion-function deployment if required, and `dev -> main` remain deferred.
 
 ## Next action
-1. Dispatch the exact-SHA macOS candidate/full gate for `7e21450918134393d27dbf61737240d63bf75fa9`.
-2. If GREEN, build a fresh unsigned Firebase-backed physical-iPhone acceptance IPA from that exact corrective source.
-3. Return the new artifact with a unique corrective-design filename/SHA and keep PR #6 unmerged until explicit user approval.
+1. Finish focused static review and create the minimal new PR #6 corrective commit. Record its exact source SHA.
+2. Perform a fresh independent review of that exact SHA, then rerun one authoritative macOS `candidate` gate (focused regression followed by full suite).
+3. Only after GREEN, rebuild a new Firebase-backed unsigned IPA from that exact SHA, transfer to Windows Downloads, verify SHA256, and test on the physical iPhone. Do not merge PR #6 without user approval.

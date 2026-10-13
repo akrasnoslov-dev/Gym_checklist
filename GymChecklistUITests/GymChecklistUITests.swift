@@ -116,9 +116,10 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
         app.tabBars.buttons["Today"].tap()
-        XCTAssertTrue(app.staticTexts["Today"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["todayDate"].waitForExistence(timeout: 5))
-        XCTAssertTrue(waitForLabel(of: app.staticTexts["todayDate"], toEqual: "Friday, August 14"))
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 10))
+        let todayDate = app.staticTexts["todayDate"]
+        XCTAssertTrue(todayDate.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(waitForLabel(of: todayDate, toEqual: "Friday, August 14"))
         XCTAssertFalse(app.buttons["Start Workout"].exists)
 
         app.tabBars.buttons["Program"].tap()

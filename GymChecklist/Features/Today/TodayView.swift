@@ -129,6 +129,7 @@ struct TodayView: View {
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("todayDate")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("todayHeader")
         .accessibilityFocused($accessibilityFocus, equals: .header)
     }

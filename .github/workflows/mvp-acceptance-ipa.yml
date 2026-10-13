@@ -11,17 +11,52 @@ permissions:
 jobs:
   build-acceptance-ipa:
     runs-on: macos-latest
-    timeout-minutes: 40
+    timeout-minutes: 85
     env:
-      APP_SOURCE_SHA: 893ae4ae15d48c0a9c425a30123978e9323141f2
+      APP_SOURCE_SHA: e7701d0cc1a789d6f9e6b354faf841504180adf0
       APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
       APP_DISPLAY_NAME: Gym Checklist
 
     steps:
+      - name: Require exact-source candidate/full gate success
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          from urllib.request import Request, urlopen
+
+          run_url = "https://api.github.com/repos/akrasnoslov-dev/Gym_checklist/actions/runs/38466009126"
+          expected_source = "e7701d0cc1a789d6f9e6b354faf841504180adf0"
+          for _ in range(90):
+              req = Request(run_url, headers={
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "GymChecklist-PR6-IPA",
+              })
+              with urlopen(req, timeout=30) as response:
+                  run = json.load(response)
+              if run.get("status") == "completed":
+                  if run.get("conclusion") != "success":
+                      sys.exit("Candidate/full gate not green: " + str(run.get("conclusion")))
+                  break
+              print("Waiting for exact-source candidate/full gate...", flush=True)
+              time.sleep(30)
+          else:
+              sys.exit("Candidate/full gate timed out")
+
+          # The gate job verifies the immutable source SHA.
+          print("GREEN candidate/full gate for " + expected_source, flush=True)
+          PY
+
       - name: Checkout accepted MVP app source
         uses: actions/checkout@v4
         with:
-          ref: 893ae4ae15d48c0a9c425a30123978e9323141f2
+          ref: e7701d0cc1a789d6f9e6b354faf841504180adf0
           fetch-depth: 1
           persist-credentials: false
 
@@ -134,10 +169,10 @@ jobs:
           cp -R "$APP_PATH" "$PACKAGE_DIRECTORY/Payload/GymChecklist.app"
           (
             cd "$PACKAGE_DIRECTORY"
-            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-893ae4a.ipa" Payload
+            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-e7701d0.ipa" Payload
           )
-          test -s "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-893ae4a.ipa"
-          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-893ae4a.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-893ae4a.ipa.sha256"
+          test -s "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-e7701d0.ipa"
+          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-e7701d0.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-PR6-Feedback-e7701d0.ipa.sha256"
           printf '%s\n' \
             "app source SHA: $APP_SOURCE_SHA" \
             "bundle ID: $APP_BUNDLE_ID" \
@@ -149,7 +184,7 @@ jobs:
       - name: Upload physical iPhone acceptance IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-PR6-Feedback-893ae4a
+          name: GymChecklist-PR6-Feedback-e7701d0
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

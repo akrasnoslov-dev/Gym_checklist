@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ProgramView: View {
     @ObservedObject var viewModel: WorkoutViewModel
@@ -22,8 +23,7 @@ struct ProgramView: View {
     @State private var revealedDeleteSetID: WorkoutSetID?
     @State private var draggingDeleteOffsets: [WorkoutSetID: CGFloat] = [:]
     @State private var draggingSetID: WorkoutSetID?
-    @State private var draggingSetOffset: CGFloat = 0
-    @State private var showsCreateOptions = false
+    @State private var provisionalSetOrders: [WorkoutExerciseID: [WorkoutSetID]] = [:]
     @State private var showsMutationError = false
 
     init(viewModel: WorkoutViewModel, weightUnit: WeightUnit) {
@@ -75,7 +75,7 @@ struct ProgramView: View {
                 revealedDeleteSetID = nil
                 draggingDeleteOffsets.removeAll()
                 draggingSetID = nil
-                draggingSetOffset = 0
+                provisionalSetOrders.removeAll()
             }
             .onChange(of: viewModel.selectedDate) { _, selectedDate in
                 if displayedSelectedDate != selectedDate {
@@ -113,26 +113,26 @@ struct ProgramView: View {
                     }
                     .accessibilityLabel("Workout actions")
                     .accessibilityIdentifier("programWorkoutActions")
-                    .confirmationDialog(
-                        "Delete this workout?",
-                        isPresented: deleteWorkoutConfirmationBinding,
-                        titleVisibility: .visible
-                    ) {
-                        Button("Delete workout", role: .destructive) {
-                            if let pendingWorkoutDeletion { deleteWorkout(on: pendingWorkoutDeletion) }
-                            pendingWorkoutDeletion = nil
-                        }
-                        .accessibilityIdentifier("programConfirmDeleteWorkout")
-                        Button("Cancel", role: .cancel) { pendingWorkoutDeletion = nil }
-                    } message: {
-                        Text("All exercises, sets, and recorded results for this date will be removed.")
-                    }
                     } else {
                         Color.clear
                             .frame(width: 44, height: 44)
                             .accessibilityHidden(true)
                     }
                 }
+            }
+            .alert(
+                "Delete this workout?",
+                isPresented: deleteWorkoutConfirmationBinding
+            ) {
+                Button("Delete workout", role: .destructive) {
+                    guard let date = pendingWorkoutDeletion else { return }
+                    pendingWorkoutDeletion = nil
+                    deleteWorkout(on: date)
+                }
+                .accessibilityIdentifier("programConfirmDeleteWorkout")
+                Button("Cancel", role: .cancel) { pendingWorkoutDeletion = nil }
+            } message: {
+                Text("All exercises, sets, and recorded results for this date will be removed.")
             }
             .sheet(item: $exercisePickerRoute) { route in
                 ExercisePickerView(
@@ -480,31 +480,11 @@ struct ProgramView: View {
                     .multilineTextAlignment(.center)
                 if !isHistorical {
                     Button("Create workout") {
-                        showsCreateOptions = true
+                        viewModel.createSelectedWorkout()
                     }
                     .buttonStyle(GymPrimaryButtonStyle())
                     .frame(maxWidth: 240)
                     .accessibilityIdentifier("programCreateWorkout")
-                    .confirmationDialog("Create workout", isPresented: $showsCreateOptions, titleVisibility: .visible) {
-                        Button("Start blank") {
-                            viewModel.createSelectedWorkout()
-                        }
-                        .accessibilityIdentifier("programCreateBlank")
-                        if let source = viewModel.workouts.sorted(by: { $0.localDate < $1.localDate }).last {
-                            Button("Copy existing workout") {
-                                copyWorkoutRoute = CopyWorkoutRoute(
-                                    sourceDate: source.localDate,
-                                    exerciseCount: source.exercises.count,
-                                    setCount: source.exercises.flatMap(\.sets).count,
-                                    destinationDate: calendarState.selectedDate
-                                )
-                            }
-                            .accessibilityIdentifier("programCopyExistingWorkout")
-                        }
-                        Button("Cancel", role: .cancel) {}
-                    } message: {
-                        Text("Start empty or copy exercises and sets from another day.")
-                    }
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 280)
@@ -624,7 +604,7 @@ struct ProgramView: View {
 
     private func exerciseRow(_ exercise: WorkoutExercise, index: Int) -> some View {
         let name = viewModel.exerciseName(for: exercise)
-        let sets = viewModel.orderedSets(for: exercise.id, on: calendarState.selectedDate)
+        let sets = visibleSets(for: exercise.id)
 
         return VStack(alignment: .leading, spacing: GymTheme.spacing8) {
             HStack(spacing: GymTheme.spacing8) {
@@ -738,45 +718,19 @@ struct ProgramView: View {
                             .accessibilityLabel("Drag set \(setIndex + 1) to reorder")
                             .accessibilityHint("Press and hold, then move up or down")
                             .accessibilityIdentifier("programSetDragHandle-\(set.id.rawValue.uuidString)")
-                            .gesture(
-                                DragGesture(minimumDistance: 5)
-                                    .onChanged { value in
-                                        draggingSetID = set.id
-                                        draggingSetOffset = value.translation.height
-                                        revealedDeleteSetID = nil
-                                    }
-                                    .onEnded { value in
-                                        let rowStep: CGFloat = 53
-                                        let deltaRows = Int((value.translation.height / rowStep).rounded())
-                                        let targetIndex = min(max(setIndex + deltaRows, 0), sets.count - 1)
-                                        if targetIndex != setIndex {
-                                            var ids = sets.map(\.id)
-                                            ids.move(
-                                                fromOffsets: IndexSet(integer: setIndex),
-                                                toOffset: targetIndex + (targetIndex > setIndex ? 1 : 0)
-                                            )
-                                            persistSetOrder(ids, in: exercise.id)
-                                        }
-                                        withAnimation(.spring(response: 0.24, dampingFraction: 0.84)) {
-                                            draggingSetID = nil
-                                            draggingSetOffset = 0
-                                        }
-                                    }
-                            )
+                            .onDrag {
+                                revealedDeleteSetID = nil
+                                draggingDeleteOffsets.removeAll()
+                                provisionalSetOrders[exercise.id] = sets.map(\.id)
+                                draggingSetID = set.id
+                                return NSItemProvider(object: set.id.rawValue.uuidString as NSString)
+                            }
                     }
                     .background(GymTheme.surfaceGrouped)
-                    .offset(
-                        x: draggingDeleteOffsets[set.id] ?? (revealedDeleteSetID == set.id ? -72 : 0),
-                        y: draggingSetID == set.id ? draggingSetOffset : 0
-                    )
-                    .scaleEffect(draggingSetID == set.id ? 1.015 : 1)
-                    .shadow(
-                        color: draggingSetID == set.id ? .black.opacity(0.16) : .clear,
-                        radius: 5, y: 3
-                    )
-                    .zIndex(draggingSetID == set.id ? 2 : 0)
+                    .offset(x: draggingDeleteOffsets[set.id] ?? (revealedDeleteSetID == set.id ? -72 : 0))
                     .animation(.easeOut(duration: 0.18), value: revealedDeleteSetID)
                     .background(alignment: .trailing) {
+                        if draggingSetID == nil {
                         Button(role: .destructive) {
                             pendingSetDeletion = PendingSetDeletion(exerciseID: exercise.id, setID: set.id)
                             revealedDeleteSetID = nil
@@ -808,7 +762,27 @@ struct ProgramView: View {
                         } message: {
                             Text("This set will be removed from the workout.")
                         }
+                        }
                     }
+                    .clipped()
+                    .onDrop(
+                        of: [UTType.plainText.identifier],
+                        delegate: ProgramSetDropDelegate(
+                            targetID: set.id,
+                            draggingID: $draggingSetID,
+                            order: Binding(
+                                get: { provisionalSetOrders[exercise.id] ?? sets.map(\.id) },
+                                set: { provisionalSetOrders[exercise.id] = $0 }
+                            ),
+                            onCommit: {
+                                if let ids = provisionalSetOrders[exercise.id] {
+                                    persistSetOrder(ids, in: exercise.id)
+                                }
+                                provisionalSetOrders.removeValue(forKey: exercise.id)
+                                draggingSetID = nil
+                            }
+                        )
+                    )
 
                     if set.id != sets.last?.id {
                         Divider().overlay(GymTheme.separator)
@@ -887,6 +861,15 @@ struct ProgramView: View {
     private var orderedExercises: [WorkoutExercise] {
         viewModel.orderedExercises(on: calendarState.selectedDate)
     }
+
+    private func visibleSets(for exerciseID: WorkoutExerciseID) -> [WorkoutSet] {
+        let actual = viewModel.orderedSets(for: exerciseID, on: calendarState.selectedDate)
+        guard let ids = provisionalSetOrders[exerciseID],
+              ids.count == actual.count,
+              Set(ids) == Set(actual.map(\.id)) else { return actual }
+        let byID = Dictionary(uniqueKeysWithValues: actual.map { ($0.id, $0) })
+        return ids.compactMap { byID[$0] }
+    }
     private var isHistorical: Bool { calendarState.selectedDate < viewModel.currentDate }
 
     private func dayStateColor(_ state: ProgramDayState) -> Color {
@@ -960,6 +943,41 @@ struct ProgramView: View {
             get: { pendingWorkoutDeletion != nil },
             set: { if !$0 { pendingWorkoutDeletion = nil } }
         )
+    }
+}
+
+private struct ProgramSetDropDelegate: DropDelegate {
+    let targetID: WorkoutSetID
+    @Binding var draggingID: WorkoutSetID?
+    @Binding var order: [WorkoutSetID]
+    let onCommit: () -> Void
+
+    func validateDrop(info: DropInfo) -> Bool {
+        draggingID != nil && info.hasItemsConforming(to: [UTType.plainText.identifier])
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard let movingID = draggingID, movingID != targetID,
+              let from = order.firstIndex(of: movingID),
+              let to = order.firstIndex(of: targetID) else { return }
+        var updated = order
+        updated.move(
+            fromOffsets: IndexSet(integer: from),
+            toOffset: to + (from < to ? 1 : 0)
+        )
+        withAnimation(.easeInOut(duration: 0.18)) {
+            order = updated
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard draggingID != nil else { return false }
+        onCommit()
+        return true
     }
 }
 

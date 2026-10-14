@@ -1,5 +1,11 @@
 # Gym Checklist — Progress Checkpoint
 
+## 2026-10-14 physical iPhone video review corrections (PENDING CI)
+- Three user-confirmed defects in PR #6 preview: set drag visually overlaps rows and reveals delete controls; workout deletion presents confirmation again after first successful deletion; Create workout duplicates Copy already present in the existing-workout overflow menu.
+- Corrective code: replace manually offset set-drag with native item drag and per-row drop delegate plus animated provisional reflow; keep horizontal swipe independent; move workout delete confirmation out of the conditional menu to a persistent Program alert and clear pending deletion before model mutation; make Create workout perform one direct empty-workout creation and keep Copy only in the existing-workout actions menu.
+- Updated UX canonical owner and targeted XCTest expectations for direct creation and single-shot delete. Previous physical IPA `9af8499` does not include these fixes and must not be reused as completion evidence.
+- State: code change pending CI, full suite and fresh physical-iPhone validation. PR #6 stays Draft; no merge, no paid services.
+
 ## 2026-10-13 PR #6 corrective feedback batch (UNVERIFIED)
 - User supplied five further physical-iPhone findings in `design comments5.docx`: date-switch layout movement, mismatched source/destination date pickers, redundant separate create/copy actions, broken inline set reorder/swipe delete, and whole-number weight appearing as `55.0`.
 - Current PR #6 corrective batch: stable toolbar slot and no forced selected-date subtree recreation; Create workout now offers Start blank/Copy existing; source and destination both use compact calendar pickers with valid-source checks; set rows use independent drag handles and a live animated horizontal delete reveal; weight inputs use up-to-two-decimal formatting in Today, Program plan, and past actual editor.

@@ -38,11 +38,10 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, August 14, 2026"))
 
         app.buttons["programCreateWorkout"].tap()
-        XCTAssertTrue(app.buttons["programCreateBlank"].waitForExistence(timeout: 2))
-        app.buttons.matching(identifier: "programCreateBlank").firstMatch.tap()
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
         XCTAssertFalse(app.buttons["programCreateWorkout"].exists)
+        XCTAssertFalse(app.buttons["programCopyExistingWorkout"].exists)
 
         // Navigate away only after the selected date has dynamic workout content.
         // This guards the List subtree refresh used by week navigation.
@@ -210,7 +209,10 @@ final class GymChecklistUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(confirmWorkoutDeletion.waitForExistence(timeout: 2))
         confirmWorkoutDeletion.tap()
-        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 3))
+        // The destructive alert must not reappear after its originating Menu is removed.
+        XCTAssertFalse(app.alerts["Delete this workout?"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["programConfirmDeleteWorkout"].exists)
 
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].waitForExistence(timeout: 2))
@@ -467,8 +469,6 @@ final class GymChecklistUITests: XCTestCase {
 
         app.tabBars.buttons["Program"].tap()
         app.buttons["programCreateWorkout"].tap()
-        XCTAssertTrue(app.buttons["programCreateBlank"].waitForExistence(timeout: 2))
-        app.buttons.matching(identifier: "programCreateBlank").firstMatch.tap()
         app.tabBars.buttons["Today"].tap()
 
         XCTAssertTrue(app.descendants(matching: .any)["todayEmptyWorkoutState"].waitForExistence(timeout: 2))

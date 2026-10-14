@@ -13,7 +13,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 85
     env:
-      APP_SOURCE_SHA: 9af84993ff35e2e915e8efd7d62a0f15be97b320
+      APP_SOURCE_SHA: 151f004eacbb5701712828eb6f6747678ee93c33
       APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
       APP_DISPLAY_NAME: Gym Checklist
 
@@ -21,7 +21,7 @@ jobs:
       - name: Checkout exact PR6 preview source
         uses: actions/checkout@v4
         with:
-          ref: 9af84993ff35e2e915e8efd7d62a0f15be97b320
+          ref: 151f004eacbb5701712828eb6f6747678ee93c33
           fetch-depth: 1
           persist-credentials: false
 
@@ -134,23 +134,23 @@ jobs:
           cp -R "$APP_PATH" "$PACKAGE_DIRECTORY/Payload/GymChecklist.app"
           (
             cd "$PACKAGE_DIRECTORY"
-            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-9af8499.ipa" Payload
+            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-151f004.ipa" Payload
           )
-          test -s "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-9af8499.ipa"
-          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-9af8499.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-9af8499.ipa.sha256"
+          test -s "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-151f004.ipa"
+          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-151f004.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-151f004.ipa.sha256"
           printf '%s\n' \
             "app source SHA: $APP_SOURCE_SHA" \
             "bundle ID: $APP_BUNDLE_ID" \
             "configuration: Release" \
             "GitHub run ID: $GITHUB_RUN_ID" \
             "Firebase configuration present: yes" \
-            "QA status: preview only, full CI gate NOT approved" \
+            "QA status: physical iPhone preview; Linux and macOS PR smoke GREEN; full candidate gate not claimed" \
             > "$ARTIFACT_DIRECTORY/manifest.txt"
 
       - name: Upload physical iPhone preview IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-PR6-PREVIEW-9af8499
+          name: GymChecklist-PR6-PREVIEW-151f004
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

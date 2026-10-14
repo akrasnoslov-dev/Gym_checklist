@@ -153,11 +153,13 @@ Compact sheet/flow:
 - destination date selector,
 - Copy action.
 
-Users may copy historical workouts into a different date; source is selectable among existing workouts. An empty current/future date offers one Create workout action, with Start blank and Copy existing workout options. Source and destination dates use the same native compact calendar picker; dates with no source workout cannot be copied. Do not replace an occupied destination.
+Users may copy historical workouts into a different date; source is selectable among existing workouts. On an empty current/future date, `Create workout` immediately creates a blank workout. Copying is available only from an existing workout's `⋯` actions menu, not from Create. Source and destination dates use the same native compact calendar picker; dates with no source workout cannot be copied. Do not replace an occupied destination.
 
 Do not copy completion state.
 
 ### Physical-device corrective feedback (October 2026)
+- Program set drag uses a native drag/drop preview with live reflow; do not manually offset the entire set row vertically or expose its swipe-delete background while dragging.
+- After a workout is deleted, its confirmation must dismiss once; anchor destructive confirmation to a stable Program view, clear pending state before removing the source workout.
 - Empty historical placeholder workouts with no scheduled sets remain Planned, not Incomplete.
 - The Week/Month date symbols and the status legend share one semantic color and symbol vocabulary.
 - Avoid repeating the selected calendar date visually in the workout detail header; preserve it for accessibility.

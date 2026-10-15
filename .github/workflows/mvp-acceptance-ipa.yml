@@ -2,6 +2,11 @@ name: MVP Physical iPhone Acceptance IPA
 
 on:
   workflow_dispatch:
+    inputs:
+      source_sha:
+        description: "Required approved 40-character source commit SHA"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -11,7 +16,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     env:
-      APP_SOURCE_SHA: e17cb8173a6373059729226453c568e976954d33
+      APP_SOURCE_SHA: ${{ inputs.source_sha }}
       APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
       APP_DISPLAY_NAME: Gym Checklist
 
@@ -19,7 +24,7 @@ jobs:
       - name: Checkout accepted MVP app source
         uses: actions/checkout@v4
         with:
-          ref: e17cb8173a6373059729226453c568e976954d33
+          ref: ${{ inputs.source_sha }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -27,6 +32,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if ! [[ "$APP_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "source_sha must be a 40-character lowercase commit SHA." >&2
+            exit 2
+          fi
           test "$(git rev-parse HEAD)" = "$APP_SOURCE_SHA"
 
       - name: Restore Firebase configuration for this job only
@@ -147,7 +156,7 @@ jobs:
       - name: Upload physical iPhone acceptance IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-MVP-e17cb81
+          name: GymChecklist-MVP-${{ inputs.source_sha }}
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

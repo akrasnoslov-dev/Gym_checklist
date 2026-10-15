@@ -110,6 +110,8 @@ struct TodayView: View {
                     timeSeconds: timeSeconds
                 )
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .alert(item: $mutationError) { error in
             Alert(
@@ -547,6 +549,9 @@ private struct TodaySetEditorSheet: View {
     @State private var timeText: String
     @State private var showsValidationError = false
     @State private var showsSaveError = false
+    private let initialRepsText: String
+    private let initialWeightText: String
+    private let initialTimeText: String
 
     init(
         route: TodaySetEditorRoute,
@@ -556,10 +561,16 @@ private struct TodaySetEditorSheet: View {
         self.route = route
         self.weightUnit = weightUnit
         self.onSave = onSave
-        _repsText = State(initialValue: String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps))
+        let repsText = String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps)
         let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)
-        _weightText = State(initialValue: displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2))))
-        _timeText = State(initialValue: String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds))
+        let weightText = displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2)))
+        let timeText = String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds)
+        initialRepsText = repsText
+        initialWeightText = weightText
+        initialTimeText = timeText
+        _repsText = State(initialValue: repsText)
+        _weightText = State(initialValue: weightText)
+        _timeText = State(initialValue: timeText)
     }
 
     private var reps: Int { Int(repsText) ?? 0 }
@@ -570,6 +581,16 @@ private struct TodaySetEditorSheet: View {
             && (timeText.isEmpty || Int(timeText) != nil)
             && (weightText.isEmpty || Double(weightText.replacingOccurrences(of: ",", with: ".")) != nil)
     }
+    private var hasUnsavedChanges: Bool {
+        repsText != initialRepsText || weightText != initialWeightText || timeText != initialTimeText
+    }
+    private var supportsReps: Bool { route.workoutSet.displayedType != .timed }
+    private var supportsWeight: Bool {
+        route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed
+    }
+    private var supportsTime: Bool {
+        route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed
+    }
 
     var body: some View {
         NavigationStack {
@@ -578,21 +599,25 @@ private struct TodaySetEditorSheet: View {
                     Text(route.workoutSet.displayedType.title)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    if route.workoutSet.displayedType != .timed {
-                        TextField("Reps", text: $repsText)
+                    LabeledContent("Reps") {
+                        TextField("0", text: $repsText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
+                            .disabled(!supportsReps)
                             .accessibilityIdentifier("todaySetEditorReps")
                     }
-                    if route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed {
-                        TextField("Weight", text: $weightText)
+                    LabeledContent("Weight (\(weightUnit.rawValue))") {
+                        TextField("0", text: $weightText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.decimalPad)
+                            .disabled(!supportsWeight)
                             .accessibilityIdentifier("todaySetEditorWeight")
-                        LabeledContent("Unit", value: weightUnit.rawValue)
-                            .accessibilityIdentifier("todaySetEditorWeightUnit")
                     }
-                    if route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed {
-                        TextField("Time (seconds)", text: $timeText)
+                    LabeledContent("Time") {
+                        TextField("0", text: $timeText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
+                            .disabled(!supportsTime)
                             .accessibilityIdentifier("todaySetEditorTime")
                     }
                 }
@@ -631,6 +656,7 @@ private struct TodaySetEditorSheet: View {
             } message: {
                 Text("Check your workout before trying again.")
             }
+            .interactiveDismissDisabled(hasUnsavedChanges)
         }
     }
 }

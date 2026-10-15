@@ -145,7 +145,7 @@ System categories may exist for organization (Chest, Back, Legs, Shoulders, Bice
 ## 9. Set data and display rules
 Canonical set fields:
 - execution type: weighted, reps-only, or timed
-- only the relevant value fields for that type
+- Reps, Weight, and Time labels remain visible in set editors; only value controls relevant to the selected execution type are enabled and persisted
 
 User explicitly enters technical values even when zero/one is used for model consistency.
 
@@ -170,10 +170,14 @@ Historical actual values may be edited.
 
 ## 11. Copy workout
 Copy workout:
-- choose destination date,
+- choose an existing workout as source and a different historical, current, or future date as destination,
 - copy exercises/order/sets/reps/weight/time,
 - do not copy completion/history,
-- destination is fully independent afterward.
+- destination is fully independent afterward,
+- an existing empty destination workout receives the copied plan while preserving its workout identity,
+- a populated destination offers Add exercises or Replace exercises,
+- Add preserves all existing exercises and recorded results,
+- Replace requires explicit confirmation and replaces only after that confirmation.
 
 ## 12. Repeat workout
 MVP uses simple repeat generation, not a persistent complex template engine.

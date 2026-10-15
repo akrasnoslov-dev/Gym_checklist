@@ -2151,6 +2151,86 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertEqual(repository.workout(on: date)?.exercises.first?.sets[1].weight, 45)
     }
 
+    func testProgramSetReorderSessionReflowsAndCancellationRestoresOriginalOrder() {
+        let exerciseID = WorkoutExerciseID()
+        let ids = [WorkoutSetID(), WorkoutSetID(), WorkoutSetID()]
+        var session = ProgramSetReorderSession(
+            exerciseID: exerciseID,
+            setID: ids[0],
+            originalOrder: ids
+        )
+
+        session.update(targetSetID: ids[2])
+        XCTAssertEqual(session.provisionalOrder, [ids[1], ids[2], ids[0]])
+        XCTAssertTrue(session.hasChanged)
+
+        session.cancel()
+        XCTAssertEqual(session.provisionalOrder, ids)
+        XCTAssertFalse(session.hasChanged)
+    }
+
+    func testCopyToMissingDestinationPublishesOnlyTheCompletedAggregate() throws {
+        let sourceDate = LocalDate(year: 2026, month: 10, day: 14)
+        let destinationDate = LocalDate(year: 2026, month: 10, day: 15)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var source = repository.createEmptyWorkout(on: sourceDate, at: .distantPast).workout
+        source.exercises = [WorkoutExercise(
+            id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil, order: 0, isSkipped: false,
+            sets: [WorkoutSet(order: 0, reps: 8, type: .repsOnly)]
+        )]
+        try repository.save(source)
+        var destinationSnapshots: [Workout?] = []
+        let observation = repository.observeWorkouts { workouts, _ in
+            destinationSnapshots.append(workouts.first(where: { $0.localDate == destinationDate }))
+        }
+        defer { observation.cancel() }
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: destinationDate,
+            currentDate: destinationDate,
+            calendar: mondayCalendar()
+        )
+
+        try viewModel.copyWorkout(from: sourceDate, to: destinationDate)
+
+        let publishedDestinations = destinationSnapshots.compactMap { $0 }
+        XCTAssertEqual(publishedDestinations.count, 1)
+        XCTAssertEqual(publishedDestinations[0].exercises.count, 1)
+        XCTAssertEqual(publishedDestinations[0].exercises[0].sets.count, 1)
+    }
+
+    func testExerciseLevelSetTypeChangeNormalizesPlansAndPreservesCompletedActuals() throws {
+        let date = LocalDate(year: 2026, month: 8, day: 14)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID()
+        var completed = WorkoutSet(order: 0, reps: 8, weight: 60, type: .weighted)
+        completed.complete(at: Date(timeIntervalSince1970: 123))
+        completed.editActual(reps: 7, weight: 62.5, timeSeconds: 0)
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID,
+            exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil,
+            order: 0,
+            isSkipped: false,
+            sets: [completed, WorkoutSet(order: 1, reps: 10, weight: 40, type: .weighted)]
+        )]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date)
+
+        try viewModel.setExerciseType(.timed, for: exerciseID, on: date)
+
+        let sets = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(sets.map(\.type), [.timed, .timed])
+        XCTAssertTrue(sets.allSatisfy { $0.reps == 0 && $0.weight == 0 })
+        XCTAssertEqual(sets.map(\.timeSeconds), [0, 0])
+        XCTAssertTrue(sets[0].isCompleted)
+        XCTAssertEqual(sets[0].actualReps, 7)
+        XCTAssertEqual(sets[0].actualWeight, 62.5)
+        XCTAssertEqual(sets[0].actualType, .weighted)
+    }
+
     func testHistoricalActualEditPersistsOnlyCompletedPastSet() throws {
         let currentDate = LocalDate(year: 2026, month: 8, day: 14)
         let pastDate = LocalDate(year: 2026, month: 8, day: 7)
@@ -2382,13 +2462,107 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertEqual(repository.workout(on: destinationDate)?.exercises.first?.sets.first?.reps, 12)
     }
 
-    func testCopyWorkoutRejectsMissingSameAndOccupiedDestinationsWithoutMutation() throws {
+    func testCopyWorkoutFillsExistingEmptyDestinationWithoutReplacingItsIdentity() throws {
+        let sourceDate = LocalDate(year: 2026, month: 10, day: 14)
+        let destinationDate = LocalDate(year: 2026, month: 10, day: 15)
+        let owner = UserID(rawValue: "user")
+        let repository = InMemoryWorkoutRepository(userID: owner)
+        var source = repository.createEmptyWorkout(on: sourceDate, at: .distantPast).workout
+        var completed = WorkoutSet(order: 0, reps: 8, weight: 60, type: .weighted)
+        completed.complete(at: .distantPast)
+        source.exercises = [WorkoutExercise(
+            id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil, order: 0, isSkipped: true, sets: [completed]
+        )]
+        try repository.save(source)
+        let emptyDestination = repository.createEmptyWorkout(on: destinationDate, at: Date(timeIntervalSince1970: 123)).workout
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: destinationDate,
+            currentDate: destinationDate,
+            calendar: mondayCalendar()
+        )
+
+        XCTAssertEqual(viewModel.copyDestinationState(on: destinationDate), .empty)
+        try viewModel.copyWorkout(from: sourceDate, to: destinationDate)
+
+        let copied = try XCTUnwrap(repository.workout(on: destinationDate))
+        XCTAssertEqual(copied.id, emptyDestination.id)
+        XCTAssertEqual(copied.createdAt, emptyDestination.createdAt)
+        XCTAssertEqual(copied.exercises.count, 1)
+        XCTAssertFalse(copied.exercises[0].isSkipped)
+        XCTAssertFalse(copied.exercises[0].sets[0].isCompleted)
+        XCTAssertNil(copied.exercises[0].sets[0].actualReps)
+        XCTAssertEqual(copied.exercises[0].sets[0].reps, 8)
+        XCTAssertEqual(viewModel.selectedDate, destinationDate)
+    }
+
+    func testCopyWorkoutAddPreservesDestinationAndReplaceRequiresExplicitStrategy() throws {
+        let sourceDate = LocalDate(year: 2026, month: 10, day: 14)
+        let destinationDate = LocalDate(year: 2026, month: 10, day: 15)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
+        var source = repository.createEmptyWorkout(on: sourceDate, at: .distantPast).workout
+        source.exercises = [WorkoutExercise(
+            id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: "Source", order: 0, isSkipped: true,
+            sets: [WorkoutSet(order: 0, reps: 12, type: .repsOnly)]
+        )]
+        try repository.save(source)
+
+        var destination = repository.createEmptyWorkout(on: destinationDate, at: .distantPast).workout
+        var completed = WorkoutSet(order: 0, reps: 5, weight: 50, type: .weighted)
+        completed.complete(at: .distantPast)
+        let preservedExerciseID = WorkoutExerciseID()
+        destination.exercises = [WorkoutExercise(
+            id: preservedExerciseID, exerciseID: SystemExerciseCatalog.all[1].id,
+            customName: "Existing", order: 0, isSkipped: false, sets: [completed]
+        )]
+        try repository.save(destination)
+        let viewModel = WorkoutViewModel(
+            repository: repository,
+            initialDate: destinationDate,
+            currentDate: destinationDate,
+            calendar: mondayCalendar()
+        )
+
+        XCTAssertEqual(
+            viewModel.copyDestinationState(on: destinationDate),
+            .populated(exerciseCount: 1, setCount: 1)
+        )
+        XCTAssertThrowsError(try viewModel.copyWorkout(from: sourceDate, to: destinationDate)) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .copyDestinationOccupied(destinationDate))
+        }
+
+        try viewModel.copyWorkout(from: sourceDate, to: destinationDate, strategy: .addExercises)
+        let added = try XCTUnwrap(repository.workout(on: destinationDate))
+        XCTAssertEqual(added.exercises.count, 2)
+        XCTAssertEqual(added.exercises[0].id, preservedExerciseID)
+        XCTAssertTrue(added.exercises[0].sets[0].isCompleted)
+        XCTAssertEqual(added.exercises.map(\.order), [0, 1])
+        XCTAssertFalse(added.exercises[1].isSkipped)
+        XCTAssertFalse(added.exercises[1].sets[0].isCompleted)
+
+        try viewModel.copyWorkout(from: sourceDate, to: destinationDate, strategy: .replaceExercises)
+        let replaced = try XCTUnwrap(repository.workout(on: destinationDate))
+        XCTAssertEqual(replaced.id, destination.id)
+        XCTAssertEqual(replaced.exercises.count, 1)
+        XCTAssertNotEqual(replaced.exercises[0].id, preservedExerciseID)
+        XCTAssertEqual(replaced.exercises[0].sets[0].reps, 12)
+        XCTAssertFalse(replaced.exercises[0].sets[0].isCompleted)
+    }
+
+    func testCopyWorkoutRejectsMissingSameAndPopulatedDestinationsWithoutMutation() throws {
         let sourceDate = LocalDate(year: 2026, month: 8, day: 14)
         let occupiedDate = LocalDate(year: 2026, month: 8, day: 15)
         let missingDate = LocalDate(year: 2026, month: 8, day: 16)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
         _ = repository.createEmptyWorkout(on: sourceDate, at: .distantPast)
-        _ = repository.createEmptyWorkout(on: occupiedDate, at: .distantPast)
+        var occupied = repository.createEmptyWorkout(on: occupiedDate, at: .distantPast).workout
+        occupied.exercises = [WorkoutExercise(
+            id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil, order: 0, isSkipped: false, sets: []
+        )]
+        try repository.save(occupied)
         let viewModel = WorkoutViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
         let repositoryBefore = repository.workouts
         let viewModelBefore = viewModel.workouts

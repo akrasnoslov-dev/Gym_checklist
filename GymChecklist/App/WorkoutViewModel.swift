@@ -19,6 +19,17 @@ enum ProgramPlanningError: Error, Equatable {
     case inconsistentSetType
 }
 
+enum WorkoutCopyStrategy: Equatable {
+    case addExercises
+    case replaceExercises
+}
+
+enum WorkoutCopyDestinationState: Equatable {
+    case missing
+    case empty
+    case populated(exerciseCount: Int, setCount: Int)
+}
+
 struct WorkoutRepeatResult: Equatable {
     let createdDates: [LocalDate]
     let skippedOccupiedDates: [LocalDate]
@@ -38,6 +49,7 @@ final class WorkoutViewModel: ObservableObject {
     private let analytics: AnalyticsTracking
     private let now: () -> Date
     private let currentDateProvider: () -> LocalDate
+    private let makeWorkoutID: () -> WorkoutID
     private let makeWorkoutExerciseID: () -> WorkoutExerciseID
     private let makeWorkoutSetID: () -> WorkoutSetID
     private var workoutObservation: WorkoutObservation?
@@ -53,6 +65,7 @@ final class WorkoutViewModel: ObservableObject {
         analytics: AnalyticsTracking = NoOpAnalyticsTracker(),
         now: @escaping () -> Date = Date.init,
         currentDateProvider: (() -> LocalDate)? = nil,
+        makeWorkoutID: @escaping () -> WorkoutID = { WorkoutID() },
         makeWorkoutExerciseID: @escaping () -> WorkoutExerciseID = { WorkoutExerciseID() },
         makeWorkoutSetID: @escaping () -> WorkoutSetID = { WorkoutSetID() }
     ) {
@@ -75,6 +88,7 @@ final class WorkoutViewModel: ObservableObject {
         self.exerciseLibrary = library
         self.now = now
         self.currentDateProvider = currentDateProvider ?? { currentDate }
+        self.makeWorkoutID = makeWorkoutID
         self.makeWorkoutExerciseID = makeWorkoutExerciseID
         self.makeWorkoutSetID = makeWorkoutSetID
         self.workouts = repository.workouts
@@ -138,18 +152,35 @@ final class WorkoutViewModel: ObservableObject {
         repository.workout(on: date) != nil
     }
 
-    func copyWorkout(from sourceDate: LocalDate, to destinationDate: LocalDate) throws {
+    func copyDestinationState(on date: LocalDate) -> WorkoutCopyDestinationState {
+        guard let workout = repository.workout(on: date) else { return .missing }
+        let setCount = workout.exercises.reduce(0) { $0 + $1.sets.count }
+        guard !workout.exercises.isEmpty || setCount > 0 else { return .empty }
+        return .populated(exerciseCount: workout.exercises.count, setCount: setCount)
+    }
+
+    func copyWorkout(
+        from sourceDate: LocalDate,
+        to destinationDate: LocalDate,
+        strategy: WorkoutCopyStrategy? = nil
+    ) throws {
         guard let source = repository.workout(on: sourceDate) else {
             throw ProgramPlanningError.workoutNotFound(sourceDate)
         }
         guard sourceDate != destinationDate else {
             throw ProgramPlanningError.copyDestinationMatchesSource(destinationDate)
         }
-        guard repository.workout(on: destinationDate) == nil else {
+
+        let destinationState = copyDestinationState(on: destinationDate)
+        if case .populated = destinationState, strategy == nil {
             throw ProgramPlanningError.copyDestinationOccupied(destinationDate)
         }
 
-        try createPlannedCopy(of: source, on: destinationDate)
+        try applyPlannedCopy(
+            of: source,
+            on: destinationDate,
+            strategy: strategy ?? .replaceExercises
+        )
         workouts = repository.workouts
         selectedDate = destinationDate
         analytics.log(.workoutCopied)
@@ -174,7 +205,7 @@ final class WorkoutViewModel: ObservableObject {
 
         do {
             for destinationDate in destinations {
-                try createPlannedCopy(of: source, on: destinationDate)
+                try applyPlannedCopy(of: source, on: destinationDate, strategy: .replaceExercises)
                 createdDates.append(destinationDate)
             }
         } catch {
@@ -195,19 +226,21 @@ final class WorkoutViewModel: ObservableObject {
         return result
     }
 
-    private func createPlannedCopy(of source: Workout, on destinationDate: LocalDate) throws {
-        guard repository.workout(on: destinationDate) == nil else {
-            throw ProgramPlanningError.copyDestinationOccupied(destinationDate)
-        }
-
+    private func applyPlannedCopy(
+        of source: Workout,
+        on destinationDate: LocalDate,
+        strategy: WorkoutCopyStrategy
+    ) throws {
         let timestamp = now()
-        let result = repository.createEmptyWorkout(on: destinationDate, at: timestamp)
-        guard result.wasCreated else {
-            throw ProgramPlanningError.copyDestinationOccupied(destinationDate)
-        }
-
-        var copied = result.workout
-        copied.exercises = normalizedExercises(source.exercises).enumerated().map { exerciseIndex, sourceExercise in
+        var destination = repository.workout(on: destinationDate) ?? Workout(
+            id: makeWorkoutID(),
+            userID: repository.userID,
+            localDate: destinationDate,
+            exercises: [],
+            createdAt: timestamp,
+            updatedAt: timestamp
+        )
+        let copiedExercises = normalizedExercises(source.exercises).enumerated().map { exerciseIndex, sourceExercise in
             WorkoutExercise(
                 id: makeWorkoutExerciseID(),
                 exerciseID: sourceExercise.exerciseID,
@@ -226,11 +259,23 @@ final class WorkoutViewModel: ObservableObject {
                 }
             )
         }
-        copied.updatedAt = timestamp
+
+        switch strategy {
+        case .addExercises:
+            let existing = normalizedExercises(destination.exercises)
+            destination.exercises = existing + copiedExercises.enumerated().map { offset, exercise in
+                var appended = exercise
+                appended.order = existing.count + offset
+                return appended
+            }
+        case .replaceExercises:
+            destination.exercises = copiedExercises
+        }
+        destination.updatedAt = timestamp
         do {
-            try repository.save(copied)
+            try repository.save(destination)
         } catch {
-            try? repository.deleteWorkout(on: destinationDate)
+            workouts = repository.workouts
             throw error
         }
     }
@@ -555,6 +600,27 @@ final class WorkoutViewModel: ObservableObject {
                         exercise.sets[index].editPlan(reps: 0, weight: 0, timeSeconds: 0, type: chosenType)
                     }
                 }
+            }
+        }
+    }
+
+    func setExerciseType(
+        _ type: WorkoutSetType,
+        for exerciseID: WorkoutExerciseID,
+        on workoutDate: LocalDate
+    ) throws {
+        guard WorkoutSetType.editableCases.contains(type) else {
+            throw ProgramPlanningError.invalidSetValues
+        }
+        try mutateExercise(exerciseID, on: workoutDate) { exercise in
+            for index in exercise.sets.indices {
+                let set = exercise.sets[index]
+                exercise.sets[index].editPlan(
+                    reps: set.reps,
+                    weight: set.weight,
+                    timeSeconds: set.timeSeconds,
+                    type: type
+                )
             }
         }
     }

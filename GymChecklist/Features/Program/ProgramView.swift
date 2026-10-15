@@ -1,237 +1,248 @@
 import Foundation
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct ProgramView: View {
     @ObservedObject var viewModel: WorkoutViewModel
     let weightUnit: WeightUnit
-    // SwiftUI's static List rows do not reliably redraw this calendar from an
-    // observed-object mutation. This is a rendering mirror of the view-model
-    // selection; mutations in either direction are synchronized below.
-    @State private var displayedSelectedDate: LocalDate
     @State private var displayedMonth: LocalDate
     @State private var calendarMode: CalendarMode = .week
-    @State private var exercisePickerRoute: ExercisePickerRoute?
-    @State private var setEditorRoute: SetEditorRoute?
-    @State private var historicalActualEditorRoute: HistoricalActualEditorRoute?
-    @State private var copyWorkoutRoute: CopyWorkoutRoute?
-    @State private var repeatWorkoutRoute: RepeatWorkoutRoute?
-    @State private var reorderRoute: ProgramReorderRoute?
-    @State private var pendingDeletion: PendingExerciseDeletion?
-    @State private var pendingWorkoutDeletion: LocalDate?
-    @State private var pendingSetDeletion: PendingSetDeletion?
-    @State private var revealedDeleteSetID: WorkoutSetID?
-    @State private var draggingDeleteOffsets: [WorkoutSetID: CGFloat] = [:]
-    @State private var draggingSetID: WorkoutSetID?
-    @State private var provisionalSetOrders: [WorkoutExerciseID: [WorkoutSetID]] = [:]
+    @State private var activeSheet: ProgramSheetRoute?
+    @State private var confirmation: ProgramConfirmation?
+    @State private var reorderSession: ProgramSetReorderSession?
+    @State private var setRowFrames: [WorkoutSetID: CGRect] = [:]
+    @GestureState private var isReorderGestureActive = false
     @State private var showsMutationError = false
 
     init(viewModel: WorkoutViewModel, weightUnit: WeightUnit) {
         self.viewModel = viewModel
         self.weightUnit = weightUnit
-        _displayedSelectedDate = State(initialValue: viewModel.selectedDate)
         _displayedMonth = State(initialValue: viewModel.selectedDate)
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: GymTheme.spacing24) {
-                    Text("Program")
-                        .font(.largeTitle.weight(.bold))
-                        .foregroundStyle(GymTheme.textPrimary)
-
-                    VStack(spacing: GymTheme.spacing12) {
-                        Picker("Program view", selection: $calendarMode) {
-                            ForEach(CalendarMode.allCases, id: \.self) { Text($0.title).tag($0) }
-                        }
-                        .pickerStyle(.segmented)
-                        .accessibilityIdentifier("programViewMode")
-
-                        calendarHeader
-                        dateSelector
-                        programLegend
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    // Program navigation updates both date controls and the
-                    // selected day's content inside one dynamic hierarchy.
-                    selectedDateSections
+        VStack(spacing: 0) {
+            VStack(spacing: GymTheme.spacing12) {
+                programHeader
+                Picker("Program view", selection: $calendarMode) {
+                    ForEach(CalendarMode.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                .padding(.horizontal, GymTheme.spacing16)
-                .padding(.vertical, GymTheme.spacing20)
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("programViewMode")
+                calendarHeader
+                dateSelector
+                programLegend
             }
-            .gymPageBackground()
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .accessibilityIdentifier("programScreen")
-            .onAppear {
-                displayedSelectedDate = viewModel.selectedDate
-                displayedMonth = viewModel.selectedDate
+            .padding(.horizontal, GymTheme.spacing16)
+            .padding(.top, GymTheme.spacing12)
+            .padding(.bottom, GymTheme.spacing8)
+            .background(GymTheme.surfaceBase)
+
+            Divider().overlay(GymTheme.separator)
+
+            selectedDateSections
+        }
+        .coordinateSpace(name: ProgramSetListCoordinateSpace.name)
+        .onPreferenceChange(ProgramSetRowFramePreferenceKey.self) { setRowFrames = $0 }
+        .gymPageBackground()
+        .accessibilityIdentifier("programScreen")
+        .onAppear {
+            displayedMonth = viewModel.selectedDate
+        }
+        .onChange(of: viewModel.selectedDate) { _, selectedDate in
+            displayedMonth = selectedDate
+            cancelSetReorder()
+        }
+        .onChange(of: isReorderGestureActive) { _, isActive in
+            if !isActive, reorderSession != nil {
+                cancelSetReorder()
             }
-            .onChange(of: displayedSelectedDate) { _, selectedDate in
-                viewModel.select(selectedDate)
-                displayedMonth = selectedDate
-                revealedDeleteSetID = nil
-                draggingDeleteOffsets.removeAll()
-                draggingSetID = nil
-                provisionalSetOrders.removeAll()
-            }
-            .onChange(of: viewModel.selectedDate) { _, selectedDate in
-                if displayedSelectedDate != selectedDate {
-                    displayedSelectedDate = selectedDate
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if let workout = calendarState.selectedWorkout {
-                    Menu {
-                        Button {
-                            copyWorkoutRoute = CopyWorkoutRoute(
-                                sourceDate: workout.localDate,
-                                exerciseCount: workout.exercises.count,
-                                setCount: workout.exercises.flatMap(\.sets).count
-                            )
-                        } label: { Label("Copy workout", systemImage: "doc.on.doc") }
-                        .accessibilityIdentifier("programCopyWorkout")
-                        if !isHistorical {
-                        Button {
-                            repeatWorkoutRoute = RepeatWorkoutRoute(sourceDate: workout.localDate)
-                        } label: { Label("Repeat workout", systemImage: "arrow.triangle.2.circlepath") }
-                        .accessibilityIdentifier("programRepeatWorkout")
-                        Divider()
-                        Button("Delete workout", systemImage: "trash", role: .destructive) {
-                            pendingWorkoutDeletion = calendarState.selectedDate
-                        }
-                        .accessibilityIdentifier("programDeleteWorkout")
-                        }
+        }
+        .onDisappear(perform: cancelSetReorder)
+        .alert(
+            confirmationTitle,
+            isPresented: confirmationBinding,
+            presenting: confirmation
+        ) {
+            confirmationActions($0)
+        } message: { Text(confirmationMessage($0)) }
+        .sheet(item: $activeSheet) { route in
+            sheetContent(route)
+        }
+        .alert("Workout could not be updated", isPresented: $showsMutationError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Try again.")
+        }
+    }
+
+    private var programHeader: some View {
+        HStack(alignment: .center, spacing: GymTheme.spacing12) {
+            Text("Program")
+                .font(.largeTitle.weight(.bold))
+                .foregroundStyle(GymTheme.textPrimary)
+            Spacer(minLength: 0)
+            if let workout = calendarState.selectedWorkout {
+                Menu {
+                    Button {
+                        activeSheet = .copy(CopyWorkoutRoute(destinationDate: workout.localDate))
                     } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.body.weight(.semibold))
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
+                        Label("Copy workout", systemImage: "doc.on.doc")
                     }
-                    .accessibilityLabel("Workout actions")
-                    .accessibilityIdentifier("programWorkoutActions")
-                    } else {
-                        Color.clear
-                            .frame(width: 44, height: 44)
-                            .accessibilityHidden(true)
+                    .accessibilityIdentifier("programCopyWorkout")
+
+                    if !isHistorical {
+                        Button {
+                            activeSheet = .repeatWorkout(RepeatWorkoutRoute(sourceDate: workout.localDate))
+                        } label: {
+                            Label("Repeat workout", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .accessibilityIdentifier("programRepeatWorkout")
                     }
+
+                    Divider()
+                    Button("Delete workout", systemImage: "trash", role: .destructive) {
+                        confirmation = .workout(workout.localDate)
+                    }
+                    .accessibilityIdentifier("programDeleteWorkout")
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Workout actions")
+                .accessibilityIdentifier("programWorkoutActions")
             }
-            .alert(
-                "Delete this workout?",
-                isPresented: deleteWorkoutConfirmationBinding
-            ) {
-                Button("Delete workout", role: .destructive) {
-                    guard let date = pendingWorkoutDeletion else { return }
-                    pendingWorkoutDeletion = nil
-                    deleteWorkout(on: date)
+        }
+        .frame(minHeight: 44)
+    }
+
+    @ViewBuilder
+    private func sheetContent(_ route: ProgramSheetRoute) -> some View {
+        switch route {
+        case let .exercisePicker(route):
+            ExercisePickerView(
+                search: viewModel.searchExercises,
+                createCustom: viewModel.createCustomExercise,
+                renameCustom: { try viewModel.renameCustomExercise($0, to: $1) },
+                deleteCustom: viewModel.deleteCustomExercise,
+                onSelect: { exercise in
+                    try viewModel.addExercise(exercise, to: route.workoutDate)
                 }
-                .accessibilityIdentifier("programConfirmDeleteWorkout")
-                Button("Cancel", role: .cancel) { pendingWorkoutDeletion = nil }
-            } message: {
-                Text("All exercises, sets, and recorded results for this date will be removed.")
-            }
-            .sheet(item: $exercisePickerRoute) { route in
-                ExercisePickerView(
-                    search: viewModel.searchExercises,
-                    createCustom: viewModel.createCustomExercise,
-                    renameCustom: { try viewModel.renameCustomExercise($0, to: $1) },
-                    deleteCustom: viewModel.deleteCustomExercise,
-                    onSelect: { exercise in
-                        try viewModel.addExercise(exercise, to: route.workoutDate)
-                    }
-                )
-            }
-            .sheet(item: $setEditorRoute) { route in
-                let typeLock = viewModel.orderedSets(for: route.exercise.id, on: route.workoutDate)
-                    .first { $0.id != route.set?.id && ($0.reps > 0 || $0.weight > 0 || $0.timeSeconds > 0) }?.type
-                ProgramSetEditorSheet(
-                    set: route.set,
-                    typeLock: typeLock,
-                    exerciseName: viewModel.exerciseName(for: route.exercise),
-                    weightUnit: weightUnit,
-                    onSave: { reps, weight, timeSeconds, type in
-                        guard let set = route.set else { return }
-                        try viewModel.editSet(
-                            set.id,
-                            in: route.exercise.id,
-                            on: route.workoutDate,
-                            reps: reps,
-                            weight: weight,
-                            timeSeconds: timeSeconds,
-                            type: type
-                        )
-                    },
-                    onDelete: {
-                        guard let set = route.set else { return }
-                        try viewModel.deleteSet(
-                            set.id,
-                            from: route.exercise.id,
-                            on: route.workoutDate
-                        )
-                    }
-                )
-            }
-            .sheet(item: $historicalActualEditorRoute) { route in
-                HistoricalActualEditorSheet(
-                    route: route,
-                    weightUnit: weightUnit,
-                    onSave: { reps, weight, timeSeconds in
-                        try viewModel.editHistoricalActual(
-                            route.workoutSet.id,
-                            in: route.exercise.id,
-                            on: route.workoutDate,
-                            reps: reps,
-                            weight: weight,
-                            timeSeconds: timeSeconds
-                        )
-                    }
-                )
-            }
-            .sheet(item: $copyWorkoutRoute) { route in
-                CopyWorkoutSheet(
-                    sourceDate: route.sourceDate,
-                    exerciseCount: route.exerciseCount,
-                    setCount: route.setCount,
-                    calendar: calendarState.calendar,
-                    availableWorkouts: viewModel.workouts,
-                    initialDestination: route.destinationDate,
-                    isDestinationOccupied: { viewModel.hasWorkout(on: $0) },
-                    onCopy: { sourceDate, destinationDate in
-                        try viewModel.copyWorkout(from: sourceDate, to: destinationDate)
-                    }
-                )
-            }
-            .sheet(item: $repeatWorkoutRoute) { route in
-                RepeatWorkoutSheet(
-                    sourceDate: route.sourceDate,
-                    exerciseCount: calendarState.selectedWorkout?.exercises.count ?? 0,
-                    setCount: calendarState.selectedWorkout?.exercises.flatMap(\.sets).count ?? 0,
-                    calendar: calendarState.calendar,
-                    isDestinationOccupied: { viewModel.hasWorkout(on: $0) },
-                    onRepeat: { endDate, cadence in
-                        try viewModel.repeatWorkout(from: route.sourceDate, through: endDate, cadence: cadence)
-                    }
-                )
-            }
-            .sheet(item: $reorderRoute) { _ in
-                ExerciseReorderSheet(
-                    exercises: orderedExercises,
-                    exerciseName: viewModel.exerciseName(for:),
-                    onReorder: persistOrder
-                )
-            }
-            .alert("Workout could not be updated", isPresented: $showsMutationError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Try again.")
-            }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        case let .setEditor(route):
+            ProgramSetEditorSheet(
+                set: route.set,
+                exerciseName: viewModel.exerciseName(for: route.exercise),
+                weightUnit: weightUnit,
+                onSave: { reps, weight, timeSeconds in
+                    guard let set = route.set else { return }
+                    try viewModel.editSet(
+                        set.id,
+                        in: route.exercise.id,
+                        on: route.workoutDate,
+                        reps: reps,
+                        weight: weight,
+                        timeSeconds: timeSeconds,
+                        type: set.type
+                    )
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        case let .historicalActual(route):
+            HistoricalActualEditorSheet(
+                route: route,
+                weightUnit: weightUnit,
+                onSave: { reps, weight, timeSeconds in
+                    try viewModel.editHistoricalActual(
+                        route.workoutSet.id,
+                        in: route.exercise.id,
+                        on: route.workoutDate,
+                        reps: reps,
+                        weight: weight,
+                        timeSeconds: timeSeconds
+                    )
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        case let .copy(route):
+            CopyWorkoutSheet(
+                destinationDate: route.destinationDate,
+                currentDate: viewModel.currentDate,
+                calendar: calendarState.calendar,
+                availableWorkouts: viewModel.workouts,
+                destinationState: viewModel.copyDestinationState(on:),
+                onCopy: { sourceDate, destinationDate, strategy in
+                    try viewModel.copyWorkout(from: sourceDate, to: destinationDate, strategy: strategy)
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        case let .repeatWorkout(route):
+            RepeatWorkoutSheet(
+                sourceDate: route.sourceDate,
+                exerciseCount: calendarState.selectedWorkout?.exercises.count ?? 0,
+                setCount: calendarState.selectedWorkout?.exercises.flatMap(\.sets).count ?? 0,
+                calendar: calendarState.calendar,
+                isDestinationOccupied: { viewModel.hasWorkout(on: $0) },
+                onRepeat: { endDate, cadence in
+                    try viewModel.repeatWorkout(from: route.sourceDate, through: endDate, cadence: cadence)
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        case .reorderExercises:
+            ExerciseReorderSheet(
+                exercises: orderedExercises,
+                exerciseName: viewModel.exerciseName(for:),
+                onReorder: persistOrder
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+    }
 
+    @ViewBuilder
+    private func confirmationActions(_ route: ProgramConfirmation) -> some View {
+        Button(route.destructiveActionTitle, role: .destructive) {
+            confirmation = nil
+            performConfirmedDeletion(route)
+        }
+        .accessibilityIdentifier(route.accessibilityIdentifier)
+        Button("Cancel", role: .cancel) { confirmation = nil }
+    }
 
+    private var confirmationBinding: Binding<Bool> {
+        Binding(
+            get: { confirmation != nil },
+            set: { if !$0 { confirmation = nil } }
+        )
+    }
 
+    private var confirmationTitle: String {
+        confirmation?.title ?? "Confirm deletion"
+    }
+
+    private func confirmationMessage(_ route: ProgramConfirmation) -> String {
+        route.message
+    }
+
+    private func performConfirmedDeletion(_ route: ProgramConfirmation) {
+        do {
+            switch route {
+            case let .workout(date):
+                try viewModel.deleteWorkout(on: date)
+            case let .exercise(deletion):
+                try viewModel.deleteExercise(deletion.id, from: deletion.workoutDate)
+            case let .set(deletion):
+                try viewModel.deleteSet(deletion.setID, from: deletion.exerciseID, on: deletion.workoutDate)
+            }
+        } catch {
+            showsMutationError = true
         }
     }
 
@@ -347,10 +358,10 @@ struct ProgramView: View {
 
     private func monthDateButton(_ date: LocalDate) -> some View {
         let state = calendarState.dayState(for: date)
-        let isSelected = date == displayedSelectedDate
+        let isSelected = date == viewModel.selectedDate
         let isCurrentMonth = date.month == displayedMonth.month && date.year == displayedMonth.year
         let isToday = date == calendarState.currentDate
-        return Button { displayedSelectedDate = date } label: {
+        return Button { viewModel.select(date) } label: {
             VStack(spacing: 3) {
                 Text("\(date.day)").font(.subheadline.weight(isSelected ? .bold : .regular))
                 Image(systemName: state.systemImage ?? "circle")
@@ -377,7 +388,7 @@ struct ProgramView: View {
         let isSelected = date == calendarState.selectedDate
 
         return Button {
-            displayedSelectedDate = date
+            viewModel.select(date)
         } label: {
             VStack(spacing: 5) {
                 Text(shortWeekday(for: date))
@@ -408,35 +419,38 @@ struct ProgramView: View {
 
     @ViewBuilder
     private var selectedDateSections: some View {
-        VStack(alignment: .leading, spacing: GymTheme.spacing8) {
-            HStack(spacing: GymTheme.spacing8) {
-                Text(calendarState.selectedWorkout == nil ? "Plan workout" : "Workout")
-                    .font(.headline)
-                    .foregroundStyle(GymTheme.textPrimary)
-                    .accessibilityLabel(fullDateLabel(for: calendarState.selectedDate))
-                    .accessibilityIdentifier("programSelectedDate")
-                Spacer(minLength: 0)
-                if case let .workout(status) = calendarState.selectedDayState {
-                    Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
+        List {
+            VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+                HStack(spacing: GymTheme.spacing8) {
+                    Text(calendarState.selectedWorkout == nil ? "Plan workout" : "Workout")
+                        .font(.headline)
+                        .foregroundStyle(GymTheme.textPrimary)
+                        .accessibilityLabel(fullDateLabel(for: calendarState.selectedDate))
+                        .accessibilityIdentifier("programSelectedDate")
+                    Spacer(minLength: 0)
+                    if case let .workout(status) = calendarState.selectedDayState {
+                        Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(dayStateColor(.workout(status)))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(GymTheme.surface, in: Capsule())
+                            .accessibilityIdentifier("programWorkoutState")
+                    }
+                }
+                if !isHistorical && calendarState.selectedWorkout != nil {
+                    Label("Saved on device", systemImage: "checkmark.circle.fill")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(dayStateColor(.workout(status)))
+                        .foregroundStyle(GymTheme.accentForeground)
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(GymTheme.surface, in: Capsule())
-                        .accessibilityIdentifier("programWorkoutState")
+                        .padding(.vertical, 7)
+                        .background(GymTheme.accentSoft, in: Capsule())
+                        .accessibilityIdentifier("programSavedStatus")
                 }
             }
-            if !isHistorical && calendarState.selectedWorkout != nil {
-                Label("Saved on device", systemImage: "checkmark.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(GymTheme.accentForeground)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(GymTheme.accentSoft, in: Capsule())
-                    .accessibilityIdentifier("programSavedStatus")
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowBackground(GymTheme.surfaceBase)
+            .listRowSeparator(.hidden)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
         if viewModel.workoutLoadState == .loading {
             Section {
@@ -461,9 +475,9 @@ struct ProgramView: View {
                 }
             }
 
-        switch calendarState.selectedDayState {
-        case .empty:
-            VStack(spacing: GymTheme.spacing16) {
+            switch calendarState.selectedDayState {
+            case .empty:
+                VStack(spacing: GymTheme.spacing16) {
                 Image(systemName: isHistorical ? "clock.arrow.circlepath" : "list.clipboard")
                     .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(GymTheme.accentForeground)
@@ -487,37 +501,41 @@ struct ProgramView: View {
                     .accessibilityIdentifier("programCreateWorkout")
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 280)
-        case .workout:
-            Group {
-                if orderedExercises.isEmpty {
-                    Text("No exercises added yet.")
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("programEmptyWorkout")
-                }
-                if isHistorical {
-                    ForEach(orderedExercises) { exercise in
-                        historyExerciseRow(exercise)
+                .frame(maxWidth: .infinity, minHeight: 280)
+            case .workout:
+                Group {
+                    if orderedExercises.isEmpty {
+                        Text("No exercises added yet.")
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("programEmptyWorkout")
                     }
-                } else {
-                    ForEach(orderedExercises) { exercise in
-                        exerciseRow(
-                            exercise,
-                            index: orderedExercises.firstIndex(where: { $0.id == exercise.id }) ?? 0
-                        )
-                    }
+                    if isHistorical {
+                        ForEach(orderedExercises) { exercise in
+                            historyExerciseRow(exercise)
+                        }
+                    } else {
+                        ForEach(orderedExercises) { exercise in
+                            exerciseRow(
+                                exercise,
+                                index: orderedExercises.firstIndex(where: { $0.id == exercise.id }) ?? 0
+                            )
+                        }
 
-                    Button {
-                        exercisePickerRoute = ExercisePickerRoute(workoutDate: calendarState.selectedDate)
-                    } label: {
-                        Label("Add exercise", systemImage: "plus")
+                        Button {
+                            activeSheet = .exercisePicker(ExercisePickerRoute(workoutDate: calendarState.selectedDate))
+                        } label: {
+                            Label("Add exercise", systemImage: "plus")
+                        }
+                        .buttonStyle(GymPrimaryButtonStyle())
+                        .accessibilityIdentifier("programAddExercise")
                     }
-                    .buttonStyle(GymPrimaryButtonStyle())
-                    .accessibilityIdentifier("programAddExercise")
                 }
             }
         }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(GymTheme.surfaceBase)
     }
 
     private func historyExerciseRow(_ exercise: WorkoutExercise) -> some View {
@@ -580,11 +598,11 @@ struct ProgramView: View {
 
         if set.isCompleted {
             Button {
-                historicalActualEditorRoute = HistoricalActualEditorRoute(
+                activeSheet = .historicalActual(HistoricalActualEditorRoute(
                     workoutDate: calendarState.selectedDate,
                     exercise: exercise,
                     workoutSet: set
-                )
+                ))
             } label: {
                 row
             }
@@ -606,22 +624,127 @@ struct ProgramView: View {
         let name = viewModel.exerciseName(for: exercise)
         let sets = visibleSets(for: exercise.id)
 
-        return VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+        return Section {
+            ForEach(Array(sets.enumerated()), id: \.element.id) { setIndex, set in
+                HStack(spacing: GymTheme.spacing8) {
+                    Button {
+                        activeSheet = .setEditor(SetEditorRoute(
+                            workoutDate: calendarState.selectedDate,
+                            exercise: exercise,
+                            set: set
+                        ))
+                    } label: {
+                        HStack(spacing: GymTheme.spacing12) {
+                            Text("\(setIndex + 1)")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(GymTheme.textSecondary)
+                                .frame(width: 28, height: 28)
+                                .background(GymTheme.surfaceBase, in: Circle())
+                            Text(SetDisplayFormatter(unit: weightUnit).string(
+                                reps: set.displayedReps,
+                                weightInKilograms: set.displayedWeight,
+                                timeSeconds: set.displayedTimeSeconds,
+                                type: set.displayedType
+                            ))
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(GymTheme.textPrimary)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Edit set \(setIndex + 1) for \(name)")
+                    .accessibilityValue(SetDisplayFormatter(unit: weightUnit).string(
+                        reps: set.displayedReps,
+                        weightInKilograms: set.displayedWeight,
+                        timeSeconds: set.displayedTimeSeconds,
+                        type: set.displayedType
+                    ))
+                    .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
+
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(GymTheme.accentForeground)
+                        .frame(width: 44, height: 44)
+                        .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 9))
+                        .contentShape(Rectangle())
+                        .accessibilityLabel("Drag set \(setIndex + 1) to reorder")
+                        .accessibilityHint("Drag up or down")
+                        .accessibilityIdentifier("programSetDragHandle-\(set.id.rawValue.uuidString)")
+                        .gesture(reorderGesture(for: set.id, in: exercise.id, sets: sets))
+                }
+                .background {
+                    GeometryReader { geometry in
+                        Color.clear.preference(
+                            key: ProgramSetRowFramePreferenceKey.self,
+                            value: [set.id: geometry.frame(in: .named(ProgramSetListCoordinateSpace.name))]
+                        )
+                    }
+                }
+                .listRowBackground(GymTheme.surfaceGrouped)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button("Delete", systemImage: "trash", role: .destructive) {
+                        confirmation = .set(PendingSetDeletion(
+                            workoutDate: calendarState.selectedDate,
+                            exerciseID: exercise.id,
+                            setID: set.id,
+                            setNumber: setIndex + 1
+                        ))
+                    }
+                    .accessibilityLabel("Delete set \(setIndex + 1)")
+                }
+            }
+
+            Button {
+                addSet(to: exercise.id)
+            } label: {
+                Label("Add set", systemImage: "plus")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(GymTheme.accentForeground)
+                    .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add set to \(name)")
+            .accessibilityIdentifier("programAddSet-\(exercise.id.rawValue.uuidString)")
+        } header: {
             HStack(spacing: GymTheme.spacing8) {
                 Text(name)
                     .font(.headline)
                     .foregroundStyle(GymTheme.textPrimary)
+                    .textCase(nil)
                     .accessibilityIdentifier("programExercise-\(name)")
                 Spacer()
+                Text(exerciseSetType(exercise).title)
+                    .font(.caption)
+                    .foregroundStyle(GymTheme.textSecondary)
+                    .textCase(nil)
                 Menu {
+                    Menu("Set type", systemImage: "slider.horizontal.3") {
+                        ForEach(WorkoutSetType.editableCases, id: \.self) { type in
+                            Button {
+                                setExerciseType(type, for: exercise.id)
+                            } label: {
+                                if exerciseSetType(exercise) == type {
+                                    Label(type.title, systemImage: "checkmark")
+                                } else {
+                                    Text(type.title)
+                                }
+                            }
+                        }
+                    }
                     if orderedExercises.count > 1 {
                         Button("Reorder exercises", systemImage: "arrow.up.arrow.down") {
-                            reorderRoute = .exercises
+                            activeSheet = .reorderExercises
                         }
                         .accessibilityIdentifier("programReorderExercises")
                     }
                     Button("Delete", role: .destructive) {
-                        requestDeletion(of: exercise)
+                        confirmation = .exercise(PendingExerciseDeletion(
+                            workoutDate: calendarState.selectedDate,
+                            id: exercise.id,
+                            name: name
+                        ))
                     }
                     .accessibilityIdentifier("programExerciseDelete-\(exercise.id.rawValue.uuidString)")
                 } label: {
@@ -631,194 +754,9 @@ struct ProgramView: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Actions for \(name), exercise \(index + 1) of \(orderedExercises.count)")
-                .confirmationDialog(
-                    "Delete \(name)?",
-                    isPresented: Binding(
-                        get: { pendingDeletion?.id == exercise.id },
-                        set: { if !$0 { pendingDeletion = nil } }
-                    ),
-                    titleVisibility: .visible
-                ) {
-                    Button("Delete", role: .destructive) {
-                        deleteExercise(exercise.id)
-                        pendingDeletion = nil
-                    }
-                    Button("Cancel", role: .cancel) { pendingDeletion = nil }
-                } message: {
-                    Text("Its configured sets will be removed. You can re-add the exercise later.")
-                }
             }
-
-            VStack(spacing: 0) {
-                ForEach(Array(sets.enumerated()), id: \.element.id) { setIndex, set in
-                    HStack(spacing: 0) {
-                        Button {
-                            setEditorRoute = SetEditorRoute(
-                                workoutDate: calendarState.selectedDate,
-                                exercise: exercise,
-                                set: set
-                            )
-                        } label: {
-                            HStack(spacing: GymTheme.spacing12) {
-                                Text("\(setIndex + 1)")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(GymTheme.textSecondary)
-                                    .frame(width: 28, height: 28)
-                                    .background(GymTheme.surfaceBase, in: Circle())
-                                Text(SetDisplayFormatter(unit: weightUnit).string(
-                                    reps: set.displayedReps,
-                                    weightInKilograms: set.displayedWeight,
-                                    timeSeconds: set.displayedTimeSeconds,
-                                    type: set.displayedType
-                                ))
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(GymTheme.textPrimary)
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.leading, GymTheme.spacing12)
-                            .frame(maxWidth: .infinity, minHeight: 52)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Edit set \(setIndex + 1) for \(name)")
-                        .accessibilityValue(SetDisplayFormatter(unit: weightUnit).string(
-                            reps: set.displayedReps,
-                            weightInKilograms: set.displayedWeight,
-                            timeSeconds: set.displayedTimeSeconds,
-                            type: set.displayedType
-                        ))
-                        .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
-                        .highPriorityGesture(
-                            DragGesture(minimumDistance: 18)
-                                .onChanged { value in
-                                    let delta = value.translation
-                                    guard abs(delta.width) > abs(delta.height) * 1.3 else { return }
-                                    let origin: CGFloat = revealedDeleteSetID == set.id ? -72 : 0
-                                    draggingDeleteOffsets[set.id] = max(-72, min(0, origin + delta.width))
-                                }
-                                .onEnded { value in
-                                    let delta = value.translation
-                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.86)) {
-                                        if abs(delta.width) > abs(delta.height) * 1.3 {
-                                            let remainsOpen = revealedDeleteSetID == set.id && delta.width < 35
-                                            revealedDeleteSetID = delta.width < -35 || remainsOpen ? set.id : nil
-                                        }
-                                        draggingDeleteOffsets.removeValue(forKey: set.id)
-                                    }
-                                }
-                        )
-
-                        Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(GymTheme.accentForeground)
-                            .frame(width: 40, height: 40)
-                            .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 9))
-                            .padding(.trailing, 4)
-                            .contentShape(Rectangle())
-                            .accessibilityLabel("Drag set \(setIndex + 1) to reorder")
-                            .accessibilityHint("Press and hold, then move up or down")
-                            .accessibilityIdentifier("programSetDragHandle-\(set.id.rawValue.uuidString)")
-                            .onDrag {
-                                revealedDeleteSetID = nil
-                                draggingDeleteOffsets.removeAll()
-                                provisionalSetOrders[exercise.id] = sets.map(\.id)
-                                draggingSetID = set.id
-                                return NSItemProvider(object: set.id.rawValue.uuidString as NSString)
-                            }
-                    }
-                    .background(GymTheme.surfaceGrouped)
-                    .offset(x: draggingDeleteOffsets[set.id] ?? (revealedDeleteSetID == set.id ? -72 : 0))
-                    .animation(.easeOut(duration: 0.18), value: revealedDeleteSetID)
-                    .background(alignment: .trailing) {
-                        if draggingSetID == nil {
-                        Button(role: .destructive) {
-                            pendingSetDeletion = PendingSetDeletion(exerciseID: exercise.id, setID: set.id)
-                            revealedDeleteSetID = nil
-                        } label: {
-                            Image(systemName: "trash")
-                                .foregroundStyle(.white)
-                                .frame(width: 72, height: 52)
-                                .background(GymTheme.destructive)
-                        }
-                        .accessibilityLabel("Delete set \(setIndex + 1)")
-                        .confirmationDialog(
-                            "Delete this set?",
-                            isPresented: Binding(
-                                get: { pendingSetDeletion?.setID == set.id },
-                                set: { if !$0 { pendingSetDeletion = nil } }
-                            ),
-                            titleVisibility: .visible
-                        ) {
-                            Button("Delete set", role: .destructive) {
-                                do {
-                                    try viewModel.deleteSet(set.id, from: exercise.id, on: calendarState.selectedDate)
-                                } catch {
-                                    showsMutationError = true
-                                }
-                                pendingSetDeletion = nil
-                            }
-                            .accessibilityIdentifier("programConfirmDeleteSet")
-                            Button("Cancel", role: .cancel) { pendingSetDeletion = nil }
-                        } message: {
-                            Text("This set will be removed from the workout.")
-                        }
-                        }
-                    }
-                    .clipped()
-                    .onDrop(
-                        of: [UTType.plainText.identifier],
-                        delegate: ProgramSetDropDelegate(
-                            targetID: set.id,
-                            draggingID: $draggingSetID,
-                            order: Binding(
-                                get: { provisionalSetOrders[exercise.id] ?? sets.map(\.id) },
-                                set: { provisionalSetOrders[exercise.id] = $0 }
-                            ),
-                            onCommit: {
-                                if let ids = provisionalSetOrders[exercise.id] {
-                                    persistSetOrder(ids, in: exercise.id)
-                                }
-                                provisionalSetOrders.removeValue(forKey: exercise.id)
-                                draggingSetID = nil
-                            }
-                        )
-                    )
-
-                    if set.id != sets.last?.id {
-                        Divider().overlay(GymTheme.separator)
-                    }
-                }
-
-                if !sets.isEmpty {
-                    Divider().overlay(GymTheme.separator)
-                }
-
-                Button {
-                    addSet(to: exercise.id)
-                } label: {
-                    Label("Add set", systemImage: "plus")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(GymTheme.accentForeground)
-                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                        .padding(.horizontal, GymTheme.spacing16)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Add set to \(name)")
-                .accessibilityIdentifier("programAddSet-\(exercise.id.rawValue.uuidString)")
-            }
-            .background(
-                GymTheme.surfaceGrouped,
-                in: RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
-                    .stroke(GymTheme.borderSubtle, lineWidth: 1)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous))
+            .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
-        .accessibilityHint("Exercise \(index + 1) of \(orderedExercises.count)")
     }
 
     private var weekRangeLabel: String {
@@ -852,7 +790,7 @@ struct ProgramView: View {
 
     private var calendarState: ProgramCalendarState {
         ProgramCalendarState(
-            selectedDate: displayedSelectedDate,
+            selectedDate: viewModel.selectedDate,
             currentDate: viewModel.currentDate,
             calendar: viewModel.calendar,
             workouts: viewModel.workouts
@@ -864,7 +802,9 @@ struct ProgramView: View {
 
     private func visibleSets(for exerciseID: WorkoutExerciseID) -> [WorkoutSet] {
         let actual = viewModel.orderedSets(for: exerciseID, on: calendarState.selectedDate)
-        guard let ids = provisionalSetOrders[exerciseID],
+        guard let session = reorderSession, session.exerciseID == exerciseID else { return actual }
+        let ids = session.provisionalOrder
+        guard
               ids.count == actual.count,
               Set(ids) == Set(actual.map(\.id)) else { return actual }
         let byID = Dictionary(uniqueKeysWithValues: actual.map { ($0.id, $0) })
@@ -882,8 +822,7 @@ struct ProgramView: View {
     }
 
     private func moveWeek(by offset: Int) {
-        guard let date = displayedSelectedDate.adding(weeks: offset, calendar: viewModel.calendar) else { return }
-        displayedSelectedDate = date
+        viewModel.moveWeek(by: offset)
     }
 
     private func moveMonth(by offset: Int) {
@@ -907,14 +846,6 @@ struct ProgramView: View {
         }
     }
 
-    private func deleteExercise(_ id: WorkoutExerciseID) {
-        do {
-            try viewModel.deleteExercise(id, from: calendarState.selectedDate)
-        } catch {
-            showsMutationError = true
-        }
-    }
-
     private func addSet(to exerciseID: WorkoutExerciseID) {
         do {
             try viewModel.addSet(to: exerciseID, on: calendarState.selectedDate)
@@ -923,67 +854,110 @@ struct ProgramView: View {
         }
     }
 
-    private func deleteWorkout(on date: LocalDate) {
+    private func exerciseSetType(_ exercise: WorkoutExercise) -> WorkoutSetType {
+        let configured = visibleSets(for: exercise.id).first {
+            $0.reps > 0 || $0.weight > 0 || $0.timeSeconds > 0
+        }
+        return configured?.type ?? visibleSets(for: exercise.id).first?.type ?? .repsOnly
+    }
+
+    private func setExerciseType(_ type: WorkoutSetType, for exerciseID: WorkoutExerciseID) {
         do {
-            try viewModel.deleteWorkout(on: date)
+            try viewModel.setExerciseType(type, for: exerciseID, on: calendarState.selectedDate)
         } catch {
             showsMutationError = true
         }
     }
 
-    private func requestDeletion(of exercise: WorkoutExercise) {
-        pendingDeletion = PendingExerciseDeletion(
-            id: exercise.id,
-            name: viewModel.exerciseName(for: exercise)
-        )
+    private func reorderGesture(
+        for setID: WorkoutSetID,
+        in exerciseID: WorkoutExerciseID,
+        sets: [WorkoutSet]
+    ) -> some Gesture {
+        DragGesture(minimumDistance: 8, coordinateSpace: .named(ProgramSetListCoordinateSpace.name))
+            .updating($isReorderGestureActive) { _, isActive, _ in
+                isActive = true
+            }
+            .onChanged { value in
+                if reorderSession == nil {
+                    reorderSession = ProgramSetReorderSession(
+                        exerciseID: exerciseID,
+                        setID: setID,
+                        originalOrder: sets.map(\.id)
+                    )
+                }
+                guard var session = reorderSession,
+                      session.exerciseID == exerciseID,
+                      session.setID == setID else { return }
+                session.update(dragLocationY: value.location.y, rowFrames: setRowFrames)
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    reorderSession = session
+                }
+            }
+            .onEnded { _ in
+                guard let session = reorderSession,
+                      session.exerciseID == exerciseID,
+                      session.setID == setID else { return }
+                if session.hasChanged {
+                    persistSetOrder(session.provisionalOrder, in: exerciseID)
+                }
+                cancelSetReorder()
+            }
     }
 
-    private var deleteWorkoutConfirmationBinding: Binding<Bool> {
-        Binding(
-            get: { pendingWorkoutDeletion != nil },
-            set: { if !$0 { pendingWorkoutDeletion = nil } }
-        )
-    }
-}
-
-private struct ProgramSetDropDelegate: DropDelegate {
-    let targetID: WorkoutSetID
-    @Binding var draggingID: WorkoutSetID?
-    @Binding var order: [WorkoutSetID]
-    let onCommit: () -> Void
-
-    func validateDrop(info: DropInfo) -> Bool {
-        draggingID != nil && info.hasItemsConforming(to: [UTType.plainText.identifier])
-    }
-
-    func dropEntered(info: DropInfo) {
-        guard let movingID = draggingID, movingID != targetID,
-              let from = order.firstIndex(of: movingID),
-              let to = order.firstIndex(of: targetID) else { return }
-        var updated = order
-        updated.move(
-            fromOffsets: IndexSet(integer: from),
-            toOffset: to + (from < to ? 1 : 0)
-        )
-        withAnimation(.easeInOut(duration: 0.18)) {
-            order = updated
+    private func cancelSetReorder() {
+        withAnimation(.easeOut(duration: 0.14)) {
+            reorderSession = nil
         }
     }
+}
 
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
+struct ProgramSetReorderSession: Equatable {
+    let exerciseID: WorkoutExerciseID
+    let setID: WorkoutSetID
+    let originalOrder: [WorkoutSetID]
+    private(set) var provisionalOrder: [WorkoutSetID]
+
+    init(exerciseID: WorkoutExerciseID, setID: WorkoutSetID, originalOrder: [WorkoutSetID]) {
+        self.exerciseID = exerciseID
+        self.setID = setID
+        self.originalOrder = originalOrder
+        self.provisionalOrder = originalOrder
     }
 
-    func performDrop(info: DropInfo) -> Bool {
-        guard draggingID != nil else { return false }
-        onCommit()
-        return true
+    var hasChanged: Bool { provisionalOrder != originalOrder }
+
+    mutating func update(dragLocationY: CGFloat, rowFrames: [WorkoutSetID: CGRect]) {
+        guard let targetSetID = provisionalOrder.min(by: {
+            abs((rowFrames[$0]?.midY ?? .greatestFiniteMagnitude) - dragLocationY)
+                < abs((rowFrames[$1]?.midY ?? .greatestFiniteMagnitude) - dragLocationY)
+        }), rowFrames[targetSetID] != nil else { return }
+        update(targetSetID: targetSetID)
+    }
+
+    mutating func update(targetSetID: WorkoutSetID) {
+        guard targetSetID != setID,
+              let sourceIndex = provisionalOrder.firstIndex(of: setID),
+              let targetIndex = provisionalOrder.firstIndex(of: targetSetID) else { return }
+        provisionalOrder.remove(at: sourceIndex)
+        provisionalOrder.insert(setID, at: min(targetIndex, provisionalOrder.count))
+    }
+
+    mutating func cancel() {
+        provisionalOrder = originalOrder
     }
 }
 
-private enum ProgramReorderRoute: Identifiable {
-    case exercises
-    var id: String { "exercises" }
+private enum ProgramSetListCoordinateSpace {
+    static let name = "program-set-list"
+}
+
+private struct ProgramSetRowFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [WorkoutSetID: CGRect] = [:]
+
+    static func reduce(value: inout [WorkoutSetID: CGRect], nextValue: () -> [WorkoutSetID: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, next in next })
+    }
 }
 
 private struct ExerciseReorderSheet: View {
@@ -1047,13 +1021,16 @@ private struct HistoricalActualEditorRoute: Identifiable {
 }
 
 private struct PendingExerciseDeletion {
+    let workoutDate: LocalDate
     let id: WorkoutExerciseID
     let name: String
 }
 
 private struct PendingSetDeletion {
+    let workoutDate: LocalDate
     let exerciseID: WorkoutExerciseID
     let setID: WorkoutSetID
+    let setNumber: Int
 }
 
 private struct SetEditorRoute: Identifiable {
@@ -1067,12 +1044,9 @@ private struct SetEditorRoute: Identifiable {
 }
 
 private struct CopyWorkoutRoute: Identifiable {
-    let sourceDate: LocalDate
-    let exerciseCount: Int
-    let setCount: Int
-    var destinationDate: LocalDate? = nil
+    let destinationDate: LocalDate
 
-    var id: LocalDate { sourceDate }
+    var id: LocalDate { destinationDate }
 }
 
 private struct RepeatWorkoutRoute: Identifiable {
@@ -1080,50 +1054,137 @@ private struct RepeatWorkoutRoute: Identifiable {
     var id: LocalDate { sourceDate }
 }
 
+private enum ProgramSheetRoute: Identifiable {
+    case exercisePicker(ExercisePickerRoute)
+    case setEditor(SetEditorRoute)
+    case historicalActual(HistoricalActualEditorRoute)
+    case copy(CopyWorkoutRoute)
+    case repeatWorkout(RepeatWorkoutRoute)
+    case reorderExercises
+
+    var id: String {
+        switch self {
+        case let .exercisePicker(route): "exercise-picker-\(route.id)"
+        case let .setEditor(route): "set-editor-\(route.id)"
+        case let .historicalActual(route): "actual-editor-\(route.id.rawValue.uuidString)"
+        case let .copy(route): "copy-\(route.id)"
+        case let .repeatWorkout(route): "repeat-\(route.id)"
+        case .reorderExercises: "reorder-exercises"
+        }
+    }
+}
+
+private enum ProgramConfirmation {
+    case workout(LocalDate)
+    case exercise(PendingExerciseDeletion)
+    case set(PendingSetDeletion)
+
+    var title: String {
+        switch self {
+        case .workout: "Delete this workout?"
+        case let .exercise(deletion): "Delete \(deletion.name)?"
+        case .set: "Delete this set?"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .workout:
+            "All exercises, sets, and recorded results for this date will be removed."
+        case .exercise:
+            "Its configured sets will be removed. You can re-add the exercise later."
+        case .set:
+            "This set will be removed from the workout."
+        }
+    }
+
+    var destructiveActionTitle: String {
+        switch self {
+        case .workout: "Delete workout"
+        case .exercise: "Delete"
+        case .set: "Delete set"
+        }
+    }
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case .workout: "programConfirmDeleteWorkout"
+        case .exercise: "programConfirmDeleteExercise"
+        case .set: "programConfirmDeleteSet"
+        }
+    }
+}
+
 private struct CopyWorkoutSheet: View {
-    let sourceDate: LocalDate
-    let exerciseCount: Int
-    let setCount: Int
+    private enum DestinationChoice: String, CaseIterable, Identifiable {
+        case add = "Add exercises"
+        case replace = "Replace exercises"
+
+        var id: Self { self }
+        var strategy: WorkoutCopyStrategy {
+            self == .add ? .addExercises : .replaceExercises
+        }
+    }
+
+    let destinationDate: LocalDate
+    let currentDate: LocalDate
     let calendar: Calendar
     let availableWorkouts: [Workout]
-    let isDestinationOccupied: (LocalDate) -> Bool
-    let onCopy: (LocalDate, LocalDate) throws -> Void
+    let destinationState: (LocalDate) -> WorkoutCopyDestinationState
+    let onCopy: (LocalDate, LocalDate, WorkoutCopyStrategy) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var selectedSourceDateValue: Date
+    @State private var sourceMonth: LocalDate
     @State private var destination: Date
+    @State private var destinationChoice: DestinationChoice = .add
+    @State private var showsReplaceConfirmation = false
     @State private var showsCopyError = false
 
     init(
-        sourceDate: LocalDate,
-        exerciseCount: Int,
-        setCount: Int,
+        destinationDate: LocalDate,
+        currentDate: LocalDate,
         calendar: Calendar,
         availableWorkouts: [Workout],
-        initialDestination: LocalDate?,
-        isDestinationOccupied: @escaping (LocalDate) -> Bool,
-        onCopy: @escaping (LocalDate, LocalDate) throws -> Void
+        destinationState: @escaping (LocalDate) -> WorkoutCopyDestinationState,
+        onCopy: @escaping (LocalDate, LocalDate, WorkoutCopyStrategy) throws -> Void
     ) {
-        self.sourceDate = sourceDate
-        self.exerciseCount = exerciseCount
-        self.setCount = setCount
+        self.destinationDate = destinationDate
+        self.currentDate = currentDate
         self.calendar = calendar
         self.availableWorkouts = availableWorkouts
-        self.isDestinationOccupied = isDestinationOccupied
+        self.destinationState = destinationState
         self.onCopy = onCopy
-        _selectedSourceDateValue = State(initialValue: sourceDate.date(in: calendar) ?? Date())
-        _destination = State(initialValue: (initialDestination ?? sourceDate).date(in: calendar) ?? Date())
+        let initialSource = availableWorkouts
+            .filter { $0.localDate != destinationDate }
+            .sorted { $0.localDate > $1.localDate }
+            .first?.localDate ?? destinationDate
+        _selectedSourceDateValue = State(initialValue: initialSource.date(in: calendar) ?? Date())
+        _sourceMonth = State(initialValue: initialSource)
+        _destination = State(initialValue: destinationDate.date(in: calendar) ?? Date())
     }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    GymSectionHeader(title: "Source")
-                    DatePicker("Source workout", selection: $selectedSourceDateValue, displayedComponents: .date)
-                        .datePickerStyle(.compact)
-                        .tint(GymTheme.accentForeground)
-                        .accessibilityIdentifier("copyWorkoutSourcePicker")
+            Form {
+                Section {
+                    HStack {
+                        Button { moveSourceMonth(by: -1) } label: {
+                            Image(systemName: "chevron.left").frame(width: 36, height: 36)
+                        }
+                        .accessibilityLabel("Previous source month")
+                        Spacer()
+                        Text(sourceMonthLabel)
+                            .font(.headline)
+                        Spacer()
+                        Button { moveSourceMonth(by: 1) } label: {
+                            Image(systemName: "chevron.right").frame(width: 36, height: 36)
+                        }
+                        .accessibilityLabel("Next source month")
+                    }
+
+                    sourceCalendar
+
                     HStack(spacing: 12) {
                         Image(systemName: "doc.on.doc")
                             .font(.title3)
@@ -1138,46 +1199,49 @@ private struct CopyWorkoutSheet: View {
                                 .foregroundStyle(.secondary)
                                 .accessibilityIdentifier("copyWorkoutSummary")
                         }
-                        Spacer()
                     }
-                    .gymCard()
+                } header: {
+                    GymSectionHeader(title: "Source")
+                }
+                .accessibilityIdentifier("copyWorkoutSourcePicker")
+
+                if availableSourceWorkouts.isEmpty {
                     if !sourceExists {
-                        Text("No workout exists on this date. Select another source date.")
+                        Text("No other workout is available to copy.")
                             .font(.subheadline)
                             .foregroundStyle(GymTheme.destructive)
                             .accessibilityIdentifier("copyWorkoutSourceMessage")
                     }
+                }
 
-                    GymSectionHeader(title: "Destination")
-                    VStack(alignment: .leading, spacing: 12) {
-                        DatePicker("Destination date", selection: $destination, displayedComponents: .date)
-                            .datePickerStyle(.compact)
-                            .accessibilityIdentifier("copyWorkoutDestination")
-                        Divider()
-                        Text(fullDateLabel(for: destinationDate))
-                            .font(.headline)
-                        if let destinationMessage {
-                            Text(destinationMessage)
-                                .font(.subheadline)
-                                .foregroundStyle(GymTheme.destructive)
-                                .accessibilityIdentifier("copyWorkoutDestinationMessage")
-                        } else {
-                            Text("Creates an independent planned workout.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                Section {
+                    DatePicker("Destination date", selection: $destination, displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                        .accessibilityIdentifier("copyWorkoutDestination")
+
+                    Text(destinationSummary)
+                        .font(.subheadline)
+                        .foregroundStyle(destinationMessage == nil ? GymTheme.textSecondary : GymTheme.destructive)
+                        .accessibilityIdentifier("copyWorkoutDestinationMessage")
+
+                    if case .populated = currentDestinationState, destinationMessage == nil {
+                        Picker("Existing workout", selection: $destinationChoice) {
+                            ForEach(DestinationChoice.allCases) { choice in
+                                Text(choice.rawValue).tag(choice)
+                            }
                         }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("copyWorkoutDestinationChoice")
                     }
-                    .gymCard()
+                } header: {
+                    GymSectionHeader(title: "Destination")
+                }
 
+                Section {
                     Button {
-                        do {
-                            try onCopy(selectedSourceDate, destinationDate)
-                            dismiss()
-                        } catch {
-                            showsCopyError = true
-                        }
+                        requestCopy()
                     } label: {
-                        Text("Copy")
+                        Text(copyActionTitle)
                             .frame(maxWidth: .infinity, minHeight: 48)
                     }
                     .buttonStyle(GymPrimaryButtonStyle())
@@ -1185,11 +1249,10 @@ private struct CopyWorkoutSheet: View {
                     .opacity(destinationMessage != nil ? 0.55 : 1)
                     .accessibilityIdentifier("copyWorkoutAction")
                 }
-                .padding(GymTheme.spacing16)
             }
             .gymPageBackground()
             .navigationTitle("Copy workout")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .accessibilityIdentifier("copyWorkoutSheet")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1202,7 +1265,16 @@ private struct CopyWorkoutSheet: View {
             .alert("Workout could not be copied", isPresented: $showsCopyError) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("Choose another date and try again.")
+                Text("Review the source and destination, then try again.")
+            }
+            .alert("Replace exercises?", isPresented: $showsReplaceConfirmation) {
+                Button("Replace exercises", role: .destructive) {
+                    performCopy(strategy: .replaceExercises)
+                }
+                .accessibilityIdentifier("copyWorkoutConfirmReplace")
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Existing exercises and their recorded results on \(fullDateLabel(for: selectedDestinationDate)) will be removed.")
             }
         }
     }
@@ -1211,12 +1283,20 @@ private struct CopyWorkoutSheet: View {
         LocalDate(date: selectedSourceDateValue, calendar: calendar)
     }
 
+    private var selectedDestinationDate: LocalDate {
+        LocalDate(date: destination, calendar: calendar)
+    }
+
+    private var availableSourceWorkouts: [Workout] {
+        availableWorkouts.filter { $0.localDate != selectedDestinationDate }
+    }
+
     private var sourceExists: Bool {
         availableWorkouts.contains(where: { $0.localDate == selectedSourceDate })
     }
 
-    private var destinationDate: LocalDate {
-        LocalDate(date: destination, calendar: calendar)
+    private var currentDestinationState: WorkoutCopyDestinationState {
+        destinationState(selectedDestinationDate)
     }
 
     private var sourceSummary: String {
@@ -1232,18 +1312,127 @@ private struct CopyWorkoutSheet: View {
         if !sourceExists {
             return "Choose a source date that has a workout."
         }
-        if destinationDate == selectedSourceDate {
+        if selectedDestinationDate == selectedSourceDate {
             return "Choose a different date."
         }
-        if isDestinationOccupied(destinationDate) {
-            return "A workout already exists on this date. Choose another date."
-        }
         return nil
+    }
+
+    private var destinationSummary: String {
+        if let destinationMessage { return destinationMessage }
+        switch currentDestinationState {
+        case .missing:
+            return "A new independent planned workout will be created."
+        case .empty:
+            return "The empty workout will receive an independent plan copy."
+        case let .populated(exerciseCount, setCount):
+            return "Existing: \(exerciseCount) \(exerciseCount == 1 ? "exercise" : "exercises") · \(setCount) \(setCount == 1 ? "set" : "sets")."
+        }
+    }
+
+    private var copyActionTitle: String {
+        if case .populated = currentDestinationState {
+            return destinationChoice.rawValue
+        }
+        return "Copy exercises"
+    }
+
+    private var sourceMonthLabel: String {
+        guard let date = sourceMonth.date(in: calendar) else { return "Source month" }
+        return date.formatted(.dateTime.month(.wide).year().locale(Locale(identifier: "en")))
+    }
+
+    private var sourceCalendar: some View {
+        let state = ProgramCalendarState(
+            selectedDate: selectedSourceDate,
+            currentDate: currentDate,
+            calendar: calendar,
+            workouts: availableWorkouts
+        )
+        let dates = state.monthDates(containing: sourceMonth)
+        return VStack(spacing: 6) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 32)), count: 7), spacing: 4) {
+                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, day in
+                    Text(day)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(GymTheme.textSecondary)
+                }
+                ForEach(dates, id: \.self) { date in
+                    sourceDateButton(date, state: state.dayState(for: date))
+                }
+            }
+        }
+    }
+
+    private func sourceDateButton(_ date: LocalDate, state: ProgramDayState) -> some View {
+        let workout = availableWorkouts.first(where: { $0.localDate == date })
+        let isAvailable = workout != nil && date != selectedDestinationDate
+        let isSelected = date == selectedSourceDate
+        let isCurrentMonth = date.month == sourceMonth.month && date.year == sourceMonth.year
+        return Button {
+            selectedSourceDateValue = date.date(in: calendar) ?? selectedSourceDateValue
+        } label: {
+            VStack(spacing: 2) {
+                Text("\(date.day)")
+                    .font(.caption.weight(isSelected ? .bold : .regular))
+                Image(systemName: workout == nil ? "circle" : (state.systemImage ?? "circle"))
+                    .font(.caption2)
+                    .opacity(workout == nil ? 0 : 1)
+            }
+            .frame(maxWidth: .infinity, minHeight: 40)
+            .foregroundStyle(isAvailable ? sourceStateColor(state) : GymTheme.textSecondary.opacity(0.45))
+            .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+            .opacity(isCurrentMonth ? 1 : 0.45)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isAvailable)
+        .accessibilityLabel(fullDateLabel(for: date))
+        .accessibilityValue(workout.map { "\(state.label), \($0.exercises.count) exercises, \($0.exercises.flatMap(\.sets).count) sets" } ?? "No workout")
+        .accessibilityIdentifier("copyWorkoutSourceDate-\(date.description)")
+    }
+
+    private func moveSourceMonth(by offset: Int) {
+        guard let next = sourceMonth.adding(months: offset, calendar: calendar) else { return }
+        sourceMonth = next
+    }
+
+    private func sourceStateColor(_ state: ProgramDayState) -> Color {
+        switch state {
+        case .empty: GymTheme.textSecondary.opacity(0.45)
+        case .workout(.planned), .workout(.completed): GymTheme.accentForeground
+        case .workout(.partial): .orange
+        case .workout(.incomplete): GymTheme.destructive
+        }
+    }
+
+    private func requestCopy() {
+        guard destinationMessage == nil else { return }
+        if case .populated = currentDestinationState, destinationChoice == .replace {
+            showsReplaceConfirmation = true
+        } else {
+            performCopy(strategy: currentDestinationState.isPopulated ? destinationChoice.strategy : .replaceExercises)
+        }
+    }
+
+    private func performCopy(strategy: WorkoutCopyStrategy) {
+        do {
+            try onCopy(selectedSourceDate, selectedDestinationDate, strategy)
+            dismiss()
+        } catch {
+            showsCopyError = true
+        }
     }
 
     private func fullDateLabel(for date: LocalDate) -> String {
         guard let value = date.date(in: calendar) else { return date.description }
         return value.formatted(.dateTime.weekday(.wide).month(.wide).day().year().locale(Locale(identifier: "en")))
+    }
+}
+
+private extension WorkoutCopyDestinationState {
+    var isPopulated: Bool {
+        if case .populated = self { return true }
+        return false
     }
 }
 
@@ -1442,40 +1631,39 @@ private struct RepeatWorkoutSheet: View {
 
 private struct ProgramSetEditorSheet: View {
     let set: WorkoutSet?
-    let typeLock: WorkoutSetType?
     let exerciseName: String
     let weightUnit: WeightUnit
-    let onSave: (Int, Double, Int, WorkoutSetType) throws -> Void
-    let onDelete: () throws -> Void
+    let onSave: (Int, Double, Int) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var repsText: String
     @State private var weightText: String
     @State private var timeText: String
-    @State private var type: WorkoutSetType
     @State private var showsValidationError = false
-    @State private var isDeleteConfirmationPresented = false
+    private let initialRepsText: String
+    private let initialWeightText: String
+    private let initialTimeText: String
 
     init(
         set: WorkoutSet?,
-        typeLock: WorkoutSetType?,
         exerciseName: String,
         weightUnit: WeightUnit,
-        onSave: @escaping (Int, Double, Int, WorkoutSetType) throws -> Void,
-        onDelete: @escaping () throws -> Void
+        onSave: @escaping (Int, Double, Int) throws -> Void
     ) {
         self.set = set
-        self.typeLock = typeLock
         self.exerciseName = exerciseName
         self.weightUnit = weightUnit
         self.onSave = onSave
-        self.onDelete = onDelete
-        _repsText = State(initialValue: String(set?.reps ?? 0) == "0" ? "" : String(set?.reps ?? 0))
+        let repsText = String(set?.reps ?? 0) == "0" ? "" : String(set?.reps ?? 0)
         let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: set?.weight ?? 0)
-        _weightText = State(initialValue: displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2))))
-        _timeText = State(initialValue: String(set?.timeSeconds ?? 0) == "0" ? "" : String(set?.timeSeconds ?? 0))
-        let hasConfiguredPlan = (set?.reps ?? 0) > 0 || (set?.weight ?? 0) > 0 || (set?.timeSeconds ?? 0) > 0
-        _type = State(initialValue: hasConfiguredPlan ? (set?.type ?? .repsOnly) : (typeLock ?? set?.type ?? .repsOnly))
+        let weightText = displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2)))
+        let timeText = String(set?.timeSeconds ?? 0) == "0" ? "" : String(set?.timeSeconds ?? 0)
+        initialRepsText = repsText
+        initialWeightText = weightText
+        initialTimeText = timeText
+        _repsText = State(initialValue: repsText)
+        _weightText = State(initialValue: weightText)
+        _timeText = State(initialValue: timeText)
     }
 
     private var reps: Int { Int(repsText) ?? 0 }
@@ -1486,73 +1674,38 @@ private struct ProgramSetEditorSheet: View {
             && (timeText.isEmpty || Int(timeText) != nil)
             && (weightText.isEmpty || Double(weightText.replacingOccurrences(of: ",", with: ".")) != nil)
     }
+    private var type: WorkoutSetType { set?.type ?? .repsOnly }
+    private var supportsReps: Bool { type != .timed }
+    private var supportsWeight: Bool { type == .weighted || type == .legacyMixed }
+    private var supportsTime: Bool { type == .timed || type == .legacyMixed }
+    private var hasUnsavedChanges: Bool {
+        repsText != initialRepsText || weightText != initialWeightText || timeText != initialTimeText
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section(set?.isCompleted == true ? "\(exerciseName) plan" : exerciseName) {
-                    if set?.isCompleted == true {
-                        Text("Actual results are unchanged.")
-                            .foregroundStyle(.secondary)
-                    }
-                    if set?.type == .legacyMixed {
-                        Text("This legacy set keeps its recorded values until you choose a new set type.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("programSetEditorLegacyNotice")
-                    }
-                    Picker("Set type", selection: $type) {
-                        ForEach(WorkoutSetType.editableCases, id: \.self) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("programSetEditorType")
-                    .disabled(typeLock != nil)
-                    if typeLock != nil {
-                        Text("Type is shared by all sets in this exercise.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    if type != .timed {
-                        TextField("Reps", text: $repsText)
+                    LabeledContent("Reps") {
+                        TextField("0", text: $repsText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
+                            .disabled(!supportsReps)
                             .accessibilityIdentifier("programSetEditorReps")
                     }
-                    if type == .weighted || type == .legacyMixed {
-                        TextField("Weight (\(weightUnit.rawValue))", text: $weightText)
+                    LabeledContent("Weight (\(weightUnit.rawValue))") {
+                        TextField("0", text: $weightText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.decimalPad)
+                            .disabled(!supportsWeight)
                             .accessibilityIdentifier("programSetEditorWeight")
                     }
-                    if type == .timed || type == .legacyMixed {
-                        TextField("Time (seconds)", text: $timeText)
+                    LabeledContent("Time") {
+                        TextField("0", text: $timeText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
+                            .disabled(!supportsTime)
                             .accessibilityIdentifier("programSetEditorTime")
-                    }
-                }
-
-                if set != nil {
-                    Section {
-                        Button("Delete set", role: .destructive) {
-                            isDeleteConfirmationPresented = true
-                        }
-                        .accessibilityIdentifier("programSetEditorDelete")
-                        .confirmationDialog(
-                            "Delete this set?",
-                            isPresented: $isDeleteConfirmationPresented,
-                            titleVisibility: .visible
-                        ) {
-                            Button("Delete set", role: .destructive) {
-                                do {
-                                    try onDelete()
-                                    dismiss()
-                                } catch {
-                                    showsValidationError = true
-                                }
-                            }
-                            .accessibilityIdentifier("programConfirmDeleteSet")
-                            Button("Cancel", role: .cancel) {}
-                        } message: {
-                            Text("This set will be removed from the workout.")
-                        }
                     }
                 }
             }
@@ -1565,7 +1718,7 @@ private struct ProgramSetEditorSheet: View {
                     Button("Save") {
                         guard inputsAreValid else { showsValidationError = true; return }
                         do {
-                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds, type)
+                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
                             dismiss()
                         } catch {
                             showsValidationError = true
@@ -1579,7 +1732,7 @@ private struct ProgramSetEditorSheet: View {
             } message: {
                 Text("Enter valid reps, weight, and time values.")
             }
-
+            .interactiveDismissDisabled(hasUnsavedChanges)
         }
     }
 }
@@ -1595,6 +1748,9 @@ private struct HistoricalActualEditorSheet: View {
     @State private var timeText: String
     @State private var showsValidationError = false
     @State private var showsSaveError = false
+    private let initialRepsText: String
+    private let initialWeightText: String
+    private let initialTimeText: String
 
     init(
         route: HistoricalActualEditorRoute,
@@ -1604,10 +1760,16 @@ private struct HistoricalActualEditorSheet: View {
         self.route = route
         self.weightUnit = weightUnit
         self.onSave = onSave
-        _repsText = State(initialValue: String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps))
+        let repsText = String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps)
         let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)
-        _weightText = State(initialValue: displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2))))
-        _timeText = State(initialValue: String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds))
+        let weightText = displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2)))
+        let timeText = String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds)
+        initialRepsText = repsText
+        initialWeightText = weightText
+        initialTimeText = timeText
+        _repsText = State(initialValue: repsText)
+        _weightText = State(initialValue: weightText)
+        _timeText = State(initialValue: timeText)
     }
 
     private var reps: Int { Int(repsText) ?? 0 }
@@ -1618,6 +1780,16 @@ private struct HistoricalActualEditorSheet: View {
             && (timeText.isEmpty || Int(timeText) != nil)
             && (weightText.isEmpty || Double(weightText.replacingOccurrences(of: ",", with: ".")) != nil)
     }
+    private var hasUnsavedChanges: Bool {
+        repsText != initialRepsText || weightText != initialWeightText || timeText != initialTimeText
+    }
+    private var supportsReps: Bool { route.workoutSet.displayedType != .timed }
+    private var supportsWeight: Bool {
+        route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed
+    }
+    private var supportsTime: Bool {
+        route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed
+    }
 
     var body: some View {
         NavigationStack {
@@ -1626,19 +1798,25 @@ private struct HistoricalActualEditorSheet: View {
                     Text(route.workoutSet.displayedType.title)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    if route.workoutSet.displayedType != .timed {
-                        TextField("Reps", text: $repsText)
+                    LabeledContent("Reps") {
+                        TextField("0", text: $repsText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
+                            .disabled(!supportsReps)
                             .accessibilityIdentifier("programHistoryActualEditorReps")
                     }
-                    if route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed {
-                        TextField("Weight (\(weightUnit.rawValue))", text: $weightText)
+                    LabeledContent("Weight (\(weightUnit.rawValue))") {
+                        TextField("0", text: $weightText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.decimalPad)
+                            .disabled(!supportsWeight)
                             .accessibilityIdentifier("programHistoryActualEditorWeight")
                     }
-                    if route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed {
-                        TextField("Time (seconds)", text: $timeText)
+                    LabeledContent("Time") {
+                        TextField("0", text: $timeText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
+                            .disabled(!supportsTime)
                             .accessibilityIdentifier("programHistoryActualEditorTime")
                     }
                 }
@@ -1677,6 +1855,7 @@ private struct HistoricalActualEditorSheet: View {
             } message: {
                 Text("Check your workout before trying again.")
             }
+            .interactiveDismissDisabled(hasUnsavedChanges)
         }
     }
 }

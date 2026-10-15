@@ -125,6 +125,11 @@ Program edits affect non-completed set values immediately.
 Do not preserve an immutable original-plan snapshot for MVP analytics.
 Do not silently overwrite completed actual values.
 
+### Workout copy mutation boundary
+Copy is one view-model-owned aggregate mutation. The source is read without mutation; copied exercises and sets receive fresh IDs and plan-only values. The destination workout keeps its identity and creation timestamp when it already exists. Empty destinations are filled, Add appends normalized exercises while preserving all existing data, and Replace is accepted only as an explicit strategy supplied after UI confirmation. The aggregate is saved once so observers never receive a partially copied workout.
+
+Program uses one selected-date state owned by `WorkoutViewModel`. Calendar chrome is outside the dynamic workout list, and Program modal/confirmation presentation is routed through one stable owner rather than attached to disappearing rows or menus.
+
 ## 8. Offline strategy
 Firestore client persistence is the primary offline mechanism for cloud-backed user data.
 The app must use optimistic/local writes so Today responds without waiting for network acknowledgement.

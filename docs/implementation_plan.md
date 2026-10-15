@@ -522,15 +522,20 @@ Copy one date's plan to another date with minimal effort.
 
 **Requirements**
 - Source workout remains unchanged.
-- User selects destination date.
+- User selects an existing workout source and a different destination date.
 - Copy exercises, order, sets, reps, weight, time.
 - Do not copy completion, actual values, skipped state, or history.
 - Destination becomes an independent workout.
-- Handle occupied destination clearly; do not silently overwrite without explicit confirmation.
+- Fill an existing empty workout without rejecting it or replacing its workout identity.
+- A populated destination offers Add exercises or Replace exercises.
+- Add preserves existing exercises and recorded results; Replace requires explicit destructive confirmation.
+- Historical, current, and future source/destination dates follow the same plan-only copy rules.
 
 **Acceptance criteria**
 - Editing copied Wednesday later does not change Monday source.
 - Completion history is never copied.
+- Create empty workout -> Copy workout fills that existing workout.
+- Add does not remove destination data; Replace cannot execute without an explicit strategy and UI confirmation.
 
 **Spec references**
 - Product Spec: Copy Workout.

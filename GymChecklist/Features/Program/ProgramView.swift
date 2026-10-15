@@ -182,6 +182,7 @@ struct ProgramView: View {
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled(true)
         case let .repeatWorkout(route):
             RepeatWorkoutSheet(
                 sourceDate: route.sourceDate,

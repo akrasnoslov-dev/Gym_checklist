@@ -561,6 +561,7 @@ struct ProgramView: View {
                     exercise: exercise,
                     exerciseName: name
                 )
+                .id("\(set.id.rawValue.uuidString)-\(set.displayedReps)-\(set.displayedWeight)-\(set.displayedTimeSeconds)-\(set.isCompleted)")
             }
         }
         .accessibilityElement(children: .contain)
@@ -1205,6 +1206,7 @@ private struct CopyWorkoutSheet: View {
                 } header: {
                     GymSectionHeader(title: "Source")
                 }
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("copyWorkoutSourcePicker")
 
                 if availableSourceWorkouts.isEmpty {

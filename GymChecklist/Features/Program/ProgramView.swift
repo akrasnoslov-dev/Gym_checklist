@@ -1674,7 +1674,7 @@ private struct ProgramSetEditorSheet: View {
             && (timeText.isEmpty || Int(timeText) != nil)
             && (weightText.isEmpty || Double(weightText.replacingOccurrences(of: ",", with: ".")) != nil)
     }
-    private var type: WorkoutSetType { set?.type ?? .repsOnly }
+    private var type: WorkoutSetType { self.set?.type ?? .repsOnly }
     private var supportsReps: Bool { type != .timed }
     private var supportsWeight: Bool { type == .weighted || type == .legacyMixed }
     private var supportsTime: Bool { type == .timed || type == .legacyMixed }

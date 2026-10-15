@@ -44,6 +44,7 @@ struct ProgramView: View {
         .coordinateSpace(name: ProgramSetListCoordinateSpace.name)
         .onPreferenceChange(ProgramSetRowFramePreferenceKey.self) { setRowFrames = $0 }
         .gymPageBackground()
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("programScreen")
         .onAppear {
             displayedMonth = viewModel.selectedDate

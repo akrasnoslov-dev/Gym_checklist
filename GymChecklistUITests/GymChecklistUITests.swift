@@ -338,7 +338,10 @@ final class GymChecklistUITests: XCTestCase {
 
         app.buttons["programWorkoutActions"].tap()
         app.buttons["programCopyWorkout"].tap()
-        XCTAssertTrue(app.navigationBars["Copy workout"].waitForExistence(timeout: 2))
+        let copySheet = app.navigationBars["Copy workout"]
+        XCTAssertTrue(copySheet.waitForExistence(timeout: 2))
+        copySheet.swipeDown()
+        XCTAssertTrue(copySheet.waitForExistence(timeout: 2), "Copy must remain open until Cancel or Copy")
         XCTAssertTrue(app.buttons["copyWorkoutSourceDate-2026-08-14"].waitForExistence(timeout: 2))
         let copy = app.buttons["copyWorkoutAction"]
         XCTAssertTrue(copy.isEnabled)

@@ -609,7 +609,8 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Edit actual"].waitForExistence(timeout: 2))
         replaceText(in: app.textFields["programHistoryActualEditorReps"], with: "9")
         app.buttons["programHistoryActualEditorSave"].tap()
-        XCTAssertTrue(waitForValue(completedSet, "Completed, actual 9 reps × 65 kg"))
+        XCTAssertFalse(app.navigationBars["Edit actual"].waitForExistence(timeout: 2), app.debugDescription)
+        XCTAssertTrue(waitForValue(completedSet, "Completed, actual 9 reps × 65 kg"), app.debugDescription)
 
         XCTAssertTrue(revealProgramDate(historyDate, in: app))
         app.buttons["programDate-2026-08-06"].tap()

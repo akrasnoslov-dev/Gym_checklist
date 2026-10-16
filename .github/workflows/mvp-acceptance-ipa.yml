@@ -13,7 +13,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 85
     env:
-      APP_SOURCE_SHA: 8aae185ab24f0d45b04d02c06b6ec2d3d56293bf
+      APP_SOURCE_SHA: 873e5a4f993fbbaf43e7a8375ad777396d5f5733
       APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
       APP_DISPLAY_NAME: Gym Checklist
 
@@ -21,7 +21,7 @@ jobs:
       - name: Checkout exact PR6 preview source
         uses: actions/checkout@v4
         with:
-          ref: 8aae185ab24f0d45b04d02c06b6ec2d3d56293bf
+          ref: 873e5a4f993fbbaf43e7a8375ad777396d5f5733
           fetch-depth: 1
           persist-credentials: false
 
@@ -134,10 +134,10 @@ jobs:
           cp -R "$APP_PATH" "$PACKAGE_DIRECTORY/Payload/GymChecklist.app"
           (
             cd "$PACKAGE_DIRECTORY"
-            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-8aae185.ipa" Payload
+            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-873e5a4.ipa" Payload
           )
-          test -s "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-8aae185.ipa"
-          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-8aae185.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-8aae185.ipa.sha256"
+          test -s "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-873e5a4.ipa"
+          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-873e5a4.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-PR6-PREVIEW-873e5a4.ipa.sha256"
           printf '%s\n' \
             "app source SHA: $APP_SOURCE_SHA" \
             "bundle ID: $APP_BUNDLE_ID" \
@@ -150,7 +150,7 @@ jobs:
       - name: Upload physical iPhone preview IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-PR6-PREVIEW-8aae185
+          name: GymChecklist-PR6-PREVIEW-873e5a4
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

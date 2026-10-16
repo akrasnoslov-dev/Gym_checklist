@@ -1261,7 +1261,6 @@ private struct CopyWorkoutSheet: View {
             .gymPageBackground()
             .navigationTitle("Copy workout")
             .navigationBarTitleDisplayMode(.inline)
-            .accessibilityIdentifier("copyWorkoutSheet")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

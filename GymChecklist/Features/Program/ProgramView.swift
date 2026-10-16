@@ -1241,18 +1241,22 @@ private struct CopyWorkoutSheet: View {
                     GymSectionHeader(title: "Destination")
                 }
 
-                Section {
-                    Button {
-                        requestCopy()
-                    } label: {
-                        Text(copyActionTitle)
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                    }
-                    .buttonStyle(GymPrimaryButtonStyle())
-                    .disabled(destinationMessage != nil)
-                    .opacity(destinationMessage != nil ? 0.55 : 1)
-                    .accessibilityIdentifier("copyWorkoutAction")
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Button {
+                    requestCopy()
+                } label: {
+                    Text(copyActionTitle)
+                        .frame(maxWidth: .infinity, minHeight: 48)
                 }
+                .buttonStyle(GymPrimaryButtonStyle())
+                .disabled(destinationMessage != nil)
+                .opacity(destinationMessage != nil ? 0.55 : 1)
+                .accessibilityIdentifier("copyWorkoutAction")
+                .padding(.horizontal, GymTheme.spacing16)
+                .padding(.vertical, GymTheme.spacing12)
+                .frame(maxWidth: .infinity)
+                .background(GymTheme.surfaceBase)
             }
             .gymPageBackground()
             .navigationTitle("Copy workout")

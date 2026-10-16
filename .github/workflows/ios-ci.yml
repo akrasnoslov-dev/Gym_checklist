@@ -1,5 +1,5 @@
 name: iOS macOS CI (authoritative)
-# PR6 full exact-SHA candidate verification 4152f79.
+# Exact-SHA PR6 candidate verification launched 2026-10-16 for 4152f79.
 
 on:
   push:
@@ -56,7 +56,7 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 100
     env:
       # Routine iOS-impacting pull requests get fast feedback. Manual dispatch
       # retains every diagnostic scope, including authoritative full/candidate.

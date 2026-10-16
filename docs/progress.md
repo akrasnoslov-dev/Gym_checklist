@@ -1,5 +1,23 @@
 # Gym Checklist — Progress Checkpoint
 
+
+## 2026-10-16 PR #6 handoff — MERGE BASELINE, REDESIGN NOT ACCEPTED
+- Owner explicitly authorized merging the oversized Phase 9/PR #6 implementation into `dev` now, to end the iterative PR and continue in a **separate new task and new focused PR**. This supersedes the older “keep PR #6 Draft / do not merge” instructions below for PR #6 only; it does NOT authorize `dev -> main`, release, deployment, or claiming product acceptance.
+- Last observed implementation SHA before this handoff documentation: `825352b9e0a9361ee47795175ba31158fe15396d`. The Linux checks run `38930300623` and automatic macOS smoke run `38930300556` were GREEN for that exact SHA. These are not an authoritative exact-SHA candidate/full test gate, and no recent iPhone IPA/physical acceptance from this tree was verified.
+- Implemented in the current code (not physical-device-accepted): fixed inline Program header/calendar, screen-owned delete confirmation/sheet route, set swipe via native List action and scoped drag reorder, compact detented set editors with persistent labels, exercise-level set types, calendar indicators for Copy source, and copying into an existing empty workout; populated destinations offer Add or confirmed Replace with new plan-only IDs.
+- **Remaining verification / possible UX corrections for new PR (do not mark DONE before testing):**
+  1. Run full authoritative iOS candidate/full suite at one exact follow-up SHA, investigate failures without papering over them; ensure additional unit/UI regressions are meaningful and stable.
+  2. Install a fresh unsigned Release Firebase-backed IPA from the tested SHA using Sideloadly and validate on a physical iPhone against approved Phase 8 freeze/mockups; document screen captures and exact remaining differences.
+  3. Explicitly verify Program set swipe-left visibly exposes a working Delete, delete confirms once, handle-drag reorders smoothly (including cancellation) without gesture conflicts or stuck overlays.
+  4. Explicitly verify Program inline `Program` + `⋯` header, no ghost button or large empty navigation band, stable date/Week/Month switching, no clipped header or jumpy scrolling.
+  5. Explicitly verify Light/Dark changes across Today/Program/Settings and open sheets, especially bottom TabBar background/icon flicker.
+  6. Explicitly verify empty-workout -> Copy from populated past day -> destination fills, Copy calendar marks only usable source dates, Add vs confirmed Replace are correct and do not lose actual/completion data or create duplicate workouts.
+  7. Compare Edit plan, Edit actual, Create and Copy modal size/scroll/dismiss behavior with frozen mockups: compact bottom sheets, persistent Reps/Weight/Time labels, no redundant notices; in particular evaluate Copy’s `.medium/.large` detents and swipe-to-dismiss behavior and avoid unintended loss of user input.
+  8. Perform Firebase Spark/non-production real-device smoke as available: owner isolation, persistence, offline/reconnect and failure handling; preserve existing security and zero-cost constraints. Live rejected-write rollback remains an unresolved verification caveat.
+- **Execution rules for follow-up:** branch from updated `dev`, open a **new narrowly-scoped Draft PR**; treat this merge as a checkpoint, not redesign acceptance. Preserve the current data model and all behavior that already works, avoid a whole-app rewrite and unbounded refactoring, group fixes by root cause, run visual/interaction regression checks, full CI and new IPA before requesting iPhone acceptance. Defer expanded exercise catalog/filtering/illustrations and paid distribution to separate tasks.
+- The dated notes below preserve historical context and should not be interpreted as current PR #6 merge blockers.
+
+
 ## 2026-10-15 Program architecture hardening — PASS A COMPLETE
 - `REMOTE_GATE_READY_FOR_FINAL_AUDIT 80f30e6a296fc470ba399ed65d3c80d9dc1e6172`
 - PR #6 now has one Program selected-date authority, fixed header/calendar chrome above dynamic workout content, centralized sheet/deletion routing, native swipe deletion, and handle-scoped reorder with measured row targeting and cancellation restoration.

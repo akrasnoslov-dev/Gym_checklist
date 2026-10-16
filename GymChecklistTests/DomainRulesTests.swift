@@ -2601,7 +2601,20 @@ final class WorkoutViewModelTests: XCTestCase {
             sets: [WorkoutSet(order: 0, reps: 8, type: .repsOnly)]
         )]
         try repository.save(populated)
-        _ = repository.createEmptyWorkout(on: emptyDate, at: .distantPast)
+        var emptySource = repository.createEmptyWorkout(on: emptyDate, at: .distantPast).workout
+        emptySource.exercises = [WorkoutExercise(
+            id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[1].id,
+            customName: nil, order: 0, isSkipped: false, sets: []
+        )]
+        try repository.save(emptySource)
+
+        var destination = repository.createEmptyWorkout(on: destinationDate, at: .distantPast).workout
+        destination.exercises = [WorkoutExercise(
+            id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[2].id,
+            customName: nil, order: 0, isSkipped: false,
+            sets: [WorkoutSet(order: 0, reps: 5, type: .repsOnly)]
+        )]
+        try repository.save(destination)
 
         let viewModel = WorkoutViewModel(
             repository: repository,
@@ -2611,14 +2624,15 @@ final class WorkoutViewModelTests: XCTestCase {
         )
         let before = repository.workouts
 
-        XCTAssertEqual(viewModel.copySourceWorkouts.map(\.localDate), [populatedDate])
+        XCTAssertEqual(Set(viewModel.copySourceWorkouts.map(\.localDate)), Set([populatedDate, destinationDate]))
+        XCTAssertFalse(viewModel.copySourceWorkouts.contains(where: { $0.localDate == emptyDate }))
         XCTAssertThrowsError(
-            try viewModel.copyWorkout(from: emptyDate, to: destinationDate)
+            try viewModel.copyWorkout(from: emptyDate, to: destinationDate, strategy: .replaceExercises)
         ) { error in
             XCTAssertEqual(error as? ProgramPlanningError, .copySourceHasNoSets(emptyDate))
         }
         XCTAssertEqual(repository.workouts, before)
-        XCTAssertNil(repository.workout(on: destinationDate))
+        XCTAssertEqual(repository.workout(on: destinationDate), destination)
         XCTAssertEqual(viewModel.selectedDate, destinationDate)
     }
 

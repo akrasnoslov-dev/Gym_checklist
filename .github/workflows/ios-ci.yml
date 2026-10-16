@@ -1,5 +1,5 @@
 name: iOS macOS CI (authoritative)
-# PR6 full exact-SHA candidate verification 9abcc84.
+# PR6 full exact-SHA candidate verification 4152f79.
 
 on:
   push:
@@ -62,7 +62,7 @@ jobs:
       # retains every diagnostic scope, including authoritative full/candidate.
       VERIFICATION_SCOPE: ${{ github.event_name == 'pull_request' && 'smoke' || github.event_name == 'push' && 'candidate' || inputs.verification_scope }}
       TEST_FILTER: ${{ github.event_name == 'push' && 'GymChecklistUITests/GymChecklistUITests/testCreateEmptyWorkoutThenCopyExistingWorkoutIntoIt' || inputs.test_filter || '' }}
-      CANDIDATE_SOURCE_SHA: ${{ github.event_name == 'push' && '9abcc84d2b3ab75f43fd57c09b043b8530d28007' || inputs.candidate_source_sha || '' }}
+      CANDIDATE_SOURCE_SHA: ${{ github.event_name == 'push' && '4152f79683b26a05bee3b058e5fb47ddd72898d7' || inputs.candidate_source_sha || '' }}
 
     steps:
       - name: Checkout
@@ -70,7 +70,7 @@ jobs:
         with:
           # workflow_dispatch itself accepts only a branch or tag ref. Candidate
           # gates therefore receive and verify the immutable source commit here.
-          ref: ${{ github.event_name == 'push' && '9abcc84d2b3ab75f43fd57c09b043b8530d28007' || inputs.candidate_source_sha || github.sha }}
+          ref: ${{ github.event_name == 'push' && '4152f79683b26a05bee3b058e5fb47ddd72898d7' || inputs.candidate_source_sha || github.sha }}
           fetch-depth: 1
 
       - name: Record Xcode version

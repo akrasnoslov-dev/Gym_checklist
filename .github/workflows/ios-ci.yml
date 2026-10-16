@@ -1,5 +1,5 @@
 name: iOS macOS CI (authoritative)
-# PR6 full exact-SHA candidate verification of 4209078 (October 16).
+# PR6 full exact-SHA candidate re-run: verify head 4209078 before physical IPA.
 
 on:
   push:

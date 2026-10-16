@@ -348,8 +348,19 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertEqual(copy.label, "Copy exercises")
         copy.tap()
 
-        XCTAssertTrue(app.staticTexts["programExercise-Bench Press"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.navigationBars["Copy workout"].exists)
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: copySheet
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [dismissed], timeout: 5),
+            .completed,
+            "Copy sheet remained visible after Copy: \(app.debugDescription)"
+        )
+        XCTAssertTrue(
+            app.staticTexts["programExercise-Bench Press"].waitForExistence(timeout: 5),
+            "Copied workout was not visible after dismissal: \(app.debugDescription)"
+        )
     }
 
     func testCopyIntoPopulatedWorkoutOffersAddAndConfirmedReplace() {

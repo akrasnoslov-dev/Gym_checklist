@@ -607,7 +607,9 @@ final class GymChecklistUITests: XCTestCase {
 
         completedSet.tap()
         XCTAssertTrue(app.navigationBars["Edit actual"].waitForExistence(timeout: 2))
-        replaceText(in: app.textFields["programHistoryActualEditorReps"], with: "9")
+        let repsField = app.textFields["programHistoryActualEditorReps"]
+        replaceText(in: repsField, with: "9")
+        XCTAssertEqual(repsField.value as? String, "9")
         app.buttons["programHistoryActualEditorSave"].tap()
         XCTAssertFalse(app.navigationBars["Edit actual"].waitForExistence(timeout: 2), app.debugDescription)
         // Verify the visible result, independently of the cached accessibility value.
@@ -658,8 +660,12 @@ final class GymChecklistUITests: XCTestCase {
     }
 
     private func replaceText(in field: XCUIElement, with value: String) {
-        field.tap()
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
+        // Text fields in trailing-aligned LabeledContent can place the caret
+        // before the existing digits on a center tap (e.g. "7" -> "97").
+        // Move to the end before deleting existing text.
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        let oldValue = (field.value as? String) ?? ""
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldValue.count))
         field.typeText(value)
     }
 

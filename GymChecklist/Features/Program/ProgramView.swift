@@ -538,6 +538,21 @@ struct ProgramView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(GymTheme.surfaceBase)
+        // Historical actual edits keep the same set IDs. List's cached row
+        // hierarchy must be invalidated when displayed actual values change.
+        .id(historicalContentRevision)
+    }
+
+    private var historicalContentRevision: String {
+        guard isHistorical, let workout = calendarState.selectedWorkout else {
+            return "active"
+        }
+        let setRevisions = workout.exercises.flatMap { exercise in
+            exercise.sets.map { set in
+                "\(set.id.rawValue.uuidString):\(set.isCompleted):\(set.actualReps ?? 0):\(set.actualWeight ?? 0):\(set.actualTimeSeconds ?? 0)"
+            }
+        }
+        return "\(workout.localDate.description):" + setRevisions.joined(separator: "|")
     }
 
     private func historyExerciseRow(_ exercise: WorkoutExercise) -> some View {

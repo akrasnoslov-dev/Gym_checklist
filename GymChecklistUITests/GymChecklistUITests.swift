@@ -204,17 +204,19 @@ final class GymChecklistUITests: XCTestCase {
         let nordicInReorder = app.descendants(matching: .any)["programReorderExercise-Nordic Hop"]
         XCTAssertTrue(benchInReorder.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 5), app.debugDescription)
-        // In an editing List, reorder starts from the trailing drag handle,
-        // not from the text label (which can drag text instead of the row).
-        let nordicCell = app.cells.containing(.staticText, identifier: "programReorderExercise-Nordic Hop").firstMatch
-        let benchCell = app.cells.containing(.staticText, identifier: "programReorderExercise-Bench Press").firstMatch
-        XCTAssertTrue(nordicCell.waitForExistence(timeout: 3), app.debugDescription)
-        XCTAssertTrue(benchCell.exists, app.debugDescription)
-        nordicCell.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5))
-            .press(
-                forDuration: 1.0,
-                thenDragTo: benchCell.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.15))
-            )
+        // Native edit-mode List exposes a dedicated reorder control. Drag the
+        // control itself past the first row's top edge (not the text/cell).
+        let nordicHandle = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Reorder Nordic Hop")
+        ).firstMatch
+        let benchHandle = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Reorder Bench Press")
+        ).firstMatch
+        XCTAssertTrue(nordicHandle.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(benchHandle.exists, app.debugDescription)
+        let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -35))
+        nordicHandle.press(forDuration: 1.25, thenDragTo: dropPoint)
         let reordered = NSPredicate { _, _ in
             nordicInReorder.exists && benchInReorder.exists
                 && nordicInReorder.frame.minY < benchInReorder.frame.minY

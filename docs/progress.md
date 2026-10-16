@@ -1,6 +1,17 @@
 # Gym Checklist — Progress Checkpoint
 
 
+## 2026-10-16 Phase 9 acceptance follow-up — PASS A COMPLETE
+- `REMOTE_GATE_READY_FOR_FINAL_AUDIT e3b2b76ea661cedf60e40a4a7ed32bd859d5c412`
+- Branch `codex/phase-9-acceptance` starts from the post-PR #6 `dev` baseline `5b589e5594831a7726584671ce21d01ea7005f40`. This is a focused acceptance follow-up, not a redesign rewrite and not authorization to merge, deploy, or promote `dev -> main`.
+- Investigated failed macOS run `38932126631`: all 122 unit tests passed; the failing UI test timed out while Xcode launched the app after `DebuggerLLDB.DebuggerVersionStore.StoreError` / “no debugger version”; the immediately following UI test launched and passed. Evidence supports a runner/Xcode launch flake, not an app or assertion regression, so no test was weakened.
+- Corrected one evidenced Copy defect: placeholder workouts whose exercises have zero sets are no longer offered as sources, and the domain layer rejects such a source before any destination mutation. Regression coverage verifies a rejected Replace leaves an existing populated destination and selection unchanged. Independent re-review reports no Critical, Important, or Minor findings.
+- Made the frozen prototype contract platform-stable by normalizing CRLF/LF before exact generated-matrix comparisons; the 64-entry prototype and stabilization contracts now pass on Windows without changing product output.
+- Local/static verification is GREEN: `git diff --check`, agentic workflow, security hygiene, offline/reconnect, Firestore owner isolation, Google Sign-In, account deletion, release/acceptance-IPA exact-source, iOS CI, and prototype/stabilization matrix contracts. Swift/Xcode is unavailable on this Windows host, so no local XCTest result is claimed.
+- Code/static evidence already covers stable Program chrome and route ownership, plan-only Copy semantics with fresh IDs, persistent set labels, centralized appearance ownership, and owner/offline contract wiring. Physical iPhone verification is still required for swipe reveal and drag cancellation/gesture quality; header scrolling/ghosting; System/Light/Dark transitions and TabBar/sheet flicker; Copy detents, keyboard, and dirty dismissal; and live Firebase owner isolation, persistence, offline/reconnect, and rejected-write rollback.
+- Per the two-pass gate, the next action is a fresh Pass B audit of exact source SHA `e3b2b76e...`. Only a clean audit may dispatch one exact-SHA candidate/full macOS run; only GREEN may produce a fresh unsigned Firebase IPA for Sideloadly and physical-iPhone acceptance. No older IPA is valid evidence for this source.
+
+
 ## 2026-10-16 PR #6 handoff — MERGE BASELINE, REDESIGN NOT ACCEPTED
 - Owner explicitly authorized merging the oversized Phase 9/PR #6 implementation into `dev` now, to end the iterative PR and continue in a **separate new task and new focused PR**. This supersedes the older “keep PR #6 Draft / do not merge” instructions below for PR #6 only; it does NOT authorize `dev -> main`, release, deployment, or claiming product acceptance.
 - Last observed implementation SHA before this handoff documentation: `825352b9e0a9361ee47795175ba31158fe15396d`. The Linux checks run `38930300623` and automatic macOS smoke run `38930300556` were GREEN for that exact SHA. These are not an authoritative exact-SHA candidate/full test gate, and no recent iPhone IPA/physical acceptance from this tree was verified.

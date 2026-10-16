@@ -1502,6 +1502,9 @@ final class WorkoutViewModelTests: XCTestCase {
         _ = try viewModel.createCustomExercise(name: "  NORDIC hop ")
         try viewModel.addExercise(SystemExerciseCatalog.all[0], to: date)
         try viewModel.addExercise(custom, to: date)
+        // Copy requires at least one planned set; keep the analytics fixture valid.
+        let exerciseID = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.id)
+        try viewModel.addSet(to: exerciseID, on: date)
         try viewModel.copyWorkout(from: date, to: LocalDate(year: 2026, month: 8, day: 15))
         _ = try viewModel.repeatWorkout(from: date, through: LocalDate(year: 2026, month: 8, day: 28))
 

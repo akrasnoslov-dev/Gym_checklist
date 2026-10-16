@@ -216,7 +216,8 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(benchHandle.exists, app.debugDescription)
         let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .withOffset(CGVector(dx: 0, dy: -35))
-        nordicHandle.press(forDuration: 1.25, thenDragTo: dropPoint)
+        nordicHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 1.25, thenDragTo: dropPoint)
         let reordered = NSPredicate { _, _ in
             nordicInReorder.exists && benchInReorder.exists
                 && nordicInReorder.frame.minY < benchInReorder.frame.minY

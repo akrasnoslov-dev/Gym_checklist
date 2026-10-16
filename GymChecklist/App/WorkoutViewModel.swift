@@ -3,6 +3,7 @@ import Foundation
 
 enum ProgramPlanningError: Error, Equatable {
     case workoutNotFound(LocalDate)
+    case copySourceHasNoSets(LocalDate)
     case copyDestinationMatchesSource(LocalDate)
     case copyDestinationOccupied(LocalDate)
     case repeatEndDateMustFollowSource(LocalDate)
@@ -159,6 +160,12 @@ final class WorkoutViewModel: ObservableObject {
         return .populated(exerciseCount: workout.exercises.count, setCount: setCount)
     }
 
+    var copySourceWorkouts: [Workout] {
+        workouts.filter { workout in
+            workout.exercises.contains { !$0.sets.isEmpty }
+        }
+    }
+
     func copyWorkout(
         from sourceDate: LocalDate,
         to destinationDate: LocalDate,
@@ -169,6 +176,9 @@ final class WorkoutViewModel: ObservableObject {
         }
         guard sourceDate != destinationDate else {
             throw ProgramPlanningError.copyDestinationMatchesSource(destinationDate)
+        }
+        guard source.exercises.contains(where: { !$0.sets.isEmpty }) else {
+            throw ProgramPlanningError.copySourceHasNoSets(sourceDate)
         }
 
         let destinationState = copyDestinationState(on: destinationDate)

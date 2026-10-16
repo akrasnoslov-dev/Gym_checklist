@@ -711,11 +711,33 @@ final class GymChecklistUITests: XCTestCase {
     }
 
     private func replaceText(in field: XCUIElement, with value: String) {
-        // Double-tapping selects the current numeric token even when a
-        // trailing-aligned field positions its caret before the digits.
-        // Replacing the selection avoids backspacing from the wrong side.
-        field.doubleTap()
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        if let existing = field.value as? String, !existing.isEmpty, existing != value {
+            selectEntireFieldValue(in: field)
+        }
         field.typeText(value)
+        // iOS's editing menu can fail to expose a selection on its first
+        // attempt. Retry through the native selection action, not a blind
+        // backspace (whose caret can be before trailing-aligned digits).
+        if field.value as? String != value {
+            selectEntireFieldValue(in: field)
+            field.typeText(value)
+        }
+        XCTAssertEqual(field.value as? String, value, "Numeric field must replace the previous value")
+    }
+
+    private func selectEntireFieldValue(in field: XCUIElement) {
+        field.press(forDuration: 1.1)
+        let app = XCUIApplication()
+        for selectAll in [app.menuItems["Select All"], app.buttons["Select All"]] {
+            if selectAll.waitForExistence(timeout: 0.5) {
+                selectAll.tap()
+                return
+            }
+        }
+        // iOS also offers whole-token selection with a triple tap.
+        field.tap(withNumberOfTaps: 3, numberOfTouches: 1)
     }
 
     private func openProgram(_ app: XCUIApplication) {

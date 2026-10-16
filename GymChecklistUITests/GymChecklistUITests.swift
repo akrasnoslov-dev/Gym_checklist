@@ -711,11 +711,15 @@ final class GymChecklistUITests: XCTestCase {
     }
 
     private func replaceText(in field: XCUIElement, with value: String) {
-        // Double-tapping selects the current numeric token even when a
-        // trailing-aligned field positions its caret before the digits.
-        // Replacing the selection avoids backspacing from the wrong side.
-        field.doubleTap()
-        field.typeText(value)
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        let previousValue = field.value as? String ?? ""
+        // A double tap does not reliably select the current value on iOS's
+        // numeric keyboard (the test sometimes appended 9 to 7 -> 97).
+        // Tap to the right of the trailing-aligned digits to place the caret
+        // at the end, then replace the entire value with backspaces.
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previousValue.count) + value)
+        XCTAssertEqual(field.value as? String, value, "Numeric field must contain the replacement, not an appended value")
     }
 
     private func openProgram(_ app: XCUIApplication) {

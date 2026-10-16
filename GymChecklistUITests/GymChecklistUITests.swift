@@ -610,7 +610,10 @@ final class GymChecklistUITests: XCTestCase {
         replaceText(in: app.textFields["programHistoryActualEditorReps"], with: "9")
         app.buttons["programHistoryActualEditorSave"].tap()
         XCTAssertFalse(app.navigationBars["Edit actual"].waitForExistence(timeout: 2), app.debugDescription)
-        XCTAssertTrue(waitForValue(completedSet, "Completed, actual 9 reps × 65 kg"), app.debugDescription)
+        // The List replaces the historical row after updating its actual values.
+        // Reacquire the accessibility element rather than retaining the pre-save handle.
+        let updatedCompletedSet = app.buttons["programHistorySet-90000000-0000-4000-8000-000000000401"]
+        XCTAssertTrue(waitForValue(updatedCompletedSet, "Completed, actual 9 reps × 65 kg"), app.debugDescription)
 
         XCTAssertTrue(revealProgramDate(historyDate, in: app))
         app.buttons["programDate-2026-08-06"].tap()

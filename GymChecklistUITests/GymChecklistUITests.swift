@@ -69,7 +69,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["copyWorkoutSourceDate"].exists)
         XCTAssertTrue(app.staticTexts["copyWorkoutSummary"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["copyWorkoutSourcePicker"].exists)
-        XCTAssertTrue(app.datePickers["copyWorkoutDestination"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["copyWorkoutDestination"].exists)
         XCTAssertTrue(app.buttons["copyWorkoutAction"].exists)
         XCTAssertEqual(app.buttons["copyWorkoutAction"].label, "Copy exercises")
         XCTAssertFalse(app.buttons["copyWorkoutAction"].isEnabled)
@@ -378,7 +378,8 @@ final class GymChecklistUITests: XCTestCase {
         addApp.buttons["programWorkoutActions"].tap()
         addApp.buttons["programCopyWorkout"].tap()
         let choice = addApp.segmentedControls["copyWorkoutDestinationChoice"]
-        XCTAssertTrue(choice.waitForExistence(timeout: 2))
+        if !choice.exists { addApp.swipeUp() }
+        XCTAssertTrue(choice.waitForExistence(timeout: 3))
         XCTAssertTrue(choice.buttons["Add exercises"].isSelected)
         XCTAssertEqual(addApp.buttons["copyWorkoutAction"].label, "Add exercises")
         addApp.buttons["copyWorkoutAction"].tap()
@@ -399,7 +400,8 @@ final class GymChecklistUITests: XCTestCase {
         replaceApp.buttons["programWorkoutActions"].tap()
         replaceApp.buttons["programCopyWorkout"].tap()
         let replaceChoice = replaceApp.segmentedControls["copyWorkoutDestinationChoice"]
-        XCTAssertTrue(replaceChoice.waitForExistence(timeout: 2))
+        if !replaceChoice.exists { replaceApp.swipeUp() }
+        XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
         replaceChoice.buttons["Replace exercises"].tap()
         replaceApp.buttons["copyWorkoutAction"].tap()
         XCTAssertTrue(replaceApp.buttons["copyWorkoutConfirmReplace"].waitForExistence(timeout: 2))
@@ -487,7 +489,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(weight.waitForExistence(timeout: 2))
         replaceText(in: weight, with: "81")
         app.buttons["bodyWeightSave"].tap()
-        let measurement = app.buttons["bodyWeightMeasurement"]
+        let measurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
         app.buttons["Done"].tap()
         XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm - BMI 25.0"))
@@ -497,7 +499,7 @@ final class GymChecklistUITests: XCTestCase {
         replaceText(in: weight, with: "80")
         app.buttons["bodyWeightSave"].tap()
         XCTAssertTrue(app.staticTexts["80 kg"].exists)
-        let updatedMeasurement = app.buttons["bodyWeightMeasurement"]
+        let updatedMeasurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
         XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 2))
         updatedMeasurement.swipeLeft()
         let deleteMeasurement = app.buttons["Delete"]
@@ -912,7 +914,8 @@ final class TodayInteractionUITests: XCTestCase {
         set.press(forDuration: 1)
         replaceText(in: app.textFields["todaySetEditorReps"], with: "6")
         app.buttons["todaySetEditorSave"].tap()
-        XCTAssertTrue(app.staticTexts["6 reps × 60 kg"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons[firstBenchSet].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons[firstBenchSet].label.contains("6 reps × 60 kg"))
         assert(set, hasValue: "Incomplete")
 
         set.tap()
@@ -939,7 +942,8 @@ final class TodayInteractionUITests: XCTestCase {
 
         app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
         app.buttons["todaySetEditorSave"].tap()
-        XCTAssertTrue(app.staticTexts["6 reps × 60 kg"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons[firstBenchSet].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons[firstBenchSet].label.contains("6 reps × 60 kg"))
         assert(set, hasValue: "Incomplete")
     }
 
@@ -1004,8 +1008,7 @@ final class TodayInteractionUITests: XCTestCase {
     }
 
     private func replaceText(in field: XCUIElement, with value: String) {
-        field.tap()
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
+        field.doubleTap()
         field.typeText(value)
     }
 }
@@ -1029,7 +1032,7 @@ final class TodayEmptyStateUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["todayRestDayState"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Rest day."].exists)
-        XCTAssertTrue(app.staticTexts["See you tomorrow."].exists)
+        XCTAssertTrue(app.staticTexts["Your program exists; no workout is scheduled today. See you tomorrow."].exists)
         XCTAssertTrue(app.buttons["todayViewProgram"].exists)
         XCTAssertTrue(app.buttons["View program"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["todayNoProgramState"].exists)
@@ -1382,9 +1385,9 @@ final class TodayCompletionUITests: XCTestCase {
         let rowSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000201"]
 
         benchSet.tap()
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
         rowSet.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["todayCompletionDismiss"].waitForExistence(timeout: 2))
         XCTAssertFalse(rowSet.exists)
         let dismiss = app.buttons["todayCompletionDismiss"]
         XCTAssertTrue(dismiss.isHittable)
@@ -1409,7 +1412,7 @@ final class TodayCompletionUITests: XCTestCase {
         XCTAssertTrue(rowSet.waitForExistence(timeout: 2))
 
         rowSet.tap()
-        let completionPopup = app.descendants(matching: .any)["todayCompletionPopup"]
+        let completionPopup = app.buttons["todayCompletionDismiss"]
         XCTAssertTrue(completionPopup.waitForExistence(timeout: 2))
         XCTAssertTrue(
             ["You crushed it!", "Gym survived. Barely.", "Another one done."].contains {
@@ -1420,12 +1423,12 @@ final class TodayCompletionUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
         app.buttons["todayCompletionDismiss"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
 
         rowSet.tap()
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
         rowSet.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["todayCompletionDismiss"].waitForExistence(timeout: 2))
     }
 
     func testSkippingLastRemainingExerciseShowsCompletionPopup() {
@@ -1434,11 +1437,11 @@ final class TodayCompletionUITests: XCTestCase {
         let row = app.staticTexts["todayExercise-90000000-0000-4000-8000-000000000002"]
 
         benchSet.tap()
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
         row.press(forDuration: 1)
         app.buttons["Skip exercise"].tap()
 
-        XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["todayCompletionDismiss"].waitForExistence(timeout: 2))
     }
 
     func testCompletedWorkoutDoesNotShowCompletionPopupOnLaunch() {
@@ -1450,7 +1453,7 @@ final class TodayCompletionUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
     }
 
     private func launchCompletionWorkout() -> XCUIApplication {

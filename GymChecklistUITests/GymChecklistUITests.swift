@@ -204,8 +204,26 @@ final class GymChecklistUITests: XCTestCase {
         let nordicInReorder = app.descendants(matching: .any)["programReorderExercise-Nordic Hop"]
         XCTAssertTrue(benchInReorder.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 5), app.debugDescription)
-        nordicInReorder.press(forDuration: 0.5, thenDragTo: benchInReorder)
-        XCTAssertLessThan(nordicInReorder.frame.minY, benchInReorder.frame.minY)
+        // In an editing List, reorder starts from the trailing drag handle,
+        // not from the text label (which can drag text instead of the row).
+        let nordicCell = app.cells.containing(.staticText, identifier: "programReorderExercise-Nordic Hop").firstMatch
+        let benchCell = app.cells.containing(.staticText, identifier: "programReorderExercise-Bench Press").firstMatch
+        XCTAssertTrue(nordicCell.waitForExistence(timeout: 3), app.debugDescription)
+        XCTAssertTrue(benchCell.exists, app.debugDescription)
+        nordicCell.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5))
+            .press(
+                forDuration: 1.0,
+                thenDragTo: benchCell.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.15))
+            )
+        let reordered = NSPredicate { _, _ in
+            nordicInReorder.exists && benchInReorder.exists
+                && nordicInReorder.frame.minY < benchInReorder.frame.minY
+        }
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: reordered, object: nil)], timeout: 5),
+            .completed,
+            app.debugDescription
+        )
         app.buttons["Done"].tap()
 
         let reorderedBenchActions = app.buttons["Actions for Bench Press, exercise 2 of 2"]
@@ -377,9 +395,8 @@ final class GymChecklistUITests: XCTestCase {
         addApp.launch()
 
         openProgram(addApp)
-        let rowsBeforeAdd = addApp.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "programExerciseRow-")
-        ).count
+        // List virtualizes off-screen rows; its accessibility-element count
+        // is not a reliable measure of the workout's exercise count.
         addApp.buttons["programWorkoutActions"].tap()
         addApp.buttons["programCopyWorkout"].tap()
         let choice = addApp.segmentedControls["copyWorkoutDestinationChoice"]
@@ -391,10 +408,16 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(choice.buttons["Add exercises"].isSelected)
         XCTAssertEqual(addApp.buttons["copyWorkoutAction"].label, "Add exercises")
         addApp.buttons["copyWorkoutAction"].tap()
-        let rowsAfterAdd = addApp.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "programExerciseRow-")
-        ).count
-        XCTAssertGreaterThan(rowsAfterAdd, rowsBeforeAdd)
+        // The seeded workout has 3 exercises; the source has 2.
+        // Verify the appended fifth exercise through its accessible index.
+        let appendedFifth = addApp.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "exercise 5 of 5")
+        ).firstMatch
+        for _ in 0..<8 {
+            if appendedFifth.exists { break }
+            addApp.swipeUp()
+        }
+        XCTAssertTrue(appendedFifth.waitForExistence(timeout: 5), addApp.debugDescription)
         addApp.terminate()
 
         let replaceApp = XCUIApplication()
@@ -516,7 +539,8 @@ final class GymChecklistUITests: XCTestCase {
         let deleteMeasurement = app.buttons["Delete"]
         XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 2))
         deleteMeasurement.tap()
-        XCTAssertFalse(updatedMeasurement.waitForExistence(timeout: 1))
+        // Deletion uses an animated native swipe action. Assert the persisted
+        // empty state after closing instead of testing mid-animation existence.
         app.buttons["Done"].tap()
         XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm"))
         XCTAssertTrue(waitForValue(app.buttons["settingsBodyWeight"], "Log your first measurement"))

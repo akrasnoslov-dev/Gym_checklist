@@ -660,12 +660,10 @@ final class GymChecklistUITests: XCTestCase {
     }
 
     private func replaceText(in field: XCUIElement, with value: String) {
-        // Text fields in trailing-aligned LabeledContent can place the caret
-        // before the existing digits on a center tap (e.g. "7" -> "97").
-        // Move to the end before deleting existing text.
-        field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
-        let oldValue = (field.value as? String) ?? ""
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: oldValue.count))
+        // Double-tapping selects the current numeric token even when a
+        // trailing-aligned field positions its caret before the digits.
+        // Replacing the selection avoids backspacing from the wrong side.
+        field.doubleTap()
         field.typeText(value)
     }
 

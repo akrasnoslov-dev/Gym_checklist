@@ -1,14 +1,6 @@
 name: MVP Physical iPhone Acceptance IPA
 
 on:
-  # Temporary device-preview build for the Phase 9 acceptance branch.
-  # This creates an installable IPA even while the full XCTest gate is being fixed.
-  push:
-    branches:
-      - codex/phase-9-acceptance
-    paths:
-      - 'GymChecklistTests/DomainRulesTests.swift'
-      - '.github/workflows/mvp-acceptance-ipa.yml'
   workflow_dispatch:
     inputs:
       source_sha:
@@ -24,7 +16,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     env:
-      APP_SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+      APP_SOURCE_SHA: ${{ inputs.source_sha }}
       APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
       APP_DISPLAY_NAME: Gym Checklist
 
@@ -32,7 +24,7 @@ jobs:
       - name: Checkout accepted MVP app source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_sha || github.sha }}
+          ref: ${{ inputs.source_sha }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -164,7 +156,7 @@ jobs:
       - name: Upload physical iPhone acceptance IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-MVP-${{ inputs.source_sha || github.sha }}
+          name: GymChecklist-MVP-${{ inputs.source_sha }}
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

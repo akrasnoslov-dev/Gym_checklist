@@ -69,7 +69,12 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["copyWorkoutSourceDate"].exists)
         XCTAssertTrue(app.staticTexts["copyWorkoutSummary"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["copyWorkoutSourcePicker"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["copyWorkoutDestination"].exists)
+        let destinationPicker = app.descendants(matching: .any)["copyWorkoutDestination"]
+        for _ in 0..<3 {
+            if destinationPicker.exists { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(destinationPicker.waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["copyWorkoutAction"].exists)
         XCTAssertEqual(app.buttons["copyWorkoutAction"].label, "Copy exercises")
         XCTAssertFalse(app.buttons["copyWorkoutAction"].isEnabled)
@@ -378,7 +383,10 @@ final class GymChecklistUITests: XCTestCase {
         addApp.buttons["programWorkoutActions"].tap()
         addApp.buttons["programCopyWorkout"].tap()
         let choice = addApp.segmentedControls["copyWorkoutDestinationChoice"]
-        if !choice.exists { addApp.swipeUp() }
+        for _ in 0..<3 {
+            if choice.exists { break }
+            addApp.swipeUp()
+        }
         XCTAssertTrue(choice.waitForExistence(timeout: 3))
         XCTAssertTrue(choice.buttons["Add exercises"].isSelected)
         XCTAssertEqual(addApp.buttons["copyWorkoutAction"].label, "Add exercises")
@@ -400,7 +408,10 @@ final class GymChecklistUITests: XCTestCase {
         replaceApp.buttons["programWorkoutActions"].tap()
         replaceApp.buttons["programCopyWorkout"].tap()
         let replaceChoice = replaceApp.segmentedControls["copyWorkoutDestinationChoice"]
-        if !replaceChoice.exists { replaceApp.swipeUp() }
+        for _ in 0..<3 {
+            if replaceChoice.exists { break }
+            replaceApp.swipeUp()
+        }
         XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
         replaceChoice.buttons["Replace exercises"].tap()
         replaceApp.buttons["copyWorkoutAction"].tap()

@@ -610,10 +610,12 @@ final class GymChecklistUITests: XCTestCase {
         replaceText(in: app.textFields["programHistoryActualEditorReps"], with: "9")
         app.buttons["programHistoryActualEditorSave"].tap()
         XCTAssertFalse(app.navigationBars["Edit actual"].waitForExistence(timeout: 2), app.debugDescription)
-        // The List replaces the historical row after updating its actual values.
-        // Reacquire the accessibility element rather than retaining the pre-save handle.
+        // Verify the visible result, independently of the cached accessibility value.
+        let resultText = app.staticTexts["Completed · Actual: 9 reps × 65 kg"]
         let updatedCompletedSet = app.buttons["programHistorySet-90000000-0000-4000-8000-000000000401"]
-        XCTAssertTrue(waitForValue(updatedCompletedSet, "Completed, actual 9 reps × 65 kg"), app.debugDescription)
+        print("HISTORICAL_ACTUAL_DIAGNOSTIC: rowExists=\(updatedCompletedSet.exists), value=\(String(describing: updatedCompletedSet.value)), visibleResult=\(resultText.exists)")
+        XCTAssertTrue(resultText.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(waitForValue(updatedCompletedSet, "Completed, actual 9 reps × 65 kg"), "Accessibility result differs from visible row: \(String(describing: updatedCompletedSet.value))")
 
         XCTAssertTrue(revealProgramDate(historyDate, in: app))
         app.buttons["programDate-2026-08-06"].tap()

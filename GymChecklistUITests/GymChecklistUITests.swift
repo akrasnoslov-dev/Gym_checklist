@@ -1346,7 +1346,7 @@ final class RegistrationUITests: XCTestCase {
         completionApp.buttons["todaySet-90000000-0000-4000-8000-000000000101"].tap()
         completionApp.buttons["todaySet-90000000-0000-4000-8000-000000000201"].tap()
         XCTAssertTrue(
-            completionApp.descendants(matching: .any)["todayCompletionPopup"]
+            completionApp.buttons["todayCompletionDismiss"]
                 .waitForExistence(timeout: 2)
         )
         captureMVPPreview("05-Completion", app: completionApp)

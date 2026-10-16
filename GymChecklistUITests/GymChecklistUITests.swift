@@ -109,7 +109,7 @@ final class GymChecklistUITests: XCTestCase {
         let bench = app.buttons["exercisePickerResult-00000000-0000-4000-8000-000000000001"]
         XCTAssertTrue(bench.waitForExistence(timeout: 2))
         bench.tap()
-        XCTAssertTrue(app.staticTexts["programExercise-Bench Press"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch.waitForExistence(timeout: 2))
 
         let addBenchSet = app.buttons["Add set to Bench Press"]
         XCTAssertTrue(addBenchSet.waitForExistence(timeout: 2))
@@ -186,10 +186,10 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.textFields["customExerciseName"].waitForExistence(timeout: 2))
         XCTAssertEqual(app.textFields["customExerciseName"].value as? String, "Nordic Hop")
         app.buttons["customExerciseSave"].tap()
-        XCTAssertTrue(app.staticTexts["programExercise-Nordic Hop"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", "Nordic Hop")).firstMatch.waitForExistence(timeout: 2))
 
-        let benchName = app.staticTexts["programExercise-Bench Press"]
-        let nordicName = app.staticTexts["programExercise-Nordic Hop"]
+        let benchName = app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch
+        let nordicName = app.staticTexts.matching(NSPredicate(format: "label == %@", "Nordic Hop")).firstMatch
         XCTAssertLessThan(benchName.frame.minY, nordicName.frame.minY)
         app.buttons["Actions for Nordic Hop, exercise 2 of 2"].tap()
         XCTAssertTrue(app.buttons["Reorder exercises"].waitForExistence(timeout: 2))
@@ -358,7 +358,7 @@ final class GymChecklistUITests: XCTestCase {
             "Copy sheet remained visible after Copy: \(app.debugDescription)"
         )
         XCTAssertTrue(
-            app.staticTexts["programExercise-Bench Press"].waitForExistence(timeout: 5),
+            app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch.waitForExistence(timeout: 5),
             "Copied workout was not visible after dismissal: \(app.debugDescription)"
         )
     }

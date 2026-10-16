@@ -41,6 +41,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
         XCTAssertFalse(app.buttons["programCreateWorkout"].exists)
+        XCTAssertFalse(app.buttons["programCopyExistingWorkout"].exists)
 
         // Navigate away only after the selected date has dynamic workout content.
         // This guards the List subtree refresh used by week navigation.
@@ -67,9 +68,15 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Copy workout"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["copyWorkoutSourceDate"].exists)
         XCTAssertTrue(app.staticTexts["copyWorkoutSummary"].exists)
-        XCTAssertTrue(app.datePickers["copyWorkoutDestination"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["copyWorkoutSourcePicker"].exists)
+        let destinationPicker = app.descendants(matching: .any)["copyWorkoutDestination"]
+        for _ in 0..<3 {
+            if destinationPicker.exists { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(destinationPicker.waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["copyWorkoutAction"].exists)
-        XCTAssertEqual(app.buttons["copyWorkoutAction"].label, "Copy")
+        XCTAssertEqual(app.buttons["copyWorkoutAction"].label, "Copy exercises")
         XCTAssertFalse(app.buttons["copyWorkoutAction"].isEnabled)
         app.buttons["copyWorkoutCancel"].tap()
 
@@ -107,7 +114,7 @@ final class GymChecklistUITests: XCTestCase {
         let bench = app.buttons["exercisePickerResult-00000000-0000-4000-8000-000000000001"]
         XCTAssertTrue(bench.waitForExistence(timeout: 2))
         bench.tap()
-        XCTAssertTrue(app.staticTexts["programExercise-Bench Press"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch.waitForExistence(timeout: 2))
 
         let addBenchSet = app.buttons["Add set to Bench Press"]
         XCTAssertTrue(addBenchSet.waitForExistence(timeout: 2))
@@ -116,33 +123,63 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
         app.tabBars.buttons["Today"].tap()
-        XCTAssertTrue(app.staticTexts["Today"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Friday, August 14, 2026"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 10))
+        let todayDate = app.staticTexts["todayDate"]
+        XCTAssertTrue(todayDate.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(waitForLabel(of: todayDate, toEqual: "Friday, August 14"))
         XCTAssertFalse(app.buttons["Start Workout"].exists)
 
         app.tabBars.buttons["Program"].tap()
         firstBenchSet.tap()
         XCTAssertTrue(app.textFields["programSetEditorReps"].waitForExistence(timeout: 2))
-        XCTAssertFalse(app.textFields["programSetEditorWeight"].exists)
-        XCTAssertFalse(app.textFields["programSetEditorTime"].exists)
+        XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
+        XCTAssertTrue(app.textFields["programSetEditorTime"].exists)
+        XCTAssertFalse(app.textFields["programSetEditorWeight"].isEnabled)
+        XCTAssertFalse(app.textFields["programSetEditorTime"].isEnabled)
         app.buttons["programSetEditorSave"].tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
         addBenchSet.tap()
-        let secondBenchSetActions = app.buttons["Actions for set 2 for Bench Press"]
-        XCTAssertTrue(secondBenchSetActions.waitForExistence(timeout: 2))
-        secondBenchSetActions.tap()
-        XCTAssertTrue(app.buttons["Move up"].waitForExistence(timeout: 2))
-        app.buttons["Move up"].tap()
-        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+        let stableBenchSets = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSet-"))
+        let firstStableBenchSet = stableBenchSets.element(boundBy: 0)
+        let secondStableBenchSet = stableBenchSets.element(boundBy: 1)
+        XCTAssertTrue(firstStableBenchSet.waitForExistence(timeout: 2))
+        XCTAssertTrue(secondStableBenchSet.waitForExistence(timeout: 2))
+        let firstStableBenchSetIdentifier = firstStableBenchSet.identifier
+        let secondStableBenchSetIdentifier = secondStableBenchSet.identifier
+        let setDragHandles = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSetDragHandle-"))
+        let firstSetDragHandle = setDragHandles.element(boundBy: 0)
+        let secondSetDragHandle = setDragHandles.element(boundBy: 1)
+        XCTAssertTrue(firstSetDragHandle.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondSetDragHandle.waitForExistence(timeout: 5))
+        secondSetDragHandle.press(forDuration: 1.0, thenDragTo: firstSetDragHandle)
+        let reorderedFirstStableBenchSet = app.buttons[firstStableBenchSetIdentifier]
+        let reorderedSecondStableBenchSet = app.buttons[secondStableBenchSetIdentifier]
+        let didReorder = NSPredicate { _, _ in
+            reorderedSecondStableBenchSet.frame.minY < reorderedFirstStableBenchSet.frame.minY
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: didReorder, object: nil)], timeout: 5), .completed)
+        app.tabBars.buttons["Today"].tap()
+        app.tabBars.buttons["Program"].tap()
+        XCTAssertLessThan(
+            app.buttons[secondStableBenchSetIdentifier].frame.minY,
+            app.buttons[firstStableBenchSetIdentifier].frame.minY
+        )
 
-        firstBenchSet.tap()
-        XCTAssertTrue(app.buttons["programSetEditorDelete"].waitForExistence(timeout: 2))
-        app.buttons["programSetEditorDelete"].tap()
+        let setCountBeforeDelete = stableBenchSets.count
+        let setToDelete = stableBenchSets.element(boundBy: 0)
+        setToDelete.swipeLeft()
+        let deleteSet = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Delete set ")
+        ).firstMatch
+        XCTAssertTrue(deleteSet.waitForExistence(timeout: 2))
+        deleteSet.tap()
         let confirmSetDeletion = app.buttons.matching(identifier: "programConfirmDeleteSet").firstMatch
         XCTAssertTrue(confirmSetDeletion.waitForExistence(timeout: 2))
         confirmSetDeletion.tap()
-        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+        XCTAssertEqual(stableBenchSets.count, setCountBeforeDelete - 1)
+        XCTAssertFalse(app.alerts["Delete this set?"].waitForExistence(timeout: 1))
 
         app.buttons["programAddExercise"].tap()
         let customSearch = app.searchFields["Search exercises"]
@@ -154,13 +191,43 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.textFields["customExerciseName"].waitForExistence(timeout: 2))
         XCTAssertEqual(app.textFields["customExerciseName"].value as? String, "Nordic Hop")
         app.buttons["customExerciseSave"].tap()
-        XCTAssertTrue(app.staticTexts["programExercise-Nordic Hop"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", "Nordic Hop")).firstMatch.waitForExistence(timeout: 2))
 
-        let benchName = app.staticTexts["programExercise-Bench Press"]
-        let nordicName = app.staticTexts["programExercise-Nordic Hop"]
+        let benchName = app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch
+        let nordicName = app.staticTexts.matching(NSPredicate(format: "label == %@", "Nordic Hop")).firstMatch
         XCTAssertLessThan(benchName.frame.minY, nordicName.frame.minY)
         app.buttons["Actions for Nordic Hop, exercise 2 of 2"].tap()
-        app.buttons["Move up"].tap()
+        XCTAssertTrue(app.buttons["Reorder exercises"].waitForExistence(timeout: 2))
+        app.buttons["Reorder exercises"].tap()
+        XCTAssertTrue(app.navigationBars["Reorder exercises"].waitForExistence(timeout: 2))
+        let benchInReorder = app.descendants(matching: .any)["programReorderExercise-Bench Press"]
+        let nordicInReorder = app.descendants(matching: .any)["programReorderExercise-Nordic Hop"]
+        XCTAssertTrue(benchInReorder.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 5), app.debugDescription)
+        // Native edit-mode List exposes a dedicated reorder control. Drag the
+        // control itself past the first row's top edge (not the text/cell).
+        let nordicHandle = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Reorder Nordic Hop")
+        ).firstMatch
+        let benchHandle = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Reorder Bench Press")
+        ).firstMatch
+        XCTAssertTrue(nordicHandle.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(benchHandle.exists, app.debugDescription)
+        let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -35))
+        nordicHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 1.25, thenDragTo: dropPoint)
+        let reordered = NSPredicate { _, _ in
+            nordicInReorder.exists && benchInReorder.exists
+                && nordicInReorder.frame.minY < benchInReorder.frame.minY
+        }
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: reordered, object: nil)], timeout: 5),
+            .completed,
+            app.debugDescription
+        )
+        app.buttons["Done"].tap()
 
         let reorderedBenchActions = app.buttons["Actions for Bench Press, exercise 2 of 2"]
         XCTAssertTrue(reorderedBenchActions.waitForExistence(timeout: 2))
@@ -182,7 +249,10 @@ final class GymChecklistUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(confirmWorkoutDeletion.waitForExistence(timeout: 2))
         confirmWorkoutDeletion.tap()
-        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 3))
+        // The destructive alert must not reappear after its originating Menu is removed.
+        XCTAssertFalse(app.alerts["Delete this workout?"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["programConfirmDeleteWorkout"].exists)
 
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].waitForExistence(timeout: 2))
@@ -196,6 +266,212 @@ final class GymChecklistUITests: XCTestCase {
 
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
+    }
+
+    func testProgramSetSwipeRevealsDeleteWithoutOpeningEditor() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let set = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(reveal(set, in: app))
+        set.swipeLeft()
+        let delete = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Delete set ")
+        ).firstMatch
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.navigationBars["Edit set"].exists)
+        delete.tap()
+        XCTAssertTrue(app.buttons["programConfirmDeleteSet"].waitForExistence(timeout: 3))
+    }
+
+    func testProgramHeaderAndCalendarStayStableAcrossDateAndModeChanges() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let mode = app.segmentedControls["programViewMode"]
+        let weekHeader = app.staticTexts["programWeekHeader"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 2))
+        XCTAssertTrue(weekHeader.exists)
+        let stableModeY = mode.frame.midY
+        let stableWeekY = weekHeader.frame.midY
+
+        app.buttons["programDate-2026-08-13"].tap()
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(mode.isHittable)
+        XCTAssertTrue(app.frame.intersects(weekHeader.frame))
+        XCTAssertEqual(mode.frame.midY, stableModeY, accuracy: 1)
+        XCTAssertEqual(weekHeader.frame.midY, stableWeekY, accuracy: 1)
+
+        mode.buttons["Month"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["programMonthGrid"].waitForExistence(timeout: 2))
+        XCTAssertTrue(mode.isHittable)
+        XCTAssertEqual(mode.frame.midY, stableModeY, accuracy: 1)
+        mode.buttons["Week"].tap()
+        XCTAssertTrue(app.staticTexts["programWeekHeader"].waitForExistence(timeout: 2))
+        XCTAssertTrue(mode.isHittable)
+        XCTAssertEqual(mode.frame.midY, stableModeY, accuracy: 1)
+    }
+
+    func testDirtyProgramSetEditorBlocksInteractiveDismissalAndKeepsLabelsVisible() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let set = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(set.waitForExistence(timeout: 2))
+        set.tap()
+
+        let editor = app.navigationBars["Edit set"]
+        let reps = app.textFields["programSetEditorReps"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 2))
+        XCTAssertTrue(reps.exists)
+        XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
+        XCTAssertTrue(app.textFields["programSetEditorTime"].exists)
+        reps.tap()
+        reps.typeText("9")
+        editor.swipeDown()
+        XCTAssertTrue(editor.waitForExistence(timeout: 1))
+        app.buttons["Cancel"].tap()
+    }
+
+    func testCreateEmptyWorkoutThenCopyExistingWorkoutIntoIt() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        app.buttons["programDate-2026-08-15"].tap()
+        XCTAssertTrue(app.buttons["programCreateWorkout"].waitForExistence(timeout: 2))
+        app.buttons["programCreateWorkout"].tap()
+        XCTAssertTrue(app.staticTexts["programEmptyWorkout"].waitForExistence(timeout: 2))
+
+        app.buttons["programWorkoutActions"].tap()
+        app.buttons["programCopyWorkout"].tap()
+        let copySheet = app.navigationBars["Copy workout"]
+        XCTAssertTrue(copySheet.waitForExistence(timeout: 2))
+        copySheet.swipeDown()
+        XCTAssertTrue(copySheet.waitForExistence(timeout: 2), "Copy must remain open until Cancel or Copy")
+        XCTAssertTrue(app.buttons["copyWorkoutSourceDate-2026-08-14"].waitForExistence(timeout: 2))
+        let copy = app.buttons["copyWorkoutAction"]
+        XCTAssertTrue(copy.isEnabled)
+        XCTAssertEqual(copy.label, "Copy exercises")
+        copy.tap()
+
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: copySheet
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [dismissed], timeout: 5),
+            .completed,
+            "Copy sheet remained visible after Copy: \(app.debugDescription)"
+        )
+        XCTAssertTrue(
+            app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch.waitForExistence(timeout: 5),
+            "Copied workout was not visible after dismissal: \(app.debugDescription)"
+        )
+    }
+
+    func testCopyIntoPopulatedWorkoutOffersAddAndConfirmedReplace() {
+        let addApp = XCUIApplication()
+        addApp.launchEnvironment["UITESTING"] = "1"
+        addApp.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        addApp.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        addApp.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        addApp.launch()
+
+        openProgram(addApp)
+        // List virtualizes off-screen rows; its accessibility-element count
+        // is not a reliable measure of the workout's exercise count.
+        addApp.buttons["programWorkoutActions"].tap()
+        addApp.buttons["programCopyWorkout"].tap()
+        let choice = addApp.segmentedControls["copyWorkoutDestinationChoice"]
+        for _ in 0..<3 {
+            if choice.exists { break }
+            addApp.swipeUp()
+        }
+        XCTAssertTrue(choice.waitForExistence(timeout: 3))
+        XCTAssertTrue(choice.buttons["Add exercises"].isSelected)
+        XCTAssertEqual(addApp.buttons["copyWorkoutAction"].label, "Add exercises")
+        addApp.buttons["copyWorkoutAction"].tap()
+        // The seeded workout has 3 exercises; the source has 2.
+        // Verify the appended fifth exercise through its accessible index.
+        let appendedFifth = addApp.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "exercise 5 of 5")
+        ).firstMatch
+        for _ in 0..<8 {
+            if appendedFifth.exists { break }
+            addApp.swipeUp()
+        }
+        XCTAssertTrue(appendedFifth.waitForExistence(timeout: 5), addApp.debugDescription)
+        addApp.terminate()
+
+        let replaceApp = XCUIApplication()
+        replaceApp.launchEnvironment["UITESTING"] = "1"
+        replaceApp.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        replaceApp.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        replaceApp.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        replaceApp.launch()
+
+        openProgram(replaceApp)
+        replaceApp.buttons["programWorkoutActions"].tap()
+        replaceApp.buttons["programCopyWorkout"].tap()
+        let replaceChoice = replaceApp.segmentedControls["copyWorkoutDestinationChoice"]
+        for _ in 0..<3 {
+            if replaceChoice.exists { break }
+            replaceApp.swipeUp()
+        }
+        XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
+        replaceChoice.buttons["Replace exercises"].tap()
+        replaceApp.buttons["copyWorkoutAction"].tap()
+        XCTAssertTrue(replaceApp.buttons["copyWorkoutConfirmReplace"].waitForExistence(timeout: 2))
+        replaceApp.buttons["copyWorkoutConfirmReplace"].tap()
+        XCTAssertFalse(replaceApp.navigationBars["Copy workout"].waitForExistence(timeout: 2))
+    }
+
+    func testWholeWeightInputsShowNoTrailingDecimal() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        let todaySet = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "todaySet-")
+        ).firstMatch
+        XCTAssertTrue(todaySet.waitForExistence(timeout: 5))
+        todaySet.press(forDuration: 0.8)
+        let todayWeight = app.textFields["todaySetEditorWeight"]
+        XCTAssertTrue(todayWeight.waitForExistence(timeout: 3))
+        XCTAssertEqual(todayWeight.value as? String, "60")
+        app.buttons["todaySetEditorCancel"].tap()
+
+        openProgram(app)
+        let programSet = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(reveal(programSet, in: app))
+        programSet.tap()
+        let programWeight = app.textFields["programSetEditorWeight"]
+        XCTAssertTrue(programWeight.waitForExistence(timeout: 3))
+        XCTAssertEqual(programWeight.value as? String, "60")
     }
 
     func testProgramMonthUsesMondayFirstHeadersAndPreservesSelectionWhenReturningToWeek() {
@@ -250,32 +526,34 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(weight.waitForExistence(timeout: 2))
         replaceText(in: weight, with: "81")
         app.buttons["bodyWeightSave"].tap()
-        let measurement = app.buttons["bodyWeightMeasurement"]
+        let measurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.staticTexts["180 cm · BMI 25.0"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm - BMI 25.0"))
         app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
         measurement.tap()
         replaceText(in: weight, with: "80")
         app.buttons["bodyWeightSave"].tap()
         XCTAssertTrue(app.staticTexts["80 kg"].exists)
-        let updatedMeasurement = app.buttons["bodyWeightMeasurement"]
+        let updatedMeasurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
         XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 2))
         updatedMeasurement.swipeLeft()
         let deleteMeasurement = app.buttons["Delete"]
         XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 2))
         deleteMeasurement.tap()
-        XCTAssertFalse(updatedMeasurement.waitForExistence(timeout: 1))
+        // Deletion uses an animated native swipe action. Assert the persisted
+        // empty state after closing instead of testing mid-animation existence.
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.staticTexts["180 cm"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Log your first measurement"].exists)
+        XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm"))
+        XCTAssertTrue(waitForValue(app.buttons["settingsBodyWeight"], "Log your first measurement"))
     }
 
     func testAppearanceSelectionKeepsTodayAvailable() {
         let app = XCUIApplication()
         app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
         app.launch()
 
         app.tabBars.buttons["Settings"].tap()
@@ -285,9 +563,20 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertEqual(appearance.value as? String, "dark")
         XCTAssertEqual(app.descendants(matching: .any)["authenticatedContent"].value as? String, "dark")
 
-        XCTAssertTrue(selectAppearance("system", buttonIdentifier: "settingsAppearanceSystem", in: app, picker: appearance))
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
+        app.tabBars.buttons["Program"].tap()
+        let programSet = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(programSet.waitForExistence(timeout: 2))
+        programSet.tap()
+        XCTAssertTrue(app.navigationBars["Edit set"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.descendants(matching: .any)["authenticatedContent"].value as? String, "dark")
+        app.buttons["Cancel"].tap()
+
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(selectAppearance("system", buttonIdentifier: "settingsAppearanceSystem", in: app, picker: appearance))
     }
 
     func testWeightUnitUpdatesTodayAndProgramWithoutChangingStoredWorkout() {
@@ -369,9 +658,17 @@ final class GymChecklistUITests: XCTestCase {
 
         completedSet.tap()
         XCTAssertTrue(app.navigationBars["Edit actual"].waitForExistence(timeout: 2))
-        replaceText(in: app.textFields["programHistoryActualEditorReps"], with: "9")
+        let repsField = app.textFields["programHistoryActualEditorReps"]
+        replaceText(in: repsField, with: "9")
+        XCTAssertEqual(repsField.value as? String, "9")
         app.buttons["programHistoryActualEditorSave"].tap()
-        XCTAssertTrue(waitForValue(completedSet, "Completed, actual 9 reps × 65 kg"))
+        XCTAssertFalse(app.navigationBars["Edit actual"].waitForExistence(timeout: 2), app.debugDescription)
+        // Verify the visible result, independently of the cached accessibility value.
+        let resultText = app.staticTexts["Completed · Actual: 9 reps × 65 kg"]
+        let updatedCompletedSet = app.buttons["programHistorySet-90000000-0000-4000-8000-000000000401"]
+        print("HISTORICAL_ACTUAL_DIAGNOSTIC: rowExists=\(updatedCompletedSet.exists), value=\(String(describing: updatedCompletedSet.value)), visibleResult=\(resultText.exists)")
+        XCTAssertTrue(resultText.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(waitForValue(updatedCompletedSet, "Completed, actual 9 reps × 65 kg"), "Accessibility result differs from visible row: \(String(describing: updatedCompletedSet.value))")
 
         XCTAssertTrue(revealProgramDate(historyDate, in: app))
         app.buttons["programDate-2026-08-06"].tap()
@@ -414,8 +711,10 @@ final class GymChecklistUITests: XCTestCase {
     }
 
     private func replaceText(in field: XCUIElement, with value: String) {
-        field.tap()
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
+        // Double-tapping selects the current numeric token even when a
+        // trailing-aligned field positions its caret before the digits.
+        // Replacing the selection avoids backspacing from the wrong side.
+        field.doubleTap()
         field.typeText(value)
     }
 
@@ -653,7 +952,8 @@ final class TodayInteractionUITests: XCTestCase {
         set.press(forDuration: 1)
         replaceText(in: app.textFields["todaySetEditorReps"], with: "6")
         app.buttons["todaySetEditorSave"].tap()
-        XCTAssertTrue(app.staticTexts["6 reps × 60 kg"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons[firstBenchSet].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons[firstBenchSet].label.contains("6 reps × 60 kg"))
         assert(set, hasValue: "Incomplete")
 
         set.tap()
@@ -680,7 +980,8 @@ final class TodayInteractionUITests: XCTestCase {
 
         app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
         app.buttons["todaySetEditorSave"].tap()
-        XCTAssertTrue(app.staticTexts["6 reps × 60 kg"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons[firstBenchSet].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons[firstBenchSet].label.contains("6 reps × 60 kg"))
         assert(set, hasValue: "Incomplete")
     }
 
@@ -745,8 +1046,7 @@ final class TodayInteractionUITests: XCTestCase {
     }
 
     private func replaceText(in field: XCUIElement, with value: String) {
-        field.tap()
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
+        field.doubleTap()
         field.typeText(value)
     }
 }
@@ -770,7 +1070,7 @@ final class TodayEmptyStateUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["todayRestDayState"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Rest day."].exists)
-        XCTAssertTrue(app.staticTexts["See you tomorrow."].exists)
+        XCTAssertTrue(app.staticTexts["Your program exists; no workout is scheduled today. See you tomorrow."].exists)
         XCTAssertTrue(app.buttons["todayViewProgram"].exists)
         XCTAssertTrue(app.buttons["View program"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["todayNoProgramState"].exists)
@@ -1084,7 +1384,7 @@ final class RegistrationUITests: XCTestCase {
         completionApp.buttons["todaySet-90000000-0000-4000-8000-000000000101"].tap()
         completionApp.buttons["todaySet-90000000-0000-4000-8000-000000000201"].tap()
         XCTAssertTrue(
-            completionApp.descendants(matching: .any)["todayCompletionPopup"]
+            completionApp.buttons["todayCompletionDismiss"]
                 .waitForExistence(timeout: 2)
         )
         captureMVPPreview("05-Completion", app: completionApp)
@@ -1123,9 +1423,9 @@ final class TodayCompletionUITests: XCTestCase {
         let rowSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000201"]
 
         benchSet.tap()
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
         rowSet.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["todayCompletionDismiss"].waitForExistence(timeout: 2))
         XCTAssertFalse(rowSet.exists)
         let dismiss = app.buttons["todayCompletionDismiss"]
         XCTAssertTrue(dismiss.isHittable)
@@ -1150,18 +1450,23 @@ final class TodayCompletionUITests: XCTestCase {
         XCTAssertTrue(rowSet.waitForExistence(timeout: 2))
 
         rowSet.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["You crushed it!"].exists)
+        let completionPopup = app.buttons["todayCompletionDismiss"]
+        XCTAssertTrue(completionPopup.waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            ["You crushed it!", "Gym survived. Barely.", "Another one done."].contains {
+                app.staticTexts[$0].exists
+            }
+        )
         XCTAssertTrue(app.buttons["Done"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
         app.buttons["todayCompletionDismiss"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
 
         rowSet.tap()
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
         rowSet.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["todayCompletionDismiss"].waitForExistence(timeout: 2))
     }
 
     func testSkippingLastRemainingExerciseShowsCompletionPopup() {
@@ -1170,11 +1475,11 @@ final class TodayCompletionUITests: XCTestCase {
         let row = app.staticTexts["todayExercise-90000000-0000-4000-8000-000000000002"]
 
         benchSet.tap()
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
         row.press(forDuration: 1)
         app.buttons["Skip exercise"].tap()
 
-        XCTAssertTrue(app.descendants(matching: .any)["todayCompletionPopup"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["todayCompletionDismiss"].waitForExistence(timeout: 2))
     }
 
     func testCompletedWorkoutDoesNotShowCompletionPopupOnLaunch() {
@@ -1186,7 +1491,7 @@ final class TodayCompletionUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["todayCompletionPopup"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
     }
 
     private func launchCompletionWorkout() -> XCUIApplication {

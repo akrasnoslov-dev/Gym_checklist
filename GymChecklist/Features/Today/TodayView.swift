@@ -34,50 +34,63 @@ struct TodayView: View {
     let onOpenProgram: () -> Void
     @State private var editorRoute: TodaySetEditorRoute?
     @State private var showsCompletionPopup = false
+    @State private var completionContent: WorkoutCompletionContent = .crushed
     @State private var mutationError: TodayMutationError?
     @AccessibilityFocusState private var accessibilityFocus: AccessibilityFocusTarget?
     @State private var completionRestoreFocus: AccessibilityFocusTarget?
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
-                header
+        ZStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: GymTheme.spacing24) {
+                    header
 
-                if viewModel.workoutLoadState == .unavailable(hasUsableSnapshot: true) {
-                    syncUnavailableMessage
-                }
-
-                switch TodayContentState.resolve(
-                    workouts: viewModel.workouts,
-                    currentDate: currentDate,
-                    loadState: viewModel.workoutLoadState
-                ) {
-                case .activeWorkout:
-                    if let workout = viewModel.workout(on: currentDate) {
-                        if workout.exercises.isEmpty {
-                            emptyWorkoutState
-                        } else {
-                            let exercises = orderedExercises(in: workout)
-                            ForEach(exercises.filter { !$0.isSkipped }) { exercise in
-                                exerciseSection(exercise)
-                            }
-                            restoreSkippedExercisesMenu(exercises.filter(\.isSkipped))
-                        }
+                    if viewModel.workoutLoadState == .unavailable(hasUsableSnapshot: true) {
+                        syncUnavailableMessage
                     }
-                case .noProgram:
-                    noProgramState
-                case .restDay:
-                    restDayState
-                case .loading:
-                    loadingState
-                case .unavailable:
-                    unavailableState
+
+                    switch TodayContentState.resolve(
+                        workouts: viewModel.workouts,
+                        currentDate: currentDate,
+                        loadState: viewModel.workoutLoadState
+                    ) {
+                    case .activeWorkout:
+                        if let workout = viewModel.workout(on: currentDate) {
+                            if workout.exercises.isEmpty {
+                                emptyWorkoutState
+                            } else {
+                                let exercises = orderedExercises(in: workout)
+                                ForEach(exercises.filter { !$0.isSkipped }) { exercise in
+                                    exerciseSection(exercise)
+                                }
+                                restoreSkippedExercisesMenu(exercises.filter(\.isSkipped))
+                            }
+                        }
+                    case .noProgram:
+                        noProgramState
+                    case .restDay:
+                        restDayState
+                    case .loading:
+                        loadingState
+                    case .unavailable:
+                        unavailableState
+                    }
                 }
+                .padding(.horizontal, GymTheme.spacing16)
+                .padding(.vertical, GymTheme.spacing20)
+                .accessibilityHidden(showsCompletionPopup)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 20)
-            .accessibilityHidden(showsCompletionPopup)
+            .allowsHitTesting(!showsCompletionPopup)
+            if showsCompletionPopup {
+                TodayCompletionOverlay(content: completionContent) {
+                    showsCompletionPopup = false
+                    accessibilityFocus = completionRestoreFocus ?? .header
+                    completionRestoreFocus = nil
+                }
+                .accessibilityFocused($accessibilityFocus, equals: .completionOverlay)
+            }
         }
+        .gymPageBackground()
         .accessibilityIdentifier("todayScreen")
         .onChange(of: currentDate) { _, _ in
             editorRoute = nil
@@ -97,16 +110,8 @@ struct TodayView: View {
                     timeSeconds: timeSeconds
                 )
             }
-        }
-        .overlay {
-            if showsCompletionPopup {
-                TodayCompletionOverlay {
-                    showsCompletionPopup = false
-                    accessibilityFocus = completionRestoreFocus ?? .header
-                    completionRestoreFocus = nil
-                }
-                .accessibilityFocused($accessibilityFocus, equals: .completionOverlay)
-            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .alert(item: $mutationError) { error in
             Alert(
@@ -124,36 +129,42 @@ struct TodayView: View {
             Text(dateLabel)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .accessibilityIdentifier("todayDate")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("todayHeader")
         .accessibilityFocused($accessibilityFocus, equals: .header)
     }
 
     private var noProgramState: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("No workout planned yet.")
-                .foregroundStyle(.secondary)
-            Button("Create workout", action: onOpenProgram)
-                .buttonStyle(.borderedProminent)
-                .tint(GymTheme.accent)
-                .accessibilityIdentifier("todayCreateWorkout")
-        }
+        TodayEmptyHero(
+            systemImage: "list.clipboard",
+            title: "No workout planned yet.",
+            message: "Create your first workout to get started.",
+            actionTitle: "Create workout",
+            actionIdentifier: "todayCreateWorkout",
+            action: onOpenProgram
+        )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("todayNoProgramState")
     }
 
     private var loadingState: some View {
         ProgressView("Loading workout")
+            .frame(maxWidth: .infinity, minHeight: 220)
+            .foregroundStyle(GymTheme.textSecondary)
             .accessibilityIdentifier("todayLoadingState")
     }
 
     private var unavailableState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Workout unavailable right now.")
-                .font(.title3.weight(.semibold))
-            Text("Check your connection. The app will retry automatically.")
-                .foregroundStyle(.secondary)
-        }
+        TodayEmptyHero(
+            systemImage: "wifi.exclamationmark",
+            title: "Workout unavailable.",
+            message: "Check your connection. The app will retry automatically.",
+            actionTitle: nil,
+            actionIdentifier: nil,
+            action: nil
+        )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("todayUnavailableState")
     }
@@ -161,32 +172,34 @@ struct TodayView: View {
     private var syncUnavailableMessage: some View {
         Label("Saved workout data is available. Changes will sync when possible.", systemImage: "icloud.slash")
             .font(.footnote)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(GymTheme.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .gymCard()
             .accessibilityIdentifier("todaySyncUnavailableMessage")
     }
 
     private var restDayState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Rest day.")
-                .font(.title3.weight(.semibold))
-            Text("See you tomorrow.")
-                .foregroundStyle(.secondary)
-            Button("View program", action: onOpenProgram)
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("todayViewProgram")
-        }
+        TodayEmptyHero(
+            systemImage: "sun.max.fill",
+            title: "Rest day.",
+            message: "Your program exists; no workout is scheduled today. See you tomorrow.",
+            actionTitle: "View program",
+            actionIdentifier: "todayViewProgram",
+            action: onOpenProgram
+        )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("todayRestDayState")
     }
 
     private var emptyWorkoutState: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("No exercises added yet.")
-                .foregroundStyle(.secondary)
-            Button("View program", action: onOpenProgram)
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("todayEmptyWorkoutViewProgram")
-        }
+        TodayEmptyHero(
+            systemImage: "figure.strengthtraining.traditional",
+            title: "Workout is empty.",
+            message: "Add exercises in Program before you start.",
+            actionTitle: "View program",
+            actionIdentifier: "todayEmptyWorkoutViewProgram",
+            action: onOpenProgram
+        )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("todayEmptyWorkoutState")
     }
@@ -195,66 +208,90 @@ struct TodayView: View {
         let sets = orderedSets(in: exercise)
         let exerciseName = viewModel.exerciseName(for: exercise)
 
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(exerciseName)
-                .font(.headline)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .contentShape(Rectangle())
-                .contextMenu {
+        return VStack(spacing: 0) {
+            HStack(spacing: GymTheme.spacing12) {
+                Text(exerciseName)
+                    .font(.headline)
+                    .accessibilityLabel("\(exerciseName), \(sets.count) \(sets.count == 1 ? "set" : "sets")")
+                    .accessibilityHint("Actions available to skip this exercise.")
+                    .accessibilityIdentifier("todayExercise-\(exercise.id.rawValue.uuidString)")
+                    .accessibilityAction(named: Text("Skip exercise")) {
+                        skip(exercise)
+                    }
+                Spacer(minLength: 0)
+                Menu {
                     Button("Skip exercise") {
                         skip(exercise)
                     }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
-                .accessibilityLabel("\(exerciseName), \(sets.count) \(sets.count == 1 ? "set" : "sets")")
-                .accessibilityHint("Actions available to skip this exercise.")
-                .accessibilityIdentifier("todayExercise-\(exercise.id.rawValue.uuidString)")
-                .accessibilityAction(named: Text("Skip exercise")) {
+                .accessibilityLabel("Exercise actions")
+            }
+            .padding(.leading, GymTheme.spacing16)
+            .padding(.trailing, GymTheme.spacing8)
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .contentShape(Rectangle())
+            .contextMenu {
+                Button("Skip exercise") {
                     skip(exercise)
                 }
+            }
 
-            VStack(spacing: 0) {
-                ForEach(Array(sets.enumerated()), id: \.element.id) { index, set in
-                    Button {
-                        toggleCompletion(for: set, in: exercise)
-                    } label: {
-                        setRow(set)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("todaySet-\(set.id.rawValue.uuidString)")
-                    .accessibilityLabel("\(exerciseName), set \(index + 1): \(setDescription(for: set))")
-                    .accessibilityValue(set.isCompleted ? "Completed" : "Incomplete")
-                    .accessibilityHint("Double tap to toggle completion. Actions available to edit this set.")
-                    .accessibilityAddTraits(set.isCompleted ? .isSelected : [])
-                    .accessibilityFocused($accessibilityFocus, equals: .set(set.id))
-                    .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
-                        editorRoute = TodaySetEditorRoute(exercise: exercise, workoutSet: set)
-                    })
-                    .accessibilityAction(named: Text(set.isCompleted ? "Edit actual" : "Edit set")) {
-                        editorRoute = TodaySetEditorRoute(exercise: exercise, workoutSet: set)
-                    }
-                    if set.id != sets.last?.id {
-                        Divider()
-                    }
+            Divider().overlay(GymTheme.separator)
+
+            ForEach(Array(sets.enumerated()), id: \.element.id) { index, set in
+                Button {
+                    toggleCompletion(for: set, in: exercise)
+                } label: {
+                    setRow(set)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("todaySet-\(set.id.rawValue.uuidString)")
+                .accessibilityLabel("\(exerciseName), set \(index + 1): \(setDescription(for: set))")
+                .accessibilityValue(set.isCompleted ? "Completed" : "Incomplete")
+                .accessibilityHint("Double tap to toggle completion. Actions available to edit this set.")
+                .accessibilityAddTraits(set.isCompleted ? .isSelected : [])
+                .accessibilityFocused($accessibilityFocus, equals: .set(set.id))
+                .highPriorityGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                    editorRoute = TodaySetEditorRoute(exercise: exercise, workoutSet: set)
+                })
+                .accessibilityAction(named: Text(set.isCompleted ? "Edit actual" : "Edit set")) {
+                    editorRoute = TodaySetEditorRoute(exercise: exercise, workoutSet: set)
+                }
+                if set.id != sets.last?.id {
+                    Divider().overlay(GymTheme.separator)
                 }
             }
-            .background(GymTheme.elevatedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .gymCard()
+        .background(
+            GymTheme.surfaceElevated,
+            in: RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+                .stroke(GymTheme.borderSubtle, lineWidth: 1)
+        }
     }
 
     private func setRow(_ set: WorkoutSet) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: GymTheme.spacing12) {
             Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
-                .foregroundStyle(set.isCompleted ? GymTheme.accentForeground : Color.secondary)
+                .foregroundStyle(set.isCompleted ? GymTheme.accentForeground : GymTheme.textSecondary)
             Text(setDescription(for: set))
                 .font(.body)
+                .foregroundStyle(GymTheme.textPrimary)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+        .padding(.horizontal, GymTheme.spacing16)
+        .padding(.vertical, GymTheme.spacing8)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
         .contentShape(Rectangle())
     }
 
@@ -303,7 +340,7 @@ struct TodayView: View {
 
     private var dateLabel: String {
         guard let date = currentDate.date(in: calendar) else { return currentDate.description }
-        return date.formatted(.dateTime.weekday(.wide).month(.wide).day().year().locale(Locale(identifier: "en")))
+        return date.formatted(.dateTime.weekday(.wide).month(.wide).day().locale(Locale(identifier: "en")))
     }
 
     private func toggleCompletion(for set: WorkoutSet, in exercise: WorkoutExercise) {
@@ -348,10 +385,55 @@ struct TodayView: View {
             after: statusAfterMutation
         )
         guard showsCompletionPopup else { return }
+        // Vary the celebration each time. Do not lock artwork to workout ID.
+        let alternatives = WorkoutCompletionContent.allCases.filter { $0 != completionContent }
+        completionContent = alternatives.randomElement() ?? .crushed
         completionRestoreFocus = restoreFocus
         DispatchQueue.main.async {
             accessibilityFocus = .completionOverlay
         }
+    }
+}
+
+private struct TodayEmptyHero: View {
+    let systemImage: String
+    let title: String
+    let message: String
+    let actionTitle: String?
+    let actionIdentifier: String?
+    let action: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: GymTheme.spacing16) {
+            Spacer(minLength: 48)
+            Image(systemName: systemImage)
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(GymTheme.accentForeground)
+                .frame(width: 78, height: 78)
+                .background(GymTheme.accentSoft, in: Circle())
+                .accessibilityHidden(true)
+
+            VStack(spacing: GymTheme.spacing8) {
+                Text(title)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(GymTheme.textPrimary)
+                    .multilineTextAlignment(.center)
+                Text(message)
+                    .font(.body)
+                    .foregroundStyle(GymTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 280)
+            }
+
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(GymPrimaryButtonStyle())
+                    .frame(maxWidth: 230)
+                    .accessibilityIdentifier(actionIdentifier ?? "todayHeroAction")
+            }
+            Spacer(minLength: 48)
+        }
+        .frame(maxWidth: .infinity, minHeight: 360)
     }
 }
 
@@ -369,34 +451,78 @@ enum TodayMutationError: Identifiable {
     var message: String { "Check your workout before trying again." }
 }
 
+/// The approved completion artwork is packaged with the app. Selection is
+/// deterministic per workout so presentation is stable for UI tests and does
+/// not depend on a network call or the process-randomized Swift hash seed.
+enum WorkoutCompletionContent: CaseIterable {
+    case crushed
+    case barely
+    case another
+
+    var assetName: String {
+        switch self {
+        case .crushed: "CompletionCrushed"
+        case .barely: "CompletionBarely"
+        case .another: "CompletionAnother"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .crushed: "You crushed it!"
+        case .barely: "Gym survived. Barely."
+        case .another: "Another one done."
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .crushed: "That bar had no chance."
+        case .barely: "See you at the next set."
+        case .another: "Consistency looks good on you."
+        }
+    }
+
+    static func selected(for workoutID: WorkoutID) -> Self {
+        let index = workoutID.rawValue.uuidString.utf8.reduce(0) { $0 + Int($1) } % allCases.count
+        return allCases[index]
+    }
+}
+
 private struct TodayCompletionOverlay: View {
+    let content: WorkoutCompletionContent
     let onDismiss: () -> Void
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.28)
+            GymTheme.scrim
                 .ignoresSafeArea()
-            VStack(spacing: 16) {
-                ZStack {
-                    Circle().fill(GymTheme.accentSoft).frame(width: 78, height: 78)
-                    Image(systemName: "dumbbell.fill")
-                        .font(.system(size: 32, weight: .semibold))
-                        .foregroundStyle(GymTheme.accentForeground)
-                }
+            VStack(spacing: GymTheme.spacing16) {
+                Image(content.assetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 140, height: 112)
                     .accessibilityHidden(true)
-                Text("You crushed it!")
+                Text(content.title)
                     .font(.title2.weight(.bold))
-                Text("Gym survived. Barely.")
+                    .foregroundStyle(GymTheme.textPrimary)
+                Text(content.message)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(GymTheme.textSecondary)
+                    .multilineTextAlignment(.center)
                 Button("Done", action: onDismiss)
-                    .buttonStyle(.borderedProminent)
-                    .tint(GymTheme.accent)
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .buttonStyle(GymPrimaryButtonStyle())
                     .accessibilityIdentifier("todayCompletionDismiss")
             }
             .padding(28)
-            .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 20))
+            .background(
+                GymTheme.surfaceGrouped,
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(GymTheme.borderSubtle, lineWidth: 1)
+            }
             .padding(32)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("todayCompletionPopup")
@@ -418,11 +544,14 @@ private struct TodaySetEditorSheet: View {
     let onSave: (Int, Double, Int) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var reps: Int
-    @State private var weight: Double
-    @State private var timeSeconds: Int
+    @State private var repsText: String
+    @State private var weightText: String
+    @State private var timeText: String
     @State private var showsValidationError = false
     @State private var showsSaveError = false
+    private let initialRepsText: String
+    private let initialWeightText: String
+    private let initialTimeText: String
 
     init(
         route: TodaySetEditorRoute,
@@ -432,9 +561,35 @@ private struct TodaySetEditorSheet: View {
         self.route = route
         self.weightUnit = weightUnit
         self.onSave = onSave
-        _reps = State(initialValue: route.workoutSet.displayedReps)
-        _weight = State(initialValue: weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight))
-        _timeSeconds = State(initialValue: route.workoutSet.displayedTimeSeconds)
+        let repsText = String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps)
+        let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)
+        let weightText = displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2)))
+        let timeText = String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds)
+        initialRepsText = repsText
+        initialWeightText = weightText
+        initialTimeText = timeText
+        _repsText = State(initialValue: repsText)
+        _weightText = State(initialValue: weightText)
+        _timeText = State(initialValue: timeText)
+    }
+
+    private var reps: Int { Int(repsText) ?? 0 }
+    private var weight: Double { Double(weightText.replacingOccurrences(of: ",", with: ".")) ?? 0 }
+    private var timeSeconds: Int { Int(timeText) ?? 0 }
+    private var inputsAreValid: Bool {
+        (repsText.isEmpty || Int(repsText) != nil)
+            && (timeText.isEmpty || Int(timeText) != nil)
+            && (weightText.isEmpty || Double(weightText.replacingOccurrences(of: ",", with: ".")) != nil)
+    }
+    private var hasUnsavedChanges: Bool {
+        repsText != initialRepsText || weightText != initialWeightText || timeText != initialTimeText
+    }
+    private var supportsReps: Bool { route.workoutSet.displayedType != .timed }
+    private var supportsWeight: Bool {
+        route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed
+    }
+    private var supportsTime: Bool {
+        route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed
     }
 
     var body: some View {
@@ -444,19 +599,25 @@ private struct TodaySetEditorSheet: View {
                     Text(route.workoutSet.displayedType.title)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    if route.workoutSet.displayedType != .timed {
-                        TextField("Reps", value: $reps, format: .number)
+                    LabeledContent("Reps") {
+                        TextField("0", text: $repsText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
+                            .disabled(!supportsReps)
                             .accessibilityIdentifier("todaySetEditorReps")
                     }
-                    if route.workoutSet.displayedType == .weighted || route.workoutSet.displayedType == .legacyMixed {
-                        TextField("Weight (\(weightUnit.rawValue))", value: $weight, format: .number.precision(.fractionLength(0...2)))
+                    LabeledContent("Weight (\(weightUnit.rawValue))") {
+                        TextField("0", text: $weightText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.decimalPad)
+                            .disabled(!supportsWeight)
                             .accessibilityIdentifier("todaySetEditorWeight")
                     }
-                    if route.workoutSet.displayedType == .timed || route.workoutSet.displayedType == .legacyMixed {
-                        TextField("Time (seconds)", value: $timeSeconds, format: .number)
+                    LabeledContent("Time") {
+                        TextField("0", text: $timeText)
+                            .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
+                            .disabled(!supportsTime)
                             .accessibilityIdentifier("todaySetEditorTime")
                     }
                 }
@@ -469,6 +630,7 @@ private struct TodaySetEditorSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        guard inputsAreValid else { showsValidationError = true; return }
                         do {
                             try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
                             dismiss()
@@ -494,6 +656,7 @@ private struct TodaySetEditorSheet: View {
             } message: {
                 Text("Check your workout before trying again.")
             }
+            .interactiveDismissDisabled(hasUnsavedChanges)
         }
     }
 }

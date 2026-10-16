@@ -69,7 +69,9 @@ struct ContentView: View {
     ) {
         if ProcessInfo.processInfo.environment["UITEST_SEED_HISTORY_WORKOUT"] == "1" {
             seedHistoryWorkoutForUITests(in: repository, currentDate: date)
-            return
+            if ProcessInfo.processInfo.environment["UITEST_SEED_TODAY_WORKOUT"] != "1" {
+                return
+            }
         }
         if ProcessInfo.processInfo.environment["UITEST_SEED_COMPLETION_WORKOUT"] == "1" {
             seedCompletionWorkoutForUITests(in: repository, on: date)

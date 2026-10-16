@@ -12,7 +12,10 @@ extension Workout {
     }
 
     func calendarStatus(asOf currentDate: LocalDate) -> WorkoutStatus {
-        completionStatus == .planned && localDate < currentDate ? .incomplete : completionStatus
+        // A placeholder workout without any scheduled sets is not a missed workout.
+        let hasScheduledSets = exercises.contains { !$0.isSkipped && !$0.sets.isEmpty }
+        return completionStatus == .planned && localDate < currentDate && hasScheduledSets
+            ? .incomplete : completionStatus
     }
 }
 

@@ -49,7 +49,7 @@ final class SettingsViewModel: ObservableObject {
         do {
             try repository.saveAppearance(appearance)
         } catch {
-            errorMessage = "Couldn’t save appearance. Try again."
+            errorMessage = "Couldn't save appearance. Try again."
         }
     }
 
@@ -58,7 +58,7 @@ final class SettingsViewModel: ObservableObject {
         do {
             try repository.saveWeightUnit(weightUnit)
         } catch {
-            errorMessage = "Couldn’t save weight unit. Try again."
+            errorMessage = "Couldn't save weight unit. Try again."
         }
     }
 
@@ -128,142 +128,169 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 24) {
-                    GymSectionHeader(title: "Health profile")
-                    VStack(spacing: 0) {
-                    Button {
-                        isProfileEditorPresented = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.title2)
-                                .frame(width: 38, height: 38)
-                                .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                .foregroundStyle(GymTheme.accentForeground)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Your profile")
-                                    .foregroundStyle(.primary)
-                                Text(profileSummary)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                LazyVStack(alignment: .leading, spacing: GymTheme.spacing24) {
+                    Text("Settings")
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(GymTheme.textPrimary)
+
+                    VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+                        GymSectionHeader(title: "Health / profile")
+                        settingsGroup {
+                            settingsNavigationRow(title: "Profile", identifier: "settingsProfile") {
+                                isProfileEditorPresented = true
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                    .accessibilityIdentifier("settingsProfile")
-                    Divider().padding(.leading, 50)
-                    Button {
-                        isBodyWeightEditorPresented = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "scalemass.fill")
-                                .font(.title3)
-                                .frame(width: 38, height: 38)
-                                .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                .foregroundStyle(GymTheme.accentForeground)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Body weight")
-                                    .foregroundStyle(.primary)
-                                Text(weightSummary)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                            .accessibilityValue(profileSummary)
+                            Divider().overlay(GymTheme.separator)
+                            settingsNavigationRow(title: "Body weight", identifier: "settingsBodyWeight") {
+                                isBodyWeightEditorPresented = true
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.tertiary)
+                            .accessibilityValue(weightSummary)
                         }
                     }
-                    .accessibilityIdentifier("settingsBodyWeight")
-                    }
-                    .gymCard()
 
-                    GymSectionHeader(title: "Preferences")
-                    VStack(alignment: .leading, spacing: 16) {
-                    Text("Appearance")
-                        .font(.subheadline.weight(.medium))
-                    Picker(
-                        "Appearance",
-                        selection: Binding(
-                            get: { viewModel.settings.appearance },
-                            set: viewModel.selectAppearance
+                    VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+                        GymSectionHeader(title: "Preferences")
+                        settingsGroup {
+                            HStack(spacing: GymTheme.spacing12) {
+                                Text("Appearance")
+                                    .font(.body.weight(.semibold))
+                                Spacer()
+                                Picker(
+                                    "Appearance",
+                                    selection: Binding(
+                                        get: { viewModel.settings.appearance },
+                                        set: viewModel.selectAppearance
+                                    )
+                                ) {
+                                    ForEach(Appearance.allCases, id: \.self) { appearance in
+                                        Text(appearance.title)
+                                            .tag(appearance)
+                                            .accessibilityIdentifier("settingsAppearance\(appearance.accessibilitySuffix)")
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                .frame(width: 190)
+                                .accessibilityIdentifier("settingsAppearance")
+                                .accessibilityValue(viewModel.settings.appearance.rawValue)
+                            }
+                            .padding(GymTheme.spacing16)
+
+                            Divider().overlay(GymTheme.separator)
+
+                            HStack(spacing: GymTheme.spacing12) {
+                                Text("Weight unit")
+                                    .font(.body.weight(.semibold))
+                                Spacer()
+                                Picker(
+                                    "Weight unit",
+                                    selection: Binding(
+                                        get: { viewModel.settings.weightUnit },
+                                        set: viewModel.selectWeightUnit
+                                    )
+                                ) {
+                                    ForEach(WeightUnit.allCases, id: \.self) { weightUnit in
+                                        Text(weightUnit.title)
+                                            .tag(weightUnit)
+                                            .accessibilityIdentifier("settingsWeightUnit\(weightUnit.accessibilitySuffix)")
+                                    }
+                                }
+                                .pickerStyle(.segmented)
+                                .frame(width: 112)
+                                .accessibilityIdentifier("settingsWeightUnit")
+                                .accessibilityValue(viewModel.settings.weightUnit.rawValue)
+                            }
+                            .padding(GymTheme.spacing16)
+                        }
+
+                        if let settingsError = viewModel.errorMessage {
+                            Label(settingsError, systemImage: "exclamationmark.circle")
+                                .font(.footnote)
+                                .foregroundStyle(GymTheme.destructive)
+                                .accessibilityLabel("Error: \(settingsError)")
+                                .accessibilityFocused($isErrorFocused)
+                                .accessibilityIdentifier("settingsAppearanceError")
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+                        GymSectionHeader(title: "Account")
+                        settingsGroup {
+                            HStack {
+                                Text(accountEmail ?? "Your account")
+                                    .foregroundStyle(GymTheme.textPrimary)
+                                    .accessibilityIdentifier("settingsAccountSummary")
+                                Spacer()
+                                Text("Signed in")
+                                    .font(.subheadline)
+                                    .foregroundStyle(GymTheme.textSecondary)
+                            }
+                            .padding(GymTheme.spacing16)
+
+                            Divider().overlay(GymTheme.separator)
+
+                            Button(action: onLogout) {
+                                HStack {
+                                    Text("Log out")
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(GymTheme.textSecondary)
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 48)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(GymTheme.textPrimary)
+                            .padding(.horizontal, GymTheme.spacing16)
+                            .accessibilityIdentifier("authLogout")
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+                        GymSectionHeader(title: "Danger zone")
+                        Button {
+                            isDeleteAccountConfirmationPresented = true
+                        } label: {
+                            HStack {
+                                Text("Delete account")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .padding(.horizontal, GymTheme.spacing16)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(GymTheme.destructive)
+                        .background(
+                            GymTheme.surfaceGrouped,
+                            in: RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
                         )
-                    ) {
-                        ForEach(Appearance.allCases, id: \.self) { appearance in
-                            Text(appearance.title)
-                                .tag(appearance)
-                                .accessibilityIdentifier("settingsAppearance\(appearance.accessibilitySuffix)")
+                        .overlay {
+                            RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+                                .stroke(GymTheme.destructive.opacity(0.55), lineWidth: 1)
                         }
+                        .disabled(isDeletingAccount)
+                        .accessibilityIdentifier("accountDelete")
                     }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("settingsAppearance")
-                    .accessibilityValue(viewModel.settings.appearance.rawValue)
 
-                    if let settingsError = viewModel.errorMessage {
-                        Label(settingsError, systemImage: "exclamationmark.circle")
-                            .foregroundStyle(.red)
-                            .accessibilityLabel("Error: \(settingsError)")
-                            .accessibilityFocused($isErrorFocused)
-                            .accessibilityIdentifier("settingsAppearanceError")
-                    }
-                    Divider()
-                    Text("Weight unit")
-                        .font(.subheadline.weight(.medium))
-                    Picker(
-                        "Weight unit",
-                        selection: Binding(
-                            get: { viewModel.settings.weightUnit },
-                            set: viewModel.selectWeightUnit
-                        )
-                    ) {
-                        ForEach(WeightUnit.allCases, id: \.self) { weightUnit in
-                            Text(weightUnit.title)
-                                .tag(weightUnit)
-                                .accessibilityIdentifier("settingsWeightUnit\(weightUnit.accessibilitySuffix)")
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("settingsWeightUnit")
-                    .accessibilityValue(viewModel.settings.weightUnit.rawValue)
-                    }
-                    .gymCard()
-
-                    GymSectionHeader(title: "Account")
-                    VStack(alignment: .leading, spacing: 4) {
-                    Text("Signed in")
-                        .font(.subheadline.weight(.medium))
-                    Text(accountEmail ?? "Your account is ready")
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("settingsAccountSummary")
-                    }
-                    .gymCard()
-                    VStack(alignment: .leading, spacing: 8) {
-                    Text("Danger zone")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Button("Log out", action: onLogout)
-                        .accessibilityIdentifier("authLogout")
-                    Button("Delete account", role: .destructive) {
-                        isDeleteAccountConfirmationPresented = true
-                    }
-                    .disabled(isDeletingAccount)
-                    .accessibilityIdentifier("accountDelete")
-                    }
-                    .gymCard()
                     if let errorMessage {
                         Label(errorMessage, systemImage: "exclamationmark.circle")
-                            .foregroundStyle(.red)
+                            .font(.footnote)
+                            .foregroundStyle(GymTheme.destructive)
                             .accessibilityLabel("Error: \(errorMessage)")
                             .accessibilityFocused($isErrorFocused)
                             .accessibilityIdentifier("authLogoutError")
                     }
                 }
+                .padding(.horizontal, GymTheme.spacing16)
+                .padding(.vertical, GymTheme.spacing20)
             }
-            .padding()
-            .navigationTitle("Settings")
+            .gymPageBackground()
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
             .accessibilityIdentifier("settingsPlaceholder")
             .alert("Delete account?", isPresented: $isDeleteAccountConfirmationPresented) {
                 Button("Cancel", role: .cancel) {}
@@ -281,7 +308,7 @@ struct SettingsView: View {
                     }
                 }
             } message: {
-                Text("This permanently deletes your workouts, custom exercises, settings, and account. This can’t be undone.")
+                Text("This permanently deletes your workouts, custom exercises, settings, and account. This can't be undone.")
             }
             .sheet(isPresented: $isProfileEditorPresented) {
                 ProfileEditorSheet(
@@ -361,6 +388,42 @@ struct SettingsView: View {
         }
     }
 
+    private func settingsGroup<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) {
+            content()
+        }
+        .background(
+            GymTheme.surfaceGrouped,
+            in: RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+                .stroke(GymTheme.borderSubtle, lineWidth: 1)
+        }
+    }
+
+    private func settingsNavigationRow(
+        title: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .foregroundStyle(GymTheme.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(GymTheme.textSecondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .padding(.horizontal, GymTheme.spacing16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+
     private var profileSummary: String {
         var values: [String] = []
         if let age = viewModel.settings.profile.age(on: LocalDate(date: Date()), calendar: .autoupdatingCurrent) {
@@ -372,13 +435,13 @@ struct SettingsView: View {
         if let bmi = viewModel.bmi {
             values.append("BMI \(bmi.formatted(.number.precision(.fractionLength(1))))")
         }
-        return values.isEmpty ? "Add your details" : values.joined(separator: " · ")
+        return values.isEmpty ? "Add your details" : values.joined(separator: " - ")
     }
 
     private var weightSummary: String {
         guard let weight = viewModel.currentWeightInKilograms else { return "Log your first measurement" }
         let display = viewModel.settings.weightUnit.displayWeight(fromCanonicalKilograms: weight)
-        return "\(display.formatted(.number.precision(.fractionLength(0...2)))) \(viewModel.settings.weightUnit.rawValue) · \(viewModel.measurements.count) saved"
+        return "\(display.formatted(.number.precision(.fractionLength(0...2)))) \(viewModel.settings.weightUnit.rawValue) - \(viewModel.measurements.count) saved"
     }
 
     @ViewBuilder
@@ -512,58 +575,116 @@ private struct ProfileEditorSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Profile") {
-                    Picker("Sex", selection: $sex) {
-                        Text("Not specified").tag(Sex?.none)
-                        ForEach(Sex.allCases, id: \.self) { value in Text(value.title).tag(Sex?.some(value)) }
-                    }
-                    .accessibilityIdentifier("profileSex")
-                    Toggle("Add date of birth", isOn: $hasDateOfBirth)
-                        .accessibilityIdentifier("profileDateOfBirthEnabled")
-                    if hasDateOfBirth {
-                        DatePicker("Date of birth", selection: $dateOfBirth, in: ...Date(), displayedComponents: .date)
-                            .accessibilityIdentifier("profileDateOfBirth")
-                    }
-                    TextField("Height (cm)", text: $heightText)
-                        .keyboardType(.decimalPad)
-                        .accessibilityIdentifier("profileHeight")
-                }
-                Section {
-                    Text("Your profile is only used to present your details and calculate BMI when a body weight is available. BMI is not medical advice.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .navigationTitle("Edit profile")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        let height = Double(heightText.replacingOccurrences(of: ",", with: "."))
-                        guard heightText.isEmpty || (height?.isFinite == true && height! > 0) else {
-                            showsValidationError = true
-                            return
+            ScrollView {
+                VStack(alignment: .leading, spacing: GymTheme.spacing20) {
+                    VStack(spacing: 0) {
+                        HStack {
+                            Text("Sex")
+                            Spacer()
+                            Picker("Sex", selection: $sex) {
+                                Text("Not set").tag(Sex?.none)
+                                ForEach(Sex.allCases, id: \.self) { value in
+                                    Text(value.title).tag(Sex?.some(value))
+                                }
+                            }
+                            .labelsHidden()
+                            .accessibilityIdentifier("profileSex")
                         }
-                        do {
-                            try onSave(UserProfile(
-                                sex: sex,
-                                dateOfBirth: hasDateOfBirth ? LocalDate(date: dateOfBirth) : nil,
-                                heightCentimeters: height
-                            ))
-                            dismiss()
-                        } catch { showsValidationError = true }
+                        .frame(minHeight: 50)
+                        .padding(.horizontal, GymTheme.spacing16)
+
+                        Divider().overlay(GymTheme.separator)
+
+                        Toggle("Date of birth", isOn: $hasDateOfBirth)
+                            .tint(GymTheme.accentFill)
+                            .frame(minHeight: 50)
+                            .padding(.horizontal, GymTheme.spacing16)
+                            .accessibilityIdentifier("profileDateOfBirthEnabled")
+
+                        if hasDateOfBirth {
+                            Divider().overlay(GymTheme.separator)
+                            DatePicker(
+                                "Date of birth",
+                                selection: $dateOfBirth,
+                                in: ...Date(),
+                                displayedComponents: .date
+                            )
+                            .frame(minHeight: 50)
+                            .padding(.horizontal, GymTheme.spacing16)
+                            .accessibilityIdentifier("profileDateOfBirth")
+                        }
+
+                        Divider().overlay(GymTheme.separator)
+
+                        HStack {
+                            Text("Height")
+                            Spacer()
+                            TextField("cm", text: $heightText)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                                .accessibilityIdentifier("profileHeight")
+                            Text("cm")
+                                .foregroundStyle(GymTheme.textSecondary)
+                        }
+                        .frame(minHeight: 50)
+                        .padding(.horizontal, GymTheme.spacing16)
                     }
-                    .accessibilityIdentifier("profileSave")
+                    .background(
+                        GymTheme.surfaceGrouped,
+                        in: RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: GymTheme.groupRadius, style: .continuous)
+                            .stroke(GymTheme.borderSubtle, lineWidth: 1)
+                    }
+
+                    Button("Save", action: saveProfile)
+                        .buttonStyle(GymPrimaryButtonStyle())
+                        .accessibilityIdentifier("profileSave")
+
+                    Text("Your profile is used to present your details and calculate BMI when a body weight is available. BMI is not medical advice.")
+                        .font(.footnote)
+                        .foregroundStyle(GymTheme.textSecondary)
+                }
+                .padding(GymTheme.spacing16)
+            }
+            .gymPageBackground()
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .fontWeight(.semibold)
+                        .foregroundStyle(GymTheme.accentForeground)
                 }
             }
             .alert("Check your profile", isPresented: $showsValidationError) {
                 Button("OK", role: .cancel) {}
-            } message: { Text("Height must be a positive number.") }
+            } message: {
+                Text("Height must be a positive number.")
+            }
+        }
+    }
+
+    private func saveProfile() {
+        let height = Double(heightText.replacingOccurrences(of: ",", with: "."))
+        guard heightText.isEmpty || (height?.isFinite == true && height! > 0) else {
+            showsValidationError = true
+            return
+        }
+        do {
+            try onSave(UserProfile(
+                sex: sex,
+                dateOfBirth: hasDateOfBirth ? LocalDate(date: dateOfBirth) : nil,
+                heightCentimeters: height
+            ))
+            dismiss()
+        } catch {
+            showsValidationError = true
         }
     }
 }
-
 private struct BodyWeightHistorySheet: View {
     let userID: UserID
     let unit: WeightUnit
@@ -593,21 +714,30 @@ private struct BodyWeightHistorySheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Log body weight") {
+                Section {
                     TextField("Weight (\(unit.rawValue))", text: $weightText)
                         .keyboardType(.decimalPad)
                         .accessibilityIdentifier("bodyWeightInput")
                     DatePicker("Date", selection: $measurementDate, displayedComponents: .date)
                         .accessibilityIdentifier("bodyWeightDate")
-                    Button(editingMeasurement == nil ? "Save measurement" : "Update measurement") { saveMeasurement() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(GymTheme.accent)
-                        .accessibilityIdentifier("bodyWeightSave")
                 }
+
+                Section {
+                    Button(editingMeasurement == nil ? "Log body weight" : "Update body weight") {
+                        saveMeasurement()
+                    }
+                    .buttonStyle(GymPrimaryButtonStyle())
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .accessibilityIdentifier("bodyWeightSave")
+                }
+
                 Section("Recent measurements") {
                     if measurements.isEmpty {
-                        Text("No body-weight measurements yet.").foregroundStyle(.secondary)
+                        Text("No body-weight measurements yet.")
+                            .foregroundStyle(GymTheme.textSecondary)
                     }
+
                     ForEach(measurements) { measurement in
                         Button {
                             editingMeasurement = measurement
@@ -615,39 +745,69 @@ private struct BodyWeightHistorySheet: View {
                                 .formatted(.number.precision(.fractionLength(0...2)))
                             measurementDate = measurement.localDate.date(in: .autoupdatingCurrent) ?? measurement.measuredAt
                         } label: {
-                            HStack {
-                                Text(measurement.localDate.date(in: .autoupdatingCurrent)?.formatted(.dateTime.month(.abbreviated).day().year()) ?? measurement.localDate.description)
-                                Spacer()
+                            HStack(spacing: GymTheme.spacing12) {
                                 Text("\(unit.displayWeight(fromCanonicalKilograms: measurement.weightInKilograms).formatted(.number.precision(.fractionLength(0...2)))) \(unit.rawValue)")
-                                    .foregroundStyle(.secondary)
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(GymTheme.textPrimary)
+                                Spacer()
+                                Text(measurementDateLabel(measurement) + " · Edit")
+                                    .foregroundStyle(GymTheme.accentForeground)
                             }
+                            .frame(minHeight: 44)
                         }
-                        .foregroundStyle(.primary)
+                        .buttonStyle(.plain)
                         .accessibilityIdentifier("bodyWeightMeasurement")
                         .swipeActions {
                             Button(role: .destructive) {
                                 do {
                                     try onDelete(measurement)
-                                    if editingMeasurement?.id == measurement.id { clearEditor() }
+                                    if editingMeasurement?.id == measurement.id {
+                                        clearEditor()
+                                    }
                                 } catch {
                                     showsDeleteError = true
                                 }
-                            } label: { Label("Delete", systemImage: "trash") }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
                     }
                 }
             }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(GymTheme.surfaceBase)
             .navigationTitle("Body weight")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .fontWeight(.semibold)
+                        .foregroundStyle(GymTheme.accentForeground)
+                }
+            }
             .alert("Enter a valid weight", isPresented: $showsValidationError) {
                 Button("OK", role: .cancel) {}
-            } message: { Text("Weight must be greater than zero.") }
+            } message: {
+                Text("Weight must be greater than zero.")
+            }
             .alert("Couldn't delete measurement", isPresented: deleteFailureAlertBinding) {
                 Button("OK", role: .cancel) {}
-            } message: { Text("Try again. Your saved measurement is still available.") }
+            } message: {
+                Text("Try again. Your saved measurement is still available.")
+            }
         }
     }
 
+    private func measurementDateLabel(_ measurement: BodyWeightMeasurement) -> String {
+        guard let date = measurement.localDate.date(in: .autoupdatingCurrent) else {
+            return measurement.localDate.description
+        }
+        if Calendar.autoupdatingCurrent.isDateInToday(date) {
+            return "Today"
+        }
+        return date.formatted(.dateTime.month(.abbreviated).day())
+    }
     private func saveMeasurement() {
         guard let value = Double(weightText.replacingOccurrences(of: ",", with: ".")), value.isFinite, value > 0 else {
             showsValidationError = true

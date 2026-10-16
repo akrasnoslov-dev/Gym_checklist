@@ -62,7 +62,7 @@ State remains accessible by label and never by color alone.
 ### Reorder
 Exercise and set reordering are separate focused native flows:
 - Exercise actions -> Reorder exercises -> exercise-only list -> drag/move -> Done.
-- Set actions -> Reorder sets -> sets for that exercise only -> drag/move -> Done.
+- Set rows -> permanent inline drag handles in Program -> drag to reorder. Swipe left to reveal Delete with confirmation. This October 2026 device-feedback override replaces the earlier separate Reorder sets sheet.
 
 Do not combine exercise ordering and set ordering into one screen.
 

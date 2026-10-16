@@ -712,14 +712,32 @@ final class GymChecklistUITests: XCTestCase {
 
     private func replaceText(in field: XCUIElement, with value: String) {
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        let previousValue = field.value as? String ?? ""
-        // A double tap does not reliably select the current value on iOS's
-        // numeric keyboard (the test sometimes appended 9 to 7 -> 97).
-        // Tap to the right of the trailing-aligned digits to place the caret
-        // at the end, then replace the entire value with backspaces.
-        field.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previousValue.count) + value)
-        XCTAssertEqual(field.value as? String, value, "Numeric field must contain the replacement, not an appended value")
+        field.tap()
+        if let existing = field.value as? String, !existing.isEmpty, existing != value {
+            selectEntireFieldValue(in: field)
+        }
+        field.typeText(value)
+        // iOS's editing menu can fail to expose a selection on its first
+        // attempt. Retry through the native selection action, not a blind
+        // backspace (whose caret can be before trailing-aligned digits).
+        if field.value as? String != value {
+            selectEntireFieldValue(in: field)
+            field.typeText(value)
+        }
+        XCTAssertEqual(field.value as? String, value, "Numeric field must replace the previous value")
+    }
+
+    private func selectEntireFieldValue(in field: XCUIElement) {
+        field.press(forDuration: 1.1)
+        let app = XCUIApplication()
+        for selectAll in [app.menuItems["Select All"], app.buttons["Select All"]] {
+            if selectAll.waitForExistence(timeout: 0.5) {
+                selectAll.tap()
+                return
+            }
+        }
+        // iOS also offers whole-token selection with a triple tap.
+        field.tap(withNumberOfTaps: 3, numberOfTouches: 1)
     }
 
     private func openProgram(_ app: XCUIApplication) {

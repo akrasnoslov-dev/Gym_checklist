@@ -1,4 +1,5 @@
 name: iOS macOS CI (authoritative)
+# PR6 full exact-SHA candidate verification of 24e0101 (October 16).
 
 on:
   push:

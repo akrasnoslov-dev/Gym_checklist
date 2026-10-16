@@ -175,7 +175,7 @@ struct ProgramView: View {
                 destinationDate: route.destinationDate,
                 currentDate: viewModel.currentDate,
                 calendar: calendarState.calendar,
-                availableWorkouts: viewModel.workouts,
+                availableWorkouts: viewModel.copySourceWorkouts,
                 destinationState: viewModel.copyDestinationState(on:),
                 onCopy: { sourceDate, destinationDate, strategy in
                     try viewModel.copyWorkout(from: sourceDate, to: destinationDate, strategy: strategy)

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { loadRegistry, renderMatrix } from "./registry-tools.mjs";
 
 const root = new URL("./", import.meta.url);
+const normalized = (value) => value.replaceAll("\r\n", "\n");
 const requiredFiles = ["registry.js", "screen-state-matrix.md", "playwright.config.mjs", "tests/visual-regression.spec.mjs", "package.json"];
 const missingFiles = requiredFiles.filter((path) => !existsSync(new URL(path, root)));
 if (missingFiles.length) {
@@ -45,7 +46,7 @@ if (!app.includes("const S=PROTOTYPE_REGISTRY")) errors.push("Normal mode and Ga
 
 const expectedMatrix = renderMatrix(registry, meta);
 const actualMatrix = readFileSync(new URL("./screen-state-matrix.md", root), "utf8");
-if (actualMatrix !== expectedMatrix) errors.push("screen-state-matrix.md is stale");
+if (normalized(actualMatrix) !== normalized(expectedMatrix)) errors.push("screen-state-matrix.md is stale");
 
 const pkg = JSON.parse(readFileSync(new URL("./package.json", root), "utf8"));
 if (!pkg.scripts?.["visual:verify"] || !pkg.scripts?.["visual:update"]) errors.push("Separate visual:verify and visual:update commands are required");

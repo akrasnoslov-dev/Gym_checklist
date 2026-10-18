@@ -118,9 +118,9 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         let result: ScopedDocumentMutationResult = error == nil ? .accepted : .rejected
         pendingJournal?.complete(ticket, result: result)
         let completion = mutations.complete(ticket, result: result)
-        guard case let .rejected(restore, attempted) = completion else { return }
-        restore(restore, id: ticket.key)
-        switch (restore, attempted) {
+        guard case let .rejected(rollbackSnapshot, attempted) = completion else { return }
+        restore(rollbackSnapshot, id: ticket.key)
+        switch (rollbackSnapshot, attempted) {
         case let (_, .value(exercise)):
             if publishesFailure { publishFailure(.saveRejected(exercise)) }
         case let (.value(exercise), .missing):

@@ -186,9 +186,9 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         let result: ScopedDocumentMutationResult = error == nil ? .accepted : .rejected
         pendingJournal?.complete(ticket, result: result)
         let completion = mutations.complete(ticket, result: result)
-        guard case let .rejected(restore, attempted) = completion else { return }
-        restore(restore, on: ticket.key)
-        switch (restore, attempted) {
+        guard case let .rejected(rollbackSnapshot, attempted) = completion else { return }
+        restore(rollbackSnapshot, on: ticket.key)
+        switch (rollbackSnapshot, attempted) {
         case let (_, .value(workout)):
             if publishesFailure { publishFailure(.saveRejected(workout)) }
         case let (.value(workout), .missing):

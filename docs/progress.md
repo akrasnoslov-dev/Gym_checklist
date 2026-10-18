@@ -2,13 +2,13 @@
 
 
 ## 2026-10-18 — Persistence reliability H2/M2 Pass A
-- Status: `REMOTE_GATE_READY_FOR_FINAL_AUDIT 28e3fb53b3e2fbd226ed890ce2c9af28bf135b27`
+- Status: `REMOTE_GATE_READY_FOR_FINAL_AUDIT aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea`
 - Base: latest `dev` after merged PR #9 (`6919872ca14f48f5ecabf14d3f95477f1832326c`).
 - Replaced the global write generation with per-document mutation tracking and protected, durable pending-mutation journals for workouts, preferences, custom exercises, and body weight.
 - Preserved optimistic/offline behavior while surfacing permanent rejection and post-restart unconfirmed state through retryable, nonmodal UI that keeps valid input available.
 - Added deterministic regression coverage for concurrent documents, same-document sequencing, restart reconciliation, permission-style rejection, unrelated successful writes, retry, and confirmed workout visuals.
-- Windows Pass A evidence: all repository contract scripts and `git diff --check` pass. XCTest and live Firebase reconnect/permission scenarios require the fresh macOS Pass B exact-SHA gate.
-- Next: run a fresh Pass B audit and the required macOS verification against exact source SHA `28e3fb53b3e2fbd226ed890ce2c9af28bf135b27`. Do not merge, release, deploy, or generate an acceptance IPA before that gate is green.
+- Windows Pass A evidence: all repository contract scripts and `git diff --check` pass. The first automatic PR smoke exposed and prompted repair of three Swift name-shadowing compile errors; XCTest and live Firebase reconnect/permission scenarios still require the fresh macOS Pass B exact-SHA gate.
+- Next: run a fresh Pass B audit and the required macOS verification against exact source SHA `aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea`. Do not merge, release, deploy, or generate an acceptance IPA before that gate is green.
 
 
 ## 2026-10-16 Phase 9 acceptance follow-up — PASS A COMPLETE

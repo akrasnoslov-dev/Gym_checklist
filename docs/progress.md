@@ -1,6 +1,16 @@
 # Gym Checklist — Progress Checkpoint
 
 
+## 2026-10-18 — Persistence reliability H2/M2 Pass A
+- Status: `REMOTE_GATE_READY_FOR_FINAL_AUDIT 28e3fb53b3e2fbd226ed890ce2c9af28bf135b27`
+- Base: latest `dev` after merged PR #9 (`6919872ca14f48f5ecabf14d3f95477f1832326c`).
+- Replaced the global write generation with per-document mutation tracking and protected, durable pending-mutation journals for workouts, preferences, custom exercises, and body weight.
+- Preserved optimistic/offline behavior while surfacing permanent rejection and post-restart unconfirmed state through retryable, nonmodal UI that keeps valid input available.
+- Added deterministic regression coverage for concurrent documents, same-document sequencing, restart reconciliation, permission-style rejection, unrelated successful writes, retry, and confirmed workout visuals.
+- Windows Pass A evidence: all repository contract scripts and `git diff --check` pass. XCTest and live Firebase reconnect/permission scenarios require the fresh macOS Pass B exact-SHA gate.
+- Next: run a fresh Pass B audit and the required macOS verification against exact source SHA `28e3fb53b3e2fbd226ed890ce2c9af28bf135b27`. Do not merge, release, deploy, or generate an acceptance IPA before that gate is green.
+
+
 ## 2026-10-16 Phase 9 acceptance follow-up — PASS A COMPLETE
 - `REMOTE_GATE_READY_FOR_FINAL_AUDIT e3b2b76ea661cedf60e40a4a7ed32bd859d5c412`
 - Branch `codex/phase-9-acceptance` starts from the post-PR #6 `dev` baseline `5b589e5594831a7726584671ce21d01ea7005f40`. This is a focused acceptance follow-up, not a redesign rewrite and not authorization to merge, deploy, or promote `dev -> main`.

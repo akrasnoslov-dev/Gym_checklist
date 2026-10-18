@@ -1,0 +1,391 @@
+name: One-time H2M2 full test and iPhone IPA
+
+on:
+  push:
+    branches: [ci/ipa-h2m2-aa74c55]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      # Routine iOS-impacting pull requests get fast feedback. Manual dispatch
+      # retains every diagnostic scope, including authoritative full/candidate.
+      VERIFICATION_SCOPE: full
+      TEST_FILTER: ''
+      CANDIDATE_SOURCE_SHA: aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # workflow_dispatch itself accepts only a branch or tag ref. Candidate
+          # gates therefore receive and verify the immutable source commit here.
+          ref: aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea
+          fetch-depth: 1
+
+      - name: Record Xcode version
+        id: xcode
+        shell: bash
+        run: |
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | awk 'NR == 1 { print $2 }')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Swift package sources
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: ${{ runner.os }}-xcode-${{ steps.xcode.outputs.version }}-swiftpm-${{ hashFiles('GymChecklist.xcodeproj/project.pbxproj', '**/Package.resolved', 'Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-xcode-${{ steps.xcode.outputs.version }}-swiftpm-
+
+      - name: Detect Xcode project
+        id: detect
+        shell: bash
+        run: |
+          PROJECT=$(find . -maxdepth 2 -name '*.xcodeproj' -print -quit)
+          if [ -z "$PROJECT" ]; then
+            echo "project_found=false" >> "$GITHUB_OUTPUT"
+            echo "No Xcode project exists yet. Bootstrap milestone has not completed."
+          else
+            echo "project_found=true" >> "$GITHUB_OUTPUT"
+            echo "project=$PROJECT" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate bootstrap repository
+        if: steps.detect.outputs.project_found == 'false'
+        run: |
+          test -f AGENTS.md
+          test -f docs/product_spec.md
+          test -f docs/implementation_plan.md
+          test -f agents/routing.toml
+          echo "Bootstrap repository validation passed."
+
+      - name: Verify GymChecklist
+        if: steps.detect.outputs.project_found == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="${{ steps.detect.outputs.project }}"
+          SCHEME="GymChecklist"
+          DESTINATION_UDID=$(python3 - <<'PY'
+          import json
+          import re
+          import subprocess
+
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          candidates = []
+          for runtime, devices in data.get("devices", {}).items():
+              match = re.search(r"iOS[- ](\d+)[-.](\d+)(?:[-.](\d+))?", runtime)
+              if not match:
+                  continue
+              version = tuple(int(part or 0) for part in match.groups())
+              for device in devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      candidates.append((version, device["name"], device["udid"]))
+          if not candidates:
+              raise SystemExit("No available iPhone simulator was found")
+          candidates.sort(reverse=True)
+          print(candidates[0][2])
+          PY
+          )
+          echo "Using simulator UDID: $DESTINATION_UDID"
+          PACKAGE_DIRECTORY="$RUNNER_TEMP/SourcePackages"
+          DERIVED_DATA="$RUNNER_TEMP/DerivedData"
+          LOG_DIRECTORY="$RUNNER_TEMP/ci-logs"
+          mkdir -p "$PACKAGE_DIRECTORY" "$DERIVED_DATA" "$LOG_DIRECTORY"
+
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY" \
+            > "$LOG_DIRECTORY/package-resolution.log" 2>&1
+
+          if [ -f "GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" ]; then
+            git diff --exit-code -- GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          fi
+
+          XCODE_ARGS=(
+            -project "$PROJECT"
+            -scheme "$SCHEME"
+            -sdk iphonesimulator
+            -destination "platform=iOS Simulator,id=$DESTINATION_UDID"
+            -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY"
+            -derivedDataPath "$DERIVED_DATA"
+            -disableAutomaticPackageResolution
+            CODE_SIGNING_ALLOWED=NO
+          )
+
+          run_xcodebuild() {
+            local label="$1"
+            shift
+            local log="$LOG_DIRECTORY/$label.log"
+
+            set +e
+            xcodebuild "$@" > "$log" 2>&1
+            local status=$?
+            set -e
+
+            if [ "$status" -ne 0 ]; then
+              {
+                echo "xcodebuild failed: $label"
+                echo
+                grep -E "Test Case .* failed|Testing failed|error:|XCTAssert|failed -|Assertion|Expected|threw error" "$log" | tail -n 200 || true
+              } > "$LOG_DIRECTORY/failure-summary.txt"
+              cat "$LOG_DIRECTORY/failure-summary.txt"
+              return "$status"
+            fi
+
+            echo "xcodebuild passed: $label"
+          }
+
+          case "$VERIFICATION_SCOPE" in
+            candidate)
+              if [ -z "$TEST_FILTER" ]; then
+                echo "candidate scope requires an exact test_filter" >&2
+                exit 2
+              fi
+              if ! [[ "$CANDIDATE_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "candidate scope requires a 40-character lowercase candidate_source_sha" >&2
+                exit 2
+              fi
+              test "$(git rev-parse HEAD)" = "$CANDIDATE_SOURCE_SHA"
+              case "$TEST_FILTER" in
+                GymChecklistTests/*|GymChecklistUITests/*) ;;
+                *)
+                  echo "candidate test_filter must start with GymChecklistTests/ or GymChecklistUITests/" >&2
+                  exit 2
+                  ;;
+              esac
+
+              # Build exactly once. If the blocker test passes, immediately run
+              # the full suite against the same build and candidate SHA.
+              run_xcodebuild candidate-build "${XCODE_ARGS[@]}" build-for-testing
+              run_xcodebuild candidate-focused "${XCODE_ARGS[@]}" test-without-building "-only-testing:$TEST_FILTER"
+              run_xcodebuild candidate-full "${XCODE_ARGS[@]}" test-without-building
+              ;;
+            full)
+              if [ -n "$TEST_FILTER" ]; then
+                echo "test_filter is only valid for unit/ui/candidate diagnostics" >&2
+                exit 2
+              fi
+              run_xcodebuild full "${XCODE_ARGS[@]}" test
+              ;;
+            smoke)
+              if [ -n "$TEST_FILTER" ]; then
+                echo "test_filter is only valid for unit/ui/candidate diagnostics" >&2
+                exit 2
+              fi
+              run_xcodebuild smoke "${XCODE_ARGS[@]}" test \
+                -only-testing:GymChecklistTests \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayCompletesAndUndoesSetWithoutLeavingTheScreen \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayLongPressEditsPlanThenActualWithoutLeavingToday \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayRestoresSkippedExerciseWithItsOriginalCompletionState \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testProgramEditsCompletedHistoricalActualAndRetainsItAfterReopen \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testWeightUnitUpdatesTodayAndProgramWithoutChangingStoredWorkout \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testSuccessfulRegistrationRoutesDirectlyToTodayEmptyState \
+                -only-testing:GymChecklistUITests/GymChecklistUITests/testCompletingEveryRequiredSetShowsDismissibleCompletionPopup
+              ;;
+            build)
+              if [ -n "$TEST_FILTER" ]; then
+                echo "test_filter is only valid for unit/ui/candidate diagnostics" >&2
+                exit 2
+              fi
+              run_xcodebuild build "${XCODE_ARGS[@]}" build-for-testing
+              ;;
+            unit)
+              if [ -n "$TEST_FILTER" ]; then
+                case "$TEST_FILTER" in
+                  GymChecklistTests/*) ;;
+                  *)
+                    echo "unit test_filter must start with GymChecklistTests/" >&2
+                    exit 2
+                    ;;
+                esac
+                run_xcodebuild unit-focused "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
+              else
+                run_xcodebuild unit "${XCODE_ARGS[@]}" test -only-testing:GymChecklistTests
+              fi
+              ;;
+            ui)
+              if [ -n "$TEST_FILTER" ]; then
+                case "$TEST_FILTER" in
+                  GymChecklistUITests/*) ;;
+                  *)
+                    echo "ui test_filter must start with GymChecklistUITests/" >&2
+                    exit 2
+                    ;;
+                esac
+                run_xcodebuild ui-focused "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
+              else
+                run_xcodebuild ui "${XCODE_ARGS[@]}" test -only-testing:GymChecklistUITests
+              fi
+              ;;
+            *)
+              echo "Unsupported verification scope: $VERIFICATION_SCOPE" >&2
+              exit 2
+              ;;
+          esac
+
+      - name: Upload CI diagnostics
+        if: failure() && steps.detect.outputs.project_found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ci-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/ci-logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build-acceptance-ipa:
+    needs: build-and-test
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      APP_SOURCE_SHA: aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea
+      APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
+      APP_DISPLAY_NAME: Gym Checklist
+
+    steps:
+      - name: Checkout accepted MVP app source
+        uses: actions/checkout@v4
+        with:
+          ref: aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Confirm accepted app source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$APP_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "source_sha must be a 40-character lowercase commit SHA." >&2
+            exit 2
+          fi
+          test "$(git rev-parse HEAD)" = "$APP_SOURCE_SHA"
+
+      - name: Restore Firebase configuration for this job only
+        shell: bash
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GOOGLE_SERVICE_INFO_PLIST_B64:-}" ]; then
+            echo "GOOGLE_SERVICE_INFO_PLIST_B64 is required for the Firebase-backed acceptance IPA." >&2
+            exit 1
+          fi
+
+          CONFIGURATION_PATH="GymChecklist/GoogleService-Info.plist"
+          umask 077
+          printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 -D > "$CONFIGURATION_PATH"
+          unset GOOGLE_SERVICE_INFO_PLIST_B64
+          test -s "$CONFIGURATION_PATH"
+          plutil -lint "$CONFIGURATION_PATH" >/dev/null
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve Swift packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project GymChecklist.xcodeproj \
+            -scheme GymChecklist \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+
+      - name: Expose resolved packages to the Crashlytics build phase
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_PACKAGES="$RUNNER_TEMP/SourcePackages"
+          CRASHLYTICS_PACKAGE_PATH="$SOURCE_PACKAGES/checkouts/firebase-ios-sdk/Crashlytics/run"
+          DERIVED_PACKAGES="$RUNNER_TEMP/DerivedData/SourcePackages"
+
+          test -x "$CRASHLYTICS_PACKAGE_PATH"
+          mkdir -p "$RUNNER_TEMP/DerivedData"
+          test ! -e "$DERIVED_PACKAGES"
+          ln -s "$SOURCE_PACKAGES" "$DERIVED_PACKAGES"
+          test -x "$DERIVED_PACKAGES/checkouts/firebase-ios-sdk/Crashlytics/run"
+
+      - name: Build unsigned Firebase-backed acceptance app
+        shell: bash
+        run: |
+          set -euo pipefail
+          DERIVED_DATA="$RUNNER_TEMP/DerivedData"
+
+          xcodebuild build \
+            -project GymChecklist.xcodeproj \
+            -scheme GymChecklist \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$DERIVED_DATA" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            PRODUCT_BUNDLE_IDENTIFIER="$APP_BUNDLE_ID" \
+            INFOPLIST_KEY_CFBundleDisplayName="$APP_DISPLAY_NAME"
+
+      - name: Validate unsigned Firebase acceptance app
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/GymChecklist.app"
+          INFO_PLIST="$APP_PATH/Info.plist"
+          CONFIGURATION_PATH="GymChecklist/GoogleService-Info.plist"
+
+          test -d "$APP_PATH"
+          test -f "$APP_PATH/GymChecklist"
+          test -f "$APP_PATH/GoogleService-Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")" = "$APP_BUNDLE_ID"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$INFO_PLIST")" = "$APP_DISPLAY_NAME"
+          if /usr/libexec/PlistBuddy -c 'Print :MVP_DEMO' "$INFO_PLIST" >/dev/null 2>&1; then
+            echo "Acceptance IPA must not use MVP_DEMO." >&2
+            exit 1
+          fi
+          if [ -e "$APP_PATH/embedded.mobileprovision" ]; then
+            echo "Acceptance IPA must remain unsigned for Sideloadly." >&2
+            exit 1
+          fi
+
+          GOOGLE_CALLBACK_SCHEME=$(/usr/libexec/PlistBuddy -c 'Print :REVERSED_CLIENT_ID' "$CONFIGURATION_PATH")
+          BUILT_CALLBACK_SCHEME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' "$INFO_PLIST")
+          test -n "$GOOGLE_CALLBACK_SCHEME"
+          test "$BUILT_CALLBACK_SCHEME" = "$GOOGLE_CALLBACK_SCHEME"
+
+      - name: Package acceptance IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/GymChecklist.app"
+          PACKAGE_DIRECTORY="$RUNNER_TEMP/ipa"
+          ARTIFACT_DIRECTORY="$RUNNER_TEMP/mvp-acceptance-artifact"
+
+          mkdir -p "$PACKAGE_DIRECTORY/Payload" "$ARTIFACT_DIRECTORY"
+          cp -R "$APP_PATH" "$PACKAGE_DIRECTORY/Payload/GymChecklist.app"
+          (
+            cd "$PACKAGE_DIRECTORY"
+            /usr/bin/zip -qry "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa" Payload
+          )
+          test -s "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa"
+          shasum -a 256 "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa" > "$ARTIFACT_DIRECTORY/GymChecklist-MVP.ipa.sha256"
+          printf '%s\n' \
+            "app source SHA: $APP_SOURCE_SHA" \
+            "bundle ID: $APP_BUNDLE_ID" \
+            "configuration: Release" \
+            "GitHub run ID: $GITHUB_RUN_ID" \
+            "Firebase configuration present: yes" \
+            > "$ARTIFACT_DIRECTORY/manifest.txt"
+
+      - name: Upload physical iPhone acceptance IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: GymChecklist-MVP-aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea
+          path: ${{ runner.temp }}/mvp-acceptance-artifact
+          if-no-files-found: error
+          retention-days: 7

@@ -4,11 +4,11 @@ This plan verifies the approved Firestore-cache path after M5 authenticates and
 composes the Firestore repositories. It does not add a custom sync engine or a
 manual Sync control.
 
-The explicit availability banner currently covers workout snapshots because
-Today execution is the protected offline path. The bundled system catalog and
-default settings remain locally usable; custom-exercise and settings writes are
-still optimistic Firestore operations. Their rejected-write reconciliation is
-therefore part of the live session checks below, not a separate sync UI.
+The explicit availability banner covers workout snapshot availability because
+Today execution is the protected offline path. Workout, settings,
+custom-exercise, and body-weight writes remain optimistic while Firestore marks
+them pending. A permanently rejected current mutation restores the last
+confirmed document value and presents a retry that retains the attempted value.
 
 ## Preconditions
 
@@ -56,11 +56,11 @@ continued workout interaction when cached data exists.
    Confirm both screens say the workout is unavailable and that they retry
    automatically; neither screen must expose Firebase/provider error text or a
    manual Sync action.
-3. After cache priming, induce a listener or rejected-write failure. Confirm
-   cached rows remain usable and a passive saved-data message is visible. Set
-   completion, actual editing, skip/restore, and Program changes must remain
-   available while Firestore reconnects.
-4. Reconnect and confirm the passive message clears after a valid snapshot.
+3. After cache priming, induce a listener failure. Confirm cached rows remain
+   usable and the availability message is visible. Set completion, actual
+   editing, skip/restore, and Program changes must remain available while
+   Firestore reconnects.
+4. Reconnect and confirm the availability message clears after a valid snapshot.
 
 ## Reconnect and duplicate-safety flow
 
@@ -75,23 +75,38 @@ continued workout interaction when cached data exists.
    the read-only reconnect check from a second signed-in device/session for the
    same test user. Confirm the converged workout has one document per date, no
    duplicate set rows, and the final actual values from step 2.
-5. While the first user is offline, queue one intentionally rejected mutation
-   in the non-production project (for example, remove that user's rule
-   permission after cache priming). Reconnect and confirm the local snapshot
-   reconciles without blocking workout interaction; any user feedback is
-   neutral and contains no Firebase error details; cached workout interaction
-   must remain usable.
-6. Sign out, then sign in as a different test user while offline and after
+5. While the first user is offline, complete a set, force-quit, relaunch still
+   offline, and confirm the completion remains visible. Reconnect with the
+   original permission and confirm it persists without an error.
+6. Repeat the offline/relaunch flow, but before reconnecting deploy a temporary
+   non-production rule that denies this test user's write. Reconnect and confirm
+   the completion returns to its server state and a concise offline-change
+   review banner retains the unconfirmed completed workout. Restore the rule,
+   deliberately choose Save Offline Change, and verify the completion persists
+   after relaunch. The post-restart mismatch must not be described as a proven
+   rejection because a later edit from another device is indistinguishable.
+7. Queue changes for two different workout dates, deny the first document and
+   allow the second, then reconnect. Confirm the allowed date persists and the
+   rejected date restores and reports its own retry. A successful unrelated
+   write must not clear or replace that failure.
+8. On one workout date, rapidly complete then undo the same set before
+   reconnecting. Confirm the final full-document mutation wins; an older
+   callback must neither roll back nor report a stale failure.
+9. Repeat the permission-denied/retry sequence for appearance or weight unit,
+   a custom-exercise create/rename/delete, and a body-weight save/delete.
+   Confirm each current rejection restores the confirmed value, preserves the
+   attempted value for retry, and never labels the failure as invalid input.
+10. Sign out, then sign in as a different test user while offline and after
    reconnect. Confirm the first user's cached workout, custom exercises, and
    settings are cleared before the second user's Today is shown.
-7. Sign in as a different test user and confirm none of the first user's
+11. Sign in as a different test user and confirm none of the first user's
    workout/custom-exercise/settings documents are visible.
 
-Expected result: Firestore automatically drains queued local writes on
-reconnect. The date-keyed aggregate repository preserves a single workout per
-local date, and ordered set IDs prevent duplicate set creation. The session
-switch scenario is a required M5 repository-lifetime/privacy check; it cannot
-be executed until authentication routing composes Firestore repositories.
+Expected result: Firestore automatically drains allowed queued local writes on
+reconnect. Rejected writes restore confirmed state and remain retryable; writes
+to another document never suppress them. The date-keyed aggregate repository
+preserves a single workout per local date, and ordered set IDs prevent duplicate
+set creation.
 
 ## Required evidence
 

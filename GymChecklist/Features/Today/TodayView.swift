@@ -629,20 +629,7 @@ private struct TodaySetEditorSheet: View {
                         .accessibilityIdentifier("todaySetEditorCancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        guard inputsAreValid else { showsValidationError = true; return }
-                        do {
-                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
-                            dismiss()
-                        } catch {
-                            if let planningError = error as? ProgramPlanningError,
-                               planningError == .invalidSetValues {
-                                showsValidationError = true
-                            } else {
-                                showsSaveError = true
-                            }
-                        }
-                    }
+                    Button("Save", action: save)
                     .accessibilityIdentifier("todaySetEditorSave")
                 }
             }
@@ -652,11 +639,27 @@ private struct TodaySetEditorSheet: View {
                 Text("Enter valid reps, weight, and time values.")
             }
             .alert("Couldn't confirm this change", isPresented: $showsSaveError) {
-                Button("OK", role: .cancel) {}
+                Button("Retry Save") { save() }
+                Button("Keep Editing", role: .cancel) {}
             } message: {
-                Text("Check your workout before trying again.")
+                Text("Your values are still here. Try saving again.")
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
+        }
+    }
+
+    private func save() {
+        guard inputsAreValid else { showsValidationError = true; return }
+        do {
+            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
+            dismiss()
+        } catch {
+            if let planningError = error as? ProgramPlanningError,
+               planningError == .invalidSetValues {
+                showsValidationError = true
+            } else {
+                showsSaveError = true
+            }
         }
     }
 }

@@ -31,6 +31,58 @@ enum WorkoutLoadState: Equatable {
     case unavailable(hasUsableSnapshot: Bool)
 }
 
+enum WorkoutPersistenceFailure: Equatable {
+    case saveRejected(Workout)
+    case deleteRejected(Workout)
+    case saveUnconfirmedAfterRestart(Workout)
+    case deleteUnconfirmedAfterRestart(Workout)
+}
+
+enum UserSettingsPersistenceFailure: Equatable {
+    case saveRejected(UserSettings)
+    case saveUnconfirmedAfterRestart(UserSettings)
+}
+
+enum CustomExercisePersistenceFailure: Equatable {
+    case saveRejected(Exercise)
+    case deleteRejected(Exercise)
+    case deleteRejectedWithoutLocalCopy(ExerciseID)
+    case saveUnconfirmedAfterRestart(Exercise)
+    case deleteUnconfirmedAfterRestart(Exercise)
+}
+
+enum BodyWeightPersistenceFailure: Equatable {
+    case saveRejected(BodyWeightMeasurement)
+    case deleteRejected(BodyWeightMeasurement)
+    case saveUnconfirmedAfterRestart(BodyWeightMeasurement)
+    case deleteUnconfirmedAfterRestart(BodyWeightMeasurement)
+}
+
+struct PersistenceIssue: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+    let retryTitle: String
+    let secondaryTitle: String
+
+    init(
+        title: String,
+        message: String,
+        retryTitle: String,
+        secondaryTitle: String = "Keep Current Version"
+    ) {
+        self.title = title
+        self.message = message
+        self.retryTitle = retryTitle
+        self.secondaryTitle = secondaryTitle
+    }
+}
+
+@MainActor
+protocol PersistenceFailureObservation: AnyObject {
+    func cancel()
+}
+
 @MainActor
 protocol WorkoutObservation: AnyObject {
     func cancel()
@@ -43,6 +95,9 @@ protocol WorkoutRepository: AnyObject {
     /// Registers a main-actor consumer for locally available snapshots and
     /// their availability state. The returned observation owns cancellation.
     func observeWorkouts(_ observer: @escaping @MainActor ([Workout], WorkoutLoadState) -> Void) -> WorkoutObservation
+    func observePersistenceFailures(
+        _ observer: @escaping @MainActor (WorkoutPersistenceFailure) -> Void
+    ) -> PersistenceFailureObservation
 
     func workout(on date: LocalDate) -> Workout?
     @discardableResult func createEmptyWorkout(on date: LocalDate, at timestamp: Date) -> WorkoutCreationResult
@@ -72,6 +127,9 @@ protocol CustomExerciseRepository: AnyObject {
     /// Registers a main-actor consumer for cached and subsequently synced
     /// custom exercises. The returned observation owns its cancellation.
     func observeCustomExercises(_ observer: @escaping @MainActor ([Exercise]) -> Void) -> CustomExerciseObservation
+    func observePersistenceFailures(
+        _ observer: @escaping @MainActor (CustomExercisePersistenceFailure) -> Void
+    ) -> PersistenceFailureObservation
     func save(_ exercise: Exercise) throws
     func deleteCustomExercise(id: ExerciseID) throws
 }
@@ -93,6 +151,9 @@ protocol UserSettingsRepository: AnyObject {
     /// Registers a main-actor consumer for cached and subsequently synced
     /// settings. The returned observation owns its cancellation lifecycle.
     func observeSettings(_ observer: @escaping @MainActor (UserSettings) -> Void) -> UserSettingsObservation
+    func observePersistenceFailures(
+        _ observer: @escaping @MainActor (UserSettingsPersistenceFailure) -> Void
+    ) -> PersistenceFailureObservation
     func save(_ settings: UserSettings) throws
     func saveAppearance(_ appearance: Appearance) throws
     func saveWeightUnit(_ weightUnit: WeightUnit) throws
@@ -116,6 +177,9 @@ protocol BodyWeightRepository: AnyObject {
     var userID: UserID { get }
     var measurements: [BodyWeightMeasurement] { get }
     func observeMeasurements(_ observer: @escaping @MainActor ([BodyWeightMeasurement]) -> Void) -> BodyWeightObservation
+    func observePersistenceFailures(
+        _ observer: @escaping @MainActor (BodyWeightPersistenceFailure) -> Void
+    ) -> PersistenceFailureObservation
     func save(_ measurement: BodyWeightMeasurement) throws
     /// Deletes optimistically so an offline user can continue immediately.
     /// `onFailure` is invoked if the provider later rejects the pending delete.
@@ -123,4 +187,84 @@ protocol BodyWeightRepository: AnyObject {
         id: BodyWeightMeasurementID,
         onFailure: @escaping @MainActor () -> Void
     ) throws
+}
+
+extension WorkoutRepository {
+    func observePersistenceFailures(
+        _ observer: @escaping @MainActor (WorkoutPersistenceFailure) -> Void
+    ) -> PersistenceFailureObservation {
+        NoOpPersistenceFailureObservation()
+    }
+}
+
+extension CustomExerciseRepository {
+    func observePersistenceFailures(
+        _ observer: @escaping @MainActor (CustomExercisePersistenceFailure) -> Void
+    ) -> PersistenceFailureObservation {
+        NoOpPersistenceFailureObservation()
+    }
+}
+
+extension UserSettingsRepository {
+    func observePersistenceFailures(
+        _ observer: @escaping @MainActor (UserSettingsPersistenceFailure) -> Void
+    ) -> PersistenceFailureObservation {
+        NoOpPersistenceFailureObservation()
+    }
+}
+
+extension BodyWeightRepository {
+    func observePersistenceFailures(
+        _ observer: @escaping @MainActor (BodyWeightPersistenceFailure) -> Void
+    ) -> PersistenceFailureObservation {
+        NoOpPersistenceFailureObservation()
+    }
+}
+
+@MainActor
+private final class NoOpPersistenceFailureObservation: PersistenceFailureObservation {
+    func cancel() {}
+}
+
+@MainActor
+final class ClosurePersistenceFailureObservation: PersistenceFailureObservation {
+    private var handler: (() -> Void)?
+
+    init(_ handler: @escaping () -> Void) {
+        self.handler = handler
+    }
+
+    func cancel() {
+        handler?()
+        handler = nil
+    }
+
+    deinit { MainActor.assumeIsolated { cancel() } }
+}
+
+@MainActor
+final class PersistenceFailureBroadcaster<Failure> {
+    private var observers: [UUID: @MainActor (Failure) -> Void] = [:]
+    private var pending: [Failure] = []
+
+    func observe(
+        _ observer: @escaping @MainActor (Failure) -> Void
+    ) -> PersistenceFailureObservation {
+        let id = UUID()
+        observers[id] = observer
+        let replay = pending
+        pending.removeAll()
+        replay.forEach(observer)
+        return ClosurePersistenceFailureObservation { [weak self] in
+            self?.observers.removeValue(forKey: id)
+        }
+    }
+
+    func publish(_ failure: Failure) {
+        guard !observers.isEmpty else {
+            pending.append(failure)
+            return
+        }
+        observers.values.forEach { $0(failure) }
+    }
 }

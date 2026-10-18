@@ -239,6 +239,8 @@ struct ContentView: View {
 private struct AuthenticatedContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = AppTab.today
+    @State private var activePersistenceIssue: ActivePersistenceIssue? = nil
+    @AccessibilityFocusState private var isPersistenceIssueFocused: Bool
     @StateObject private var workoutViewModel: WorkoutViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
     private let accountEmail: String?
@@ -379,6 +381,87 @@ private struct AuthenticatedContentView: View {
         .tint(GymTheme.accentForeground)
         .accessibilityIdentifier("authenticatedContent")
         .accessibilityValue(settingsViewModel.settings.appearance.rawValue)
+        .onAppear { presentNextPersistenceIssueIfNeeded() }
+        .onChange(of: workoutViewModel.persistenceIssue?.id) { _, _ in
+            presentNextPersistenceIssueIfNeeded()
+        }
+        .onChange(of: settingsViewModel.persistenceIssue?.id) { _, _ in
+            presentNextPersistenceIssueIfNeeded()
+        }
+        .onChange(of: activePersistenceIssue?.id) { _, newValue in
+            isPersistenceIssueFocused = newValue != nil
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let issue = activePersistenceIssue {
+                persistenceIssueBanner(issue)
+            }
+        }
+    }
+
+    private func persistenceIssueBanner(_ issue: ActivePersistenceIssue) -> some View {
+        VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+            Label(issue.presentation.title, systemImage: "exclamationmark.triangle.fill")
+                .font(.headline)
+                .foregroundStyle(GymTheme.textPrimary)
+                .accessibilityLabel("\(issue.presentation.title). \(issue.presentation.message)")
+                .accessibilityFocused($isPersistenceIssueFocused)
+            Text(issue.presentation.message)
+                .font(.subheadline)
+                .foregroundStyle(GymTheme.textSecondary)
+                .accessibilityHidden(true)
+            HStack(spacing: GymTheme.spacing12) {
+                Button(issue.presentation.secondaryTitle) {
+                    dismissPersistenceIssue(issue)
+                    activePersistenceIssue = nil
+                    presentNextPersistenceIssueAfterDismissal()
+                }
+                .buttonStyle(.bordered)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                Spacer(minLength: 0)
+                Button(issue.presentation.retryTitle) {
+                    switch issue {
+                    case .workout:
+                        workoutViewModel.retryPersistenceIssue()
+                    case .settings:
+                        settingsViewModel.retryPersistenceIssue()
+                    }
+                    activePersistenceIssue = nil
+                    presentNextPersistenceIssueAfterDismissal()
+                }
+                .buttonStyle(.borderedProminent)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+        }
+        .padding(.horizontal, GymTheme.spacing16)
+        .padding(.vertical, GymTheme.spacing12)
+        .background(GymTheme.surface)
+        .overlay(alignment: .bottom) { Divider() }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("persistenceRecoveryBanner")
+    }
+
+    private func presentNextPersistenceIssueIfNeeded() {
+        guard activePersistenceIssue == nil else { return }
+        if let issue = workoutViewModel.persistenceIssue {
+            activePersistenceIssue = .workout(issue)
+        } else if let issue = settingsViewModel.persistenceIssue {
+            activePersistenceIssue = .settings(issue)
+        }
+    }
+
+    private func presentNextPersistenceIssueAfterDismissal() {
+        Task { @MainActor in presentNextPersistenceIssueIfNeeded() }
+    }
+
+    private func dismissPersistenceIssue(_ issue: ActivePersistenceIssue) {
+        switch issue {
+        case .workout:
+            workoutViewModel.dismissPersistenceIssue()
+        case .settings:
+            settingsViewModel.dismissPersistenceIssue()
+        }
     }
 
     private func openProgramForToday() {
@@ -392,6 +475,19 @@ private enum AppTab: String {
     case today
     case program
     case settings
+}
+
+private enum ActivePersistenceIssue: Identifiable {
+    case workout(PersistenceIssue)
+    case settings(PersistenceIssue)
+
+    var id: UUID { presentation.id }
+
+    var presentation: PersistenceIssue {
+        switch self {
+        case let .workout(issue), let .settings(issue): issue
+        }
+    }
 }
 
 #Preview {

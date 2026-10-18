@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Canonical user-scoped Firestore locations. Callers supply only domain IDs;
@@ -494,5 +495,284 @@ enum FirestoreCustomExerciseSnapshotDecoder {
             exercises: exercises,
             discardedExerciseIDs: discardedExerciseIDs
         )
+    }
+}
+
+enum PersistedDocument<Value: Equatable>: Equatable {
+    case missing
+    case value(Value)
+}
+
+extension PersistedDocument: Codable where Value: Codable {}
+
+struct ScopedDocumentMutationTicket<Key: Hashable>: Hashable {
+    let key: Key
+    fileprivate let id: UUID
+}
+
+enum ScopedDocumentMutationResult {
+    case accepted
+    case rejected
+}
+
+enum ScopedDocumentMutationCompletion<Value: Equatable>: Equatable {
+    case accepted
+    case superseded
+    case rejected(restore: PersistedDocument<Value>, attempted: PersistedDocument<Value>)
+    case unknown
+}
+
+/// Tracks optimistic full-document writes independently per Firestore document.
+/// Newer writes to the same document supersede older failures because they carry
+/// the complete current value; writes to other documents never affect recovery.
+struct ScopedDocumentMutationTracker<Key: Hashable, Value: Equatable> {
+    private struct Mutation {
+        let id: UUID
+        let sequence: Int
+        let attempted: PersistedDocument<Value>
+    }
+
+    private struct Chain {
+        var baseline: PersistedDocument<Value>
+        var mutations: [Mutation]
+        var nextSequence: Int
+        var latestAcceptedSequence: Int?
+    }
+
+    private var chains: [Key: Chain] = [:]
+
+    mutating func begin(
+        key: Key,
+        baseline: PersistedDocument<Value>,
+        attempted: PersistedDocument<Value>
+    ) -> ScopedDocumentMutationTicket<Key> {
+        let ticket = ScopedDocumentMutationTicket(key: key, id: UUID())
+        let sequence = chains[key]?.nextSequence ?? 0
+        let mutation = Mutation(id: ticket.id, sequence: sequence, attempted: attempted)
+        if chains[key] == nil {
+            chains[key] = Chain(
+                baseline: baseline,
+                mutations: [mutation],
+                nextSequence: 1,
+                latestAcceptedSequence: nil
+            )
+        } else {
+            chains[key]?.mutations.append(mutation)
+            chains[key]?.nextSequence += 1
+        }
+        return ticket
+    }
+
+    func hasPendingMutation(for key: Key) -> Bool {
+        chains[key]?.mutations.isEmpty == false
+    }
+
+    mutating func complete(
+        _ ticket: ScopedDocumentMutationTicket<Key>,
+        result: ScopedDocumentMutationResult
+    ) -> ScopedDocumentMutationCompletion<Value> {
+        guard var chain = chains[ticket.key],
+              let index = chain.mutations.firstIndex(where: { $0.id == ticket.id })
+        else { return .unknown }
+
+        let mutation = chain.mutations[index]
+        let hasNewerPendingMutation = chain.mutations.contains { $0.sequence > mutation.sequence }
+        let hasNewerAcceptedMutation = chain.latestAcceptedSequence.map { $0 > mutation.sequence } ?? false
+        chain.mutations.remove(at: index)
+
+        switch result {
+        case .accepted:
+            if chain.latestAcceptedSequence.map({ mutation.sequence > $0 }) ?? true {
+                chain.baseline = mutation.attempted
+                chain.latestAcceptedSequence = mutation.sequence
+            }
+            if chain.mutations.isEmpty {
+                chains.removeValue(forKey: ticket.key)
+            } else {
+                chains[ticket.key] = chain
+            }
+            return .accepted
+
+        case .rejected where hasNewerPendingMutation || hasNewerAcceptedMutation:
+            if chain.mutations.isEmpty {
+                chains.removeValue(forKey: ticket.key)
+            } else {
+                chains[ticket.key] = chain
+            }
+            return .superseded
+
+        case .rejected:
+            let latestPending = chain.mutations.max(by: { $0.sequence < $1.sequence })
+            let restore: PersistedDocument<Value>
+            if let latestPending,
+               latestPending.sequence > (chain.latestAcceptedSequence ?? -1) {
+                restore = latestPending.attempted
+            } else {
+                restore = chain.baseline
+            }
+            if chain.mutations.isEmpty {
+                chains.removeValue(forKey: ticket.key)
+            } else {
+                chains[ticket.key] = chain
+            }
+            return .rejected(restore: restore, attempted: mutation.attempted)
+        }
+    }
+}
+
+struct DurableUnconfirmedMutation<Key: Hashable, Value: Equatable>: Equatable {
+    let key: Key
+    let attempted: PersistedDocument<Value>
+    let stable: PersistedDocument<Value>
+}
+
+enum PendingMutationJournalStorage {
+    static let scopes = ["workouts", "settings", "customExercises", "bodyWeight"]
+
+    static func key(scope: String, userID: UserID) -> String {
+        "GymChecklist.pendingWrites.v1.\(scope).\(userID.rawValue)"
+    }
+
+    static func purge(userID: UserID, directoryURL: URL? = nil) {
+        for scope in scopes {
+            ProtectedMutationJournalFile(
+                storageKey: key(scope: scope, userID: userID),
+                directoryURL: directoryURL
+            ).remove()
+        }
+    }
+}
+
+private struct ProtectedMutationJournalFile {
+    private let fileURL: URL
+
+    init(storageKey: String, directoryURL: URL? = nil) {
+        let directory = directoryURL ?? FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("PendingMutationJournals", isDirectory: true)
+        let filename = SHA256.hash(data: Data(storageKey.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        fileURL = directory.appendingPathComponent(filename).appendingPathExtension("json")
+    }
+
+    func read() -> Data? {
+        try? Data(contentsOf: fileURL)
+    }
+
+    func write(_ data: Data?) {
+        guard let data else {
+            remove()
+            return
+        }
+        do {
+            try FileManager.default.createDirectory(
+                at: fileURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true,
+                attributes: [.protectionKey: FileProtectionType.complete]
+            )
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        } catch {
+            assertionFailure("Pending mutation journal could not be persisted")
+        }
+    }
+
+    func remove() {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        try? FileManager.default.removeItem(at: fileURL)
+    }
+}
+
+/// Persists mutation intent only so Firestore's own offline queue remains the
+/// source of truth while a restarted process can still flag an unconfirmed change.
+struct DurablePendingMutationJournal<Key: Codable & Hashable, Value: Codable & Equatable> {
+    private struct Entry: Codable {
+        let ticketID: UUID
+        let key: Key
+        let attempted: PersistedDocument<Value>
+    }
+
+    private let storage: ProtectedMutationJournalFile
+    private var entries: [Entry]
+    private var restartedTicketIDs: Set<UUID>
+    private var reportedTicketIDs: Set<UUID> = []
+
+    init(storageKey: String, directoryURL: URL? = nil) {
+        storage = ProtectedMutationJournalFile(storageKey: storageKey, directoryURL: directoryURL)
+        let decoded = storage.read().flatMap { try? JSONDecoder().decode([Entry].self, from: $0) } ?? []
+        entries = decoded
+        restartedTicketIDs = Set(decoded.map(\.ticketID))
+    }
+
+    mutating func record(
+        _ ticket: ScopedDocumentMutationTicket<Key>,
+        attempted: PersistedDocument<Value>
+    ) {
+        let supersededIDs = entries
+            .filter { $0.key == ticket.key && restartedTicketIDs.contains($0.ticketID) }
+            .map(\.ticketID)
+        entries.removeAll { supersededIDs.contains($0.ticketID) }
+        restartedTicketIDs.subtract(supersededIDs)
+        reportedTicketIDs.subtract(supersededIDs)
+        entries.append(Entry(ticketID: ticket.id, key: ticket.key, attempted: attempted))
+        persist()
+    }
+
+    mutating func complete(
+        _ ticket: ScopedDocumentMutationTicket<Key>,
+        result: ScopedDocumentMutationResult
+    ) {
+        guard let ticketIndex = entries.firstIndex(where: { $0.ticketID == ticket.id }) else { return }
+        let ticketKey = entries[ticketIndex].key
+        switch result {
+        case .accepted:
+            entries = entries.enumerated().compactMap { index, entry in
+                entry.key == ticketKey && index <= ticketIndex ? nil : entry
+            }
+        case .rejected:
+            entries.remove(at: ticketIndex)
+        }
+        restartedTicketIDs.remove(ticket.id)
+        restartedTicketIDs.formIntersection(entries.map(\.ticketID))
+        reportedTicketIDs.remove(ticket.id)
+        reportedTicketIDs.formIntersection(entries.map(\.ticketID))
+        persist()
+    }
+
+    mutating func reconcileRestarted(
+        stableValues: [Key: Value]
+    ) -> [DurableUnconfirmedMutation<Key, Value>] {
+        let restartedEntries = entries.filter { restartedTicketIDs.contains($0.ticketID) }
+        var latestByKey: [Key: Entry] = [:]
+        for entry in restartedEntries { latestByKey[entry.key] = entry }
+        var resolvedIDs: Set<UUID> = []
+        var reportedIDs = reportedTicketIDs
+        let unconfirmed = latestByKey.values.compactMap { entry -> DurableUnconfirmedMutation<Key, Value>? in
+            let stable = stableValues[entry.key].map { PersistedDocument.value($0) } ?? .missing
+            let sameKeyEntries = restartedEntries.filter { $0.key == entry.key }
+            if stable == entry.attempted {
+                resolvedIDs.formUnion(sameKeyEntries.map(\.ticketID))
+                return nil
+            }
+            guard !reportedIDs.contains(entry.ticketID) else { return nil }
+            reportedIDs.insert(entry.ticketID)
+            return DurableUnconfirmedMutation(key: entry.key, attempted: entry.attempted, stable: stable)
+        }
+        entries.removeAll { resolvedIDs.contains($0.ticketID) }
+        restartedTicketIDs.subtract(resolvedIDs)
+        reportedIDs.subtract(resolvedIDs)
+        reportedTicketIDs = reportedIDs
+        persist()
+        return unconfirmed.sorted { String(describing: $0.key) < String(describing: $1.key) }
+    }
+
+    private func persist() {
+        guard !entries.isEmpty else {
+            storage.write(nil)
+            return
+        }
+        if let data = try? JSONEncoder().encode(entries) {
+            storage.write(data)
+        }
     }
 }

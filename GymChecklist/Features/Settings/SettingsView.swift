@@ -9,12 +9,17 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var measurements: [BodyWeightMeasurement]
     @Published private(set) var errorMessage: String?
     @Published private(set) var bodyWeightDeletionFailed = false
+    @Published private(set) var persistenceIssue: PersistenceIssue?
 
     private let repository: UserSettingsRepository
     private let bodyWeightRepository: BodyWeightRepository
     @Published private(set) var currentDate: LocalDate
     private var observation: UserSettingsObservation?
     private var bodyWeightObservation: BodyWeightObservation?
+    private var settingsFailureObservation: PersistenceFailureObservation?
+    private var bodyWeightFailureObservation: PersistenceFailureObservation?
+    private var retryPersistenceAction: (@MainActor () -> Void)?
+    private var queuedPersistenceIssues: [(PersistenceIssue, @MainActor () -> Void)] = []
 
     init(
         repository: UserSettingsRepository,
@@ -27,12 +32,19 @@ final class SettingsViewModel: ObservableObject {
         self.bodyWeightRepository = resolvedBodyWeightRepository
         settings = repository.settings
         measurements = resolvedBodyWeightRepository.measurements
+        persistenceIssue = nil
         observation = repository.observeSettings { [weak self] settings in
             self?.settings = settings
             self?.errorMessage = nil
         }
         bodyWeightObservation = resolvedBodyWeightRepository.observeMeasurements { [weak self] measurements in
             self?.measurements = measurements
+        }
+        settingsFailureObservation = repository.observePersistenceFailures { [weak self] failure in
+            self?.handleSettingsPersistenceFailure(failure)
+        }
+        bodyWeightFailureObservation = resolvedBodyWeightRepository.observePersistenceFailures { [weak self] failure in
+            self?.handleBodyWeightPersistenceFailure(failure)
         }
     }
 
@@ -46,19 +58,23 @@ final class SettingsViewModel: ObservableObject {
 
     func selectAppearance(_ appearance: Appearance) {
         guard appearance != settings.appearance else { return }
+        var attempted = settings
+        attempted.appearance = appearance
         do {
             try repository.saveAppearance(appearance)
         } catch {
-            errorMessage = "Couldn't save appearance. Try again."
+            handleSettingsPersistenceFailure(.saveRejected(attempted))
         }
     }
 
     func selectWeightUnit(_ weightUnit: WeightUnit) {
         guard weightUnit != settings.weightUnit else { return }
+        var attempted = settings
+        attempted.weightUnit = weightUnit
         do {
             try repository.saveWeightUnit(weightUnit)
         } catch {
-            errorMessage = "Couldn't save weight unit. Try again."
+            handleSettingsPersistenceFailure(.saveRejected(attempted))
         }
     }
 
@@ -95,14 +111,140 @@ final class SettingsViewModel: ObservableObject {
 
     func deleteMeasurement(_ measurement: BodyWeightMeasurement) throws {
         bodyWeightDeletionFailed = false
-        try bodyWeightRepository.deleteMeasurement(id: measurement.id) { [weak self] in
-            self?.bodyWeightDeletionFailed = true
-        }
+        try bodyWeightRepository.deleteMeasurement(id: measurement.id, onFailure: {})
     }
 
     func acknowledgeBodyWeightDeletionFailure() { bodyWeightDeletionFailed = false }
 
-    deinit { MainActor.assumeIsolated { observation?.cancel(); bodyWeightObservation?.cancel() } }
+    func retryPersistenceIssue() {
+        let action = retryPersistenceAction
+        advancePersistenceIssueQueue()
+        action?()
+    }
+
+    func dismissPersistenceIssue() {
+        advancePersistenceIssueQueue()
+    }
+
+    private func handleSettingsPersistenceFailure(_ failure: UserSettingsPersistenceFailure) {
+        switch failure {
+        case let .saveRejected(attempted):
+            presentPersistenceIssue(
+                title: "Settings weren’t saved",
+                message: "The last confirmed settings are shown. Retry to save your changes.",
+                retryTitle: "Retry Save"
+            ) { [weak self] in
+                guard let self else { return }
+                do { try self.repository.save(attempted) }
+                catch { self.handleSettingsPersistenceFailure(.saveRejected(attempted)) }
+            }
+        case let .saveUnconfirmedAfterRestart(attempted):
+            presentPersistenceIssue(
+                title: "Offline settings need review",
+                message: "Current cloud settings are shown. Save your offline settings again only if you want to replace them.",
+                retryTitle: "Save Offline Settings",
+                secondaryTitle: "Remind Me Later"
+            ) { [weak self] in
+                guard let self else { return }
+                do { try self.repository.save(attempted) }
+                catch { self.handleSettingsPersistenceFailure(.saveRejected(attempted)) }
+            }
+        }
+    }
+
+    private func handleBodyWeightPersistenceFailure(_ failure: BodyWeightPersistenceFailure) {
+        switch failure {
+        case let .saveRejected(measurement):
+            presentPersistenceIssue(
+                title: "Body weight wasn’t saved",
+                message: "Your entry is ready to retry.",
+                retryTitle: "Retry Save"
+            ) { [weak self] in
+                guard let self else { return }
+                do { try self.bodyWeightRepository.save(measurement) }
+                catch { self.handleBodyWeightPersistenceFailure(.saveRejected(measurement)) }
+            }
+        case let .deleteRejected(measurement):
+            presentPersistenceIssue(
+                title: "Measurement wasn’t deleted",
+                message: "The measurement was restored. Retry to delete it.",
+                retryTitle: "Retry Delete"
+            ) { [weak self] in
+                guard let self else { return }
+                do {
+                    try self.bodyWeightRepository.deleteMeasurement(id: measurement.id, onFailure: {})
+                } catch {
+                    self.handleBodyWeightPersistenceFailure(.deleteRejected(measurement))
+                }
+            }
+        case let .saveUnconfirmedAfterRestart(measurement):
+            presentPersistenceIssue(
+                title: "Offline body weight needs review",
+                message: "The cloud value is shown. Save your offline entry again only if you want to replace it.",
+                retryTitle: "Save Offline Entry",
+                secondaryTitle: "Remind Me Later"
+            ) { [weak self] in
+                guard let self else { return }
+                do { try self.bodyWeightRepository.save(measurement) }
+                catch { self.handleBodyWeightPersistenceFailure(.saveRejected(measurement)) }
+            }
+        case let .deleteUnconfirmedAfterRestart(measurement):
+            presentPersistenceIssue(
+                title: "Measurement deletion needs review",
+                message: "The measurement is present in the cloud. Delete it again only if you still want it removed.",
+                retryTitle: "Delete Again",
+                secondaryTitle: "Remind Me Later"
+            ) { [weak self] in
+                guard let self else { return }
+                do {
+                    try self.bodyWeightRepository.deleteMeasurement(id: measurement.id, onFailure: {})
+                } catch {
+                    self.handleBodyWeightPersistenceFailure(.deleteRejected(measurement))
+                }
+            }
+        }
+    }
+
+    private func presentPersistenceIssue(
+        title: String,
+        message: String,
+        retryTitle: String,
+        secondaryTitle: String = "Keep Current Version",
+        retry: @escaping @MainActor () -> Void
+    ) {
+        let issue = PersistenceIssue(
+            title: title,
+            message: message,
+            retryTitle: retryTitle,
+            secondaryTitle: secondaryTitle
+        )
+        guard persistenceIssue == nil else {
+            queuedPersistenceIssues.append((issue, retry))
+            return
+        }
+        retryPersistenceAction = retry
+        persistenceIssue = issue
+    }
+
+    private func advancePersistenceIssueQueue() {
+        guard !queuedPersistenceIssues.isEmpty else {
+            persistenceIssue = nil
+            retryPersistenceAction = nil
+            return
+        }
+        let next = queuedPersistenceIssues.removeFirst()
+        persistenceIssue = next.0
+        retryPersistenceAction = next.1
+    }
+
+    deinit {
+        MainActor.assumeIsolated {
+            observation?.cancel()
+            bodyWeightObservation?.cancel()
+            settingsFailureObservation?.cancel()
+            bodyWeightFailureObservation?.cancel()
+        }
+    }
 }
 
 struct SettingsView: View {
@@ -563,6 +705,7 @@ private struct ProfileEditorSheet: View {
     @State private var hasDateOfBirth: Bool
     @State private var heightText: String
     @State private var showsValidationError = false
+    @State private var showsSaveError = false
 
     init(profile: UserProfile, onSave: @escaping (UserProfile) throws -> Void) {
         self.profile = profile
@@ -664,6 +807,12 @@ private struct ProfileEditorSheet: View {
             } message: {
                 Text("Height must be a positive number.")
             }
+            .alert("Profile wasn’t saved", isPresented: $showsSaveError) {
+                Button("Retry Save", action: saveProfile)
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your profile details are still here. Try saving again.")
+            }
         }
     }
 
@@ -681,7 +830,12 @@ private struct ProfileEditorSheet: View {
             ))
             dismiss()
         } catch {
-            showsValidationError = true
+            if let repositoryError = error as? BodyWeightRepositoryError,
+               repositoryError == .invalidMeasurement {
+                showsValidationError = true
+            } else {
+                showsSaveError = true
+            }
         }
     }
 }
@@ -699,6 +853,7 @@ private struct BodyWeightHistorySheet: View {
     @State private var measurementDate = Date()
     @State private var editingMeasurement: BodyWeightMeasurement?
     @State private var showsValidationError = false
+    @State private var showsSaveError = false
     @State private var showsDeleteError = false
 
     private var deleteFailureAlertBinding: Binding<Bool> {
@@ -791,6 +946,12 @@ private struct BodyWeightHistorySheet: View {
             } message: {
                 Text("Weight must be greater than zero.")
             }
+            .alert("Body weight wasn’t saved", isPresented: $showsSaveError) {
+                Button("Retry Save", action: saveMeasurement)
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your entry is still here. Try saving again.")
+            }
             .alert("Couldn't delete measurement", isPresented: deleteFailureAlertBinding) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -824,7 +985,14 @@ private struct BodyWeightHistorySheet: View {
         do {
             try onSave(measurement)
             clearEditor()
-        } catch { showsValidationError = true }
+        } catch {
+            if let repositoryError = error as? BodyWeightRepositoryError,
+               repositoryError == .invalidMeasurement {
+                showsValidationError = true
+            } else {
+                showsSaveError = true
+            }
+        }
     }
 
     private func clearEditor() {

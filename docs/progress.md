@@ -1,4 +1,10 @@
 # Gym Checklist — Progress Checkpoint
+## 2026-10-18 — Persistence reliability H2/M2 fresh Pass B audit
+- `REMOTE_GATE_APPROVED aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea`
+- Independently reviewed the exact implementation SHA: per-document write ordering/rollback and protected pending-journal reconciliation, the four Firestore repository integrations, user-facing recovery/error separation, and focused regression coverage. No blocking issue identified in this source audit.
+- Fresh Windows checks passed: account-deletion, agentic workflow, Firestore owner isolation, Google Sign-In configuration, iOS CI, offline/reconnect, release/acceptance IPA, security hygiene, and `git diff --check`. Earlier PR Linux and macOS smoke checks passed on the unchanged production/test source.
+- Pass B changes this checkpoint document only. No Swift, test, project, workflow, or security-rule source is modified. This audit approves one exact-source macOS `candidate`/full verification for SHA above, not a merge, release, or deployment.
+- After exact-source macOS GREEN, dispatch the existing unsigned Firebase-backed acceptance IPA workflow using the SAME SHA. Live Firestore rejection/restart scenarios and physical-iPhone UX still require user-device verification; do not claim these have passed CI.
 
 
 ## 2026-10-18 — Persistence reliability H2/M2 Pass A

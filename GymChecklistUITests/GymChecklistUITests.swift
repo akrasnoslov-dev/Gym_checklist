@@ -233,8 +233,9 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(reorderedBenchActions.waitForExistence(timeout: 2))
         reorderedBenchActions.tap()
         app.buttons["Delete"].tap()
-        XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 2))
-        app.buttons["Delete"].tap()
+        let confirmExerciseDeletion = app.buttons.matching(identifier: "programConfirmDeleteExercise").firstMatch
+        XCTAssertTrue(confirmExerciseDeletion.waitForExistence(timeout: 3), app.debugDescription)
+        confirmExerciseDeletion.tap()
         XCTAssertFalse(benchName.waitForExistence(timeout: 1))
         app.buttons["programDate-2026-08-13"].tap()
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
@@ -358,7 +359,9 @@ final class GymChecklistUITests: XCTestCase {
 
         openProgram(app)
         app.buttons["programDate-2026-08-15"].tap()
-        XCTAssertTrue(app.buttons["programCreateWorkout"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Saturday, August 15, 2026"), app.debugDescription)
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(app.buttons["programCreateWorkout"].waitForExistence(timeout: 5), app.debugDescription)
         app.buttons["programCreateWorkout"].tap()
         XCTAssertTrue(app.staticTexts["programEmptyWorkout"].waitForExistence(timeout: 2))
 
@@ -441,8 +444,9 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
         replaceChoice.buttons["Replace exercises"].tap()
         replaceApp.buttons["copyWorkoutAction"].tap()
-        XCTAssertTrue(replaceApp.buttons["copyWorkoutConfirmReplace"].waitForExistence(timeout: 2))
-        replaceApp.buttons["copyWorkoutConfirmReplace"].tap()
+        let confirmReplace = replaceApp.buttons.matching(identifier: "copyWorkoutConfirmReplace").firstMatch
+        XCTAssertTrue(confirmReplace.waitForExistence(timeout: 3), replaceApp.debugDescription)
+        confirmReplace.tap()
         XCTAssertFalse(replaceApp.navigationBars["Copy workout"].waitForExistence(timeout: 2))
     }
 
@@ -533,19 +537,23 @@ final class GymChecklistUITests: XCTestCase {
         app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
         measurement.tap()
+        XCTAssertTrue(waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Update body weight"), app.debugDescription)
+        XCTAssertEqual(weight.value as? String, "81")
         replaceText(in: weight, with: "80")
         app.buttons["bodyWeightSave"].tap()
         XCTAssertTrue(app.staticTexts["80 kg"].exists)
+        XCTAssertEqual(app.buttons.matching(identifier: "bodyWeightMeasurement").count, 1, app.debugDescription)
+        XCTAssertFalse(app.staticTexts["81 kg"].exists, app.debugDescription)
         let updatedMeasurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
         XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 2))
         updatedMeasurement.swipeLeft()
         let deleteMeasurement = app.buttons["Delete"]
         XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 2))
         deleteMeasurement.tap()
-        // Deletion uses an animated native swipe action. Assert the persisted
-        // empty state after closing instead of testing mid-animation existence.
+        // Confirm the model-driven empty state, not a transient swipe animation.
+        XCTAssertTrue(app.staticTexts["No body-weight measurements yet."].waitForExistence(timeout: 5), app.debugDescription)
         app.buttons["Done"].tap()
-        XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm"))
+        XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm"), app.debugDescription)
         XCTAssertTrue(waitForValue(app.buttons["settingsBodyWeight"], "Log your first measurement"))
     }
 
@@ -1000,7 +1008,7 @@ final class TodayInteractionUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Edit set"].exists)
         XCTAssertTrue(app.textFields["todaySetEditorReps"].exists)
 
-        app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
+        app.alerts["Couldn't confirm this change"].buttons["Keep Editing"].tap()
         app.buttons["todaySetEditorSave"].tap()
         XCTAssertTrue(app.buttons[firstBenchSet].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons[firstBenchSet].label.contains("6 reps × 60 kg"))

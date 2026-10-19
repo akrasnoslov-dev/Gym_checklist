@@ -42,6 +42,7 @@ final class WorkoutViewModel: ObservableObject {
     @Published private(set) var workouts: [Workout]
     @Published private(set) var workoutLoadState: WorkoutLoadState
     @Published private(set) var exerciseLibrary: LocalExerciseLibrary
+    @Published private(set) var persistenceIssue: PersistenceIssue?
 
     @Published private(set) var currentDate: LocalDate
     let calendar: Calendar
@@ -55,6 +56,10 @@ final class WorkoutViewModel: ObservableObject {
     private let makeWorkoutSetID: () -> WorkoutSetID
     private var workoutObservation: WorkoutObservation?
     private var customExerciseObservation: CustomExerciseObservation?
+    private var workoutFailureObservation: PersistenceFailureObservation?
+    private var customExerciseFailureObservation: PersistenceFailureObservation?
+    private var retryPersistenceAction: (@MainActor () -> Void)?
+    private var queuedPersistenceIssues: [(PersistenceIssue, @MainActor () -> Void)] = []
 
     init(
         repository: WorkoutRepository,
@@ -94,9 +99,13 @@ final class WorkoutViewModel: ObservableObject {
         self.makeWorkoutSetID = makeWorkoutSetID
         self.workouts = repository.workouts
         self.workoutLoadState = .loading
+        self.persistenceIssue = nil
         self.workoutObservation = repository.observeWorkouts { [weak self] workouts, loadState in
             self?.workouts = workouts
             self?.workoutLoadState = loadState
+        }
+        self.workoutFailureObservation = repository.observePersistenceFailures { [weak self] failure in
+            self?.handleWorkoutPersistenceFailure(failure)
         }
         if let customExerciseRepository {
             self.customExerciseObservation = customExerciseRepository.observeCustomExercises { [weak self] exercises in
@@ -105,7 +114,20 @@ final class WorkoutViewModel: ObservableObject {
                 library.replaceCustomExercises(exercises)
                 self.exerciseLibrary = library
             }
+            self.customExerciseFailureObservation = customExerciseRepository.observePersistenceFailures { [weak self] failure in
+                self?.handleCustomExercisePersistenceFailure(failure)
+            }
         }
+    }
+
+    func retryPersistenceIssue() {
+        let action = retryPersistenceAction
+        advancePersistenceIssueQueue()
+        action?()
+    }
+
+    func dismissPersistenceIssue() {
+        advancePersistenceIssueQueue()
     }
 
     var calendarState: ProgramCalendarState {
@@ -741,5 +763,146 @@ final class WorkoutViewModel: ObservableObject {
 
     private static func areValidSetValues(reps: Int, weight: Double, timeSeconds: Int) -> Bool {
         reps >= 0 && timeSeconds >= 0 && weight.isFinite && weight >= 0
+    }
+
+    private func handleWorkoutPersistenceFailure(_ failure: WorkoutPersistenceFailure) {
+        switch failure {
+        case let .saveRejected(workout):
+            presentPersistenceIssue(
+                title: "Workout change wasn’t saved",
+                message: "The last confirmed workout is shown. Retry to save your change.",
+                retryTitle: "Retry Save"
+            ) { [weak self] in
+                guard let self else { return }
+                do { try self.repository.save(workout) }
+                catch { self.handleWorkoutPersistenceFailure(.saveRejected(workout)) }
+            }
+        case let .deleteRejected(workout):
+            presentPersistenceIssue(
+                title: "Workout wasn’t deleted",
+                message: "The workout was restored. Retry to delete it.",
+                retryTitle: "Retry Delete"
+            ) { [weak self] in
+                guard let self else { return }
+                do { try self.repository.deleteWorkout(on: workout.localDate) }
+                catch { self.handleWorkoutPersistenceFailure(.deleteRejected(workout)) }
+            }
+        case let .saveUnconfirmedAfterRestart(workout):
+            presentPersistenceIssue(
+                title: "Offline change needs review",
+                message: "The current cloud workout is shown. Save your offline change again only if you want to replace it.",
+                retryTitle: "Save Offline Change",
+                secondaryTitle: "Remind Me Later"
+            ) { [weak self] in
+                guard let self else { return }
+                do { try self.repository.save(workout) }
+                catch { self.handleWorkoutPersistenceFailure(.saveRejected(workout)) }
+            }
+        case let .deleteUnconfirmedAfterRestart(workout):
+            presentPersistenceIssue(
+                title: "Workout deletion needs review",
+                message: "The workout is present in the cloud. Delete it again only if you still want it removed.",
+                retryTitle: "Delete Again",
+                secondaryTitle: "Remind Me Later"
+            ) { [weak self] in
+                guard let self else { return }
+                do { try self.repository.deleteWorkout(on: workout.localDate) }
+                catch { self.handleWorkoutPersistenceFailure(.deleteRejected(workout)) }
+            }
+        }
+    }
+
+    private func handleCustomExercisePersistenceFailure(_ failure: CustomExercisePersistenceFailure) {
+        guard let customExerciseRepository else { return }
+        switch failure {
+        case let .saveRejected(exercise):
+            presentPersistenceIssue(
+                title: "Exercise wasn’t saved",
+                message: "Your exercise change is ready to retry.",
+                retryTitle: "Retry Save"
+            ) { [weak self] in
+                do { try customExerciseRepository.save(exercise) }
+                catch { self?.handleCustomExercisePersistenceFailure(.saveRejected(exercise)) }
+            }
+        case let .deleteRejected(exercise):
+            presentPersistenceIssue(
+                title: "Exercise wasn’t deleted",
+                message: "The exercise was restored. Retry to delete it.",
+                retryTitle: "Retry Delete"
+            ) { [weak self] in
+                do { try customExerciseRepository.deleteCustomExercise(id: exercise.id) }
+                catch { self?.handleCustomExercisePersistenceFailure(.deleteRejected(exercise)) }
+            }
+        case let .deleteRejectedWithoutLocalCopy(id):
+            presentPersistenceIssue(
+                title: "Exercise wasn’t deleted",
+                message: "The delete wasn’t accepted. Retry to remove the exercise.",
+                retryTitle: "Retry Delete"
+            ) { [weak self] in
+                do { try customExerciseRepository.deleteCustomExercise(id: id) }
+                catch { self?.handleCustomExercisePersistenceFailure(.deleteRejectedWithoutLocalCopy(id)) }
+            }
+        case let .saveUnconfirmedAfterRestart(exercise):
+            presentPersistenceIssue(
+                title: "Offline exercise change needs review",
+                message: "The current cloud exercise is shown. Save your offline change again only if you want to replace it.",
+                retryTitle: "Save Offline Change",
+                secondaryTitle: "Remind Me Later"
+            ) { [weak self] in
+                do { try customExerciseRepository.save(exercise) }
+                catch { self?.handleCustomExercisePersistenceFailure(.saveRejected(exercise)) }
+            }
+        case let .deleteUnconfirmedAfterRestart(exercise):
+            presentPersistenceIssue(
+                title: "Exercise deletion needs review",
+                message: "The exercise is present in the cloud. Delete it again only if you still want it removed.",
+                retryTitle: "Delete Again",
+                secondaryTitle: "Remind Me Later"
+            ) { [weak self] in
+                do { try customExerciseRepository.deleteCustomExercise(id: exercise.id) }
+                catch { self?.handleCustomExercisePersistenceFailure(.deleteRejected(exercise)) }
+            }
+        }
+    }
+
+    private func presentPersistenceIssue(
+        title: String,
+        message: String,
+        retryTitle: String,
+        secondaryTitle: String = "Keep Current Version",
+        retry: @escaping @MainActor () -> Void
+    ) {
+        let issue = PersistenceIssue(
+            title: title,
+            message: message,
+            retryTitle: retryTitle,
+            secondaryTitle: secondaryTitle
+        )
+        guard persistenceIssue == nil else {
+            queuedPersistenceIssues.append((issue, retry))
+            return
+        }
+        retryPersistenceAction = retry
+        persistenceIssue = issue
+    }
+
+    private func advancePersistenceIssueQueue() {
+        guard !queuedPersistenceIssues.isEmpty else {
+            persistenceIssue = nil
+            retryPersistenceAction = nil
+            return
+        }
+        let next = queuedPersistenceIssues.removeFirst()
+        persistenceIssue = next.0
+        retryPersistenceAction = next.1
+    }
+
+    deinit {
+        MainActor.assumeIsolated {
+            workoutObservation?.cancel()
+            customExerciseObservation?.cancel()
+            workoutFailureObservation?.cancel()
+            customExerciseFailureObservation?.cancel()
+        }
     }
 }

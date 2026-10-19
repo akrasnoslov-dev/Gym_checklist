@@ -1,4 +1,42 @@
 # Gym Checklist — Progress Checkpoint
+## 2026-10-19 — Body-weight tap reliability fresh audit (Pass B)
+- `REMOTE_GATE_APPROVED 9e9997e6d7f28a9fba3f251d315ee47e181d3266`
+- Independent post-handoff review verified the only runtime change is full-row `.contentShape(Rectangle())` applied to the existing plain Button within the weight-history row. Verified that editing retains the record ID, existing in-memory repository overwrites by ID, and strengthened UI test checks edit selection, one-row identity, weight replacement, and deletion. No test is skipped or feature disabled.
+- `git diff --check` on the exact code delta is clean, all applicable local contracts green. A simulator termination failure in the preceding run occurred before app assertions; retry on a fresh runner is appropriate, but cannot be described as an app pass until the authoritative full suite is green.
+- This audit changes this checkpoint only, not app/test/project code. Approved one exact-source macOS focused+full run at source SHA above; if GREEN, build Firebase-backed unsigned IPA from that same SHA only. Do not merge, deploy, or release.
+## 2026-10-19 — Redesign IPA blocker correction (Pass A)
+- `REMOTE_GATE_READY_FOR_FINAL_AUDIT 9e9997e6d7f28a9fba3f251d315ee47e181d3266`
+- Exact-source full suite `39262211641` compiled, with two UI failures: `testAppLaunchesOnTodayAndNavigatesAllTabs` failed *before app assertions* because XCTest could not terminate the preceding app process (simulator infrastructure flake); `testSettingsProfileAndBodyWeightUpdateBMI` revealed an actual hit-area bug. The accessibility dump showed the previous 81 kg record remained after a later 80 kg record was deleted; the .plain Button's central Spacer was not reliably tappable, so opening Edit could be missed and Save created a second measurement.
+- Fixed the root touch-target bug by adding a full-row content shape to the body-weight edit button. Strengthened UI regression to assert editing is actually selected and keeps the same record identity (one 80 kg record, no residual 81 kg), before testing delete. No test disabled or user-facing feature removed.
+- Local Windows: all eight repository contracts plus `git diff --check` passed. No Xcode installed here; compile and UI behavior require fresh macOS verification.
+- Next: independent fresh audit of the exact code SHA above, then candidate/full macOS suite and Firebase-backed unsigned acceptance IPA only on GREEN. A launch/terminate failure before assertions should be identified separately from a product regression, never silently ignored.
+## 2026-10-19 — Redesign UI exact-source independent audit
+- `REMOTE_GATE_APPROVED df59dd2d0f6226c276100105a6540d3180ff08bb`
+- Re-read all changed UI-test assertions against corresponding `ProgramView`, `TodayView`, and `SettingsView` flows. Confirmation actions use stable specific identifiers, Today editor uses its actual Keep Editing button; the date and body-weight checks now fail with useful app-tree evidence if the underlying state remains wrong. No test was disabled or product behavior expectation removed.
+- Verified there are no production Swift changes versus the previous fully compiling source `aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea`; fresh local contracts and Git whitespace check passed. Approved exact-SHA full suite for the documented test-source SHA only. This second audit changes the checkpoint text only.
+- Use the separately isolated one-time CI orchestration to run full macOS Xcode tests, then build a Firebase-backed unsigned IPA ONLY if green. If red, repair the actual failure and repeat the source audit; never reuse an older IPA as current acceptance evidence.
+## 2026-10-19 — Redesign full-suite UI regression follow-up — PASS A
+- `REMOTE_GATE_READY_FOR_FINAL_AUDIT df59dd2d0f6226c276100105a6540d3180ff08bb`
+- Investigated failed exact-source full macOS run `39171886114`, identifying two ambiguous dialog-button queries, one mismatched Keep Editing alert expectation, and two insufficiently diagnosed app-state assertions (future workout creation and BMI removal).
+- Updated UI regression tests to use stable explicit confirmation identifiers, match the actual editor-specific recovery action, assert the selected date and empty state before workout creation, and verify the weight-list empty state before BMI removal. Did NOT skip any failing tests or weaken product behavior assertions.
+- Scope limited to `GymChecklistUITests/GymChecklistUITests.swift`. Windows `git diff --check`, iOS CI and agentic workflow contracts passed; Linux verification green. The macOS PR smoke is running at this checkpoint. The full-suite iPhone gate is still required.
+- Next: independent fresh review of the exact test-source SHA, then one exact-SHA full macOS gate. Only green may trigger a fresh Firebase-backed unsigned IPA for physical-iPhone redesign acceptance.
+## 2026-10-18 — Persistence reliability H2/M2 fresh Pass B audit
+- `REMOTE_GATE_APPROVED aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea`
+- Independently reviewed the exact implementation SHA: per-document write ordering/rollback and protected pending-journal reconciliation, the four Firestore repository integrations, user-facing recovery/error separation, and focused regression coverage. No blocking issue identified in this source audit.
+- Fresh Windows checks passed: account-deletion, agentic workflow, Firestore owner isolation, Google Sign-In configuration, iOS CI, offline/reconnect, release/acceptance IPA, security hygiene, and `git diff --check`. Earlier PR Linux and macOS smoke checks passed on the unchanged production/test source.
+- Pass B changes this checkpoint document only. No Swift, test, project, workflow, or security-rule source is modified. This audit approves one exact-source macOS `candidate`/full verification for SHA above, not a merge, release, or deployment.
+- After exact-source macOS GREEN, dispatch the existing unsigned Firebase-backed acceptance IPA workflow using the SAME SHA. Live Firestore rejection/restart scenarios and physical-iPhone UX still require user-device verification; do not claim these have passed CI.
+
+
+## 2026-10-18 — Persistence reliability H2/M2 Pass A
+- Status: `REMOTE_GATE_READY_FOR_FINAL_AUDIT aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea`
+- Base: latest `dev` after merged PR #9 (`6919872ca14f48f5ecabf14d3f95477f1832326c`).
+- Replaced the global write generation with per-document mutation tracking and protected, durable pending-mutation journals for workouts, preferences, custom exercises, and body weight.
+- Preserved optimistic/offline behavior while surfacing permanent rejection and post-restart unconfirmed state through retryable, nonmodal UI that keeps valid input available.
+- Added deterministic regression coverage for concurrent documents, same-document sequencing, restart reconciliation, permission-style rejection, unrelated successful writes, retry, and confirmed workout visuals.
+- Windows Pass A evidence: all repository contract scripts and `git diff --check` pass. The first automatic PR smoke exposed and prompted repair of three Swift name-shadowing compile errors; XCTest and live Firebase reconnect/permission scenarios still require the fresh macOS Pass B exact-SHA gate.
+- Next: run a fresh Pass B audit and the required macOS verification against exact source SHA `aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea`. Do not merge, release, deploy, or generate an acceptance IPA before that gate is green.
 
 
 ## 2026-10-16 Phase 9 acceptance follow-up — PASS A COMPLETE

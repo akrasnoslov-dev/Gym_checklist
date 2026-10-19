@@ -1,4 +1,10 @@
 # Gym Checklist — Progress Checkpoint
+## 2026-10-19 — Redesign full-suite UI regression follow-up — PASS A
+- `REMOTE_GATE_READY_FOR_FINAL_AUDIT df59dd2d0f6226c276100105a6540d3180ff08bb`
+- Investigated failed exact-source full macOS run `39171886114`, identifying two ambiguous dialog-button queries, one mismatched Keep Editing alert expectation, and two insufficiently diagnosed app-state assertions (future workout creation and BMI removal).
+- Updated UI regression tests to use stable explicit confirmation identifiers, match the actual editor-specific recovery action, assert the selected date and empty state before workout creation, and verify the weight-list empty state before BMI removal. Did NOT skip any failing tests or weaken product behavior assertions.
+- Scope limited to `GymChecklistUITests/GymChecklistUITests.swift`. Windows `git diff --check`, iOS CI and agentic workflow contracts passed; Linux verification green. The macOS PR smoke is running at this checkpoint. The full-suite iPhone gate is still required.
+- Next: independent fresh review of the exact test-source SHA, then one exact-SHA full macOS gate. Only green may trigger a fresh Firebase-backed unsigned IPA for physical-iPhone redesign acceptance.
 ## 2026-10-18 — Persistence reliability H2/M2 fresh Pass B audit
 - `REMOTE_GATE_APPROVED aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea`
 - Independently reviewed the exact implementation SHA: per-document write ordering/rollback and protected pending-journal reconciliation, the four Firestore repository integrations, user-facing recovery/error separation, and focused regression coverage. No blocking issue identified in this source audit.

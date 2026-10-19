@@ -537,9 +537,13 @@ final class GymChecklistUITests: XCTestCase {
         app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
         measurement.tap()
+        XCTAssertTrue(waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Update body weight"), app.debugDescription)
+        XCTAssertEqual(weight.value as? String, "81")
         replaceText(in: weight, with: "80")
         app.buttons["bodyWeightSave"].tap()
         XCTAssertTrue(app.staticTexts["80 kg"].exists)
+        XCTAssertEqual(app.buttons.matching(identifier: "bodyWeightMeasurement").count, 1, app.debugDescription)
+        XCTAssertFalse(app.staticTexts["81 kg"].exists, app.debugDescription)
         let updatedMeasurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
         XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 2))
         updatedMeasurement.swipeLeft()

@@ -909,6 +909,7 @@ private struct BodyWeightHistorySheet: View {
                                     .foregroundStyle(GymTheme.accentForeground)
                             }
                             .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("bodyWeightMeasurement")

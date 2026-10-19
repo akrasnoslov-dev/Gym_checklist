@@ -1,4 +1,9 @@
 # Gym Checklist — Progress Checkpoint
+## 2026-10-19 — Body-weight tap reliability fresh audit (Pass B)
+- `REMOTE_GATE_APPROVED 9e9997e6d7f28a9fba3f251d315ee47e181d3266`
+- Independent post-handoff review verified the only runtime change is full-row `.contentShape(Rectangle())` applied to the existing plain Button within the weight-history row. Verified that editing retains the record ID, existing in-memory repository overwrites by ID, and strengthened UI test checks edit selection, one-row identity, weight replacement, and deletion. No test is skipped or feature disabled.
+- `git diff --check` on the exact code delta is clean, all applicable local contracts green. A simulator termination failure in the preceding run occurred before app assertions; retry on a fresh runner is appropriate, but cannot be described as an app pass until the authoritative full suite is green.
+- This audit changes this checkpoint only, not app/test/project code. Approved one exact-source macOS focused+full run at source SHA above; if GREEN, build Firebase-backed unsigned IPA from that same SHA only. Do not merge, deploy, or release.
 ## 2026-10-19 — Redesign IPA blocker correction (Pass A)
 - `REMOTE_GATE_READY_FOR_FINAL_AUDIT 9e9997e6d7f28a9fba3f251d315ee47e181d3266`
 - Exact-source full suite `39262211641` compiled, with two UI failures: `testAppLaunchesOnTodayAndNavigatesAllTabs` failed *before app assertions* because XCTest could not terminate the preceding app process (simulator infrastructure flake); `testSettingsProfileAndBodyWeightUpdateBMI` revealed an actual hit-area bug. The accessibility dump showed the previous 81 kg record remained after a later 80 kg record was deleted; the .plain Button's central Spacer was not reliably tappable, so opening Edit could be missed and Save created a second measurement.

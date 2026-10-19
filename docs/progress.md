@@ -1,4 +1,10 @@
 # Gym Checklist — Progress Checkpoint
+## 2026-10-19 — Redesign IPA blocker correction (Pass A)
+- `REMOTE_GATE_READY_FOR_FINAL_AUDIT 9e9997e6d7f28a9fba3f251d315ee47e181d3266`
+- Exact-source full suite `39262211641` compiled, with two UI failures: `testAppLaunchesOnTodayAndNavigatesAllTabs` failed *before app assertions* because XCTest could not terminate the preceding app process (simulator infrastructure flake); `testSettingsProfileAndBodyWeightUpdateBMI` revealed an actual hit-area bug. The accessibility dump showed the previous 81 kg record remained after a later 80 kg record was deleted; the .plain Button's central Spacer was not reliably tappable, so opening Edit could be missed and Save created a second measurement.
+- Fixed the root touch-target bug by adding a full-row content shape to the body-weight edit button. Strengthened UI regression to assert editing is actually selected and keeps the same record identity (one 80 kg record, no residual 81 kg), before testing delete. No test disabled or user-facing feature removed.
+- Local Windows: all eight repository contracts plus `git diff --check` passed. No Xcode installed here; compile and UI behavior require fresh macOS verification.
+- Next: independent fresh audit of the exact code SHA above, then candidate/full macOS suite and Firebase-backed unsigned acceptance IPA only on GREEN. A launch/terminate failure before assertions should be identified separately from a product regression, never silently ignored.
 ## 2026-10-19 — Redesign UI exact-source independent audit
 - `REMOTE_GATE_APPROVED df59dd2d0f6226c276100105a6540d3180ff08bb`
 - Re-read all changed UI-test assertions against corresponding `ProgramView`, `TodayView`, and `SettingsView` flows. Confirmation actions use stable specific identifiers, Today editor uses its actual Keep Editing button; the date and body-weight checks now fail with useful app-tree evidence if the underlying state remains wrong. No test was disabled or product behavior expectation removed.

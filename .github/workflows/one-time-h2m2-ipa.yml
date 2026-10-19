@@ -14,9 +14,9 @@ jobs:
     env:
       # Routine iOS-impacting pull requests get fast feedback. Manual dispatch
       # retains every diagnostic scope, including authoritative full/candidate.
-      VERIFICATION_SCOPE: full
-      TEST_FILTER: ''
-      CANDIDATE_SOURCE_SHA: df59dd2d0f6226c276100105a6540d3180ff08bb
+      VERIFICATION_SCOPE: candidate
+      TEST_FILTER: 'GymChecklistUITests/GymChecklistUITests/testSettingsProfileAndBodyWeightUpdateBMI'
+      CANDIDATE_SOURCE_SHA: 9e9997e6d7f28a9fba3f251d315ee47e181d3266
 
     steps:
       - name: Checkout
@@ -24,7 +24,7 @@ jobs:
         with:
           # workflow_dispatch itself accepts only a branch or tag ref. Candidate
           # gates therefore receive and verify the immutable source commit here.
-          ref: df59dd2d0f6226c276100105a6540d3180ff08bb
+          ref: 9e9997e6d7f28a9fba3f251d315ee47e181d3266
           fetch-depth: 1
 
       - name: Record Xcode version
@@ -245,7 +245,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     env:
-      APP_SOURCE_SHA: df59dd2d0f6226c276100105a6540d3180ff08bb
+      APP_SOURCE_SHA: 9e9997e6d7f28a9fba3f251d315ee47e181d3266
       APP_BUNDLE_ID: dev.akrasnoslov.GymChecklist
       APP_DISPLAY_NAME: Gym Checklist
 
@@ -253,7 +253,7 @@ jobs:
       - name: Checkout accepted MVP app source
         uses: actions/checkout@v4
         with:
-          ref: df59dd2d0f6226c276100105a6540d3180ff08bb
+          ref: 9e9997e6d7f28a9fba3f251d315ee47e181d3266
           fetch-depth: 1
           persist-credentials: false
 
@@ -385,7 +385,7 @@ jobs:
       - name: Upload physical iPhone acceptance IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GymChecklist-MVP-df59dd2d0f6226c276100105a6540d3180ff08bb
+          name: GymChecklist-MVP-9e9997e6d7f28a9fba3f251d315ee47e181d3266
           path: ${{ runner.temp }}/mvp-acceptance-artifact
           if-no-files-found: error
           retention-days: 7

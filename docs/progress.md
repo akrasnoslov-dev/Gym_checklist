@@ -1,4 +1,9 @@
 # Gym Checklist — Progress Checkpoint
+## 2026-10-19 — Redesign UI exact-source independent audit
+- `REMOTE_GATE_APPROVED df59dd2d0f6226c276100105a6540d3180ff08bb`
+- Re-read all changed UI-test assertions against corresponding `ProgramView`, `TodayView`, and `SettingsView` flows. Confirmation actions use stable specific identifiers, Today editor uses its actual Keep Editing button; the date and body-weight checks now fail with useful app-tree evidence if the underlying state remains wrong. No test was disabled or product behavior expectation removed.
+- Verified there are no production Swift changes versus the previous fully compiling source `aa74c55ddff9cc4ccf4c3ff860abd70bf60c2eea`; fresh local contracts and Git whitespace check passed. Approved exact-SHA full suite for the documented test-source SHA only. This second audit changes the checkpoint text only.
+- Use the separately isolated one-time CI orchestration to run full macOS Xcode tests, then build a Firebase-backed unsigned IPA ONLY if green. If red, repair the actual failure and repeat the source audit; never reuse an older IPA as current acceptance evidence.
 ## 2026-10-19 — Redesign full-suite UI regression follow-up — PASS A
 - `REMOTE_GATE_READY_FOR_FINAL_AUDIT df59dd2d0f6226c276100105a6540d3180ff08bb`
 - Investigated failed exact-source full macOS run `39171886114`, identifying two ambiguous dialog-button queries, one mismatched Keep Editing alert expectation, and two insufficiently diagnosed app-state assertions (future workout creation and BMI removal).

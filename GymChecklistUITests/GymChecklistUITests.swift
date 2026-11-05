@@ -571,12 +571,16 @@ final class GymChecklistUITests: XCTestCase {
         replaceText(in: weight, with: "80")
         XCTAssertEqual(weight.value as? String, "80")
         app.buttons["bodyWeightSave"].tap()
-        XCTAssertTrue(app.staticTexts["80 kg"].waitForExistence(timeout: 3))
         let measurementRows = app.buttons.matching(identifier: "bodyWeightMeasurement")
-        XCTAssertEqual(measurementRows.count, 1, "Editing must update the existing row, not add another")
-        XCTAssertFalse(app.staticTexts["81 kg"].exists)
         let updatedMeasurement = measurementRows.firstMatch
-        XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 2))
+        XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 5))
+        XCTAssertEqual(measurementRows.count, 1, "Editing must update the existing row, not add another")
+        // After the row became an explicit Button, its text is exposed as the
+        // button's accessibility label, not a separate staticText element.
+        XCTAssertTrue(
+            waitForLabel(of: updatedMeasurement, toEqual: "80 kg"),
+            "Updated row should display 80 kg; actual label: \(updatedMeasurement.label)"
+        )
         updatedMeasurement.swipeLeft()
         let deleteMeasurement = app.buttons.matching(identifier: "bodyWeightDelete").firstMatch
         XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 3))

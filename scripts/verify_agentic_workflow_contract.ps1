@@ -137,12 +137,14 @@ Forbid-Fragment 'docs/codex_instructions.md' $codex 'Keep Codex as the orchestra
     Require-Fragment '.codex/config.toml' $config $_
 }
 
+# Keep public README focused on the product. Workflow rules have canonical owners.
 @(
-    'ChatGPT project chat is the primary decision-maker and orchestrator.',
-    'One local checkout only: `D:\Projects\gym_checklist`.',
-    'Codex is fallback execution only'
+    'AGENTS.md',
+    'docs/source_of_truth.md',
+    '`dev`'
 ) | ForEach-Object {
     Require-Fragment 'README.md' $readme $_
 }
+Forbid-Fragment 'README.md' $readme 'D:\Projects\gym_checklist'
 
 Write-Output 'ChatGPT-first single-checkout workflow contract: PASS'

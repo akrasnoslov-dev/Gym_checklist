@@ -239,9 +239,16 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(reorderedBenchActions.waitForExistence(timeout: 2))
         reorderedBenchActions.tap()
         app.buttons["Delete"].tap()
-        XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 2))
-        app.buttons["Delete"].tap()
-        XCTAssertFalse(benchName.waitForExistence(timeout: 1))
+        let deleteExerciseAlert = app.alerts["Delete Bench Press?"]
+        XCTAssertTrue(deleteExerciseAlert.waitForExistence(timeout: 3))
+        // SwiftUI exposes both a native container and its child as buttons.
+        // The identifier scoped to this alert avoids ambiguous "Delete" matches.
+        let confirmExerciseDeletion = deleteExerciseAlert.buttons
+            .matching(identifier: "programConfirmDeleteExercise").firstMatch
+        XCTAssertTrue(confirmExerciseDeletion.waitForExistence(timeout: 3))
+        confirmExerciseDeletion.tap()
+        XCTAssertFalse(deleteExerciseAlert.waitForExistence(timeout: 3))
+        XCTAssertFalse(benchName.waitForExistence(timeout: 2))
         app.buttons["programDate-2026-08-13"].tap()
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
         app.buttons["programDate-2026-08-14"].tap()
@@ -550,10 +557,21 @@ final class GymChecklistUITests: XCTestCase {
         app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
         measurement.tap()
+        // Confirm this is an edit, not a second new measurement. A newly
+        // inserted 80 kg row could otherwise hide a broken edit flow.
+        XCTAssertTrue(
+            waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Update body weight"),
+            "Tapping an existing measurement must enter edit mode"
+        )
+        XCTAssertEqual(weight.value as? String, "81")
         replaceText(in: weight, with: "80")
+        XCTAssertEqual(weight.value as? String, "80")
         app.buttons["bodyWeightSave"].tap()
-        XCTAssertTrue(app.staticTexts["80 kg"].exists)
-        let updatedMeasurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
+        XCTAssertTrue(app.staticTexts["80 kg"].waitForExistence(timeout: 3))
+        let measurementRows = app.buttons.matching(identifier: "bodyWeightMeasurement")
+        XCTAssertEqual(measurementRows.count, 1, "Editing must update the existing row, not add another")
+        XCTAssertFalse(app.staticTexts["81 kg"].exists)
+        let updatedMeasurement = measurementRows.firstMatch
         XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 2))
         updatedMeasurement.swipeLeft()
         let deleteMeasurement = app.buttons["Delete"]

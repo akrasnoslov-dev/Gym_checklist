@@ -214,10 +214,16 @@ final class GymChecklistUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(nordicHandle.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(benchHandle.exists, app.debugDescription)
-        let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .withOffset(CGVector(dx: 0, dy: -35))
+        // Keep the drop inside the first row. Dragging above its top edge
+        // leaves the List and can cancel native onMove on Xcode 26.
+        let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
         nordicHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(forDuration: 1.25, thenDragTo: dropPoint)
+            .press(
+                forDuration: 1.5,
+                thenDragTo: dropPoint,
+                withVelocity: .slow,
+                thenHoldForDuration: 0.5
+            )
         let reordered = NSPredicate { _, _ in
             nordicInReorder.exists && benchInReorder.exists
                 && nordicInReorder.frame.minY < benchInReorder.frame.minY
@@ -441,9 +447,20 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
         replaceChoice.buttons["Replace exercises"].tap()
         replaceApp.buttons["copyWorkoutAction"].tap()
-        XCTAssertTrue(replaceApp.buttons["copyWorkoutConfirmReplace"].waitForExistence(timeout: 2))
-        replaceApp.buttons["copyWorkoutConfirmReplace"].tap()
-        XCTAssertFalse(replaceApp.navigationBars["Copy workout"].waitForExistence(timeout: 2))
+        let replaceAlert = replaceApp.alerts["Replace exercises?"]
+        XCTAssertTrue(replaceAlert.waitForExistence(timeout: 3))
+        // SwiftUI exposes a parent and child Button with the same identifier
+        // for this native alert on Xcode 26. Tap the first match in the alert.
+        let confirmReplace = replaceAlert.buttons
+            .matching(identifier: "copyWorkoutConfirmReplace").firstMatch
+        XCTAssertTrue(confirmReplace.waitForExistence(timeout: 3))
+        confirmReplace.tap()
+        XCTAssertFalse(replaceAlert.waitForExistence(timeout: 3))
+        XCTAssertFalse(replaceApp.navigationBars["Copy workout"].waitForExistence(timeout: 5))
+        let replacedExercise = replaceApp.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "exercise 2 of 2")
+        ).firstMatch
+        XCTAssertTrue(reveal(replacedExercise, in: replaceApp), replaceApp.debugDescription)
     }
 
     func testWholeWeightInputsShowNoTrailingDecimal() {
@@ -542,10 +559,19 @@ final class GymChecklistUITests: XCTestCase {
         let deleteMeasurement = app.buttons["Delete"]
         XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 2))
         deleteMeasurement.tap()
-        // Deletion uses an animated native swipe action. Assert the persisted
-        // empty state after closing instead of testing mid-animation existence.
+        // Keep the sheet open until the native swipe action has removed
+        // the persisted measurement. Dismissing during its animation can race
+        // against the data update and hide a missed deletion.
+        XCTAssertTrue(
+            app.staticTexts["No body-weight measurements yet."].waitForExistence(timeout: 8),
+            "Delete did not empty the measurement history: \(app.debugDescription)"
+        )
+        XCTAssertFalse(app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch.exists)
         app.buttons["Done"].tap()
-        XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm"))
+        XCTAssertTrue(
+            waitForValue(app.buttons["settingsProfile"], "180 cm"),
+            "Profile BMI should clear when its last weight is deleted: \(String(describing: app.buttons["settingsProfile"].value))"
+        )
         XCTAssertTrue(waitForValue(app.buttons["settingsBodyWeight"], "Log your first measurement"))
     }
 

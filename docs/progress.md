@@ -1,25 +1,13 @@
 # Gym Checklist — Progress Checkpoint
 
-## 2026-11-05 Audit hardening — full iOS regression follow-up (DRAFT)
-- Audit PR #12 source/test updates are isolated on `audit/2026-11-05-security-ci`; no merge, paid deploy, local-checkout edits or distribution authorization.
-- The previous Xcode 26.3 full UI run `42035749459` failed three checks: a native exercise reorder gesture missed the List row; SwiftUI surfaced nested alert buttons with the same Copy/Replace identifier; the body-weight deletion check raced ahead of the list's empty state.
-- Focused UI test changes keep the product assertions: drag slowly into the first row (rather than above it) and require reordered positions; tap the scoped confirmation in the Replace alert and verify 2/2 exercises; wait for a visibly empty measurement history before checking the cleared BMI summary.
-- SwiftPM `Package.resolved` is committed; CI hard-fails on missing/untracked/drifting pins; Linux CI checks the Function lockfile with `npm ci`. The preceding Linux and visual checks were GREEN, but **this amended candidate is not accepted until its own full macOS suite is GREEN**.
-- Device auth, real Firebase rollback, Firestore emulator security checks and paid deletion deployment remain separate open gates.
-- Next: inspect exact-commit full macOS test output for this PR and fix any real regressions without weakening checks. Do not merge automatically.
-
-## 2026-11-05 Audit hardening — DRAFT, PENDING MACOS VERIFICATION
-- `REMOTE_GATE_READY_FOR_FINAL_AUDIT 8cec5b9c66db114a5da435216480cdd48d90eb48` (production/test/project source commit; this checkpoint is documentation-only).
-- Isolated changes on `audit/2026-11-05-security-ci`. `dev`, `main`, deployments and local Windows checkout are unchanged. This is **not** acceptance, authorization to merge or authorization to run a paid release.
-- Updated the account-deletion source runtime to Node 24 in Firebase configuration, package manifest and npm lockfile; deployed Function remains deferred pending explicit billing approval.
-- Proposed Firebase iOS 13.1.1, Google Sign-In iOS 10.0.0 (9.2.0 constrains GTMSessionFetcher below Firebase 13's minimum), Apple OAuth provider enum, and Xcode 26.3 selection for all macOS jobs.
-- Pinned tagged GitHub Actions uses to verified current v4 commit SHAs; introduced Dependabot and a real Node syntax/runtime check instead of an always-skipped Linux Swift package step.
-- Scoped UI-test/test-date and demo-mode overrides out of ordinary Release; the demo workflow supplies its own `MVP_DEMO` compilation flag.
-- Rewrote README and added a product/delivery case study, explicitly marking metrics and physical-device acceptance as unverified.
-- **Static verification:** live branch/file consistency assertions PASS, Node runtime/lock metadata alignment PASS, GitHub Action pinning/Xcode selection checks PASS; `node --check functions/index.js` passed on the connected Windows device's separate checkout (not an exact-source validation of this branch).
-- **Open:** macOS Xcode build and full tests, Firebase emulator tests, actual `npm install` on this branch, SwiftPM `Package.resolved` generation/commit, hard-fail lock check, Google/Apple/email sign-in tests, device acceptance, Firestore schema tests, repository archival/cleanup, licensing choice and broader Swift refactoring.
-- **Next safe action:** independent final audit of the exact source SHA above; resolve dependency lock and any Xcode compatibility problems before authorizing a full candidate gate. Do not change billing or deploy.
-
+## 2026-11-05 PR #12 audit hardening — final automated gate pending
+- Isolated PR #12 branch `audit/2026-11-05-security-ci` targets `dev`. User explicitly authorized merging this PR into `dev` **only once required CI is green**. No authorization for `main`, Firebase billing/deployment, App Store, or TestFlight.
+- Hardening included Firebase account-deletion runtime Node 24, Firebase iOS 13.1.1, Google Sign-In iOS 10.1.0, Xcode 26.3 CI, pinned Actions, Dependabot, Release isolation, README and case study updates.
+- SwiftPM `Package.resolved` was captured on successful Xcode smoke run `42028473673`, committed and required by CI; Linux CI checks Cloud Function syntax and `npm ci`.
+- Full macOS run `42035749459` exposed three UI test failures; drag ordering, nested Copy alert and ambiguous delete-action selection were corrected. Full run `42071791869` left just one issue: tapping a saved body-weight row did not enter Update mode. The Body Weight sheet now exposes an explicit Edit action plus separately identified swipe-delete action. The test checks Update mode, one-row identity after editing, empty history after deletion and BMI clearing.
+- Temporary focused-test selection was removed. This checkpoint requires one full Xcode 26.3 macOS CI run and passing Linux/visual checks on the **same final commit** before merge. No assertion or product coverage was deliberately removed.
+- Physical iPhone auth, sync and account-deletion acceptance; Firestore emulator rules tests; billing-gated live deletion Function; and release/distribution remain separate open checks and are not represented as validated by this PR.
+- Next: validate all automated checks at exact PR head; fix real failures if any; merge PR #12 into `dev` only when green. Do not promote `dev` to `main`.
 
 ## 2026-10-16 Phase 9 acceptance follow-up — PASS A COMPLETE
 - `REMOTE_GATE_READY_FOR_FINAL_AUDIT e3b2b76ea661cedf60e40a4a7ed32bd859d5c412`

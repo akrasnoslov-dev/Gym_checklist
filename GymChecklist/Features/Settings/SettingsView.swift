@@ -775,6 +775,7 @@ private struct BodyWeightHistorySheet: View {
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
+                            .accessibilityIdentifier("bodyWeightDelete")
                         }
                     }
                 }

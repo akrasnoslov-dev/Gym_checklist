@@ -578,8 +578,8 @@ final class GymChecklistUITests: XCTestCase {
         let updatedMeasurement = measurementRows.firstMatch
         XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 2))
         updatedMeasurement.swipeLeft()
-        let deleteMeasurement = app.buttons["Delete"]
-        XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 2))
+        let deleteMeasurement = app.buttons.matching(identifier: "bodyWeightDelete").firstMatch
+        XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 3))
         deleteMeasurement.tap()
         // Keep the sheet open until the native swipe action has removed
         // the persisted measurement. Dismissing during its animation can race

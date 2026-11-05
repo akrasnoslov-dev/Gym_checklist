@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-acceptance-ipa:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 40
     env:
       APP_SOURCE_SHA: ${{ inputs.source_sha }}
@@ -21,8 +21,14 @@ jobs:
       APP_DISPLAY_NAME: Gym Checklist
 
     steps:
+      - name: Select Xcode 26.3
+        shell: bash
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+
       - name: Checkout accepted MVP app source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 1
@@ -154,7 +160,7 @@ jobs:
             > "$ARTIFACT_DIRECTORY/manifest.txt"
 
       - name: Upload physical iPhone acceptance IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: GymChecklist-MVP-${{ inputs.source_sha }}
           path: ${{ runner.temp }}/mvp-acceptance-artifact

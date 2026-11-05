@@ -214,10 +214,16 @@ final class GymChecklistUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(nordicHandle.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(benchHandle.exists, app.debugDescription)
-        let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .withOffset(CGVector(dx: 0, dy: -35))
+        // Keep the drop inside the first row. Dragging above its top edge
+        // leaves the List and can cancel native onMove on Xcode 26.
+        let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
         nordicHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(forDuration: 1.25, thenDragTo: dropPoint)
+            .press(
+                forDuration: 1.5,
+                thenDragTo: dropPoint,
+                withVelocity: .slow,
+                thenHoldForDuration: 0.5
+            )
         let reordered = NSPredicate { _, _ in
             nordicInReorder.exists && benchInReorder.exists
                 && nordicInReorder.frame.minY < benchInReorder.frame.minY
@@ -233,9 +239,16 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(reorderedBenchActions.waitForExistence(timeout: 2))
         reorderedBenchActions.tap()
         app.buttons["Delete"].tap()
-        XCTAssertTrue(app.buttons["Delete"].waitForExistence(timeout: 2))
-        app.buttons["Delete"].tap()
-        XCTAssertFalse(benchName.waitForExistence(timeout: 1))
+        let deleteExerciseAlert = app.alerts["Delete Bench Press?"]
+        XCTAssertTrue(deleteExerciseAlert.waitForExistence(timeout: 3))
+        // SwiftUI exposes both a native container and its child as buttons.
+        // The identifier scoped to this alert avoids ambiguous "Delete" matches.
+        let confirmExerciseDeletion = deleteExerciseAlert.buttons
+            .matching(identifier: "programConfirmDeleteExercise").firstMatch
+        XCTAssertTrue(confirmExerciseDeletion.waitForExistence(timeout: 3))
+        confirmExerciseDeletion.tap()
+        XCTAssertFalse(deleteExerciseAlert.waitForExistence(timeout: 3))
+        XCTAssertFalse(benchName.waitForExistence(timeout: 2))
         app.buttons["programDate-2026-08-13"].tap()
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
         app.buttons["programDate-2026-08-14"].tap()
@@ -441,9 +454,20 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
         replaceChoice.buttons["Replace exercises"].tap()
         replaceApp.buttons["copyWorkoutAction"].tap()
-        XCTAssertTrue(replaceApp.buttons["copyWorkoutConfirmReplace"].waitForExistence(timeout: 2))
-        replaceApp.buttons["copyWorkoutConfirmReplace"].tap()
-        XCTAssertFalse(replaceApp.navigationBars["Copy workout"].waitForExistence(timeout: 2))
+        let replaceAlert = replaceApp.alerts["Replace exercises?"]
+        XCTAssertTrue(replaceAlert.waitForExistence(timeout: 3))
+        // SwiftUI exposes a parent and child Button with the same identifier
+        // for this native alert on Xcode 26. Tap the first match in the alert.
+        let confirmReplace = replaceAlert.buttons
+            .matching(identifier: "copyWorkoutConfirmReplace").firstMatch
+        XCTAssertTrue(confirmReplace.waitForExistence(timeout: 3))
+        confirmReplace.tap()
+        XCTAssertFalse(replaceAlert.waitForExistence(timeout: 3))
+        XCTAssertFalse(replaceApp.navigationBars["Copy workout"].waitForExistence(timeout: 5))
+        let replacedExercise = replaceApp.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "exercise 2 of 2")
+        ).firstMatch
+        XCTAssertTrue(reveal(replacedExercise, in: replaceApp), replaceApp.debugDescription)
     }
 
     func testWholeWeightInputsShowNoTrailingDecimal() {
@@ -532,20 +556,48 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm - BMI 25.0"))
         app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
-        measurement.tap()
+        // The visible Edit affordance is a dedicated button instead of text
+        // nested inside the row's swipe-action button.
+        let editWeight = app.buttons["bodyWeightEdit"]
+        XCTAssertTrue(editWeight.waitForExistence(timeout: 3))
+        editWeight.tap()
+        // Confirm this is an edit, not a second new measurement. A newly
+        // inserted 80 kg row could otherwise hide a broken edit flow.
+        XCTAssertTrue(
+            waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Update body weight"),
+            "Tapping Edit must enter update mode; actual label: \(app.buttons["bodyWeightSave"].label), input: \(String(describing: weight.value))"
+        )
+        XCTAssertEqual(weight.value as? String, "81")
         replaceText(in: weight, with: "80")
+        XCTAssertEqual(weight.value as? String, "80")
         app.buttons["bodyWeightSave"].tap()
-        XCTAssertTrue(app.staticTexts["80 kg"].exists)
-        let updatedMeasurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
-        XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 2))
+        let measurementRows = app.buttons.matching(identifier: "bodyWeightMeasurement")
+        let updatedMeasurement = measurementRows.firstMatch
+        XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 5))
+        XCTAssertEqual(measurementRows.count, 1, "Editing must update the existing row, not add another")
+        // After the row became an explicit Button, its text is exposed as the
+        // button's accessibility label, not a separate staticText element.
+        XCTAssertTrue(
+            waitForLabel(of: updatedMeasurement, toEqual: "80 kg"),
+            "Updated row should display 80 kg; actual label: \(updatedMeasurement.label)"
+        )
         updatedMeasurement.swipeLeft()
-        let deleteMeasurement = app.buttons["Delete"]
-        XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 2))
+        let deleteMeasurement = app.buttons.matching(identifier: "bodyWeightDelete").firstMatch
+        XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 3))
         deleteMeasurement.tap()
-        // Deletion uses an animated native swipe action. Assert the persisted
-        // empty state after closing instead of testing mid-animation existence.
+        // Keep the sheet open until the native swipe action has removed
+        // the persisted measurement. Dismissing during its animation can race
+        // against the data update and hide a missed deletion.
+        XCTAssertTrue(
+            app.staticTexts["No body-weight measurements yet."].waitForExistence(timeout: 8),
+            "Delete did not empty the measurement history: \(app.debugDescription)"
+        )
+        XCTAssertFalse(app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch.exists)
         app.buttons["Done"].tap()
-        XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm"))
+        XCTAssertTrue(
+            waitForValue(app.buttons["settingsProfile"], "180 cm"),
+            "Profile BMI should clear when its last weight is deleted: \(String(describing: app.buttons["settingsProfile"].value))"
+        )
         XCTAssertTrue(waitForValue(app.buttons["settingsBodyWeight"], "Log your first measurement"))
     }
 

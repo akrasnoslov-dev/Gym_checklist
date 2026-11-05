@@ -57,11 +57,13 @@ Deliberately out of scope for the MVP: statistics and charts, AI coaching, rest 
 - **Owner-scoped security rules.** Every collection lives under `users/{uid}` and only that user can read or write it.
 - **Repository protocols with in-memory implementations** keep view models testable without Firebase.
 
+For the product hypotheses, MVP trade-offs and unmeasured acceptance goals, see the [PM case study](docs/case-study.md).
+
 More detail: [`docs/architecture.md`](docs/architecture.md), [`docs/firestore_security.md`](docs/firestore_security.md), [`docs/offline_test_plan.md`](docs/offline_test_plan.md).
 
 ## Getting started
 
-Requirements: macOS with Xcode 16 or newer, and a Firebase project on the free Spark plan.
+Requirements: macOS with **Xcode 26.3** (or a compatible newer version) and a non-production Firebase project on the free Spark plan. Firebase 13 needs at least Xcode 26.2.
 
 1. Clone the repository and open `GymChecklist.xcodeproj`.
 2. In the Firebase console, create a project, enable Authentication, create Firestore in **production mode**, and register an iOS app with bundle ID `dev.akrasnoslov.GymChecklist` (or your own).

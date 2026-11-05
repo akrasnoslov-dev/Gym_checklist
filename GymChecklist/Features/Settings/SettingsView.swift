@@ -739,24 +739,29 @@ private struct BodyWeightHistorySheet: View {
                     }
 
                     ForEach(measurements) { measurement in
-                        Button {
-                            editingMeasurement = measurement
-                            weightText = unit.displayWeight(fromCanonicalKilograms: measurement.weightInKilograms)
-                                .formatted(.number.precision(.fractionLength(0...2)))
-                            measurementDate = measurement.localDate.date(in: .autoupdatingCurrent) ?? measurement.measuredAt
-                        } label: {
-                            HStack(spacing: GymTheme.spacing12) {
+                        HStack(spacing: GymTheme.spacing12) {
+                            Button {
+                                beginEditing(measurement)
+                            } label: {
                                 Text("\(unit.displayWeight(fromCanonicalKilograms: measurement.weightInKilograms).formatted(.number.precision(.fractionLength(0...2)))) \(unit.rawValue)")
                                     .font(.body.weight(.medium))
                                     .foregroundStyle(GymTheme.textPrimary)
-                                Spacer()
+                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("bodyWeightMeasurement")
+
+                            Button {
+                                beginEditing(measurement)
+                            } label: {
                                 Text(measurementDateLabel(measurement) + " · Edit")
                                     .foregroundStyle(GymTheme.accentForeground)
+                                    .frame(minHeight: 44)
                             }
-                            .frame(minHeight: 44)
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("bodyWeightEdit")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("bodyWeightMeasurement")
                         .swipeActions {
                             Button(role: .destructive) {
                                 do {
@@ -770,6 +775,7 @@ private struct BodyWeightHistorySheet: View {
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
+                            .accessibilityIdentifier("bodyWeightDelete")
                         }
                     }
                 }
@@ -797,6 +803,13 @@ private struct BodyWeightHistorySheet: View {
                 Text("Try again. Your saved measurement is still available.")
             }
         }
+    }
+
+    private func beginEditing(_ measurement: BodyWeightMeasurement) {
+        editingMeasurement = measurement
+        weightText = unit.displayWeight(fromCanonicalKilograms: measurement.weightInKilograms)
+            .formatted(.number.precision(.fractionLength(0...2)))
+        measurementDate = measurement.localDate.date(in: .autoupdatingCurrent) ?? measurement.measuredAt
     }
 
     private func measurementDateLabel(_ measurement: BodyWeightMeasurement) -> String {

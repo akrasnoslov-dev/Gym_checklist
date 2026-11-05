@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       verification_scope:
-        description: "Manual verification scope (automatic pull-request runs always use smoke)"
+        description: "Manual verification scope (pull requests use smoke unless title contains [full-ci])"
         required: true
         default: smoke
         type: choice
@@ -52,18 +52,25 @@ concurrency:
 
 jobs:
   build-and-test:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 45
     env:
-      # Routine iOS-impacting pull requests get fast feedback. Manual dispatch
-      # retains every diagnostic scope, including authoritative full/candidate.
-      VERIFICATION_SCOPE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.verification_scope }}
+      # Routine iOS-impacting pull requests use smoke by default; [full-ci]
+      # in the PR title requests the full suite. Manual dispatch retains
+      # every diagnostic scope, including authoritative full/candidate.
+      VERIFICATION_SCOPE: ${{ github.event_name == 'pull_request' && (contains(github.event.pull_request.title, '[full-ci]') && 'full' || 'smoke') || inputs.verification_scope }}
       TEST_FILTER: ${{ inputs.test_filter || '' }}
       CANDIDATE_SOURCE_SHA: ${{ inputs.candidate_source_sha || '' }}
 
     steps:
+      - name: Select Xcode 26.3
+        shell: bash
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # workflow_dispatch itself accepts only a branch or tag ref. Candidate
           # gates therefore receive and verify the immutable source commit here.
@@ -78,7 +85,7 @@ jobs:
           echo "version=$(xcodebuild -version | awk 'NR == 1 { print $2 }')" >> "$GITHUB_OUTPUT"
 
       - name: Cache Swift package sources
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ runner.temp }}/SourcePackages
           key: ${{ runner.os }}-xcode-${{ steps.xcode.outputs.version }}-swiftpm-${{ hashFiles('GymChecklist.xcodeproj/project.pbxproj', '**/Package.resolved', 'Package.swift') }}
@@ -141,16 +148,24 @@ jobs:
           LOG_DIRECTORY="$RUNNER_TEMP/ci-logs"
           mkdir -p "$PACKAGE_DIRECTORY" "$DERIVED_DATA" "$LOG_DIRECTORY"
 
-          xcodebuild \
+          if ! xcodebuild \
             -resolvePackageDependencies \
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY" \
-            > "$LOG_DIRECTORY/package-resolution.log" 2>&1
-
-          if [ -f "GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" ]; then
-            git diff --exit-code -- GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+            > "$LOG_DIRECTORY/package-resolution.log" 2>&1; then
+            echo "Swift package resolution failed; last 150 log lines:" >&2
+            tail -n 150 "$LOG_DIRECTORY/package-resolution.log" >&2
+            exit 1
           fi
+
+          LOCKFILE="GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          if [ ! -s "$LOCKFILE" ]; then
+            echo "Required SwiftPM Package.resolved is missing or empty" >&2
+            exit 1
+          fi
+          git ls-files --error-unmatch -- "$LOCKFILE" >/dev/null
+          git diff --exit-code -- "$LOCKFILE"
 
           XCODE_ARGS=(
             -project "$PROJECT"
@@ -274,9 +289,18 @@ jobs:
               ;;
           esac
 
+      - name: Capture Swift package lockfile
+        if: always() && steps.detect.outputs.project_found == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: swiftpm-resolved-${{ github.run_id }}
+          path: GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Upload CI diagnostics
         if: failure() && steps.detect.outputs.project_found == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-ci-diagnostics-${{ github.run_id }}
           path: ${{ runner.temp }}/ci-logs

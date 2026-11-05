@@ -1,5 +1,13 @@
 # Gym Checklist — Progress Checkpoint
 
+## 2026-11-05 PR #12 audit hardening — final automated gate pending
+- Isolated PR #12 branch `audit/2026-11-05-security-ci` targets `dev`. User explicitly authorized merging this PR into `dev` **only once required CI is green**. No authorization for `main`, Firebase billing/deployment, App Store, or TestFlight.
+- Hardening included Firebase account-deletion runtime Node 24, Firebase iOS 13.1.1, Google Sign-In iOS 10.1.0, Xcode 26.3 CI, pinned Actions, Dependabot, Release isolation, README and case study updates.
+- SwiftPM `Package.resolved` was captured on successful Xcode smoke run `42028473673`, committed and required by CI; Linux CI checks Cloud Function syntax and `npm ci`.
+- Full macOS run `42035749459` exposed three UI test failures; drag ordering, nested Copy alert and ambiguous delete-action selection were corrected. Full run `42071791869` left just one issue: tapping a saved body-weight row did not enter Update mode. The Body Weight sheet now exposes an explicit Edit action plus separately identified swipe-delete action. Focused run `42077781839` reached the updated row check after entering Update mode, but the old XCTest expected a separate `staticText`; the test now checks the accessible weight-button label, enforces one-row identity, then verifies deletion and BMI clearing.
+- Temporary focused-test selection was removed. This checkpoint requires one full Xcode 26.3 macOS CI run and passing Linux/visual checks on the **same final commit** before merge. No assertion or product coverage was deliberately removed.
+- Physical iPhone auth, sync and account-deletion acceptance; Firestore emulator rules tests; billing-gated live deletion Function; and release/distribution remain separate open checks and are not represented as validated by this PR.
+- Next: validate all automated checks at exact PR head; fix real failures if any; merge PR #12 into `dev` only when green. Do not promote `dev` to `main`.
 
 ## 2026-10-16 Phase 9 acceptance follow-up — PASS A COMPLETE
 - `REMOTE_GATE_READY_FOR_FINAL_AUDIT e3b2b76ea661cedf60e40a4a7ed32bd859d5c412`

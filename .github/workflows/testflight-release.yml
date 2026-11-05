@@ -181,7 +181,7 @@ jobs:
 
       - name: Upload signed IPA artifact
         if: inputs.destination == 'artifact'
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: GymChecklist-${{ inputs.build_number }}
           path: ${{ runner.temp }}/GymChecklist-${{ inputs.build_number }}.ipa

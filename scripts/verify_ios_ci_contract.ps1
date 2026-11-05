@@ -79,7 +79,8 @@ if (-not $xcodeVersionStep.Success -or $xcodeVersionStep.Value -notmatch '(?m)^ 
     throw 'iOS CI must record the Xcode version used by the SwiftPM cache.'
 }
 $requiredRoutineAndConcurrencyPatterns = @(
-    'VERIFICATION_SCOPE:\s*\$\{\{\s*github\.event_name\s*==\s*''pull_request''\s*&&\s*\(contains\(github\.event\.pull_request\.title,\s*''\[full-ci\]''\)\s*&&\s*''full''\s*\|\|\s*''smoke''\)\s*\|\|\s*inputs\.verification_scope\s*\}\}',
+    'VERIFICATION_SCOPE:.*\[focus-weight\].*''ui''.*\[full-ci\].*''full''.*''smoke''.*inputs\.verification_scope',
+    'TEST_FILTER:.*\[focus-weight\].*GymChecklistUITests/GymChecklistUITests/testSettingsProfileAndBodyWeightUpdateBMI',
     '(?m)^\s*- full\s*$',
     '(?m)^\s*- smoke\s*$',
     '(?m)^\s*- build\s*$',

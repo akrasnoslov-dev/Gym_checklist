@@ -1,5 +1,13 @@
 # Gym Checklist — Progress Checkpoint
 
+## 2026-11-05 Audit hardening — full iOS regression follow-up (DRAFT)
+- Audit PR #12 source/test updates are isolated on `audit/2026-11-05-security-ci`; no merge, paid deploy, local-checkout edits or distribution authorization.
+- The previous Xcode 26.3 full UI run `42035749459` failed three checks: a native exercise reorder gesture missed the List row; SwiftUI surfaced nested alert buttons with the same Copy/Replace identifier; the body-weight deletion check raced ahead of the list's empty state.
+- Focused UI test changes keep the product assertions: drag slowly into the first row (rather than above it) and require reordered positions; tap the scoped confirmation in the Replace alert and verify 2/2 exercises; wait for a visibly empty measurement history before checking the cleared BMI summary.
+- SwiftPM `Package.resolved` is committed; CI hard-fails on missing/untracked/drifting pins; Linux CI checks the Function lockfile with `npm ci`. The preceding Linux and visual checks were GREEN, but **this amended candidate is not accepted until its own full macOS suite is GREEN**.
+- Device auth, real Firebase rollback, Firestore emulator security checks and paid deletion deployment remain separate open gates.
+- Next: inspect exact-commit full macOS test output for this PR and fix any real regressions without weakening checks. Do not merge automatically.
+
 ## 2026-11-05 Audit hardening — DRAFT, PENDING MACOS VERIFICATION
 - `REMOTE_GATE_READY_FOR_FINAL_AUDIT 8cec5b9c66db114a5da435216480cdd48d90eb48` (production/test/project source commit; this checkpoint is documentation-only).
 - Isolated changes on `audit/2026-11-05-security-ci`. `dev`, `main`, deployments and local Windows checkout are unchanged. This is **not** acceptance, authorization to merge or authorization to run a paid release.

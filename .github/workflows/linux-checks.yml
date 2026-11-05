@@ -105,12 +105,20 @@ jobs:
         shell: pwsh
         run: ./scripts/verify_agentic_workflow_contract.ps1
 
-      - name: Run Swift package tests when available
+      - name: Verify Cloud Function runtime and syntax
         shell: bash
         run: |
           set -euo pipefail
-          if [ -f Package.swift ]; then
-            swift test
-          else
-            echo 'No Package.swift; Xcode/SwiftUI tests remain macOS-only.'
-          fi
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          firebase = json.loads(Path('firebase.json').read_text())
+          package = json.loads(Path('functions/package.json').read_text())
+          lock = json.loads(Path('functions/package-lock.json').read_text())
+          assert firebase['functions']['runtime'] == 'nodejs24'
+          assert package['engines']['node'] == '24'
+          assert lock['packages']['']['engines']['node'] == '24'
+          print('Node 24 runtime configuration: PASS')
+          PY
+          node --check functions/index.js

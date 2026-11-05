@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       verification_scope:
-        description: "Manual verification scope (automatic pull-request runs always use smoke)"
+        description: "Manual verification scope (pull requests use smoke unless title contains [full-ci])"
         required: true
         default: smoke
         type: choice
@@ -55,9 +55,10 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     env:
-      # Routine iOS-impacting pull requests get fast feedback. Manual dispatch
-      # retains every diagnostic scope, including authoritative full/candidate.
-      VERIFICATION_SCOPE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.verification_scope }}
+      # Routine iOS-impacting pull requests use smoke by default; [full-ci]
+      # in the PR title requests the full suite. Manual dispatch retains
+      # every diagnostic scope, including authoritative full/candidate.
+      VERIFICATION_SCOPE: ${{ github.event_name == 'pull_request' && (contains(github.event.pull_request.title, '[full-ci]') && 'full' || 'smoke') || inputs.verification_scope }}
       TEST_FILTER: ${{ inputs.test_filter || '' }}
       CANDIDATE_SOURCE_SHA: ${{ inputs.candidate_source_sha || '' }}
 

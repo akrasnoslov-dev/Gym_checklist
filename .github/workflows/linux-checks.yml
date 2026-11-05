@@ -105,6 +105,10 @@ jobs:
         shell: pwsh
         run: ./scripts/verify_agentic_workflow_contract.ps1
 
+      - name: Validate Cloud Function npm lockfile
+        shell: bash
+        run: npm ci --prefix functions --ignore-scripts --no-audit --no-fund
+
       - name: Check Cloud Function syntax and Node runtime contract
         shell: bash
         run: |

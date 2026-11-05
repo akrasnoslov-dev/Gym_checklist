@@ -52,7 +52,7 @@ concurrency:
 
 jobs:
   build-and-test:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 45
     env:
       # Routine iOS-impacting pull requests get fast feedback. Manual dispatch
@@ -62,8 +62,14 @@ jobs:
       CANDIDATE_SOURCE_SHA: ${{ inputs.candidate_source_sha || '' }}
 
     steps:
+      - name: Select Xcode 26.3
+        shell: bash
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # workflow_dispatch itself accepts only a branch or tag ref. Candidate
           # gates therefore receive and verify the immutable source commit here.
@@ -78,7 +84,7 @@ jobs:
           echo "version=$(xcodebuild -version | awk 'NR == 1 { print $2 }')" >> "$GITHUB_OUTPUT"
 
       - name: Cache Swift package sources
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ runner.temp }}/SourcePackages
           key: ${{ runner.os }}-xcode-${{ steps.xcode.outputs.version }}-swiftpm-${{ hashFiles('GymChecklist.xcodeproj/project.pbxproj', '**/Package.resolved', 'Package.swift') }}
@@ -276,7 +282,7 @@ jobs:
 
       - name: Upload CI diagnostics
         if: failure() && steps.detect.outputs.project_found == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-ci-diagnostics-${{ github.run_id }}
           path: ${{ runner.temp }}/ci-logs

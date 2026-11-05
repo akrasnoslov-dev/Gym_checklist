@@ -8,11 +8,17 @@ permissions:
 
 jobs:
   build-demo-ipa:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 35
     steps:
+      - name: Select Xcode 26.3
+        shell: bash
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Show Xcode version
         run: xcodebuild -version
@@ -76,7 +82,7 @@ jobs:
           unzip -l "$RUNNER_TEMP/GymChecklist-Demo.ipa" | head -80
 
       - name: Upload GymChecklist Demo IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: GymChecklist-Demo
           path: |

@@ -59,7 +59,7 @@ jobs:
 
   archive:
     needs: validate-source
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 30
     environment: testflight-internal
     permissions:
@@ -78,6 +78,12 @@ jobs:
       DESTINATION: ${{ inputs.destination }}
 
     steps:
+      - name: Select Xcode 26.3
+        shell: bash
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ needs.validate-source.outputs.source_sha }}

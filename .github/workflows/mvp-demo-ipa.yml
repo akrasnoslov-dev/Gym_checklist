@@ -42,6 +42,7 @@ jobs:
             -scheme GymChecklist \
             -configuration Release \
             -destination "generic/platform=iOS" \
+            OTHER_SWIFT_FLAGS="-D MVP_DEMO" \
             -derivedDataPath "$DERIVED_DATA" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             CODE_SIGNING_ALLOWED=NO \

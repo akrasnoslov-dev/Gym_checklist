@@ -147,12 +147,16 @@ jobs:
           LOG_DIRECTORY="$RUNNER_TEMP/ci-logs"
           mkdir -p "$PACKAGE_DIRECTORY" "$DERIVED_DATA" "$LOG_DIRECTORY"
 
-          xcodebuild \
+          if ! xcodebuild \
             -resolvePackageDependencies \
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY" \
-            > "$LOG_DIRECTORY/package-resolution.log" 2>&1
+            > "$LOG_DIRECTORY/package-resolution.log" 2>&1; then
+            echo "Swift package resolution failed; last 150 log lines:" >&2
+            tail -n 150 "$LOG_DIRECTORY/package-resolution.log" >&2
+            exit 1
+          fi
 
           if [ -f "GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" ]; then
             git diff --exit-code -- GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved

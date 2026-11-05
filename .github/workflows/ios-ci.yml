@@ -158,9 +158,13 @@ jobs:
             exit 1
           fi
 
-          if [ -f "GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" ]; then
-            git diff --exit-code -- GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          LOCKFILE="GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          if [ ! -s "$LOCKFILE" ]; then
+            echo "Required SwiftPM Package.resolved is missing or empty" >&2
+            exit 1
           fi
+          git ls-files --error-unmatch -- "$LOCKFILE" >/dev/null
+          git diff --exit-code -- "$LOCKFILE"
 
           XCODE_ARGS=(
             -project "$PROJECT"

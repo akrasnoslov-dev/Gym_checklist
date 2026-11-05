@@ -556,12 +556,16 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm - BMI 25.0"))
         app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
-        measurement.tap()
+        // The visible Edit affordance is a dedicated button instead of text
+        // nested inside the row's swipe-action button.
+        let editWeight = app.buttons["bodyWeightEdit"]
+        XCTAssertTrue(editWeight.waitForExistence(timeout: 3))
+        editWeight.tap()
         // Confirm this is an edit, not a second new measurement. A newly
         // inserted 80 kg row could otherwise hide a broken edit flow.
         XCTAssertTrue(
             waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Update body weight"),
-            "Tapping an existing measurement must enter edit mode"
+            "Tapping Edit must enter update mode; actual label: \(app.buttons["bodyWeightSave"].label), input: \(String(describing: weight.value))"
         )
         XCTAssertEqual(weight.value as? String, "81")
         replaceText(in: weight, with: "80")

@@ -284,6 +284,15 @@ jobs:
               ;;
           esac
 
+      - name: Capture Swift package lockfile
+        if: always() && steps.detect.outputs.project_found == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: swiftpm-resolved-${{ github.run_id }}
+          path: GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Upload CI diagnostics
         if: failure() && steps.detect.outputs.project_found == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

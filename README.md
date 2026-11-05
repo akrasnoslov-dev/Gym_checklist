@@ -1,57 +1,115 @@
 # Gym Checklist
 
-A native iPhone workout checklist for people who already have a training plan. It focuses on doing the workout, not planning one.
+A minimalist iOS app for people who already know their workout plan and want to execute it with almost no thinking or navigation.
 
-**Core flow:** Open app → Today → tap completed sets → close app.
+> Open app → see today's workout → tap each completed set → close app.
 
-## What the MVP does
+<p align="center">
+  <img src="design/current-app-screenshots/today-03.jpg" width="230" alt="Today screen, light theme">
+  <img src="design/current-app-screenshots/today-02.jpg" width="230" alt="Today screen, dark theme">
+  <img src="design/current-app-screenshots/program-01.jpg" width="230" alt="Program screen, week view">
+</p>
 
-- **Today:** check off or undo individual sets in one tap; edit planned or actual values, skip/restore exercises, see rest days.
-- **Program:** manage workouts by date, copy a plan and repeat it across future weeks.
-- **Settings:** adjust appearance, kg/lb display and a compact profile/body-weight history.
-- **Account and persistence:** Firebase Authentication, owner-scoped Firestore data, offline persistence, Analytics and Crashlytics.
+_Screenshots were captured on a physical iPhone in September 2026, before the Phase 9 visual redesign._
 
-The product deliberately excludes AI coaching, social features, rest timers, nutrition, Android and a statistics dashboard. The intent is to keep gym-session interactions fast.
+## Why this exists
 
-## Product decisions
+Most workout trackers ask you to start a session, browse exercise libraries and read charts between sets. People with a fixed plan do not need any of that in the gym. Gym Checklist keeps roughly 90% of in-gym interaction on one screen, **Today**, and moves everything else (planning, history, settings) behind secondary screens.
 
-- Start on Today after signing in.
-- A completed set should require no navigation or confirmation.
-- Store a workout for a **date**, not an abstract weekday.
-- Preserve locally cached workout data when offline.
-- Keep workout ownership under `users/{uid}` and require authenticated access.
+Product principles:
 
-See [product specification](docs/product_spec.md), [UX specification](docs/ux_spec.md) and [architecture](docs/architecture.md). The [PM case study](docs/case-study.md) explains the problem, trade-offs and acceptance goals.
+1. Today opens first after login.
+2. One tap completes a set; one tap undoes it. No modals, no confirmations.
+3. No mandatory "start workout" flow.
+4. No coaching, recommendations or analytics on Today.
+5. Cached workouts stay usable offline.
 
-## Technology
+## Features (MVP)
 
-Swift, SwiftUI, feature-oriented MVVM, Firebase Authentication, Cloud Firestore, Analytics, Crashlytics, and GitHub Actions. The iOS deployment target is **iOS 17+**.
+- **Today:** checklist of the current date's workout, grouped by exercise; long-press a set to edit the plan or the actual values; skip and restore exercises; dismissible completion popup.
+- **Program:** week and month calendar, one workout per date, ordered exercises and sets (reorder, swipe to delete), historical editing of actual values.
+- **Planning helpers:** copy a workout to another date (add or replace) and repeat it weekly for 1–4 week cadences.
+- **Exercises:** bundled searchable catalog plus custom exercises.
+- **Sets:** weighted, reps-only or timed.
+- **Settings:** kg/lb, System/Light/Dark, profile, dated body-weight history with derived BMI.
+- **Accounts:** email/password, Google and Sign in with Apple, in-app account deletion.
+- **Offline-first:** writes apply locally first and sync when the connection returns.
 
-Key paths:
+Deliberately out of scope for the MVP: statistics and charts, AI coaching, rest timers, Apple Watch/HealthKit, social features, payments, Android/web. The full list and rationale are in [`docs/product_spec.md`](docs/product_spec.md).
 
-- `GymChecklist/` — app source (App, Features, Core, Data).
-- `GymChecklistTests/` and `GymChecklistUITests/` — unit and UI tests.
-- `functions/` — the callable account-deletion backend.
-- `design/prototype/` — browser-based design prototype and review gallery.
-- `docs/` — product, architecture, acceptance and delivery records.
+## Tech stack
 
-## Run locally
+| Area | Choice |
+| --- | --- |
+| App | Swift, SwiftUI, feature-oriented MVVM, iOS 17+ (iPhone, portrait) |
+| Auth | Firebase Authentication (email, Google, Apple) |
+| Data | Cloud Firestore with offline persistence |
+| Observability | Firebase Analytics (parameter-free events), Crashlytics |
+| Backend | One callable Cloud Function, `deleteAccount` (Node.js) |
+| CI | GitHub Actions: Linux static checks, macOS build and tests, prototype visual regression |
 
-1. On macOS, install Xcode **26.3** (or a compatible newer version) and open `GymChecklist.xcodeproj`.
-2. Resolve Swift packages through Xcode and select the `GymChecklist` scheme.
-3. For Firebase-backed sign-in and persistence, register your own non-production Firebase app and place a valid `GoogleService-Info.plist` in `GymChecklist/`. **Do not commit this file or any credentials.** See [Firebase setup](docs/firebase_setup.md).
-4. Build and run on an iOS 17+ simulator or iPhone. Run the unit/UI tests with Xcode. CI on macOS is the authoritative iOS build check.
+## Key engineering decisions
 
-The unsigned/demo IPA workflow is a separate validation path and does not prove live Firebase behavior. Account-deletion Cloud Function deployment can require Firebase Blaze; billing, paid Apple distribution, TestFlight and release signing are **not enabled** as part of the free MVP acceptance.
+- **One Firestore document per workout day**, keyed by `yyyy-MM-dd`, so the Today screen reads a single document and works from cache.
+- **Local calendar date, not UTC day,** defines workout identity; date handling is isolated and tested around day boundaries.
+- **Weights are stored in kilograms.** kg/lb is a display preference converted at the UI boundary, so switching units never rewrites stored data.
+- **Planned vs actual.** Completing a set copies the plan into actual values, which can then be edited independently.
+- **Owner-scoped security rules.** Every collection lives under `users/{uid}` and only that user can read or write it.
+- **Repository protocols with in-memory implementations** keep view models testable without Firebase.
+
+For the product hypotheses, MVP trade-offs and unmeasured acceptance goals, see the [PM case study](docs/case-study.md).
+
+More detail: [`docs/architecture.md`](docs/architecture.md), [`docs/firestore_security.md`](docs/firestore_security.md), [`docs/offline_test_plan.md`](docs/offline_test_plan.md).
+
+## Getting started
+
+Requirements: macOS with **Xcode 26.3** (or a compatible newer version) and a non-production Firebase project on the free Spark plan. Firebase 13 needs at least Xcode 26.2.
+
+1. Clone the repository and open `GymChecklist.xcodeproj`.
+2. In the Firebase console, create a project, enable Authentication, create Firestore in **production mode**, and register an iOS app with bundle ID `dev.akrasnoslov.GymChecklist` (or your own).
+3. Download `GoogleService-Info.plist` into `GymChecklist/`. It is git-ignored; never commit it.
+4. Deploy `firestore.rules` and verify owner isolation with two test users (see [`docs/firebase_setup.md`](docs/firebase_setup.md) and [`docs/firestore_security.md`](docs/firestore_security.md)).
+5. Select the `GymChecklist` scheme and an iPhone simulator running iOS 17 or later, then run.
+
+Run the tests (unit and UI tests use in-memory data and need no Firebase configuration):
+
+```bash
+xcodebuild test \
+  -project GymChecklist.xcodeproj \
+  -scheme GymChecklist \
+  -destination 'platform=iOS Simulator,name=<an available iPhone simulator>'
+```
+
+The clickable HTML design prototype opens without a build: open `design/prototype/index.html` in a browser and use **Review gallery** to see every screen state in both themes.
+
+## Quality
+
+- 123 unit tests and 51 UI tests (XCTest).
+- macOS CI builds the app and runs a smoke suite on every iOS-affecting pull request; the full suite runs on demand.
+- Linux CI runs static contract checks for Firestore owner isolation, offline behavior, account deletion and release configuration.
+- The HTML prototype has Playwright visual-regression snapshots for every screen state.
 
 ## Project status
 
-Implementation and automated checks do not equal physical-device acceptance. The remaining work includes full CI evidence, real-iPhone visual/gesture checks and live Firebase offline/error-path validation. See the [current checkpoint](docs/progress.md) for exact status. Do not infer release readiness from a green smoke run.
+The MVP flow is implemented. The Phase 9 visual redesign is merged into `dev` and awaits acceptance on a physical iPhone. The account-deletion Cloud Function source is complete but not deployed, and the app is not yet on the App Store or TestFlight. The exact checkpoint is in [`docs/progress.md`](docs/progress.md).
 
-## Development workflow
+## Repository layout
 
-PRs normally target `dev`; `main` is for stable/release code. No automatic merge. See [contributor/agent rules](AGENTS.md) and [source-of-truth guide](docs/source_of_truth.md).
+| Path | Contents |
+| --- | --- |
+| `GymChecklist/` | App source: `App`, `Features`, `Core`, `Data` |
+| `GymChecklistTests/`, `GymChecklistUITests/` | Unit and UI tests |
+| `functions/` | `deleteAccount` Cloud Function |
+| `firestore.rules` | Security rules |
+| `design/prototype/` | HTML prototype and visual-regression harness |
+| `docs/` | Product spec, UX spec, architecture, release notes |
+| `scripts/` | PowerShell contract checks run in CI |
+| `.github/workflows/` | CI and release workflows |
+
+## How it was built
+
+The project is developed with an AI-assisted workflow: a ChatGPT project chat plans and reviews, and Codex is used as a fallback executor. The rules that govern this are in [`AGENTS.md`](AGENTS.md) and [`docs/source_of_truth.md`](docs/source_of_truth.md). `main` is stable, `dev` is the integration branch, pull requests target `dev`, and nothing is merged automatically.
 
 ## License
 
-No open-source license has been selected yet. Until one is added, no permission to copy, modify or redistribute this code is granted by default.
+_To be chosen. Add a `LICENSE` file and name it here._

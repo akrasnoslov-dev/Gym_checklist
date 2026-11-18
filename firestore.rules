@@ -32,7 +32,7 @@ service cloud.firestore {
     }
 
     function isLocalDate(value) {
-      return value is string && value.matches('^\d{4}-\d{2}-\d{2}$');
+      return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
     }
 
     // Absent or explicit null are both accepted for optional fields.

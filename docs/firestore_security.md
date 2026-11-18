@@ -22,7 +22,7 @@ payloads in `GymChecklist/Data/Firebase/FirestoreMapping.swift`
 
 | Path | Rules |
 | --- | --- |
-| `workouts/{workoutDate}` | doc ID matches `^\d{4}-\d{2}-\d{2}$`; keys exactly `workout`, `exercises`; `workout` has exactly `id` (UUID), `localDate` (== doc ID), `createdAt`/`updatedAt` (timestamps); `exercises` is a list of at most 200 entries |
+| `workouts/{workoutDate}` | doc ID matches `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`; keys exactly `workout`, `exercises`; `workout` has exactly `id` (UUID), `localDate` (== doc ID), `createdAt`/`updatedAt` (timestamps); `exercises` is a list of at most 200 entries |
 | `customExercises/{id}` | keys within `id`, `name`, `category`; `id == {id}` (UUID); `name` 1–1000 chars; `category` absent/null or string up to 1000 chars |
 | `settings/default` | keys within `appearance`, `weightUnit`, `sex`, `dateOfBirth`, `heightCentimeters`; the client writes all five, a subset stays valid; enums `system/light/dark`, `kg/lb`, `female/male/preferNotToSay`; profile fields may be explicit `null`; `dateOfBirth` is `yyyy-MM-dd`; height in (0, 1000] |
 | `bodyWeightMeasurements/{id}` | exactly `id`, `localDate`, `weightInKilograms`, `measuredAt`, `updatedAt`; `id == {id}` (UUID); `localDate` is `yyyy-MM-dd`; weight in (0, 1000]; timestamps |

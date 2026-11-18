@@ -1,0 +1,68 @@
+name: SwiftPM cache warm-up
+
+# GitHub Actions caches are scoped to the ref that saved them. Pull-request runs
+# save into refs/pull/N/merge, which no other PR or manual run can read, so every
+# new PR started with a cold SwiftPM cache. Saving the cache from dev (the base
+# branch of every PR) makes it readable by all PRs into dev.
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'GymChecklist.xcodeproj/project.pbxproj'
+      - '**/Package.resolved'
+      - 'Package.swift'
+      - '.github/workflows/swiftpm-cache-warm.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swiftpm-cache-warm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  warm:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - name: Select Xcode 26.3
+        shell: bash
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Record Xcode version
+        id: xcode
+        shell: bash
+        run: |
+          xcodebuild -version
+          echo "version=$(xcodebuild -version | awk 'NR == 1 { print $2 }')" >> "$GITHUB_OUTPUT"
+
+      # The key must stay identical to the one in ios-ci.yml and
+      # mvp-acceptance-ipa.yml so those workflows restore this cache.
+      - name: Cache Swift package sources
+        id: swiftpm-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: ${{ runner.os }}-xcode-${{ steps.xcode.outputs.version }}-swiftpm-${{ hashFiles('GymChecklist.xcodeproj/project.pbxproj', '**/Package.resolved', 'Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-xcode-${{ steps.xcode.outputs.version }}-swiftpm-
+
+      - name: Resolve Swift packages
+        if: steps.swiftpm-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project GymChecklist.xcodeproj \
+            -scheme GymChecklist \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+          git diff --exit-code -- GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved

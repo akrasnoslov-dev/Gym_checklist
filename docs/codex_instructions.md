@@ -77,23 +77,25 @@ Codex may use subagents for bounded read-only analysis when useful, but one agen
 
 macOS/Xcode CI remains the authoritative iOS build/simulator gate.
 
-For production Swift, tests, persistence/migration, Xcode project, or other iOS-runtime-relevant changes, keep the existing two-pass conservation rule:
+For production Swift, tests, persistence/migration, Xcode project, or other iOS-runtime-relevant changes, the gate is:
 
-**Pass A**
-- finish implementation and local/static hardening;
-- commit/push a coherent candidate only when authorized by the task/tool policy;
-- record `REMOTE_GATE_READY_FOR_FINAL_AUDIT <SHA>` in `docs/progress.md`;
-- do not dispatch the authoritative macOS gate in the same implementation pass.
+- green required CI (Linux checks plus macOS unit + UI tests) on the exact PR head SHA;
+- the relevant acceptance checklist in `docs/mvp_acceptance_checklist.md` (and the pre-flight evidence it asks for) before handing a build to the user.
 
-**Pass B**
-- audit the exact recorded SHA in a later fresh pass;
-- if code/test/project files change, return to Pass A;
-- only a clean audit may record `REMOTE_GATE_APPROVED <SHA>` and dispatch the justified candidate/full run.
+Do not create separate docs commits to record gate stages, approvals, or SHAs. CI history on the PR is the evidence; task status lives in Linear (team GYM), not in markdown.
 
-A red authoritative run revokes approval.
+A red run on the head SHA blocks the gate until fixed and re-run green on the new head.
 
 For docs/process-only work that cannot affect iOS runtime or the gate itself, macOS verification is not required.
 
+## Fast physical-iPhone preview IPA
+
+Physical-device preview and release acceptance are different gates. Do not spend a full simulator UI-suite run merely to give the user an installable IPA for manual testing.
+
+- **Preview**: after the selected source has passed local/static contracts and the existing macOS PR smoke/build gate, build an unsigned, real-Firebase IPA directly from its pinned commit SHA using the existing `mvp-acceptance-ipa.yml` packaging job. Preserve its secret restoration, Release iPhone compilation, bundle ID/callback checks, manifest, and checksum. If manual dispatch is unavailable, an isolated CI-trigger branch may reuse the same packaging steps without changing the app source.
+- **Release/full acceptance**: keep the independent audit and the entire Xcode unit/UI suite before claiming release quality. A preview IPA does not imply those tests passed and must not trigger merging, publishing, or TestFlight.
+- When preview packaging fails, fix that build error and rerun the smallest relevant gate. Run costly simulator tests only for a real regression, explicit full acceptance, or release-readiness verification.
+- Always name the exact source SHA and link only the new run's real IPA artifact. Do not substitute an older binary.
 ## Completion report
 
 Codex completion is evidence, not final project acceptance.

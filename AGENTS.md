@@ -38,6 +38,7 @@ Do not preload the whole repository or all of `docs/`.
 - Do not create per-task `docs/task_specs/` records.
 - If a task changes a durable rule, update the canonical owner instead of creating another policy document.
 - Use focused validation appropriate to the change. Do not claim completion with a known applicable failing check.
+- Gate = green CI on the exact PR head SHA + checklist; no separate gate-recording docs commits. Task status lives in Linear (team GYM), not markdown.
 - Do not auto-merge. `dev -> main` requires explicit user approval.
 
 ## graphify

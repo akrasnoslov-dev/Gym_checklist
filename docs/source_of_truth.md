@@ -17,7 +17,8 @@ Each durable subject has one primary owner:
 - Specialist review routing: `agents/routing.toml`
 - Codex executable model defaults: `.codex/config.toml`
 - Long-term implementation backlog and milestone acceptance definitions: `docs/implementation_plan.md`
-- Current runtime checkpoint, verification, blockers, and next action: `docs/progress.md`
+- Current state and next step (≤ 40 lines, no history): `docs/progress.md`
+- Task status, backlog items, and acceptance findings: Linear, team GYM
 - Current UI/UX design decisions when relevant: `docs/ui_redesign_plan.md`, `docs/ui_research_phase4.md`, and `docs/ui_ux_design_rules.md`
 - Public project overview: `README.md`
 

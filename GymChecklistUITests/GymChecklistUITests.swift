@@ -216,23 +216,30 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(benchHandle.exists, app.debugDescription)
         // Keep the drop inside the first row. Dragging above its top edge
         // leaves the List and can cancel native onMove on Xcode 26.
-        let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-        nordicHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(
-                forDuration: 1.5,
-                thenDragTo: dropPoint,
-                withVelocity: .slow,
-                thenHoldForDuration: 0.5
-            )
         let reordered = NSPredicate { _, _ in
             nordicInReorder.exists && benchInReorder.exists
                 && nordicInReorder.frame.minY < benchInReorder.frame.minY
         }
-        XCTAssertEqual(
-            XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: reordered, object: nil)], timeout: 5),
-            .completed,
-            app.debugDescription
-        )
+        // Synthesized long-press drags on the native reorder control are
+        // occasionally dropped by the simulator before onMove starts. Retry
+        // the gesture itself; the reordered-state assertion stays strict.
+        var reorderResult = XCTWaiter.Result.timedOut
+        for _ in 0..<3 {
+            let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            nordicHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(
+                    forDuration: 1.5,
+                    thenDragTo: dropPoint,
+                    withVelocity: .slow,
+                    thenHoldForDuration: 0.5
+                )
+            reorderResult = XCTWaiter.wait(
+                for: [XCTNSPredicateExpectation(predicate: reordered, object: nil)],
+                timeout: 5
+            )
+            if reorderResult == .completed { break }
+        }
+        XCTAssertEqual(reorderResult, .completed, app.debugDescription)
         app.buttons["Done"].tap()
 
         let reorderedBenchActions = app.buttons["Actions for Bench Press, exercise 2 of 2"]

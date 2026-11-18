@@ -34,13 +34,21 @@ enum FirebaseBootstrap {
     }
 
     static func isRunningTests(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
-        environment["UITESTING"] == "1" || environment["XCTestConfigurationFilePath"] != nil
+#if DEBUG
+        return environment["UITESTING"] == "1" || environment["XCTestConfigurationFilePath"] != nil
+#else
+        return false
+#endif
     }
 }
 
 
 enum DemoMode {
     static var isEnabled: Bool {
-        Bundle.main.object(forInfoDictionaryKey: "MVP_DEMO") as? Bool == true
+#if MVP_DEMO
+        return Bundle.main.object(forInfoDictionaryKey: "MVP_DEMO") as? Bool == true
+#else
+        return false
+#endif
     }
 }

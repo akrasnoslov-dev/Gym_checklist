@@ -36,7 +36,7 @@ The account-deletion client flow, backend source, and automated security/behavio
 
 ## Required deployment and proof
 
-After paid/billing-dependent release work is explicitly reactivated, the Function source uses Node 20. After installing dependencies in
+After paid/billing-dependent release work is explicitly reactivated, the Function source targets Node 24. After installing dependencies in
 `functions/` on a trusted machine and selecting a non-production Firebase
 project, deploy only the callable:
 

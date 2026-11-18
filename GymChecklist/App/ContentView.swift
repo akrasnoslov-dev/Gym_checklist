@@ -47,7 +47,11 @@ struct ContentView: View {
     }
 
     fileprivate static var testReferenceDate: LocalDate? {
-        testDate(named: "UITEST_REFERENCE_DATE")
+#if DEBUG || MVP_DEMO
+        return testDate(named: "UITEST_REFERENCE_DATE")
+#else
+        return nil
+#endif
     }
 
     fileprivate static var testInitialSelectedDate: LocalDate? {

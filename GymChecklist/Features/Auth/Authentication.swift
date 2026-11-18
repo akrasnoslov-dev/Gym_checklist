@@ -389,7 +389,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
 
     func signInWithApple(identityToken: String, rawNonce: String) async throws -> AuthenticatedUser {
         let credential = OAuthProvider.credential(
-            withProviderID: "apple.com",
+            providerID: .apple,
             idToken: identityToken,
             rawNonce: rawNonce
         )
@@ -453,7 +453,7 @@ private final class FirebaseAuthenticationService: AuthenticationService {
         }
         let expectedUserID = user.uid
         let credential = OAuthProvider.credential(
-            withProviderID: "apple.com",
+            providerID: .apple,
             idToken: identityToken,
             rawNonce: rawNonce
         )

@@ -1,7 +1,10 @@
 [CmdletBinding()]
 param(
-    [string]$RulesPath = (Join-Path $PSScriptRoot "..\firestore.rules")
+    [string]$RulesPath
 )
+
+# Windows PowerShell 5.1 does not populate $PSScriptRoot inside param defaults.
+if (-not $RulesPath) { $RulesPath = Join-Path $PSScriptRoot "..\firestore.rules" }
 
 $rules = Get-Content -Raw $RulesPath
 $requiredFragments = @(
@@ -18,7 +21,8 @@ $requiredFragments = @(
     'allow create, update: if ownsUserData(userId) && isValidCustomExercise(exerciseId);',
     'allow create, update: if ownsUserData(userId) && isValidSettings();',
     'allow create, update: if ownsUserData(userId) && isValidBodyWeight(measurementId);',
-    "workoutDate.matches('^\\d{4}-\\d{2}-\\d{2}$')",
+    'isLocalDate(workoutDate)',
+    'isUuid(data.id)',
     'data.id == exerciseId',
     'data.id == measurementId',
     'keys().hasOnly('

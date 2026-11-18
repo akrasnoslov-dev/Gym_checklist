@@ -127,17 +127,14 @@ final class InMemoryBodyWeightRepository: BodyWeightRepository {
 
     func save(_ measurement: BodyWeightMeasurement) throws {
         guard measurement.userID == userID else { throw BodyWeightRepositoryError.ownerMismatch }
-        guard measurement.weightInKilograms.isFinite, measurement.weightInKilograms > 0 else {
+        guard PersistedValueLimits.isValidBodyWeight(measurement.weightInKilograms) else {
             throw BodyWeightRepositoryError.invalidMeasurement
         }
         storage[measurement.id] = measurement
         publish()
     }
 
-    func deleteMeasurement(
-        id: BodyWeightMeasurementID,
-        onFailure _: @escaping @MainActor () -> Void
-    ) throws {
+    func deleteMeasurement(id: BodyWeightMeasurementID) throws {
         guard storage.removeValue(forKey: id) != nil else { throw BodyWeightRepositoryError.measurementNotFound(id) }
         publish()
     }

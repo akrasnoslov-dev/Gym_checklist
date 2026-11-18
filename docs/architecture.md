@@ -172,6 +172,8 @@ an approved merge feature; do not claim conflict-free multi-device editing.
 ## 10. Security
 - Firebase Auth UID is the user ownership boundary.
 - Firestore rules must enforce owner-only access.
+- `firestore.rules` is deployed only from the repository and checked for drift after every merge that changes it (`docs/firestore_security.md`, "Deploy").
+- Firestore failures (rejected writes, listener errors, undecodable documents) are logged with their error code to the device log and Crashlytics; they never reach UI copy.
 - Do not store raw passwords.
 - Do not commit signing materials, service-account keys, or secret configuration.
 - Use environment/repository secrets for CI release credentials.

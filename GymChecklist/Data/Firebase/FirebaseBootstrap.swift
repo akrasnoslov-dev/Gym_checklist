@@ -1,6 +1,7 @@
 import Foundation
 import FirebaseCore
 import FirebaseCrashlytics
+import OSLog
 
 enum FirebaseBootstrap {
     enum Status: Equatable {
@@ -31,6 +32,20 @@ enum FirebaseBootstrap {
     private static func startCrashReporting() {
         guard FirebaseApp.app() != nil else { return }
         _ = Crashlytics.crashlytics()
+        installFirestoreDiagnostics()
+    }
+
+    private static let firestoreLogger = Logger(subsystem: "dev.akrasnoslov.GymChecklist", category: "Firestore")
+
+    /// Rejected writes, listener errors and undecodable documents go to the
+    /// device log and to Crashlytics as non-fatals (GYM-22).
+    private static func installFirestoreDiagnostics() {
+        FirestoreDiagnostics.shared.install { event, reportToCrashlytics in
+            FirebaseBootstrap.firestoreLogger.error("\(event.logLine, privacy: .public)")
+            if reportToCrashlytics {
+                Crashlytics.crashlytics().record(error: event.crashlyticsError)
+            }
+        }
     }
 
     static func isRunningTests(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {

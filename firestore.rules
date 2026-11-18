@@ -1,9 +1,21 @@
 rules_version = '2';
 
 // Owner isolation plus write-schema validation. Schemas mirror the payloads in
-// GymChecklist/Data/Firebase/FirestoreMapping.swift. Firestore rules cannot
-// loop over list elements, so nested exercise/set entries are bounded by size
-// only; the app decoder rejects malformed nested entries.
+// GymChecklist/Data/Firebase/FirestoreMapping.swift and are exercised with the
+// client's exact shapes by firestore-tests/rules.test.js (GYM-9, GYM-22).
+//
+// Client encoding facts these rules rely on:
+// - IDs are Swift `UUID.uuidString` (uppercase, 36 chars); lowercase is accepted too.
+// - `Date` fields are encoded by Firestore.Encoder as Timestamps.
+// - Synthesized Codable omits nil optionals (custom exercise `category`, set fields);
+//   settings encode nil profile fields as explicit nulls.
+// - Every client write is a full-document `setData` (no merge), so
+//   `request.resource.data` is exactly the client payload.
+// Firestore rules cannot loop over list elements, so nested exercise/set
+// entries are bounded by size only; the app decoder rejects malformed entries.
+//
+// Deploy from the repository only (see docs/architecture.md, "Firestore rules
+// deployment"): `firebase deploy --only firestore:rules --project <project-id>`.
 service cloud.firestore {
   match /databases/{database}/documents {
     function ownsUserData(userId) {
@@ -15,11 +27,12 @@ service cloud.firestore {
     }
 
     function isUuid(value) {
-      return value is string && value.size() == 36;
+      return value is string
+        && value.matches('^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$');
     }
 
     function isLocalDate(value) {
-      return value is string && value.matches('^\\d{4}-\\d{2}-\\d{2}$');
+      return value is string && value.matches('^\d{4}-\d{2}-\d{2}$');
     }
 
     // Absent or explicit null are both accepted for optional fields.
@@ -32,7 +45,7 @@ service cloud.firestore {
     function isValidWorkout(workoutDate) {
       let data = incoming();
       let workout = data.workout;
-      return workoutDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+      return isLocalDate(workoutDate)
         && data.keys().hasOnly(['workout', 'exercises'])
         && data.keys().hasAll(['workout', 'exercises'])
         && workout is map
@@ -43,9 +56,10 @@ service cloud.firestore {
         && workout.createdAt is timestamp
         && workout.updatedAt is timestamp
         && data.exercises is list
-        && data.exercises.size() <= 100;
+        && data.exercises.size() <= 200;
     }
 
+    // Name/category caps only bound document size; the app has no shorter limit.
     function isValidCustomExercise(exerciseId) {
       let data = incoming();
       return data.keys().hasOnly(['id', 'name', 'category'])
@@ -54,13 +68,13 @@ service cloud.firestore {
         && isUuid(data.id)
         && data.name is string
         && data.name.size() > 0
-        && data.name.size() <= 200
+        && data.name.size() <= 1000
         && optionalOf(data, 'category', 'string')
-        && (!('category' in data) || data.category == null || data.category.size() <= 100);
+        && (!('category' in data) || data.category == null || data.category.size() <= 1000);
     }
 
-    // Settings are written with merge, so the resulting document may hold any
-    // subset of fields. Profile fields are written as explicit nulls when unset.
+    // The client always writes all five fields; a subset stays valid so older
+    // documents and partial writes are not locked out.
     function isValidSettings() {
       let data = incoming();
       return data.keys().hasOnly(['appearance', 'weightUnit', 'sex', 'dateOfBirth', 'heightCentimeters'])
@@ -70,9 +84,10 @@ service cloud.firestore {
         && (!('dateOfBirth' in data) || data.dateOfBirth == null || isLocalDate(data.dateOfBirth))
         && optionalOf(data, 'heightCentimeters', 'number')
         && (!('heightCentimeters' in data) || data.heightCentimeters == null
-          || (data.heightCentimeters >= 0 && data.heightCentimeters <= 1000));
+          || (data.heightCentimeters > 0 && data.heightCentimeters <= 1000));
     }
 
+    // Bounds match PersistedValueLimits in the app.
     function isValidBodyWeight(measurementId) {
       let data = incoming();
       return data.keys().hasOnly(['id', 'localDate', 'weightInKilograms', 'measuredAt', 'updatedAt'])

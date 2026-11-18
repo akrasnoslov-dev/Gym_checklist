@@ -33,6 +33,141 @@ enum FirestoreMappingError: Error, Equatable {
     case invalidCompletionState
     case systemExerciseCannotBeMapped
     case invalidBodyWeightMeasurement
+    /// The document decoded but failed domain validation (IDs, dates, set values).
+    case domainValidationFailed
+}
+
+/// Where a Firestore failure was observed.
+enum FirestoreDiagnosticOperation: String {
+    case write
+    case delete
+    case listen
+    case decode
+}
+
+/// Provider error details for logs and Crashlytics only; never shown in UI.
+/// It carries the collection and document ID (UUID or yyyy-MM-dd) but never the
+/// user ID or document contents.
+struct FirestoreDiagnosticEvent: Equatable {
+    static let firestoreErrorDomain = "FIRFirestoreErrorDomain"
+
+    let operation: FirestoreDiagnosticOperation
+    let collection: String
+    let documentID: String?
+    let errorDomain: String
+    let errorCode: Int
+    let errorCodeName: String
+    let message: String
+
+    init(operation: FirestoreDiagnosticOperation, collection: String, documentID: String?, error: Swift.Error) {
+        self.operation = operation
+        self.collection = collection
+        self.documentID = documentID
+        if error is DecodingError {
+            errorDomain = "Swift.DecodingError"
+            errorCode = 0
+            errorCodeName = "decodingError"
+            message = String(String(describing: error).prefix(400))
+            return
+        }
+        if let mappingError = error as? FirestoreMappingError {
+            errorDomain = "GymChecklist.FirestoreMapping"
+            errorCode = 0
+            errorCodeName = String(describing: mappingError)
+            message = "Document failed domain validation"
+            return
+        }
+        let nsError = error as NSError
+        errorDomain = nsError.domain
+        errorCode = nsError.code
+        errorCodeName = nsError.domain == Self.firestoreErrorDomain
+            ? Self.firestoreCodeName(nsError.code)
+            : "code\(nsError.code)"
+        message = String(nsError.localizedDescription.prefix(400))
+    }
+
+    var logLine: String {
+        "Firestore \(operation.rawValue) failed: collection=\(collection) document=\(documentID ?? "-") "
+            + "code=\(errorCodeName)(\(errorDomain) \(errorCode)) message=\(message)"
+    }
+
+    /// Crashlytics groups non-fatals by domain and code, so each operation and
+    /// Firestore code becomes its own issue.
+    var crashlyticsError: NSError {
+        NSError(
+            domain: "GymChecklist.Firestore.\(operation.rawValue).\(errorCodeName)",
+            code: errorCode,
+            userInfo: [
+                NSLocalizedDescriptionKey: logLine,
+                "collection": collection,
+                "documentID": documentID ?? "-",
+                "firestoreCode": errorCodeName,
+                "errorDomain": errorDomain,
+            ]
+        )
+    }
+
+    fileprivate var deduplicationKey: String {
+        [operation.rawValue, collection, documentID ?? "-", errorDomain, String(errorCode), errorCodeName]
+            .joined(separator: "|")
+    }
+
+    /// Names match `FirestoreErrorCode.Code` (gRPC status codes).
+    static func firestoreCodeName(_ code: Int) -> String {
+        let names = [
+            "ok", "cancelled", "unknown", "invalidArgument", "deadlineExceeded", "notFound",
+            "alreadyExists", "permissionDenied", "resourceExhausted", "failedPrecondition", "aborted",
+            "outOfRange", "unimplemented", "internal", "unavailable", "dataLoss", "unauthenticated",
+        ]
+        return names.indices.contains(code) ? names[code] : "code\(code)"
+    }
+}
+
+/// Routes Firestore failures to os_log and Crashlytics. The app installs the
+/// sink once Firebase is configured; tests install their own. Listener and
+/// decode failures repeat on every snapshot, so each distinct one is reported
+/// once per launch. Rejected writes are logged every time but sent to
+/// Crashlytics once per distinct failure.
+final class FirestoreDiagnostics {
+    typealias Sink = (_ event: FirestoreDiagnosticEvent, _ reportToCrashlytics: Bool) -> Void
+
+    static let shared = FirestoreDiagnostics()
+
+    private let lock = NSLock()
+    private var sink: Sink?
+    private var reportedKeys: Set<String> = []
+
+    func install(_ sink: Sink?) {
+        lock.lock()
+        self.sink = sink
+        reportedKeys.removeAll()
+        lock.unlock()
+    }
+
+    func record(_ event: FirestoreDiagnosticEvent) {
+        lock.lock()
+        let isFirstOccurrence = reportedKeys.insert(event.deduplicationKey).inserted
+        let sink = self.sink
+        lock.unlock()
+        switch event.operation {
+        case .listen, .decode:
+            guard isFirstOccurrence else { return }
+        case .write, .delete:
+            break
+        }
+        sink?(event, isFirstOccurrence)
+    }
+
+    /// Convenience for write/delete completions: records only real failures.
+    func recordIfFailed(
+        _ error: Swift.Error?,
+        operation: FirestoreDiagnosticOperation,
+        collection: String,
+        documentID: String
+    ) {
+        guard let error else { return }
+        record(FirestoreDiagnosticEvent(operation: operation, collection: collection, documentID: documentID, error: error))
+    }
 }
 
 struct FirestoreWorkoutSnapshotEntry {
@@ -384,21 +519,6 @@ struct FirestoreBodyWeightMeasurementDocument: Codable, Equatable {
             localDate: date, weightInKilograms: weightInKilograms,
             measuredAt: measuredAt, updatedAt: updatedAt
         )
-    }
-}
-
-/// Restores a locally removed measurement when Firestore rejects an
-/// optimistic delete. A later snapshot may already have restored it, so IDs
-/// remain unique.
-enum BodyWeightDeletionFailureRecovery {
-    static func measurementsRestoring(
-        _ removedMeasurement: BodyWeightMeasurement,
-        to measurements: [BodyWeightMeasurement]
-    ) -> [BodyWeightMeasurement] {
-        guard !measurements.contains(where: { $0.id == removedMeasurement.id }) else { return measurements }
-        return (measurements + [removedMeasurement]).sorted {
-            BodyWeightMeasurement.isMoreRecent($0, than: $1)
-        }
     }
 }
 

@@ -610,6 +610,41 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(waitForValue(app.buttons["settingsBodyWeight"], "Log your first measurement"))
     }
 
+    // GYM-22: a logged weight must stay in history instead of appearing and
+    // then vanishing behind a "wasn't saved" banner.
+    func testLoggedBodyWeightRemainsAfterSaving() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-09-04"
+        app.launch()
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settingsBodyWeight"].tap()
+        let weight = app.textFields["bodyWeightInput"]
+        XCTAssertTrue(weight.waitForExistence(timeout: 2))
+        replaceText(in: weight, with: "80")
+        app.buttons["bodyWeightSave"].tap()
+
+        let measurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
+        XCTAssertTrue(measurement.waitForExistence(timeout: 2))
+        // The GYM-22 regression removed the row about a second after saving.
+        let vanished = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: measurement)
+        XCTAssertEqual(XCTWaiter().wait(for: [vanished], timeout: 3), .timedOut, "Saved weight disappeared")
+        XCTAssertTrue(waitForLabel(of: measurement, toEqual: "80 kg"), "Row label: \(measurement.label)")
+        XCTAssertFalse(app.staticTexts["No body-weight measurements yet."].exists)
+
+        app.buttons["Done"].tap()
+        XCTAssertFalse(app.descendants(matching: .any)["persistenceRecoveryBanner"].exists)
+        app.tabBars.buttons["Today"].tap()
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settingsBodyWeight"].tap()
+        XCTAssertTrue(
+            app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch.waitForExistence(timeout: 2),
+            "Saved weight must still be listed after leaving Settings"
+        )
+        XCTAssertEqual(app.buttons.matching(identifier: "bodyWeightMeasurement").count, 1)
+    }
+
     func testAppearanceSelectionKeepsTodayAvailable() {
         let app = XCUIApplication()
         app.launchEnvironment["UITESTING"] = "1"

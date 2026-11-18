@@ -2,6 +2,8 @@ import FirebaseAuth
 import FirebaseFirestore
 import Foundation
 
+private let bodyWeightCollectionName = "bodyWeightMeasurements"
+
 @MainActor
 final class FirestoreBodyWeightRepository: BodyWeightRepository {
     let userID: UserID
@@ -21,24 +23,7 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         pendingJournal = DurablePendingMutationJournal(
             storageKey: PendingMutationJournalStorage.key(scope: "bodyWeight", userID: user)
         )
-        listener = collection.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, _ in
-            guard let snapshot else { return }
-            let decoded = FirestoreBodyWeightSnapshotDecoder.decode(
-                snapshot.documents.map { document in
-                    FirestoreBodyWeightSnapshotEntry(
-                        documentID: document.documentID,
-                        payload: try? document.data(as: FirestoreBodyWeightMeasurementDocument.self)
-                    )
-                },
-                userID: user
-            )
-            Task { @MainActor in
-                guard let self else { return }
-                self.measurements = decoded.measurementsPreservingCachedEntries(self.measurements)
-                self.publish()
-                self.reconcileRestartedWrites(snapshot: snapshot, decoded: decoded)
-            }
-        }
+        startListening()
     }
 
     deinit { MainActor.assumeIsolated { listener?.remove() } }
@@ -58,7 +43,7 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
 
     func save(_ measurement: BodyWeightMeasurement) throws {
         guard measurement.userID == userID else { throw BodyWeightRepositoryError.ownerMismatch }
-        guard measurement.weightInKilograms.isFinite, measurement.weightInKilograms > 0 else {
+        guard PersistedValueLimits.isValidBodyWeight(measurement.weightInKilograms) else {
             throw BodyWeightRepositoryError.invalidMeasurement
         }
         let payload = FirestoreBodyWeightMeasurementDocument(measurement: measurement)
@@ -72,18 +57,21 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         do {
             try store.document(FirestoreDocumentPath.bodyWeightMeasurement(userID: userID, measurementID: measurement.id))
                 .setData(from: payload) { [weak self] error in
+                    FirestoreDiagnostics.shared.recordIfFailed(
+                        error, operation: .write, collection: bodyWeightCollectionName, documentID: payload.id
+                    )
                     Task { @MainActor in self?.recordWriteCompletion(error, ticket: ticket) }
                 }
         } catch {
+            FirestoreDiagnostics.shared.recordIfFailed(
+                error, operation: .write, collection: bodyWeightCollectionName, documentID: payload.id
+            )
             recordWriteCompletion(error, ticket: ticket, publishesFailure: false)
             throw error
         }
     }
 
-    func deleteMeasurement(
-        id: BodyWeightMeasurementID,
-        onFailure: @escaping @MainActor () -> Void
-    ) throws {
+    func deleteMeasurement(id: BodyWeightMeasurementID) throws {
         guard let removedMeasurement = measurements.first(where: { $0.id == id }) else {
             throw BodyWeightRepositoryError.measurementNotFound(id)
         }
@@ -91,15 +79,70 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         pendingJournal?.record(ticket, attempted: .missing)
         measurements.removeAll { $0.id == id }
         publish()
+        let documentID = id.rawValue.uuidString
         store.document(FirestoreDocumentPath.bodyWeightMeasurement(userID: userID, measurementID: id)).delete { [weak self] error in
+            FirestoreDiagnostics.shared.recordIfFailed(
+                error, operation: .delete, collection: bodyWeightCollectionName, documentID: documentID
+            )
             Task { @MainActor [weak self] in
-                self?.recordWriteCompletion(error, ticket: ticket, onDeleteFailure: onFailure)
+                self?.recordWriteCompletion(error, ticket: ticket)
             }
         }
     }
 
+    /// Firestore ends a listener after it reports an error, so a retry has to
+    /// attach a new one. Measurements already shown stay visible meanwhile.
+    func restartListening() {
+        guard listener == nil else { return }
+        startListening()
+    }
+
     private var collection: CollectionReference {
-        store.collection("users").document(userID.rawValue).collection("bodyWeightMeasurements")
+        store.collection("users").document(userID.rawValue).collection(bodyWeightCollectionName)
+    }
+
+    private func startListening() {
+        let user = userID
+        listener = collection.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
+            guard error == nil, let snapshot else {
+                if let error {
+                    FirestoreDiagnostics.shared.record(FirestoreDiagnosticEvent(
+                        operation: .listen, collection: bodyWeightCollectionName, documentID: nil, error: error
+                    ))
+                }
+                Task { @MainActor in self?.recordListenerFailure() }
+                return
+            }
+            let entries = snapshot.documents.map { document in
+                FirestoreBodyWeightSnapshotEntry(
+                    documentID: document.documentID,
+                    payload: FirestoreDiagnostics.shared.decodeLogging(
+                        FirestoreBodyWeightMeasurementDocument.self, from: document, collection: bodyWeightCollectionName
+                    )
+                )
+            }
+            let decoded = FirestoreBodyWeightSnapshotDecoder.decode(entries, userID: user)
+            let decodedIDs = Set(decoded.measurements.map { $0.id.rawValue.uuidString })
+            FirestoreDiagnostics.shared.recordDomainRejections(
+                documentIDs: entries.filter { $0.payload != nil && !decodedIDs.contains($0.documentID) }.map(\.documentID),
+                collection: bodyWeightCollectionName
+            )
+            Task { @MainActor in
+                guard let self else { return }
+                self.measurements = decoded.measurementsPreservingCachedEntries(self.measurements)
+                self.publish()
+                self.reconcileRestartedWrites(snapshot: snapshot, decoded: decoded)
+            }
+        }
+    }
+
+    /// GYM-12: a failed listener is reported instead of silently freezing the list.
+    private func recordListenerFailure() {
+        listener?.remove()
+        listener = nil
+        // A listener torn down by sign-out is expected, not a user-facing failure.
+        guard Auth.auth().currentUser?.uid == userID.rawValue else { return }
+        publishFailure(.historyUnavailable)
     }
 
     private func sorted(_ values: [BodyWeightMeasurement]) -> [BodyWeightMeasurement] {
@@ -111,7 +154,6 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
     private func recordWriteCompletion(
         _ error: Swift.Error?,
         ticket: ScopedDocumentMutationTicket<BodyWeightMeasurementID>,
-        onDeleteFailure: (@MainActor () -> Void)? = nil,
         publishesFailure: Bool = true
     ) {
         let result: ScopedDocumentMutationResult = error == nil ? .accepted : .rejected
@@ -123,7 +165,6 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         case let (_, .value(measurement)):
             if publishesFailure { publishFailure(.saveRejected(measurement)) }
         case let (.value(measurement), .missing):
-            onDeleteFailure?()
             if publishesFailure { publishFailure(.deleteRejected(measurement)) }
         default:
             break

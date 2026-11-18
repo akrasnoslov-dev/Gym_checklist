@@ -23,9 +23,21 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
         pendingJournal = DurablePendingMutationJournal(
             storageKey: PendingMutationJournalStorage.key(scope: "settings", userID: user)
         )
-        listener = document.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, _ in
-            guard let snapshot else { return }
-            let observedSettings = (try? snapshot.data(as: FirestoreUserSettingsDocument.self))?.settings(userID: user)
+        listener = document.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
+            guard let snapshot else {
+                if let error {
+                    FirestoreDiagnostics.shared.record(FirestoreDiagnosticEvent(
+                        operation: .listen, collection: "settings", documentID: "default", error: error
+                    ))
+                }
+                return
+            }
+            // A missing document is the normal first-launch state, not a decode failure.
+            let observedSettings = snapshot.exists
+                ? FirestoreDiagnostics.shared.decodeLogging(
+                    FirestoreUserSettingsDocument.self, from: snapshot, collection: "settings"
+                )?.settings(userID: user)
+                : nil
             Task { @MainActor in
                 guard let self else { return }
                 if let observedSettings {
@@ -75,9 +87,15 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
         publish()
         do {
             try document.setData(from: FirestoreUserSettingsDocument(settings: settings)) { [weak self] error in
+                FirestoreDiagnostics.shared.recordIfFailed(
+                    error, operation: .write, collection: "settings", documentID: "default"
+                )
                 Task { @MainActor in self?.recordWriteCompletion(error, ticket: ticket) }
             }
         } catch {
+            FirestoreDiagnostics.shared.recordIfFailed(
+                error, operation: .write, collection: "settings", documentID: "default"
+            )
             recordWriteCompletion(error, ticket: ticket, publishesFailure: false)
             throw error
         }

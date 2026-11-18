@@ -8,7 +8,6 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var settings: UserSettings
     @Published private(set) var measurements: [BodyWeightMeasurement]
     @Published private(set) var errorMessage: String?
-    @Published private(set) var bodyWeightDeletionFailed = false
     @Published private(set) var persistenceIssue: PersistenceIssue?
 
     private let repository: UserSettingsRepository
@@ -96,7 +95,9 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func saveProfile(_ profile: UserProfile) throws {
-        guard profile.heightCentimeters.map({ $0.isFinite && $0 > 0 }) ?? true else {
+        guard profile.heightCentimeters.map({
+            $0.isFinite && $0 > 0 && $0 <= PersistedValueLimits.maximumHeightCentimeters
+        }) ?? true else {
             throw BodyWeightRepositoryError.invalidMeasurement
         }
         var updated = settings
@@ -109,11 +110,8 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func deleteMeasurement(_ measurement: BodyWeightMeasurement) throws {
-        bodyWeightDeletionFailed = false
-        try bodyWeightRepository.deleteMeasurement(id: measurement.id, onFailure: {})
+        try bodyWeightRepository.deleteMeasurement(id: measurement.id)
     }
-
-    func acknowledgeBodyWeightDeletionFailure() { bodyWeightDeletionFailed = false }
 
     func retryPersistenceIssue() {
         let action = persistenceIssues.advance()
@@ -177,7 +175,7 @@ final class SettingsViewModel: ObservableObject {
                 guard let self else { return }
                 guard self.measurements.contains(where: { $0.id == measurement.id }) else { return }
                 do {
-                    try self.bodyWeightRepository.deleteMeasurement(id: measurement.id, onFailure: {})
+                    try self.bodyWeightRepository.deleteMeasurement(id: measurement.id)
                 } catch {
                     self.handleBodyWeightPersistenceFailure(.deleteRejected(measurement))
                 }
@@ -205,10 +203,20 @@ final class SettingsViewModel: ObservableObject {
                 guard let self else { return }
                 guard self.measurements.contains(where: { $0.id == measurement.id }) else { return }
                 do {
-                    try self.bodyWeightRepository.deleteMeasurement(id: measurement.id, onFailure: {})
+                    try self.bodyWeightRepository.deleteMeasurement(id: measurement.id)
                 } catch {
                     self.handleBodyWeightPersistenceFailure(.deleteRejected(measurement))
                 }
+            }
+        case .historyUnavailable:
+            presentPersistenceIssue(
+                documentKey: "bodyWeightHistory",
+                title: "Body weight history isn’t up to date",
+                message: "Saved measurements couldn’t be loaded. Retry to reconnect.",
+                retryTitle: "Retry",
+                secondaryTitle: "Not Now"
+            ) { [weak self] in
+                self?.bodyWeightRepository.restartListening()
             }
         }
     }
@@ -461,9 +469,7 @@ struct SettingsView: View {
                     unit: viewModel.settings.weightUnit,
                     measurements: viewModel.measurements,
                     onSave: viewModel.saveMeasurement,
-                    onDelete: viewModel.deleteMeasurement,
-                    deleteFailed: viewModel.bodyWeightDeletionFailed,
-                    onDeleteFailureAcknowledged: viewModel.acknowledgeBodyWeightDeletionFailure
+                    onDelete: viewModel.deleteMeasurement
                 )
             }
             .sheet(isPresented: $isAppleAccountDeletionReauthenticationPresented) {
@@ -842,8 +848,6 @@ private struct BodyWeightHistorySheet: View {
     let measurements: [BodyWeightMeasurement]
     let onSave: (BodyWeightMeasurement) throws -> Void
     let onDelete: (BodyWeightMeasurement) throws -> Void
-    let deleteFailed: Bool
-    let onDeleteFailureAcknowledged: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var weightText = ""
@@ -853,15 +857,9 @@ private struct BodyWeightHistorySheet: View {
     @State private var showsSaveError = false
     @State private var showsDeleteError = false
 
-    private var deleteFailureAlertBinding: Binding<Bool> {
-        Binding(
-            get: { showsDeleteError || deleteFailed },
-            set: { isPresented in
-                showsDeleteError = isPresented
-                if !isPresented { onDeleteFailureAcknowledged() }
-            }
-        )
-    }
+    /// Only a synchronous delete error is shown here; provider rejections that
+    /// arrive later go through the Settings persistence banner.
+    private var deleteFailureAlertBinding: Binding<Bool> { $showsDeleteError }
 
     var body: some View {
         NavigationStack {

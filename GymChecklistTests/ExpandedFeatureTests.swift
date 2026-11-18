@@ -117,7 +117,7 @@ final class ExpandedFeatureTests: XCTestCase {
         try repository.save(sameDateLaterMeasurement)
         XCTAssertEqual(repository.measurements.first?.id, sameDateLaterMeasurement.id)
         XCTAssertEqual(viewModel.currentWeightInKilograms, 79.5)
-        try repository.deleteMeasurement(id: sameDateLaterMeasurement.id, onFailure: {})
+        try repository.deleteMeasurement(id: sameDateLaterMeasurement.id)
         XCTAssertEqual(viewModel.currentWeightInKilograms, 80)
 
         let future = BodyWeightMeasurement(
@@ -159,25 +159,99 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(snapshot.measurementsPreservingCachedEntries([cached]), [fresh, cached])
     }
 
-    func testBodyWeightDeleteFailureRestoresTheOptimisticallyRemovedRowOnce() {
-        let owner = UserID(rawValue: "owner")
-        let removed = BodyWeightMeasurement(
-            id: BodyWeightMeasurementID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000012")!),
-            userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 2),
-            weightInKilograms: 80, measuredAt: .distantPast, updatedAt: .distantPast
+    // GYM-22: a server-rejected body-weight write must be diagnosable from logs.
+    func testRejectedBodyWeightWriteIsLoggedWithFirestoreCodeAndMessage() {
+        let diagnostics = FirestoreDiagnostics()
+        var received: [(FirestoreDiagnosticEvent, Bool)] = []
+        diagnostics.install { received.append(($0, $1)) }
+        let permissionDenied = NSError(
+            domain: "FIRFirestoreErrorDomain", code: 7,
+            userInfo: [NSLocalizedDescriptionKey: "Missing or insufficient permissions."]
         )
-        let newer = BodyWeightMeasurement(
-            id: BodyWeightMeasurementID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000013")!),
-            userID: owner, localDate: LocalDate(year: 2026, month: 9, day: 3),
-            weightInKilograms: 79, measuredAt: .distantFuture, updatedAt: .distantFuture
+        let documentID = "0F8FAD5B-D9CB-469F-A165-70867728950E"
+
+        diagnostics.recordIfFailed(nil, operation: .write, collection: "bodyWeightMeasurements", documentID: documentID)
+        diagnostics.recordIfFailed(permissionDenied, operation: .write, collection: "bodyWeightMeasurements", documentID: documentID)
+        diagnostics.recordIfFailed(permissionDenied, operation: .write, collection: "bodyWeightMeasurements", documentID: documentID)
+
+        XCTAssertEqual(received.count, 2, "Every rejected write is logged; successful writes are not")
+        XCTAssertEqual(received.map { $0.1 }, [true, false], "Crashlytics gets each distinct failure once")
+        let event = received[0].0
+        XCTAssertEqual(event.operation, .write)
+        XCTAssertEqual(event.collection, "bodyWeightMeasurements")
+        XCTAssertEqual(event.documentID, documentID)
+        XCTAssertEqual(event.errorCode, 7)
+        XCTAssertEqual(event.errorCodeName, "permissionDenied")
+        XCTAssertEqual(event.message, "Missing or insufficient permissions.")
+        XCTAssertTrue(event.logLine.contains("code=permissionDenied"))
+        XCTAssertTrue(event.logLine.contains("collection=bodyWeightMeasurements"))
+        XCTAssertEqual(event.crashlyticsError.domain, "GymChecklist.Firestore.write.permissionDenied")
+        XCTAssertEqual(event.crashlyticsError.code, 7)
+    }
+
+    func testRepeatedListenerAndDecodeFailuresAreReportedOncePerLaunch() {
+        let diagnostics = FirestoreDiagnostics()
+        var received: [FirestoreDiagnosticEvent] = []
+        diagnostics.install { event, _ in received.append(event) }
+        let unavailable = NSError(domain: "FIRFirestoreErrorDomain", code: 14, userInfo: nil)
+        let decoding = DecodingError.keyNotFound(
+            AnyCodingKeyForTests("measuredAt"),
+            .init(codingPath: [], debugDescription: "No value associated with key measuredAt")
         )
 
-        let restored = BodyWeightDeletionFailureRecovery.measurementsRestoring(removed, to: [newer])
-        XCTAssertEqual(restored, [newer, removed])
-        XCTAssertEqual(
-            BodyWeightDeletionFailureRecovery.measurementsRestoring(removed, to: restored),
-            restored
+        for _ in 0..<3 {
+            diagnostics.record(FirestoreDiagnosticEvent(operation: .listen, collection: "workouts", documentID: nil, error: unavailable))
+            diagnostics.record(FirestoreDiagnosticEvent(operation: .decode, collection: "bodyWeightMeasurements", documentID: "A", error: decoding))
+            diagnostics.record(FirestoreDiagnosticEvent(
+                operation: .decode, collection: "workouts", documentID: "2026-11-18",
+                error: FirestoreMappingError.domainValidationFailed
+            ))
+        }
+
+        XCTAssertEqual(received.map(\.errorCodeName), ["unavailable", "decodingError", "domainValidationFailed"])
+        XCTAssertTrue(received[1].message.contains("measuredAt"))
+    }
+
+    @MainActor
+    func testBodyWeightHistoryFailureIsShownAndRetryReconnectsTheListener() {
+        let userID = UserID(rawValue: "owner")
+        let bodyWeightRepository = FailureReportingBodyWeightRepository(userID: userID)
+        let viewModel = SettingsViewModel(
+            repository: FailureReportingSettingsRepository(userID: userID),
+            bodyWeightRepository: bodyWeightRepository,
+            currentDate: LocalDate(year: 2026, month: 10, day: 15)
         )
+
+        bodyWeightRepository.emit(.historyUnavailable)
+
+        XCTAssertEqual(viewModel.persistenceIssue?.title, "Body weight history isn’t up to date")
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(bodyWeightRepository.restartListeningCount, 1)
+        XCTAssertNil(viewModel.persistenceIssue)
+    }
+
+    @MainActor
+    func testRejectedBodyWeightSaveShowsRetryableIssueAndKeepsEntryForRetry() throws {
+        let userID = UserID(rawValue: "owner")
+        let bodyWeightRepository = FailureReportingBodyWeightRepository(userID: userID)
+        let viewModel = SettingsViewModel(
+            repository: FailureReportingSettingsRepository(userID: userID),
+            bodyWeightRepository: bodyWeightRepository,
+            currentDate: LocalDate(year: 2026, month: 10, day: 15)
+        )
+        let measurement = BodyWeightMeasurement(
+            id: BodyWeightMeasurementID(), userID: userID, localDate: LocalDate(year: 2026, month: 10, day: 15),
+            weightInKilograms: 80, measuredAt: .distantPast, updatedAt: .distantPast
+        )
+
+        try viewModel.saveMeasurement(measurement)
+        bodyWeightRepository.emit(.saveRejected(measurement))
+
+        XCTAssertEqual(viewModel.persistenceIssue?.title, "Body weight wasn’t saved")
+        XCTAssertEqual(viewModel.persistenceIssue?.retryTitle, "Retry Save")
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(bodyWeightRepository.savedMeasurements, [measurement, measurement])
+        XCTAssertEqual(viewModel.measurements, [measurement])
     }
 
     func testCustomExerciseSnapshotPreservesCachedExerciseWhenItsDocumentIsUnreadable() throws {
@@ -1055,8 +1129,18 @@ private final class FailureReportingBodyWeightRepository: BodyWeightRepository {
         savedMeasurements.append(measurement)
         try base.save(measurement)
     }
-    func deleteMeasurement(id: BodyWeightMeasurementID, onFailure: @escaping @MainActor () -> Void) throws {
-        try base.deleteMeasurement(id: id, onFailure: onFailure)
+    private(set) var restartListeningCount = 0
+    func deleteMeasurement(id: BodyWeightMeasurementID) throws {
+        try base.deleteMeasurement(id: id)
     }
+    func restartListening() { restartListeningCount += 1 }
     func emit(_ failure: BodyWeightPersistenceFailure) { failures.publish(failure) }
+}
+
+private struct AnyCodingKeyForTests: CodingKey {
+    let stringValue: String
+    let intValue: Int? = nil
+    init(_ stringValue: String) { self.stringValue = stringValue }
+    init?(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { return nil }
 }

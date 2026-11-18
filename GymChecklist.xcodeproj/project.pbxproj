@@ -48,6 +48,7 @@
 		U10000000000000000000001 /* GymTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = U20000000000000000000001 /* GymTheme.swift */; };
 		V10000000000000000000001 /* ExpandedFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = V20000000000000000000001 /* ExpandedFeatureTests.swift */; };
 		S10000000000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = S20000000000000000000001 /* Assets.xcassets */; };
+		S10000000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = S20000000000000000000002 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -92,6 +93,7 @@
 		U20000000000000000000001 /* GymTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymTheme.swift; sourceTree = "<group>"; };
 		V20000000000000000000001 /* ExpandedFeatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandedFeatureTests.swift; sourceTree = "<group>"; };
 		S20000000000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		S20000000000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,7 +104,7 @@
 
 /* Begin PBXGroup section */
 		A70000000000000000000001 = {isa = PBXGroup; children = (A70000000000000000000002 /* GymChecklist */, A70000000000000000000003 /* GymChecklistTests */, A70000000000000000000004 /* GymChecklistUITests */, A70000000000000000000005 /* Frameworks */, A70000000000000000000006 /* Products */,); sourceTree = "<group>"; };
-		A70000000000000000000002 /* GymChecklist */ = {isa = PBXGroup; children = (S20000000000000000000001 /* Assets.xcassets */, A70000000000000000000007 /* App */, A70000000000000000000008 /* Features */, A70000000000000000000009 /* Core */, A7000000000000000000000A /* Data */, A7000000000000000000000B /* Services */,); path = GymChecklist; sourceTree = "<group>"; };
+		A70000000000000000000002 /* GymChecklist */ = {isa = PBXGroup; children = (S20000000000000000000001 /* Assets.xcassets */, S20000000000000000000002 /* PrivacyInfo.xcprivacy */, A70000000000000000000007 /* App */, A70000000000000000000008 /* Features */, A70000000000000000000009 /* Core */, A7000000000000000000000A /* Data */, A7000000000000000000000B /* Services */,); path = GymChecklist; sourceTree = "<group>"; };
 		A70000000000000000000007 /* App */ = {isa = PBXGroup; children = (A20000000000000000000001 /* GymChecklistApp.swift */, A20000000000000000000002 /* ContentView.swift */, J20000000000000000000001 /* WorkoutViewModel.swift */,); path = App; sourceTree = "<group>"; };
 		A70000000000000000000008 /* Features */ = {isa = PBXGroup; children = (A7000000000000000000000C /* Auth */, A7000000000000000000000D /* Today */, A7000000000000000000000E /* Program */, A7000000000000000000000F /* Exercises */, A70000000000000000000010 /* Settings */,); path = Features; sourceTree = "<group>"; };
 		A70000000000000000000009 /* Core */ = {isa = PBXGroup; children = (A70000000000000000000011 /* Models */, A70000000000000000000012 /* UI */, A70000000000000000000013 /* Utilities */,); path = Core; sourceTree = "<group>"; };
@@ -136,7 +138,7 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		AA0000000000000000000001 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (S10000000000000000000001 /* Assets.xcassets in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		AA0000000000000000000001 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (S10000000000000000000001 /* Assets.xcassets in Resources */, S10000000000000000000002 /* PrivacyInfo.xcprivacy in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
 		AA0000000000000000000002 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		AA0000000000000000000003 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */

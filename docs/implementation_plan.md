@@ -19,7 +19,7 @@ The detailed historical task headers below predate the green exact-candidate gat
 
 Task completion rule: a task may be marked `DONE` only when all listed acceptance criteria and verification steps pass, or when an explicitly documented environment limitation prevents only non-authoritative local verification and authoritative CI passes instead.
 
-Continuity rule: after each meaningful checkpoint, update `docs/progress.md` with verification, relevant review notes, blockers/deferred external actions, and the exact next safe action. Runtime status in `docs/progress.md` plus actual Git/code state is authoritative if a task header in this plan is stale.
+Continuity rule: `docs/progress.md` holds only the current state and next step; task status and history live in Linear (team GYM) and git log. Runtime status in `docs/progress.md` plus actual Git/code state is authoritative if a task header in this plan is stale.
 
 
 ## Current pre-payment functional-acceptance override
@@ -36,10 +36,7 @@ Until the user explicitly accepts the functional MVP:
 - implementation-complete tasks marked only `PENDING CI` do not need an individual full-suite rerun each;
 - do not dispatch macOS CI per task, fix, commit, or acceptance finding; batch implementation and review until the active checkpoint is locally exhausted;
 - a hardening task keeps local audit/fix/test cycles together until the active MVP scope is locally exhausted; a later local finding does not require a separate task;
-- any task that changes production/test/project code must stop after committing/pushing and marking `REMOTE_GATE_READY_FOR_FINAL_AUDIT <SHA>`; it must not dispatch macOS in that same task;
-- a separate fresh final-audit task is required on that exact SHA; if it changes production/test/project code, it becomes the hardening task and finishes all related local work before recording a new final-audit SHA;
-- only a clean final-audit pass with no production/test/project code changes may mark `REMOTE_GATE_APPROVED <SHA>` and dispatch one candidate/full gate;
-- any red candidate revokes approval and restarts the two-pass gate;
+- the gate for code changes is green required CI on the exact PR head SHA plus the acceptance checklist; see `docs/codex_instructions.md`. No separate gate-recording docs commits;
 - before macOS dispatch, finish all runnable implementation, migration, affected-test maintenance, repository self-review, documentation, and available static/security/offline validation;
 - use exact focused diagnostics only when a specific compiler/runtime/test uncertainty is genuinely the remaining blocker; use the macOS `candidate` scope only for an implementation-complete checkpoint intended to become the next acceptance candidate;
 - do not insert a separate smoke run between a green blocker-focused check and final full verification;

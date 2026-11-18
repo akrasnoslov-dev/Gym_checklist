@@ -77,20 +77,14 @@ Codex may use subagents for bounded read-only analysis when useful, but one agen
 
 macOS/Xcode CI remains the authoritative iOS build/simulator gate.
 
-For production Swift, tests, persistence/migration, Xcode project, or other iOS-runtime-relevant changes, keep the existing two-pass conservation rule:
+For production Swift, tests, persistence/migration, Xcode project, or other iOS-runtime-relevant changes, the gate is:
 
-**Pass A**
-- finish implementation and local/static hardening;
-- commit/push a coherent candidate only when authorized by the task/tool policy;
-- record `REMOTE_GATE_READY_FOR_FINAL_AUDIT <SHA>` in `docs/progress.md`;
-- do not dispatch the authoritative macOS gate in the same implementation pass.
+- green required CI (Linux checks plus macOS unit + UI tests) on the exact PR head SHA;
+- the relevant acceptance checklist in `docs/mvp_acceptance_checklist.md` (and the pre-flight evidence it asks for) before handing a build to the user.
 
-**Pass B**
-- audit the exact recorded SHA in a later fresh pass;
-- if code/test/project files change, return to Pass A;
-- only a clean audit may record `REMOTE_GATE_APPROVED <SHA>` and dispatch the justified candidate/full run.
+Do not create separate docs commits to record gate stages, approvals, or SHAs. CI history on the PR is the evidence; task status lives in Linear (team GYM), not in markdown.
 
-A red authoritative run revokes approval.
+A red run on the head SHA blocks the gate until fixed and re-run green on the new head.
 
 For docs/process-only work that cannot affect iOS runtime or the gate itself, macOS verification is not required.
 

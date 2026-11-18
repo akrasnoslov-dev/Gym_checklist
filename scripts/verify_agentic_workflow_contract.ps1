@@ -126,6 +126,15 @@ Forbid-Fragment 'docs/implementation_plan.md' $plan 'This is the execution backl
 }
 
 Forbid-Fragment 'agents/routing.toml' $routing 'isolation = "git_worktree"'
+
+# Simplified gate: green CI on exact SHA + checklist; no gate-recording docs commits; status in Linear.
+Require-Fragment 'CHATGPT_PROJECT_SOURCE.md' $projectSource 'Never auto-merge. `dev -> main` only with explicit user approval.'
+Require-Fragment 'CHATGPT_PROJECT_SOURCE.md' $projectSource 'Track task status in Linear, not in markdown.'
+Require-Fragment 'docs/codex_instructions.md' $codex 'green required CI (Linux checks plus macOS unit + UI tests) on the exact PR head SHA'
+Require-Fragment 'docs/codex_instructions.md' $codex '`dev -> main` requires explicit user approval.'
+@($codex, $plan) | ForEach-Object { if ($_.Contains('REMOTE_GATE_')) { throw 'Deprecated REMOTE_GATE_* gate-recording rule still present' } }
+$progressLines = (Get-Content -LiteralPath (Join-Path $root 'docs/progress.md')).Count
+if ($progressLines -gt 40) { throw "docs/progress.md must stay <= 40 lines (current state only), found $progressLines" }
 Forbid-Fragment 'docs/codex_instructions.md' $codex 'Keep Codex as the orchestrator'
 
 @(

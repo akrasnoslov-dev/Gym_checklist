@@ -78,10 +78,18 @@ Durable decisions go only into their canonical owners:
 - product: `docs/product_spec.md`;
 - UX: `docs/ux_spec.md`;
 - architecture/data/platform: `docs/architecture.md`;
-- current checkpoint: `docs/progress.md`;
+- current state and next step only (≤ 40 lines): `docs/progress.md`;
+- task status, backlog items, and findings: Linear, team GYM;
 - long-term backlog/acceptance: `docs/implementation_plan.md`;
 - ChatGPT orchestration/bridge workflow: this file;
 - Codex fallback behavior: `docs/codex_instructions.md`.
+
+## Gate and merge policy
+
+- Gate for a change = green required CI on the exact PR head SHA + the relevant checklist (`docs/mvp_acceptance_checklist.md` for builds handed to the user).
+- No separate docs commits for gate stages (no "Pass A / Pass B / approve gate" records, no SHA journals in `docs/progress.md`).
+- Track task status in Linear, not in markdown. History stays in git log and Linear.
+- PRs target `dev`. Never auto-merge. `dev -> main` only with explicit user approval.
 
 ## Live repository is authoritative
 

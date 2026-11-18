@@ -378,6 +378,7 @@ struct ProgramView: View {
                 RoundedRectangle(cornerRadius: 9)
                     .stroke(isSelected ? GymTheme.accentForeground : (isToday ? Color.primary.opacity(0.65) : .clear), lineWidth: isSelected ? 1.5 : 1)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(fullDateLabel(for: date))
@@ -598,6 +599,8 @@ struct ProgramView: View {
             Spacer()
         }
         .frame(minHeight: 44)
+        // Plain buttons hit-test only drawn content; make the whole row tappable.
+        .contentShape(Rectangle())
 
         if set.isCompleted {
             Button {
@@ -706,6 +709,7 @@ struct ProgramView: View {
                     .font(.body.weight(.semibold))
                     .foregroundStyle(GymTheme.accentForeground)
                     .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Add set to \(name)")
@@ -1390,6 +1394,7 @@ private struct CopyWorkoutSheet: View {
             .foregroundStyle(isAvailable ? sourceStateColor(state) : GymTheme.textSecondary.opacity(0.45))
             .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 8))
             .opacity(isCurrentMonth ? 1 : 0.45)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!isAvailable)
@@ -1647,6 +1652,7 @@ private struct ProgramSetEditorSheet: View {
     @State private var weightText: String
     @State private var timeText: String
     @State private var showsValidationError = false
+    @State private var showsSaveError = false
     private let initialRepsText: String
     private let initialWeightText: String
     private let initialTimeText: String
@@ -1722,15 +1728,7 @@ private struct ProgramSetEditorSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        guard inputsAreValid else { showsValidationError = true; return }
-                        do {
-                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
-                            dismiss()
-                        } catch {
-                            showsValidationError = true
-                        }
-                    }
+                    Button("Save", action: save)
                     .accessibilityIdentifier("programSetEditorSave")
                 }
             }
@@ -1739,7 +1737,28 @@ private struct ProgramSetEditorSheet: View {
             } message: {
                 Text("Enter valid reps, weight, and time values.")
             }
+            .alert("Set wasn’t saved", isPresented: $showsSaveError) {
+                Button("Retry Save") { save() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your values are still here. Try saving again.")
+            }
             .interactiveDismissDisabled(hasUnsavedChanges)
+        }
+    }
+
+    private func save() {
+        guard inputsAreValid else { showsValidationError = true; return }
+        do {
+            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
+            dismiss()
+        } catch {
+            if let planningError = error as? ProgramPlanningError,
+               planningError == .invalidSetValues {
+                showsValidationError = true
+            } else {
+                showsSaveError = true
+            }
         }
     }
 }
@@ -1835,20 +1854,7 @@ private struct HistoricalActualEditorSheet: View {
                         .accessibilityIdentifier("programHistoryActualEditorCancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        guard inputsAreValid else { showsValidationError = true; return }
-                        do {
-                            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
-                            dismiss()
-                        } catch {
-                            if let planningError = error as? ProgramPlanningError,
-                               planningError == .invalidSetValues {
-                                showsValidationError = true
-                            } else {
-                                showsSaveError = true
-                            }
-                        }
-                    }
+                    Button("Save", action: save)
                     .accessibilityIdentifier("programHistoryActualEditorSave")
                 }
             }
@@ -1858,11 +1864,27 @@ private struct HistoricalActualEditorSheet: View {
                 Text("Enter valid reps, weight, and time values.")
             }
             .alert("Couldn't confirm this change", isPresented: $showsSaveError) {
-                Button("OK", role: .cancel) {}
+                Button("Retry Save") { save() }
+                Button("Keep Editing", role: .cancel) {}
             } message: {
-                Text("Check your workout before trying again.")
+                Text("Your values are still here. Try saving again.")
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
+        }
+    }
+
+    private func save() {
+        guard inputsAreValid else { showsValidationError = true; return }
+        do {
+            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
+            dismiss()
+        } catch {
+            if let planningError = error as? ProgramPlanningError,
+               planningError == .invalidSetValues {
+                showsValidationError = true
+            } else {
+                showsSaveError = true
+            }
         }
     }
 }

@@ -289,8 +289,13 @@ private struct CustomExerciseView: View {
         }
         do {
             try onSave(name)
+            errorMessage = nil
+        } catch LocalExerciseLibraryError.emptyName {
+            errorMessage = "Enter an exercise name."
+        } catch LocalExerciseLibraryError.duplicateName {
+            errorMessage = "An exercise with this name already exists."
         } catch {
-            errorMessage = "Exercise could not be added. Try again."
+            errorMessage = "Exercise wasn’t saved. Your name is still here—try again."
         }
     }
 }

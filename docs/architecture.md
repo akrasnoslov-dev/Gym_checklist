@@ -134,6 +134,19 @@ Program uses one selected-date state owned by `WorkoutViewModel`. Calendar chrom
 Firestore client persistence is the primary offline mechanism for cloud-backed user data.
 The app must use optimistic/local writes so Today responds without waiting for network acknowledgement.
 
+Optimistic writes are reconciled per Firestore document. A later mutation may
+supersede an earlier failure only when both target the same document and the
+later full-document value carries the intended state forward. Writes to other
+documents must never hide a rejection. Pending-write metadata represents
+legitimate queued offline work; rollback and retry feedback occur only after
+Firestore resolves a write as rejected. Workout, settings, custom-exercise,
+and body-weight repositories restore their last confirmed value on a current
+rejection and retain the attempted value for retry. A small per-user mutation
+intent journal survives process death so deletes can also be reconciled. If a
+post-restart server value differs, the app reports the offline change as
+unconfirmed—not proven rejected—because a later edit from another device is
+indistinguishable; replacing that value requires an explicit user choice.
+
 System exercise catalog should be bundled with the application for instant offline search.
 Custom exercises are user-owned cloud data and should remain locally cached after use.
 

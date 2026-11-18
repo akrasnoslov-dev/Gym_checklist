@@ -94,6 +94,14 @@ A red authoritative run revokes approval.
 
 For docs/process-only work that cannot affect iOS runtime or the gate itself, macOS verification is not required.
 
+## Fast physical-iPhone preview IPA
+
+Physical-device preview and release acceptance are different gates. Do not spend a full simulator UI-suite run merely to give the user an installable IPA for manual testing.
+
+- **Preview**: after the selected source has passed local/static contracts and the existing macOS PR smoke/build gate, build an unsigned, real-Firebase IPA directly from its pinned commit SHA using the existing `mvp-acceptance-ipa.yml` packaging job. Preserve its secret restoration, Release iPhone compilation, bundle ID/callback checks, manifest, and checksum. If manual dispatch is unavailable, an isolated CI-trigger branch may reuse the same packaging steps without changing the app source.
+- **Release/full acceptance**: keep the independent audit and the entire Xcode unit/UI suite before claiming release quality. A preview IPA does not imply those tests passed and must not trigger merging, publishing, or TestFlight.
+- When preview packaging fails, fix that build error and rerun the smallest relevant gate. Run costly simulator tests only for a real regression, explicit full acceptance, or release-readiness verification.
+- Always name the exact source SHA and link only the new run's real IPA artifact. Do not substitute an older binary.
 ## Completion report
 
 Codex completion is evidence, not final project acceptance.

@@ -422,3 +422,641 @@ final class ExpandedFeatureTests: XCTestCase {
         return calendar
     }
 }
+
+final class PersistenceMutationTrackingTests: XCTestCase {
+    private let firstDate = LocalDate(year: 2026, month: 10, day: 15)
+    private let secondDate = LocalDate(year: 2026, month: 10, day: 16)
+
+    func testRejectedMutationIsNotHiddenBySuccessfulWriteToAnotherDocument() {
+        var tracker = ScopedDocumentMutationTracker<LocalDate, String>()
+        let first = tracker.begin(key: firstDate, baseline: .value("first-server"), attempted: .value("first-local"))
+        let second = tracker.begin(key: secondDate, baseline: .value("second-server"), attempted: .value("second-local"))
+
+        XCTAssertEqual(tracker.complete(second, result: .accepted), .accepted)
+        XCTAssertEqual(
+            tracker.complete(first, result: .rejected),
+            .rejected(restore: .value("first-server"), attempted: .value("first-local"))
+        )
+    }
+
+    func testLatestRejectedMutationOnSameDocumentRestoresLastAcceptedValue() {
+        var tracker = ScopedDocumentMutationTracker<LocalDate, String>()
+        let first = tracker.begin(key: firstDate, baseline: .value("server"), attempted: .value("first"))
+        let second = tracker.begin(key: firstDate, baseline: .value("first"), attempted: .value("second"))
+
+        XCTAssertEqual(tracker.complete(first, result: .accepted), .accepted)
+        XCTAssertEqual(
+            tracker.complete(second, result: .rejected),
+            .rejected(restore: .value("first"), attempted: .value("second"))
+        )
+    }
+
+    func testOlderRejectedMutationIsSupersededByNewerFullDocumentWrite() {
+        var tracker = ScopedDocumentMutationTracker<LocalDate, String>()
+        let first = tracker.begin(key: firstDate, baseline: .value("server"), attempted: .value("first"))
+        let second = tracker.begin(key: firstDate, baseline: .value("first"), attempted: .value("second"))
+
+        XCTAssertEqual(tracker.complete(first, result: .rejected), .superseded)
+        XCTAssertEqual(tracker.complete(second, result: .accepted), .accepted)
+    }
+
+    func testOlderRejectedMutationRemainsSupersededWhenNewerWriteFinishedFirst() {
+        var tracker = ScopedDocumentMutationTracker<LocalDate, String>()
+        let first = tracker.begin(key: firstDate, baseline: .value("server"), attempted: .value("first"))
+        let second = tracker.begin(key: firstDate, baseline: .value("first"), attempted: .value("second"))
+
+        XCTAssertEqual(tracker.complete(second, result: .accepted), .accepted)
+        XCTAssertEqual(tracker.complete(first, result: .rejected), .superseded)
+        XCTAssertFalse(tracker.hasPendingMutation(for: firstDate))
+    }
+
+    func testNewestRejectionRestoresOlderPendingFullDocument() {
+        var tracker = ScopedDocumentMutationTracker<LocalDate, String>()
+        let first = tracker.begin(key: firstDate, baseline: .value("server"), attempted: .value("first"))
+        let second = tracker.begin(key: firstDate, baseline: .value("first"), attempted: .value("second"))
+
+        XCTAssertEqual(
+            tracker.complete(second, result: .rejected),
+            .rejected(restore: .value("first"), attempted: .value("second"))
+        )
+        XCTAssertEqual(tracker.complete(first, result: .accepted), .accepted)
+        XCTAssertFalse(tracker.hasPendingMutation(for: firstDate))
+    }
+
+    func testNewestRejectionRestoresNewerAcceptedValueBeforeOlderPendingValue() {
+        var tracker = ScopedDocumentMutationTracker<LocalDate, String>()
+        let first = tracker.begin(key: firstDate, baseline: .value("server"), attempted: .value("first"))
+        let second = tracker.begin(key: firstDate, baseline: .value("first"), attempted: .value("second"))
+        let third = tracker.begin(key: firstDate, baseline: .value("second"), attempted: .value("third"))
+
+        XCTAssertEqual(tracker.complete(second, result: .accepted), .accepted)
+        XCTAssertEqual(
+            tracker.complete(third, result: .rejected),
+            .rejected(restore: .value("second"), attempted: .value("third"))
+        )
+        XCTAssertEqual(tracker.complete(first, result: .accepted), .accepted)
+    }
+
+    func testRejectedDeleteRestoresDocument() {
+        var tracker = ScopedDocumentMutationTracker<LocalDate, String>()
+        let deletion = tracker.begin(key: firstDate, baseline: .value("server"), attempted: .missing)
+
+        XCTAssertEqual(
+            tracker.complete(deletion, result: .rejected),
+            .rejected(restore: .value("server"), attempted: .missing)
+        )
+    }
+
+    func testRestartedOfflineWriteIsAcceptedWhenStableSnapshotMatches() {
+        withPendingMutationJournal { directoryURL, storageKey in
+            var mutations = ScopedDocumentMutationTracker<LocalDate, String>()
+            let ticket = mutations.begin(key: firstDate, baseline: .value("server"), attempted: .value("offline-change"))
+            var journal = DurablePendingMutationJournal<LocalDate, String>(storageKey: storageKey, directoryURL: directoryURL)
+            journal.record(ticket, attempted: .value("offline-change"))
+
+            var restarted = DurablePendingMutationJournal<LocalDate, String>(storageKey: storageKey, directoryURL: directoryURL)
+            XCTAssertTrue(restarted.reconcileRestarted(stableValues: [firstDate: "offline-change"]).isEmpty)
+        }
+    }
+
+    func testRestartedOfflineWorkoutIsAcceptedWhenServerTruncatedTimestampsToMicroseconds() {
+        withPendingMutationJournal { directoryURL, storageKey in
+            let userID = UserID(rawValue: "sync-user")
+            // Sub-microsecond fractions are lost by Firestore Timestamp storage.
+            let precise = Date(timeIntervalSince1970: 1_790_000_000.123456789)
+            let truncated = Date(timeIntervalSince1970: (precise.timeIntervalSince1970 * 1_000_000).rounded(.down) / 1_000_000)
+            func workout(at date: Date) throws -> Workout {
+                Workout(
+                    id: WorkoutID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-0000000000A1")!),
+                    userID: userID,
+                    localDate: firstDate,
+                    exercises: [WorkoutExercise(
+                        id: WorkoutExerciseID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-0000000000B1")!),
+                        exerciseID: ExerciseID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-0000000000C1")!),
+                        customName: nil,
+                        order: 0,
+                        isSkipped: false,
+                        sets: [try WorkoutSet(
+                            id: WorkoutSetID(rawValue: UUID(uuidString: "00000000-0000-0000-0000-0000000000D1")!),
+                            order: 0, reps: 8, weight: 55.5, timeSeconds: 0, type: .weighted,
+                            isCompleted: true, actualReps: 8, actualWeight: 55.5, actualTimeSeconds: 0,
+                            actualType: .weighted, completedAt: date
+                        )]
+                    )],
+                    createdAt: date,
+                    updatedAt: date
+                )
+            }
+            do {
+                let attempted = try workout(at: precise)
+                let stable = try workout(at: truncated)
+                XCTAssertNotEqual(attempted, stable, "Precondition: the round trip is not bit-identical")
+
+                var mutations = ScopedDocumentMutationTracker<LocalDate, Workout>()
+                let ticket = mutations.begin(key: firstDate, baseline: .missing, attempted: .value(attempted))
+                var journal = DurablePendingMutationJournal<LocalDate, Workout>(storageKey: storageKey, directoryURL: directoryURL)
+                journal.record(ticket, attempted: .value(attempted))
+
+                var restarted = DurablePendingMutationJournal<LocalDate, Workout>(storageKey: storageKey, directoryURL: directoryURL)
+                XCTAssertTrue(restarted.reconcileRestarted(stableValues: [firstDate: stable]).isEmpty)
+            } catch {
+                XCTFail("Could not build workout fixture: \(error)")
+            }
+        }
+    }
+
+    func testSyncEquivalenceStillDetectsRealChangesAndLargeTimestampDifferences() {
+        let base = Date(timeIntervalSince1970: 1_790_000_000)
+        let first = BodyWeightMeasurement(
+            userID: UserID(rawValue: "sync-user"), localDate: firstDate,
+            weightInKilograms: 80, measuredAt: base, updatedAt: base
+        )
+        var changedWeight = first
+        changedWeight.weightInKilograms = 81
+        var changedTime = first
+        changedTime.updatedAt = base.addingTimeInterval(1)
+        var microsecondShift = first
+        microsecondShift.updatedAt = base.addingTimeInterval(0.000_000_9)
+
+        XCTAssertTrue(SyncEquivalence.isEquivalent(first, microsecondShift))
+        XCTAssertFalse(SyncEquivalence.isEquivalent(first, changedWeight))
+        XCTAssertFalse(SyncEquivalence.isEquivalent(first, changedTime))
+        XCTAssertFalse(SyncEquivalence.isEquivalentDocument(PersistedDocument.value(first), .missing))
+        XCTAssertTrue(SyncEquivalence.isEquivalentDocument(PersistedDocument<BodyWeightMeasurement>.missing, .missing))
+    }
+
+    func testRestartedOfflineWriteRemainsUnconfirmedAcrossLaunchesWhenStableSnapshotDiffers() {
+        withPendingMutationJournal { directoryURL, storageKey in
+            var mutations = ScopedDocumentMutationTracker<LocalDate, String>()
+            let ticket = mutations.begin(key: firstDate, baseline: .value("server"), attempted: .value("offline-change"))
+            var journal = DurablePendingMutationJournal<LocalDate, String>(storageKey: storageKey, directoryURL: directoryURL)
+            journal.record(ticket, attempted: .value("offline-change"))
+
+            var restarted = DurablePendingMutationJournal<LocalDate, String>(storageKey: storageKey, directoryURL: directoryURL)
+            XCTAssertEqual(
+                restarted.reconcileRestarted(stableValues: [firstDate: "server"]),
+                [.init(key: firstDate, attempted: .value("offline-change"), stable: .value("server"))]
+            )
+            XCTAssertTrue(restarted.reconcileRestarted(stableValues: [firstDate: "server"]).isEmpty)
+            var nextLaunch = DurablePendingMutationJournal<LocalDate, String>(storageKey: storageKey, directoryURL: directoryURL)
+            XCTAssertEqual(
+                nextLaunch.reconcileRestarted(stableValues: [firstDate: "server"]),
+                [.init(key: firstDate, attempted: .value("offline-change"), stable: .value("server"))]
+            )
+        }
+    }
+
+    func testRestartedRejectedDeleteRetainsTombstoneForRecovery() {
+        withPendingMutationJournal { directoryURL, storageKey in
+            var mutations = ScopedDocumentMutationTracker<LocalDate, String>()
+            let ticket = mutations.begin(key: firstDate, baseline: .value("server"), attempted: .missing)
+            var journal = DurablePendingMutationJournal<LocalDate, String>(storageKey: storageKey, directoryURL: directoryURL)
+            journal.record(ticket, attempted: .missing)
+
+            var restarted = DurablePendingMutationJournal<LocalDate, String>(storageKey: storageKey, directoryURL: directoryURL)
+            XCTAssertEqual(
+                restarted.reconcileRestarted(stableValues: [firstDate: "server"]),
+                [.init(key: firstDate, attempted: .missing, stable: .value("server"))]
+            )
+        }
+    }
+
+    func testAcceptedNewerJournalEntryRemovesOlderUnresolvedIntent() {
+        withPendingMutationJournal { directoryURL, storageKey in
+            var mutations = ScopedDocumentMutationTracker<LocalDate, String>()
+            let first = mutations.begin(key: firstDate, baseline: .value("server"), attempted: .value("first"))
+            let second = mutations.begin(key: firstDate, baseline: .value("first"), attempted: .value("second"))
+            var journal = DurablePendingMutationJournal<LocalDate, String>(storageKey: storageKey, directoryURL: directoryURL)
+            journal.record(first, attempted: .value("first"))
+            journal.record(second, attempted: .value("second"))
+            journal.complete(second, result: .accepted)
+
+            var restarted = DurablePendingMutationJournal<LocalDate, String>(storageKey: storageKey, directoryURL: directoryURL)
+            XCTAssertTrue(restarted.reconcileRestarted(stableValues: [firstDate: "second"]).isEmpty)
+        }
+    }
+
+    @MainActor
+    func testPersistenceFailurePublishedBeforeObservationIsReplayed() {
+        let broadcaster = PersistenceFailureBroadcaster<String>()
+        broadcaster.publish("permission denied")
+        var received: [String] = []
+
+        let observation = broadcaster.observe { received.append($0) }
+
+        XCTAssertEqual(received, ["permission denied"])
+        observation.cancel()
+    }
+
+    func testAccountDeletionPurgesEveryUserScopedPendingJournal() {
+        withPendingMutationJournal { directoryURL, _ in
+            let userID = UserID(rawValue: "deleted-user")
+            for scope in PendingMutationJournalStorage.scopes {
+                var mutations = ScopedDocumentMutationTracker<LocalDate, String>()
+                let ticket = mutations.begin(key: firstDate, baseline: .value("server"), attempted: .value(scope))
+                var journal = DurablePendingMutationJournal<LocalDate, String>(
+                    storageKey: PendingMutationJournalStorage.key(scope: scope, userID: userID),
+                    directoryURL: directoryURL
+                )
+                journal.record(ticket, attempted: .value(scope))
+            }
+
+            PendingMutationJournalStorage.purge(userID: userID, directoryURL: directoryURL)
+
+            for scope in PendingMutationJournalStorage.scopes {
+                var restarted = DurablePendingMutationJournal<LocalDate, String>(
+                    storageKey: PendingMutationJournalStorage.key(scope: scope, userID: userID),
+                    directoryURL: directoryURL
+                )
+                XCTAssertTrue(restarted.reconcileRestarted(stableValues: [firstDate: "server"]).isEmpty)
+            }
+        }
+    }
+
+    func testRetryStartsFromRestoredValueAndCanCommit() {
+        var tracker = ScopedDocumentMutationTracker<LocalDate, String>()
+        let rejected = tracker.begin(key: firstDate, baseline: .value("server"), attempted: .value("change"))
+        XCTAssertEqual(
+            tracker.complete(rejected, result: .rejected),
+            .rejected(restore: .value("server"), attempted: .value("change"))
+        )
+
+        let retry = tracker.begin(key: firstDate, baseline: .value("server"), attempted: .value("change"))
+        XCTAssertEqual(tracker.complete(retry, result: .accepted), .accepted)
+        XCTAssertFalse(tracker.hasPendingMutation(for: firstDate))
+    }
+
+    func testRejectedPreferencesWriteRestoresConfirmedSettings() {
+        let userID = UserID(rawValue: "owner")
+        let confirmed = UserSettings(userID: userID, appearance: .system, weightUnit: .kilograms)
+        let attempted = UserSettings(userID: userID, appearance: .dark, weightUnit: .pounds)
+        var tracker = ScopedDocumentMutationTracker<String, UserSettings>()
+        let ticket = tracker.begin(key: "default", baseline: .value(confirmed), attempted: .value(attempted))
+
+        XCTAssertEqual(
+            tracker.complete(ticket, result: .rejected),
+            .rejected(restore: .value(confirmed), attempted: .value(attempted))
+        )
+    }
+
+    func testRejectedCustomExerciseWriteRestoresConfirmedExercise() {
+        let userID = UserID(rawValue: "owner")
+        let id = ExerciseID()
+        let confirmed = Exercise(id: id, name: "Press", category: nil, isSystem: false, createdByUserID: userID)
+        let attempted = Exercise(id: id, name: "Chest Press", category: nil, isSystem: false, createdByUserID: userID)
+        var tracker = ScopedDocumentMutationTracker<ExerciseID, Exercise>()
+        let ticket = tracker.begin(key: id, baseline: .value(confirmed), attempted: .value(attempted))
+
+        XCTAssertEqual(
+            tracker.complete(ticket, result: .rejected),
+            .rejected(restore: .value(confirmed), attempted: .value(attempted))
+        )
+    }
+
+    func testRejectedBodyWeightWriteRestoresConfirmedMeasurement() {
+        let userID = UserID(rawValue: "owner")
+        let id = BodyWeightMeasurementID()
+        let confirmed = BodyWeightMeasurement(
+            id: id, userID: userID, localDate: firstDate, weightInKilograms: 80,
+            measuredAt: .distantPast, updatedAt: .distantPast
+        )
+        let attempted = BodyWeightMeasurement(
+            id: id, userID: userID, localDate: firstDate, weightInKilograms: 79,
+            measuredAt: .distantPast, updatedAt: .distantFuture
+        )
+        var tracker = ScopedDocumentMutationTracker<BodyWeightMeasurementID, BodyWeightMeasurement>()
+        let ticket = tracker.begin(key: id, baseline: .value(confirmed), attempted: .value(attempted))
+
+        XCTAssertEqual(
+            tracker.complete(ticket, result: .rejected),
+            .rejected(restore: .value(confirmed), attempted: .value(attempted))
+        )
+    }
+
+    func testRejectedWorkoutCompletionRestoresConfirmedVisualState() throws {
+        let userID = UserID(rawValue: "owner")
+        var confirmedSet = WorkoutSet(order: 0, reps: 8)
+        let confirmed = Workout(
+            id: WorkoutID(), userID: userID, localDate: firstDate,
+            exercises: [WorkoutExercise(
+                id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil, order: 0, isSkipped: false,
+                sets: [confirmedSet]
+            )],
+            createdAt: .distantPast,
+            updatedAt: .distantPast
+        )
+        confirmedSet.complete(at: .distantPast)
+        var attempted = confirmed
+        attempted.exercises[0].sets[0] = confirmedSet
+        var tracker = ScopedDocumentMutationTracker<LocalDate, Workout>()
+        let ticket = tracker.begin(key: firstDate, baseline: .value(confirmed), attempted: .value(attempted))
+
+        let completion = tracker.complete(ticket, result: .rejected)
+        guard case let .rejected(.value(restored), .value(retryValue)) = completion else {
+            return XCTFail("Expected rejected workout mutation")
+        }
+        XCTAssertEqual(restored.completionStatus, .planned)
+        XCTAssertEqual(retryValue.completionStatus, .completed)
+    }
+
+    @MainActor
+    func testWorkoutFailureKeepsConfirmedVisualStateAndRetriesAttemptedCompletion() throws {
+        let userID = UserID(rawValue: "owner")
+        let repository = FailureReportingWorkoutRepository(userID: userID)
+        var confirmedSet = WorkoutSet(order: 0, reps: 8)
+        let confirmed = Workout(
+            id: WorkoutID(), userID: userID, localDate: firstDate,
+            exercises: [WorkoutExercise(
+                id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil, order: 0, isSkipped: false, sets: [confirmedSet]
+            )],
+            createdAt: .distantPast, updatedAt: .distantPast
+        )
+        try repository.save(confirmed)
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: firstDate, currentDate: firstDate)
+        confirmedSet.complete(at: .distantPast)
+        var attempted = confirmed
+        attempted.exercises[0].sets[0] = confirmedSet
+
+        repository.emit(.saveRejected(attempted))
+
+        XCTAssertEqual(viewModel.workouts.first?.completionStatus, .planned)
+        XCTAssertEqual(viewModel.persistenceIssue?.title, "Workout change wasn’t saved")
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(repository.savedWorkouts.last, attempted)
+        XCTAssertEqual(viewModel.workouts.first?.completionStatus, .completed)
+    }
+
+    @MainActor
+    func testIndependentWorkoutFailuresRemainQueuedUntilHandled() throws {
+        let userID = UserID(rawValue: "owner")
+        let repository = FailureReportingWorkoutRepository(userID: userID)
+        let first = Workout(
+            id: WorkoutID(), userID: userID, localDate: firstDate, exercises: [],
+            createdAt: .distantPast, updatedAt: .distantPast
+        )
+        let second = Workout(
+            id: WorkoutID(), userID: userID, localDate: secondDate, exercises: [],
+            createdAt: .distantPast, updatedAt: .distantPast
+        )
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: firstDate, currentDate: firstDate)
+
+        repository.emit(.saveRejected(first))
+        let firstIssueID = try XCTUnwrap(viewModel.persistenceIssue?.id)
+        repository.emit(.saveRejected(second))
+        XCTAssertEqual(viewModel.persistenceIssue?.id, firstIssueID)
+
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(repository.savedWorkouts.last, first)
+        XCTAssertNotNil(viewModel.persistenceIssue)
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(repository.savedWorkouts.last, second)
+        XCTAssertNil(viewModel.persistenceIssue)
+    }
+
+    @MainActor
+    func testRepeatedFailuresForOneWorkoutShowOneIssueThatRetriesNewestIntent() throws {
+        let userID = UserID(rawValue: "owner")
+        let repository = FailureReportingWorkoutRepository(userID: userID)
+        let older = Workout(
+            id: WorkoutID(), userID: userID, localDate: firstDate, exercises: [],
+            createdAt: .distantPast, updatedAt: Date(timeIntervalSince1970: 100)
+        )
+        var newer = older
+        newer.updatedAt = Date(timeIntervalSince1970: 200)
+        let other = Workout(
+            id: WorkoutID(), userID: userID, localDate: secondDate, exercises: [],
+            createdAt: .distantPast, updatedAt: .distantPast
+        )
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: firstDate, currentDate: firstDate)
+
+        repository.emit(.saveRejected(older))
+        let firstIssueID = try XCTUnwrap(viewModel.persistenceIssue?.id)
+        repository.emit(.saveRejected(other))
+        repository.emit(.saveRejected(newer))
+        XCTAssertEqual(viewModel.persistenceIssue?.id, firstIssueID, "Same-document failures keep one stable banner")
+
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(repository.savedWorkouts.last, newer)
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(repository.savedWorkouts.last, other)
+        XCTAssertNil(viewModel.persistenceIssue, "Only one issue per document is queued")
+    }
+
+    @MainActor
+    func testRetryAfterRejectionKeepsEditsMadeAfterTheRejection() throws {
+        let userID = UserID(rawValue: "owner")
+        let repository = FailureReportingWorkoutRepository(userID: userID)
+        let rejected = Workout(
+            id: WorkoutID(), userID: userID, localDate: firstDate, exercises: [],
+            createdAt: .distantPast, updatedAt: Date(timeIntervalSince1970: 100)
+        )
+        var editedAfterRejection = rejected
+        editedAfterRejection.exercises = [WorkoutExercise(
+            id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil, order: 0, isSkipped: false, sets: [WorkoutSet(order: 0, reps: 5)]
+        )]
+        editedAfterRejection.updatedAt = Date(timeIntervalSince1970: 300)
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: firstDate, currentDate: firstDate)
+
+        repository.emit(.saveRejected(rejected))
+        try repository.save(editedAfterRejection)
+        viewModel.retryPersistenceIssue()
+
+        XCTAssertEqual(repository.savedWorkouts.last, editedAfterRejection)
+        XCTAssertEqual(viewModel.workout(on: firstDate)?.exercises.count, 1)
+    }
+
+    @MainActor
+    func testRetryDeleteOfAlreadyRemovedWorkoutDoesNotRequeueIssue() {
+        let userID = UserID(rawValue: "owner")
+        let repository = FailureReportingWorkoutRepository(userID: userID)
+        let removed = Workout(
+            id: WorkoutID(), userID: userID, localDate: firstDate, exercises: [],
+            createdAt: .distantPast, updatedAt: .distantPast
+        )
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: firstDate, currentDate: firstDate)
+
+        repository.emit(.deleteRejected(removed))
+        viewModel.retryPersistenceIssue()
+
+        XCTAssertNil(viewModel.persistenceIssue)
+    }
+
+    @MainActor
+    func testSettingsPersistenceFailureUsesRecoveryIssueAndRetriesValidValue() {
+        let userID = UserID(rawValue: "owner")
+        let repository = FailureReportingSettingsRepository(userID: userID)
+        let viewModel = SettingsViewModel(repository: repository)
+        var attempted = repository.settings
+        attempted.appearance = .dark
+
+        repository.emit(.saveRejected(attempted))
+
+        XCTAssertEqual(viewModel.persistenceIssue?.title, "Settings weren’t saved")
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(repository.savedSettings.last, attempted)
+    }
+
+    @MainActor
+    func testCustomExercisePersistenceFailureRetriesExactExercise() {
+        let userID = UserID(rawValue: "owner")
+        let workoutRepository = FailureReportingWorkoutRepository(userID: userID)
+        let exerciseRepository = FailureReportingCustomExerciseRepository(userID: userID)
+        let viewModel = WorkoutViewModel(
+            repository: workoutRepository,
+            initialDate: firstDate,
+            currentDate: firstDate,
+            customExerciseRepository: exerciseRepository
+        )
+        let exercise = Exercise(
+            id: ExerciseID(), name: "Cable Press", category: nil,
+            isSystem: false, createdByUserID: userID
+        )
+
+        exerciseRepository.emit(.saveRejected(exercise))
+
+        XCTAssertEqual(viewModel.persistenceIssue?.title, "Exercise wasn’t saved")
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(exerciseRepository.savedExercises.last, exercise)
+    }
+
+    @MainActor
+    func testBodyWeightPersistenceFailureRetriesExactMeasurement() {
+        let userID = UserID(rawValue: "owner")
+        let settingsRepository = FailureReportingSettingsRepository(userID: userID)
+        let bodyWeightRepository = FailureReportingBodyWeightRepository(userID: userID)
+        let viewModel = SettingsViewModel(
+            repository: settingsRepository,
+            bodyWeightRepository: bodyWeightRepository,
+            currentDate: firstDate
+        )
+        let measurement = BodyWeightMeasurement(
+            id: BodyWeightMeasurementID(), userID: userID, localDate: firstDate,
+            weightInKilograms: 79, measuredAt: .distantPast, updatedAt: .distantPast
+        )
+
+        bodyWeightRepository.emit(.saveRejected(measurement))
+
+        XCTAssertEqual(viewModel.persistenceIssue?.title, "Body weight wasn’t saved")
+        viewModel.retryPersistenceIssue()
+        XCTAssertEqual(bodyWeightRepository.savedMeasurements.last, measurement)
+    }
+
+    private func withPendingMutationJournal(
+        _ body: (URL, String) -> Void
+    ) {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("PersistenceMutationTrackingTests.\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directoryURL) }
+        body(directoryURL, "pending")
+    }
+}
+
+@MainActor
+private final class FailureReportingWorkoutRepository: WorkoutRepository {
+    private let base: InMemoryWorkoutRepository
+    private let failures = PersistenceFailureBroadcaster<WorkoutPersistenceFailure>()
+    private(set) var savedWorkouts: [Workout] = []
+
+    init(userID: UserID) { base = InMemoryWorkoutRepository(userID: userID) }
+    var userID: UserID { base.userID }
+    var workouts: [Workout] { base.workouts }
+    func observeWorkouts(_ observer: @escaping @MainActor ([Workout], WorkoutLoadState) -> Void) -> WorkoutObservation {
+        base.observeWorkouts(observer)
+    }
+    func observePersistenceFailures(_ observer: @escaping @MainActor (WorkoutPersistenceFailure) -> Void) -> PersistenceFailureObservation {
+        failures.observe(observer)
+    }
+    func workout(on date: LocalDate) -> Workout? { base.workout(on: date) }
+    func createEmptyWorkout(on date: LocalDate, at timestamp: Date) -> WorkoutCreationResult {
+        base.createEmptyWorkout(on: date, at: timestamp)
+    }
+    func save(_ workout: Workout) throws {
+        savedWorkouts.append(workout)
+        try base.save(workout)
+    }
+    func deleteWorkout(on date: LocalDate) throws { try base.deleteWorkout(on: date) }
+    func emit(_ failure: WorkoutPersistenceFailure) { failures.publish(failure) }
+}
+
+@MainActor
+private final class FailureReportingSettingsRepository: UserSettingsRepository {
+    private let base: InMemoryUserSettingsRepository
+    private let failures = PersistenceFailureBroadcaster<UserSettingsPersistenceFailure>()
+    private(set) var savedSettings: [UserSettings] = []
+
+    init(userID: UserID) { base = InMemoryUserSettingsRepository(userID: userID) }
+    var userID: UserID { base.userID }
+    var settings: UserSettings { base.settings }
+    func observeSettings(_ observer: @escaping @MainActor (UserSettings) -> Void) -> UserSettingsObservation {
+        base.observeSettings(observer)
+    }
+    func observePersistenceFailures(_ observer: @escaping @MainActor (UserSettingsPersistenceFailure) -> Void) -> PersistenceFailureObservation {
+        failures.observe(observer)
+    }
+    func save(_ settings: UserSettings) throws {
+        savedSettings.append(settings)
+        try base.save(settings)
+    }
+    func saveAppearance(_ appearance: Appearance) throws {
+        var updated = settings
+        updated.appearance = appearance
+        try save(updated)
+    }
+    func saveWeightUnit(_ weightUnit: WeightUnit) throws {
+        var updated = settings
+        updated.weightUnit = weightUnit
+        try save(updated)
+    }
+    func emit(_ failure: UserSettingsPersistenceFailure) { failures.publish(failure) }
+}
+
+@MainActor
+private final class FailureReportingCustomExerciseRepository: CustomExerciseRepository {
+    private let base: InMemoryCustomExerciseRepository
+    private let failures = PersistenceFailureBroadcaster<CustomExercisePersistenceFailure>()
+    private(set) var savedExercises: [Exercise] = []
+
+    init(userID: UserID) { base = InMemoryCustomExerciseRepository(userID: userID) }
+    var userID: UserID { base.userID }
+    var customExercises: [Exercise] { base.customExercises }
+    func observeCustomExercises(_ observer: @escaping @MainActor ([Exercise]) -> Void) -> CustomExerciseObservation {
+        base.observeCustomExercises(observer)
+    }
+    func observePersistenceFailures(_ observer: @escaping @MainActor (CustomExercisePersistenceFailure) -> Void) -> PersistenceFailureObservation {
+        failures.observe(observer)
+    }
+    func save(_ exercise: Exercise) throws {
+        savedExercises.append(exercise)
+        try base.save(exercise)
+    }
+    func deleteCustomExercise(id: ExerciseID) throws { try base.deleteCustomExercise(id: id) }
+    func emit(_ failure: CustomExercisePersistenceFailure) { failures.publish(failure) }
+}
+
+@MainActor
+private final class FailureReportingBodyWeightRepository: BodyWeightRepository {
+    private let base: InMemoryBodyWeightRepository
+    private let failures = PersistenceFailureBroadcaster<BodyWeightPersistenceFailure>()
+    private(set) var savedMeasurements: [BodyWeightMeasurement] = []
+
+    init(userID: UserID) { base = InMemoryBodyWeightRepository(userID: userID) }
+    var userID: UserID { base.userID }
+    var measurements: [BodyWeightMeasurement] { base.measurements }
+    func observeMeasurements(_ observer: @escaping @MainActor ([BodyWeightMeasurement]) -> Void) -> BodyWeightObservation {
+        base.observeMeasurements(observer)
+    }
+    func observePersistenceFailures(_ observer: @escaping @MainActor (BodyWeightPersistenceFailure) -> Void) -> PersistenceFailureObservation {
+        failures.observe(observer)
+    }
+    func save(_ measurement: BodyWeightMeasurement) throws {
+        savedMeasurements.append(measurement)
+        try base.save(measurement)
+    }
+    func deleteMeasurement(id: BodyWeightMeasurementID, onFailure: @escaping @MainActor () -> Void) throws {
+        try base.deleteMeasurement(id: id, onFailure: onFailure)
+    }
+    func emit(_ failure: BodyWeightPersistenceFailure) { failures.publish(failure) }
+}

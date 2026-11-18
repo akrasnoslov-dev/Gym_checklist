@@ -18,8 +18,7 @@ final class SettingsViewModel: ObservableObject {
     private var bodyWeightObservation: BodyWeightObservation?
     private var settingsFailureObservation: PersistenceFailureObservation?
     private var bodyWeightFailureObservation: PersistenceFailureObservation?
-    private var retryPersistenceAction: (@MainActor () -> Void)?
-    private var queuedPersistenceIssues: [(PersistenceIssue, @MainActor () -> Void)] = []
+    private var persistenceIssues = PersistenceIssueQueue()
 
     init(
         repository: UserSettingsRepository,
@@ -117,19 +116,21 @@ final class SettingsViewModel: ObservableObject {
     func acknowledgeBodyWeightDeletionFailure() { bodyWeightDeletionFailed = false }
 
     func retryPersistenceIssue() {
-        let action = retryPersistenceAction
-        advancePersistenceIssueQueue()
+        let action = persistenceIssues.advance()
+        persistenceIssue = persistenceIssues.presentedIssue
         action?()
     }
 
     func dismissPersistenceIssue() {
-        advancePersistenceIssueQueue()
+        _ = persistenceIssues.advance()
+        persistenceIssue = persistenceIssues.presentedIssue
     }
 
     private func handleSettingsPersistenceFailure(_ failure: UserSettingsPersistenceFailure) {
         switch failure {
         case let .saveRejected(attempted):
             presentPersistenceIssue(
+                documentKey: "settings",
                 title: "Settings weren’t saved",
                 message: "The last confirmed settings are shown. Retry to save your changes.",
                 retryTitle: "Retry Save"
@@ -140,6 +141,7 @@ final class SettingsViewModel: ObservableObject {
             }
         case let .saveUnconfirmedAfterRestart(attempted):
             presentPersistenceIssue(
+                documentKey: "settings",
                 title: "Offline settings need review",
                 message: "Current cloud settings are shown. Save your offline settings again only if you want to replace them.",
                 retryTitle: "Save Offline Settings",
@@ -156,6 +158,7 @@ final class SettingsViewModel: ObservableObject {
         switch failure {
         case let .saveRejected(measurement):
             presentPersistenceIssue(
+                documentKey: "bodyWeight:\(measurement.id.rawValue)",
                 title: "Body weight wasn’t saved",
                 message: "Your entry is ready to retry.",
                 retryTitle: "Retry Save"
@@ -166,11 +169,13 @@ final class SettingsViewModel: ObservableObject {
             }
         case let .deleteRejected(measurement):
             presentPersistenceIssue(
+                documentKey: "bodyWeight:\(measurement.id.rawValue)",
                 title: "Measurement wasn’t deleted",
                 message: "The measurement was restored. Retry to delete it.",
                 retryTitle: "Retry Delete"
             ) { [weak self] in
                 guard let self else { return }
+                guard self.measurements.contains(where: { $0.id == measurement.id }) else { return }
                 do {
                     try self.bodyWeightRepository.deleteMeasurement(id: measurement.id, onFailure: {})
                 } catch {
@@ -179,6 +184,7 @@ final class SettingsViewModel: ObservableObject {
             }
         case let .saveUnconfirmedAfterRestart(measurement):
             presentPersistenceIssue(
+                documentKey: "bodyWeight:\(measurement.id.rawValue)",
                 title: "Offline body weight needs review",
                 message: "The cloud value is shown. Save your offline entry again only if you want to replace it.",
                 retryTitle: "Save Offline Entry",
@@ -190,12 +196,14 @@ final class SettingsViewModel: ObservableObject {
             }
         case let .deleteUnconfirmedAfterRestart(measurement):
             presentPersistenceIssue(
+                documentKey: "bodyWeight:\(measurement.id.rawValue)",
                 title: "Measurement deletion needs review",
                 message: "The measurement is present in the cloud. Delete it again only if you still want it removed.",
                 retryTitle: "Delete Again",
                 secondaryTitle: "Remind Me Later"
             ) { [weak self] in
                 guard let self else { return }
+                guard self.measurements.contains(where: { $0.id == measurement.id }) else { return }
                 do {
                     try self.bodyWeightRepository.deleteMeasurement(id: measurement.id, onFailure: {})
                 } catch {
@@ -206,35 +214,24 @@ final class SettingsViewModel: ObservableObject {
     }
 
     private func presentPersistenceIssue(
+        documentKey: String,
         title: String,
         message: String,
         retryTitle: String,
         secondaryTitle: String = "Keep Current Version",
         retry: @escaping @MainActor () -> Void
     ) {
-        let issue = PersistenceIssue(
-            title: title,
-            message: message,
-            retryTitle: retryTitle,
-            secondaryTitle: secondaryTitle
+        persistenceIssues.enqueue(
+            documentKey: documentKey,
+            issue: PersistenceIssue(
+                title: title,
+                message: message,
+                retryTitle: retryTitle,
+                secondaryTitle: secondaryTitle
+            ),
+            retry: retry
         )
-        guard persistenceIssue == nil else {
-            queuedPersistenceIssues.append((issue, retry))
-            return
-        }
-        retryPersistenceAction = retry
-        persistenceIssue = issue
-    }
-
-    private func advancePersistenceIssueQueue() {
-        guard !queuedPersistenceIssues.isEmpty else {
-            persistenceIssue = nil
-            retryPersistenceAction = nil
-            return
-        }
-        let next = queuedPersistenceIssues.removeFirst()
-        persistenceIssue = next.0
-        retryPersistenceAction = next.1
+        persistenceIssue = persistenceIssues.presentedIssue
     }
 
     deinit {

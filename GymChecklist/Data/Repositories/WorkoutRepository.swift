@@ -78,6 +78,50 @@ struct PersistenceIssue: Identifiable {
     }
 }
 
+/// Holds pending persistence issues, at most one per document. A newer failure
+/// for the same document replaces the older one (it carries the newer intent),
+/// so repeated rejections of one workout show one banner instead of a chain.
+struct PersistenceIssueQueue {
+    private struct Item {
+        let documentKey: String
+        let issue: PersistenceIssue
+        let retry: @MainActor () -> Void
+    }
+
+    private var current: Item?
+    private var queued: [Item] = []
+
+    var presentedIssue: PersistenceIssue? { current?.issue }
+
+    mutating func enqueue(
+        documentKey: String,
+        issue: PersistenceIssue,
+        retry: @escaping @MainActor () -> Void
+    ) {
+        if let current, current.documentKey == documentKey {
+            // Keep the visible banner stable when only the retry intent changes.
+            let presented = current.issue.title == issue.title ? current.issue : issue
+            self.current = Item(documentKey: documentKey, issue: presented, retry: retry)
+            return
+        }
+        let item = Item(documentKey: documentKey, issue: issue, retry: retry)
+        if let index = queued.firstIndex(where: { $0.documentKey == documentKey }) {
+            queued[index] = item
+        } else if current == nil {
+            current = item
+        } else {
+            queued.append(item)
+        }
+    }
+
+    /// Removes the presented issue and returns its retry action.
+    mutating func advance() -> (@MainActor () -> Void)? {
+        let retry = current?.retry
+        current = queued.isEmpty ? nil : queued.removeFirst()
+        return retry
+    }
+}
+
 @MainActor
 protocol PersistenceFailureObservation: AnyObject {
     func cancel()

@@ -378,6 +378,7 @@ struct ProgramView: View {
                 RoundedRectangle(cornerRadius: 9)
                     .stroke(isSelected ? GymTheme.accentForeground : (isToday ? Color.primary.opacity(0.65) : .clear), lineWidth: isSelected ? 1.5 : 1)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(fullDateLabel(for: date))
@@ -598,6 +599,8 @@ struct ProgramView: View {
             Spacer()
         }
         .frame(minHeight: 44)
+        // Plain buttons hit-test only drawn content; make the whole row tappable.
+        .contentShape(Rectangle())
 
         if set.isCompleted {
             Button {
@@ -706,6 +709,7 @@ struct ProgramView: View {
                     .font(.body.weight(.semibold))
                     .foregroundStyle(GymTheme.accentForeground)
                     .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Add set to \(name)")
@@ -1390,6 +1394,7 @@ private struct CopyWorkoutSheet: View {
             .foregroundStyle(isAvailable ? sourceStateColor(state) : GymTheme.textSecondary.opacity(0.45))
             .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 8))
             .opacity(isCurrentMonth ? 1 : 0.45)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!isAvailable)

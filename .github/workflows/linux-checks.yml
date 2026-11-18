@@ -116,3 +116,25 @@ jobs:
           node --check functions/index.js
           node -e 'const fs = require("fs"); const runtime = JSON.parse(fs.readFileSync("firebase.json")).functions.runtime; const pkg = JSON.parse(fs.readFileSync("functions/package.json")); const lock = JSON.parse(fs.readFileSync("functions/package-lock.json")); if (runtime !== "nodejs24" || pkg.engines.node !== "24" || lock.packages[""].engines.node !== "24") process.exit(1);'
           echo 'Cloud Function runtime and syntax: PASS'
+
+  firestore-rules-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Firestore rules test dependencies
+        shell: bash
+        run: npm ci --prefix firestore-tests --no-audit --no-fund
+
+      - name: Run Firestore rules tests on the emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The Firestore emulator needs Java 21+, preinstalled on ubuntu-latest.
+          export JAVA_HOME="${JAVA_HOME_21_X64}"
+          export PATH="${JAVA_HOME}/bin:${PATH}"
+          java -version
+          npm test --prefix firestore-tests

@@ -1,25 +1,110 @@
 rules_version = '2';
 
+// Owner isolation plus write-schema validation. Schemas mirror the payloads in
+// GymChecklist/Data/Firebase/FirestoreMapping.swift. Firestore rules cannot
+// loop over list elements, so nested exercise/set entries are bounded by size
+// only; the app decoder rejects malformed nested entries.
 service cloud.firestore {
   match /databases/{database}/documents {
     function ownsUserData(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isUuid(value) {
+      return value is string && value.size() == 36;
+    }
+
+    function isLocalDate(value) {
+      return value is string && value.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    // Absent or explicit null are both accepted for optional fields.
+    function optionalOf(data, key, kind) {
+      return !(key in data) || data[key] == null
+        || (kind == 'string' && data[key] is string)
+        || (kind == 'number' && data[key] is number);
+    }
+
+    function isValidWorkout(workoutDate) {
+      let data = incoming();
+      let workout = data.workout;
+      return workoutDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.keys().hasOnly(['workout', 'exercises'])
+        && data.keys().hasAll(['workout', 'exercises'])
+        && workout is map
+        && workout.keys().hasOnly(['id', 'localDate', 'createdAt', 'updatedAt'])
+        && workout.keys().hasAll(['id', 'localDate', 'createdAt', 'updatedAt'])
+        && isUuid(workout.id)
+        && workout.localDate == workoutDate
+        && workout.createdAt is timestamp
+        && workout.updatedAt is timestamp
+        && data.exercises is list
+        && data.exercises.size() <= 100;
+    }
+
+    function isValidCustomExercise(exerciseId) {
+      let data = incoming();
+      return data.keys().hasOnly(['id', 'name', 'category'])
+        && data.keys().hasAll(['id', 'name'])
+        && data.id == exerciseId
+        && isUuid(data.id)
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 200
+        && optionalOf(data, 'category', 'string')
+        && (!('category' in data) || data.category == null || data.category.size() <= 100);
+    }
+
+    // Settings are written with merge, so the resulting document may hold any
+    // subset of fields. Profile fields are written as explicit nulls when unset.
+    function isValidSettings() {
+      let data = incoming();
+      return data.keys().hasOnly(['appearance', 'weightUnit', 'sex', 'dateOfBirth', 'heightCentimeters'])
+        && (!('appearance' in data) || data.appearance in ['system', 'light', 'dark'])
+        && (!('weightUnit' in data) || data.weightUnit in ['kg', 'lb'])
+        && (!('sex' in data) || data.sex == null || data.sex in ['female', 'male', 'preferNotToSay'])
+        && (!('dateOfBirth' in data) || data.dateOfBirth == null || isLocalDate(data.dateOfBirth))
+        && optionalOf(data, 'heightCentimeters', 'number')
+        && (!('heightCentimeters' in data) || data.heightCentimeters == null
+          || (data.heightCentimeters >= 0 && data.heightCentimeters <= 1000));
+    }
+
+    function isValidBodyWeight(measurementId) {
+      let data = incoming();
+      return data.keys().hasOnly(['id', 'localDate', 'weightInKilograms', 'measuredAt', 'updatedAt'])
+        && data.keys().hasAll(['id', 'localDate', 'weightInKilograms', 'measuredAt', 'updatedAt'])
+        && data.id == measurementId
+        && isUuid(data.id)
+        && isLocalDate(data.localDate)
+        && data.weightInKilograms is number
+        && data.weightInKilograms > 0
+        && data.weightInKilograms <= 1000
+        && data.measuredAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     match /users/{userId}/workouts/{workoutDate} {
-      allow get, list, create, update, delete: if ownsUserData(userId);
+      allow get, list, delete: if ownsUserData(userId);
+      allow create, update: if ownsUserData(userId) && isValidWorkout(workoutDate);
     }
 
     match /users/{userId}/customExercises/{exerciseId} {
-      allow get, list, create, update, delete: if ownsUserData(userId);
+      allow get, list, delete: if ownsUserData(userId);
+      allow create, update: if ownsUserData(userId) && isValidCustomExercise(exerciseId);
     }
 
     match /users/{userId}/settings/default {
-      allow get, create, update, delete: if ownsUserData(userId);
+      allow get, delete: if ownsUserData(userId);
+      allow create, update: if ownsUserData(userId) && isValidSettings();
     }
 
     match /users/{userId}/bodyWeightMeasurements/{measurementId} {
-      allow get, list, create, update, delete: if ownsUserData(userId);
+      allow get, list, delete: if ownsUserData(userId);
+      allow create, update: if ownsUserData(userId) && isValidBodyWeight(measurementId);
     }
   }
 }

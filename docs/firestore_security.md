@@ -14,6 +14,28 @@ allowed only within that user's own collection. The settings rule permits only
 the fixed `default` document (and does not grant settings collection queries).
 Unauthenticated and cross-user requests are denied.
 
+## Write validation
+
+`create`/`update` additionally validate the resulting document against the
+payloads in `GymChecklist/Data/Firebase/FirestoreMapping.swift`
+(`keys().hasOnly`, field types, string lengths, array sizes):
+
+| Path | Rules |
+| --- | --- |
+| `workouts/{workoutDate}` | doc ID matches `^\d{4}-\d{2}-\d{2}$`; keys exactly `workout`, `exercises`; `workout` has exactly `id` (UUID string), `localDate` (== doc ID), `createdAt`/`updatedAt` (timestamps); `exercises` is a list of at most 100 entries |
+| `customExercises/{id}` | keys within `id`, `name`, `category`; `id == {id}`; `name` 1–200 chars; `category` absent/null or string up to 100 chars |
+| `settings/default` | keys within `appearance`, `weightUnit`, `sex`, `dateOfBirth`, `heightCentimeters`; every key optional (merge writes); enums `system/light/dark`, `kg/lb`, `female/male/preferNotToSay`; profile fields may be explicit `null`; `dateOfBirth` is `yyyy-MM-dd`; height 0–1000 |
+| `bodyWeightMeasurements/{id}` | exactly `id`, `localDate`, `weightInKilograms`, `measuredAt`, `updatedAt`; `id == {id}`; `localDate` is `yyyy-MM-dd`; weight in (0, 1000]; timestamps |
+
+Swift `Date` is encoded as a Firestore timestamp; `nil` optionals are omitted
+(except settings, which writes explicit nulls). Rules cannot loop over list
+elements, so nested exercise/set entries inside a workout are bounded only by
+list size; the client decoder discards malformed nested entries.
+
+When a payload in `FirestoreMapping.swift` changes, update `firestore.rules`
+and `firestore-tests/rules.test.js` in the same change, or app writes will be
+denied.
+
 ## Deploy
 
 Use a non-production Firebase **Spark** project with billing disabled for current local/live validation first.
@@ -35,7 +57,16 @@ Run the repository contract check on any host with PowerShell:
 pwsh -File scripts/verify_firestore_rules.ps1
 ```
 
-Before production use, run an emulator or non-production-project validation
+Run the emulator tests (Node, Java 21+; also run by the `firestore-rules-tests`
+job in `.github/workflows/linux-checks.yml`):
+
+```text
+npm ci --prefix firestore-tests
+npm test --prefix firestore-tests
+```
+
+They cover two users, a valid and invalid payload per path, cross-user and
+unauthenticated access. Before production use, also run an emulator or non-production-project validation
 with two authenticated test users and confirm all of the following:
 
 1. User A can create, read, update, delete, and query only A's workout,

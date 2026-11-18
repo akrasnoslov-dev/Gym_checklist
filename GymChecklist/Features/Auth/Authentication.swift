@@ -252,9 +252,13 @@ final class AuthenticationViewModel: ObservableObject {
     private func performAccountDeletion(_ operation: () async throws -> Void) async -> Bool {
         isSubmitting = true
         errorMessage = nil
+        let deletedUserID = currentUser?.id
         defer { isSubmitting = false }
         do {
             try await operation()
+            if let deletedUserID {
+                PendingMutationJournalStorage.purge(userID: deletedUserID)
+            }
             currentUser = nil
             isResolving = false
             clearFeedback()

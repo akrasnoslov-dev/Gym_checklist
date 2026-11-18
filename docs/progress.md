@@ -5,8 +5,9 @@ History lives in `git log` and Linear (team GYM). This file holds only the curre
 ## Current state (2026-11-18)
 
 - MVP flow is implemented on `dev`. Not on TestFlight/App Store; paid Apple distribution and Firebase billing remain deferred until explicitly approved.
-- PR #10 (persistence reliability) is frozen: it waits for a single manual pass by the user on a physical iPhone, following the "Final iPhone review script" in `docs/mvp_acceptance_checklist.md` (lands in `dev` with PR #10).
-- Other work runs as separate draft PRs into `dev`; nothing merges until that review is done.
+- PR #10 (persistence reliability) is merged into `dev` (`f8f3491`). The user ran iPhone review №4 on that build; findings are Linear GYM-21 and its sub-issues.
+- Known production blocker: the Firestore rules deployed to the Firebase project lack the `bodyWeightMeasurements` match that `firestore.rules` in the repo has, so body-weight writes are rejected (GYM-22). Deploying rules requires explicit user approval.
+- Other work runs as separate PRs into `dev`.
 
 ## Gate
 
@@ -14,8 +15,8 @@ Green required CI on the exact PR head SHA + the relevant checklist. No gate-rec
 
 ## Next step
 
-1. User runs the Final iPhone review script once on the PR #10 build.
-2. Every finding becomes an issue in Linear team GYM.
-3. Fix the findings in one batch, re-run CI on the exact SHA, re-check against the checklist.
+1. GYM-22 + GYM-9: error diagnostics for rejected writes, validated rules, deploy the repo rules with user approval.
+2. GYM-16 / GYM-25 / GYM-26 / GYM-27: UI review and design-consistency fixes from iPhone review №4.
+3. Re-run CI on the exact SHA, build a preview IPA, user re-checks against `docs/mvp_acceptance_checklist.md`.
 
 `dev -> main` only with explicit user approval.

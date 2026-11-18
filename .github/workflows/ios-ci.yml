@@ -15,6 +15,7 @@ on:
       - '**/*.xcconfig'
       - '**/*.entitlements'
       - 'GymChecklist/**/*.plist'
+      - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
     inputs:
       verification_scope:
@@ -54,7 +55,16 @@ jobs:
   build-and-test:
     runs-on: macos-26
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Full verification splits UI tests across parallel runners (public
+        # repository: standard macOS runners are free). Every other scope
+        # runs as a single job. Shard 0 also runs every unit test.
+        shard: ${{ fromJSON(((github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[full-ci]')) || inputs.verification_scope == 'full') && '[0, 1, 2, 3]' || '[0]') }}
     env:
+      SHARD_INDEX: ${{ matrix.shard }}
+      SHARD_TOTAL: ${{ strategy.job-total }}
       # Routine iOS-impacting pull requests use smoke by default; [full-ci]
       # in the PR title requests the full suite. Manual dispatch retains
       # every diagnostic scope, including authoritative full/candidate.
@@ -77,6 +87,39 @@ jobs:
           ref: ${{ inputs.candidate_source_sha || github.sha }}
           fetch-depth: 1
 
+      - name: Boot simulator in background
+        shell: bash
+        run: |
+          set -euo pipefail
+          DESTINATION_UDID=$(python3 - <<'PY'
+          import json
+          import re
+          import subprocess
+
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          candidates = []
+          for runtime, devices in data.get("devices", {}).items():
+              match = re.search(r"iOS[- ](\d+)[-.](\d+)(?:[-.](\d+))?", runtime)
+              if not match:
+                  continue
+              version = tuple(int(part or 0) for part in match.groups())
+              for device in devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      candidates.append((version, device["name"], device["udid"]))
+          if not candidates:
+              raise SystemExit("No available iPhone simulator was found")
+          candidates.sort(reverse=True)
+          print(candidates[0][2])
+          PY
+          )
+          echo "Using simulator UDID: $DESTINATION_UDID"
+          echo "DESTINATION_UDID=$DESTINATION_UDID" >> "$GITHUB_ENV"
+          if [ "$VERIFICATION_SCOPE" != "build" ]; then
+            # Cold simulator boot takes minutes. Start it now so it overlaps
+            # package resolution and compilation instead of following them.
+            nohup xcrun simctl bootstatus "$DESTINATION_UDID" -b > "$RUNNER_TEMP/simulator-boot.log" 2>&1 &
+          fi
+
       - name: Record Xcode version
         id: xcode
         shell: bash
@@ -85,6 +128,7 @@ jobs:
           echo "version=$(xcodebuild -version | awk 'NR == 1 { print $2 }')" >> "$GITHUB_OUTPUT"
 
       - name: Cache Swift package sources
+        id: swiftpm-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/SourcePackages
@@ -114,44 +158,19 @@ jobs:
           test -f agents/routing.toml
           echo "Bootstrap repository validation passed."
 
-      - name: Verify GymChecklist
+      - name: Resolve Swift packages
         if: steps.detect.outputs.project_found == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          PROJECT="${{ steps.detect.outputs.project }}"
-          SCHEME="GymChecklist"
-          DESTINATION_UDID=$(python3 - <<'PY'
-          import json
-          import re
-          import subprocess
-
-          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
-          candidates = []
-          for runtime, devices in data.get("devices", {}).items():
-              match = re.search(r"iOS[- ](\d+)[-.](\d+)(?:[-.](\d+))?", runtime)
-              if not match:
-                  continue
-              version = tuple(int(part or 0) for part in match.groups())
-              for device in devices:
-                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
-                      candidates.append((version, device["name"], device["udid"]))
-          if not candidates:
-              raise SystemExit("No available iPhone simulator was found")
-          candidates.sort(reverse=True)
-          print(candidates[0][2])
-          PY
-          )
-          echo "Using simulator UDID: $DESTINATION_UDID"
           PACKAGE_DIRECTORY="$RUNNER_TEMP/SourcePackages"
-          DERIVED_DATA="$RUNNER_TEMP/DerivedData"
           LOG_DIRECTORY="$RUNNER_TEMP/ci-logs"
-          mkdir -p "$PACKAGE_DIRECTORY" "$DERIVED_DATA" "$LOG_DIRECTORY"
+          mkdir -p "$PACKAGE_DIRECTORY" "$LOG_DIRECTORY"
 
           if ! xcodebuild \
             -resolvePackageDependencies \
-            -project "$PROJECT" \
-            -scheme "$SCHEME" \
+            -project "${{ steps.detect.outputs.project }}" \
+            -scheme GymChecklist \
             -clonedSourcePackagesDirPath "$PACKAGE_DIRECTORY" \
             > "$LOG_DIRECTORY/package-resolution.log" 2>&1; then
             echo "Swift package resolution failed; last 150 log lines:" >&2
@@ -166,6 +185,28 @@ jobs:
           fi
           git ls-files --error-unmatch -- "$LOCKFILE" >/dev/null
           git diff --exit-code -- "$LOCKFILE"
+
+      # actions/cache saves only when the whole job succeeds, so a failing test
+      # used to discard the resolved packages. Save right after resolution.
+      - name: Save Swift package sources
+        if: steps.detect.outputs.project_found == 'true' && steps.swiftpm-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: ${{ steps.swiftpm-cache.outputs.cache-primary-key }}
+
+      - name: Verify GymChecklist
+        if: steps.detect.outputs.project_found == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="${{ steps.detect.outputs.project }}"
+          SCHEME="GymChecklist"
+          PACKAGE_DIRECTORY="$RUNNER_TEMP/SourcePackages"
+          DERIVED_DATA="$RUNNER_TEMP/DerivedData"
+          LOG_DIRECTORY="$RUNNER_TEMP/ci-logs"
+          mkdir -p "$PACKAGE_DIRECTORY" "$DERIVED_DATA" "$LOG_DIRECTORY"
 
           XCODE_ARGS=(
             -project "$PROJECT"
@@ -201,6 +242,21 @@ jobs:
             echo "xcodebuild passed: $label"
           }
 
+          wait_for_simulator() {
+            # Returns at once when the background boot already finished.
+            xcrun simctl bootstatus "$DESTINATION_UDID" -b > /dev/null
+          }
+
+          # Compile first, then wait for the simulator that has been booting in
+          # the background, then run tests against that build.
+          build_then_test() {
+            local label="$1"
+            shift
+            run_xcodebuild "$label-build" "${XCODE_ARGS[@]}" build-for-testing
+            wait_for_simulator
+            run_xcodebuild "$label" "${XCODE_ARGS[@]}" test-without-building "$@"
+          }
+
           case "$VERIFICATION_SCOPE" in
             candidate)
               if [ -z "$TEST_FILTER" ]; then
@@ -223,6 +279,7 @@ jobs:
               # Build exactly once. If the blocker test passes, immediately run
               # the full suite against the same build and candidate SHA.
               run_xcodebuild candidate-build "${XCODE_ARGS[@]}" build-for-testing
+              wait_for_simulator
               run_xcodebuild candidate-focused "${XCODE_ARGS[@]}" test-without-building "-only-testing:$TEST_FILTER"
               run_xcodebuild candidate-full "${XCODE_ARGS[@]}" test-without-building
               ;;
@@ -231,14 +288,44 @@ jobs:
                 echo "test_filter is only valid for unit/ui/candidate diagnostics" >&2
                 exit 2
               fi
-              run_xcodebuild full "${XCODE_ARGS[@]}" test
+              # Deterministic sharding: every UI test method, sorted, assigned
+              # round-robin. A new test is picked up automatically.
+              SHARD_FILTERS=()
+              SHARD_UI_TEST_COUNT=0
+              ALL_UI_TEST_COUNT=0
+              if [ "$SHARD_INDEX" -eq 0 ]; then
+                SHARD_FILTERS+=(-only-testing:GymChecklistTests)
+              fi
+              while IFS= read -r ui_test; do
+                if [ $((ALL_UI_TEST_COUNT % SHARD_TOTAL)) -eq "$SHARD_INDEX" ]; then
+                  SHARD_FILTERS+=("-only-testing:$ui_test")
+                  SHARD_UI_TEST_COUNT=$((SHARD_UI_TEST_COUNT + 1))
+                fi
+                ALL_UI_TEST_COUNT=$((ALL_UI_TEST_COUNT + 1))
+              done < <(awk '
+                /class [A-Za-z0-9_]+: XCTestCase/ { match($0, /class [A-Za-z0-9_]+:/); cls = substr($0, RSTART + 6, RLENGTH - 7) }
+                /^[[:space:]]*func test[A-Za-z0-9_]*\(/ { match($0, /func test[A-Za-z0-9_]*/); print "GymChecklistUITests/" cls "/" substr($0, RSTART + 5, RLENGTH - 5) }
+              ' GymChecklistUITests/*.swift | LC_ALL=C sort)
+              if [ "$ALL_UI_TEST_COUNT" -eq 0 ]; then
+                echo "No UI test methods were found for sharding" >&2
+                exit 1
+              fi
+              echo "Shard $SHARD_INDEX of $SHARD_TOTAL: $SHARD_UI_TEST_COUNT of $ALL_UI_TEST_COUNT UI tests$([ "$SHARD_INDEX" -eq 0 ] && echo ' plus all unit tests')"
+              if [ "$SHARD_TOTAL" -eq 1 ]; then
+                # Single runner: run the whole scheme, exactly as before.
+                SHARD_FILTERS=()
+              fi
+
+              run_xcodebuild full-build "${XCODE_ARGS[@]}" build-for-testing
+              wait_for_simulator
+              run_xcodebuild full "${XCODE_ARGS[@]}" test-without-building ${SHARD_FILTERS[@]+"${SHARD_FILTERS[@]}"}
               ;;
             smoke)
               if [ -n "$TEST_FILTER" ]; then
                 echo "test_filter is only valid for unit/ui/candidate diagnostics" >&2
                 exit 2
               fi
-              run_xcodebuild smoke "${XCODE_ARGS[@]}" test \
+              build_then_test smoke \
                 -only-testing:GymChecklistTests \
                 -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayCompletesAndUndoesSetWithoutLeavingTheScreen \
                 -only-testing:GymChecklistUITests/GymChecklistUITests/testTodayLongPressEditsPlanThenActualWithoutLeavingToday \
@@ -264,9 +351,9 @@ jobs:
                     exit 2
                     ;;
                 esac
-                run_xcodebuild unit-focused "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
+                build_then_test unit-focused "-only-testing:$TEST_FILTER"
               else
-                run_xcodebuild unit "${XCODE_ARGS[@]}" test -only-testing:GymChecklistTests
+                build_then_test unit -only-testing:GymChecklistTests
               fi
               ;;
             ui)
@@ -278,9 +365,9 @@ jobs:
                     exit 2
                     ;;
                 esac
-                run_xcodebuild ui-focused "${XCODE_ARGS[@]}" test "-only-testing:$TEST_FILTER"
+                build_then_test ui-focused "-only-testing:$TEST_FILTER"
               else
-                run_xcodebuild ui "${XCODE_ARGS[@]}" test -only-testing:GymChecklistUITests
+                build_then_test ui -only-testing:GymChecklistUITests
               fi
               ;;
             *)
@@ -293,7 +380,7 @@ jobs:
         if: always() && steps.detect.outputs.project_found == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: swiftpm-resolved-${{ github.run_id }}
+          name: swiftpm-resolved-${{ github.run_id }}-shard-${{ matrix.shard }}
           path: GymChecklist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           if-no-files-found: ignore
           retention-days: 7
@@ -302,7 +389,7 @@ jobs:
         if: failure() && steps.detect.outputs.project_found == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ios-ci-diagnostics-${{ github.run_id }}
+          name: ios-ci-diagnostics-${{ github.run_id }}-shard-${{ matrix.shard }}
           path: ${{ runner.temp }}/ci-logs
           if-no-files-found: ignore
           retention-days: 7

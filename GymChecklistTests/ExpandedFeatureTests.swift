@@ -352,6 +352,55 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(codablePlaceholder.reps, 1)
     }
 
+    // GYM-24: the first set of a new exercise is weighted so weight can be entered.
+    @MainActor
+    func testFirstSetOfNewExerciseIsWeightedAndLaterSetsCopyTheType() throws {
+        let owner = UserID(rawValue: "owner")
+        let date = LocalDate(year: 2026, month: 9, day: 4)
+        let repository = InMemoryWorkoutRepository(userID: owner)
+        _ = repository.createEmptyWorkout(on: date, at: .distantPast)
+        let viewModel = WorkoutViewModel(
+            repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar()
+        )
+        try viewModel.addExercise(SystemExerciseCatalog.all[0], to: date)
+        let exerciseID = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.id)
+
+        try viewModel.addSet(to: exerciseID, on: date)
+        let first = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets.first)
+        XCTAssertEqual(first.type, .weighted)
+
+        try viewModel.setExerciseType(.timed, for: exerciseID, on: date)
+        try viewModel.addSet(to: exerciseID, on: date)
+        let sets = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(sets.map(\.type), [.timed, .timed])
+    }
+
+    // GYM-29: weights are formatted without grouping and survive a no-edit round trip.
+    func testDecimalInputTextRoundTripsWithoutGroupingOrDrift() throws {
+        let english = Locale(identifier: "en_US")
+        let russian = Locale(identifier: "ru_RU")
+        XCTAssertEqual(DecimalInputText.text(for: 1000, locale: english), "1000")
+        XCTAssertEqual(DecimalInputText.text(for: 1000, locale: russian), "1000")
+        XCTAssertEqual(DecimalInputText.text(for: 0), "")
+        XCTAssertEqual(DecimalInputText.value(from: DecimalInputText.text(for: 1000, locale: english)), 1000)
+        XCTAssertEqual(DecimalInputText.value(from: DecimalInputText.text(for: 1000.5, locale: russian)), 1000.5)
+        XCTAssertEqual(DecimalInputText.value(from: "1 000,5"), 1000.5)
+        XCTAssertEqual(DecimalInputText.value(from: ""), 0)
+        XCTAssertNil(DecimalInputText.value(from: "1.000,5"))
+        XCTAssertNil(DecimalInputText.value(from: "abc"))
+
+        // 20 kg shows as 44.09 lb; saving that unchanged text must keep exactly 20 kg.
+        let shown = DecimalInputText.text(for: WeightUnit.pounds.displayWeight(fromCanonicalKilograms: 20))
+        XCTAssertEqual(
+            DecimalInputText.canonicalKilograms(from: shown, initialText: shown, initialKilograms: 20, unit: .pounds),
+            20
+        )
+        let edited = try XCTUnwrap(DecimalInputText.canonicalKilograms(
+            from: "100", initialText: shown, initialKilograms: 20, unit: .pounds
+        ))
+        XCTAssertEqual(edited, WeightUnit.pounds.canonicalKilograms(fromDisplayWeight: 100), accuracy: 0.000_001)
+    }
+
     @MainActor
     func testLegacyMixedCodableCopyRepeatAndAddSetKeepRawValuesUntilAnExplicitTypeIsChosen() throws {
         let legacyID = WorkoutSetID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000011")!)

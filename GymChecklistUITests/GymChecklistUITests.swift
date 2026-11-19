@@ -131,11 +131,13 @@ final class GymChecklistUITests: XCTestCase {
 
         app.tabBars.buttons["Program"].tap()
         firstBenchSet.tap()
+        // GYM-24: a new set is weighted, shows the type, and only its usable fields.
         XCTAssertTrue(app.textFields["programSetEditorReps"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
-        XCTAssertTrue(app.textFields["programSetEditorTime"].exists)
-        XCTAssertFalse(app.textFields["programSetEditorWeight"].isEnabled)
-        XCTAssertFalse(app.textFields["programSetEditorTime"].isEnabled)
+        XCTAssertTrue(app.segmentedControls["programSetEditorType"].buttons["Weighted"].isSelected)
+        let benchWeight = app.textFields["programSetEditorWeight"]
+        XCTAssertTrue(benchWeight.exists)
+        XCTAssertTrue(benchWeight.isEnabled)
+        XCTAssertFalse(app.textFields["programSetEditorTime"].exists)
         app.buttons["programSetEditorSave"].tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
@@ -361,7 +363,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 2))
         XCTAssertTrue(reps.exists)
         XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
-        XCTAssertTrue(app.textFields["programSetEditorTime"].exists)
+        XCTAssertTrue(app.segmentedControls["programSetEditorType"].exists)
         reps.tap()
         reps.typeText("9")
         editor.swipeDown()
@@ -565,11 +567,16 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm - BMI 25.0"))
         app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
-        // The visible Edit affordance is a dedicated button instead of text
-        // nested inside the row's swipe-action button.
-        let editWeight = app.buttons["bodyWeightEdit"]
-        XCTAssertTrue(editWeight.waitForExistence(timeout: 3))
-        editWeight.tap()
+        // GYM-33: the whole row is the edit button, and editing can be cancelled.
+        measurement.tap()
+        XCTAssertTrue(waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Update body weight"))
+        let cancelEdit = app.buttons["bodyWeightCancelEdit"]
+        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 2))
+        cancelEdit.tap()
+        XCTAssertTrue(waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Log body weight"))
+        XCTAssertEqual(weight.value as? String, weight.placeholderValue)
+        XCTAssertFalse(cancelEdit.exists)
+        measurement.tap()
         // Confirm this is an edit, not a second new measurement. A newly
         // inserted 80 kg row could otherwise hide a broken edit flow.
         XCTAssertTrue(
@@ -594,6 +601,10 @@ final class GymChecklistUITests: XCTestCase {
         let deleteMeasurement = app.buttons.matching(identifier: "bodyWeightDelete").firstMatch
         XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 3))
         deleteMeasurement.tap()
+        // GYM-33: deleting a measurement asks for confirmation first.
+        let confirmDelete = app.buttons["bodyWeightConfirmDelete"]
+        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 3))
+        confirmDelete.tap()
         // Keep the sheet open until the native swipe action has removed
         // the persisted measurement. Dismissing during its animation can race
         // against the data update and hide a missed deletion.

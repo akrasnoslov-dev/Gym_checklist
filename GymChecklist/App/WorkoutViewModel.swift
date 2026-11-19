@@ -588,7 +588,9 @@ final class WorkoutViewModel: ObservableObject {
                 reps: copiedValues?.reps ?? 0,
                 weight: copiedValues?.weight ?? 0,
                 timeSeconds: copiedValues?.timeSeconds ?? 0,
-                type: copiedValues?.type
+                // GYM-24: a first set is weighted, the most common case, so
+                // its weight field is usable without changing the type first.
+                type: copiedValues?.type ?? WorkoutSetType.defaultForNewSet
             )]
         }
     }

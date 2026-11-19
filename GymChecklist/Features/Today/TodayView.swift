@@ -562,8 +562,9 @@ private struct TodaySetEditorSheet: View {
         self.weightUnit = weightUnit
         self.onSave = onSave
         let repsText = String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps)
-        let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)
-        let weightText = displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2)))
+        let weightText = DecimalInputText.text(
+            for: weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)
+        )
         let timeText = String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds)
         initialRepsText = repsText
         initialWeightText = weightText
@@ -574,12 +575,17 @@ private struct TodaySetEditorSheet: View {
     }
 
     private var reps: Int { Int(repsText) ?? 0 }
-    private var weight: Double { Double(weightText.replacingOccurrences(of: ",", with: ".")) ?? 0 }
     private var timeSeconds: Int { Int(timeText) ?? 0 }
+    private var weightInKilograms: Double? {
+        DecimalInputText.canonicalKilograms(
+            from: weightText, initialText: initialWeightText,
+            initialKilograms: route.workoutSet.displayedWeight, unit: weightUnit
+        )
+    }
     private var inputsAreValid: Bool {
         (repsText.isEmpty || Int(repsText) != nil)
             && (timeText.isEmpty || Int(timeText) != nil)
-            && (weightText.isEmpty || Double(weightText.replacingOccurrences(of: ",", with: ".")) != nil)
+            && weightInKilograms != nil
     }
     private var hasUnsavedChanges: Bool {
         repsText != initialRepsText || weightText != initialWeightText || timeText != initialTimeText
@@ -599,26 +605,30 @@ private struct TodaySetEditorSheet: View {
                     Text(route.workoutSet.displayedType.title)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    LabeledContent("Reps") {
-                        TextField("0", text: $repsText)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numberPad)
-                            .disabled(!supportsReps)
-                            .accessibilityIdentifier("todaySetEditorReps")
+                    // GYM-24: only the fields of this set's type are shown.
+                    if supportsReps {
+                        LabeledContent("Reps") {
+                            TextField("0", text: $repsText)
+                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.numberPad)
+                                .accessibilityIdentifier("todaySetEditorReps")
+                        }
                     }
-                    LabeledContent("Weight (\(weightUnit.rawValue))") {
-                        TextField("0", text: $weightText)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.decimalPad)
-                            .disabled(!supportsWeight)
-                            .accessibilityIdentifier("todaySetEditorWeight")
+                    if supportsWeight {
+                        LabeledContent("Weight (\(weightUnit.rawValue))") {
+                            TextField("0", text: $weightText)
+                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.decimalPad)
+                                .accessibilityIdentifier("todaySetEditorWeight")
+                        }
                     }
-                    LabeledContent("Time") {
-                        TextField("0", text: $timeText)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numberPad)
-                            .disabled(!supportsTime)
-                            .accessibilityIdentifier("todaySetEditorTime")
+                    if supportsTime {
+                        LabeledContent("Time (sec)") {
+                            TextField("0", text: $timeText)
+                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.numberPad)
+                                .accessibilityIdentifier("todaySetEditorTime")
+                        }
                     }
                 }
             }
@@ -649,9 +659,11 @@ private struct TodaySetEditorSheet: View {
     }
 
     private func save() {
-        guard inputsAreValid else { showsValidationError = true; return }
+        // GYM-29: Save without edits must not rewrite (and round) the set.
+        guard hasUnsavedChanges else { dismiss(); return }
+        guard inputsAreValid, let weightInKilograms else { showsValidationError = true; return }
         do {
-            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
+            try onSave(reps, weightInKilograms, timeSeconds)
             dismiss()
         } catch {
             if let planningError = error as? ProgramPlanningError,

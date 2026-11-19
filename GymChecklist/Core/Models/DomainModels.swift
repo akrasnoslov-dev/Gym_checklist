@@ -157,6 +157,9 @@ enum WorkoutSetType: String, Codable, CaseIterable, Hashable, Sendable {
     case weighted, repsOnly, timed, legacyMixed
 
     static let editableCases: [Self] = [.weighted, .repsOnly, .timed]
+    /// GYM-24: the first set of an exercise is weighted, the most common case,
+    /// so its weight field is usable without changing the type first.
+    static let defaultForNewSet: Self = .weighted
 
     var title: String {
         switch self {

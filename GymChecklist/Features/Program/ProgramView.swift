@@ -138,8 +138,11 @@ struct ProgramView: View {
                 set: route.set,
                 exerciseName: viewModel.exerciseName(for: route.exercise),
                 weightUnit: weightUnit,
-                onSave: { reps, weight, timeSeconds in
+                onSave: { type, reps, weight, timeSeconds in
                     guard let set = route.set else { return }
+                    if type != set.type {
+                        try viewModel.setExerciseType(type, for: route.exercise.id, on: route.workoutDate)
+                    }
                     try viewModel.editSet(
                         set.id,
                         in: route.exercise.id,
@@ -147,7 +150,7 @@ struct ProgramView: View {
                         reps: reps,
                         weight: weight,
                         timeSeconds: timeSeconds,
-                        type: set.type
+                        type: type
                     )
                 }
             )
@@ -865,7 +868,7 @@ struct ProgramView: View {
         let configured = visibleSets(for: exercise.id).first {
             $0.reps > 0 || $0.weight > 0 || $0.timeSeconds > 0
         }
-        return configured?.type ?? visibleSets(for: exercise.id).first?.type ?? .repsOnly
+        return configured?.type ?? visibleSets(for: exercise.id).first?.type ?? WorkoutSetType.defaultForNewSet
     }
 
     private func setExerciseType(_ type: WorkoutSetType, for exerciseID: WorkoutExerciseID) {
@@ -1645,80 +1648,112 @@ private struct ProgramSetEditorSheet: View {
     let set: WorkoutSet?
     let exerciseName: String
     let weightUnit: WeightUnit
-    let onSave: (Int, Double, Int) throws -> Void
+    /// Saves (type, reps, canonical kilograms, seconds). A changed type applies
+    /// to every set of the exercise.
+    let onSave: (WorkoutSetType, Int, Double, Int) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var repsText: String
     @State private var weightText: String
     @State private var timeText: String
+    @State private var selectedType: WorkoutSetType
     @State private var showsValidationError = false
     @State private var showsSaveError = false
     private let initialRepsText: String
     private let initialWeightText: String
     private let initialTimeText: String
+    private let initialType: WorkoutSetType
 
     init(
         set: WorkoutSet?,
         exerciseName: String,
         weightUnit: WeightUnit,
-        onSave: @escaping (Int, Double, Int) throws -> Void
+        onSave: @escaping (WorkoutSetType, Int, Double, Int) throws -> Void
     ) {
         self.set = set
         self.exerciseName = exerciseName
         self.weightUnit = weightUnit
         self.onSave = onSave
         let repsText = String(set?.reps ?? 0) == "0" ? "" : String(set?.reps ?? 0)
-        let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: set?.weight ?? 0)
-        let weightText = displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2)))
+        let weightText = DecimalInputText.text(for: weightUnit.displayWeight(fromCanonicalKilograms: set?.weight ?? 0))
         let timeText = String(set?.timeSeconds ?? 0) == "0" ? "" : String(set?.timeSeconds ?? 0)
+        let type = set?.type ?? WorkoutSetType.defaultForNewSet
         initialRepsText = repsText
         initialWeightText = weightText
         initialTimeText = timeText
+        initialType = type
         _repsText = State(initialValue: repsText)
         _weightText = State(initialValue: weightText)
         _timeText = State(initialValue: timeText)
+        _selectedType = State(initialValue: type)
     }
 
     private var reps: Int { Int(repsText) ?? 0 }
-    private var weight: Double { Double(weightText.replacingOccurrences(of: ",", with: ".")) ?? 0 }
     private var timeSeconds: Int { Int(timeText) ?? 0 }
+    private var weightInKilograms: Double? {
+        DecimalInputText.canonicalKilograms(
+            from: weightText, initialText: initialWeightText,
+            initialKilograms: set?.weight ?? 0, unit: weightUnit
+        )
+    }
     private var inputsAreValid: Bool {
         (repsText.isEmpty || Int(repsText) != nil)
             && (timeText.isEmpty || Int(timeText) != nil)
-            && (weightText.isEmpty || Double(weightText.replacingOccurrences(of: ",", with: ".")) != nil)
+            && weightInKilograms != nil
     }
-    private var type: WorkoutSetType { self.set?.type ?? .repsOnly }
-    private var supportsReps: Bool { type != .timed }
-    private var supportsWeight: Bool { type == .weighted || type == .legacyMixed }
-    private var supportsTime: Bool { type == .timed || type == .legacyMixed }
+    /// Legacy mixed sets keep their marker selectable so opening one never
+    /// silently converts it.
+    private var typeOptions: [WorkoutSetType] {
+        initialType == .legacyMixed ? WorkoutSetType.editableCases + [.legacyMixed] : WorkoutSetType.editableCases
+    }
+    private var supportsReps: Bool { selectedType != .timed }
+    private var supportsWeight: Bool { selectedType == .weighted || selectedType == .legacyMixed }
+    private var supportsTime: Bool { selectedType == .timed || selectedType == .legacyMixed }
     private var hasUnsavedChanges: Bool {
-        repsText != initialRepsText || weightText != initialWeightText || timeText != initialTimeText
+        repsText != initialRepsText || weightText != initialWeightText
+            || timeText != initialTimeText || selectedType != initialType
     }
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Picker("Set type", selection: $selectedType) {
+                        ForEach(typeOptions, id: \.self) { type in
+                            Text(type.shortTitle).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("programSetEditorType")
+                } footer: {
+                    Text("Applies to every set of \(exerciseName).")
+                }
+                // GYM-24: only the fields of the selected type are shown, so a
+                // field is never visible yet silently disabled.
                 Section(set?.isCompleted == true ? "\(exerciseName) plan" : exerciseName) {
-                    LabeledContent("Reps") {
-                        TextField("0", text: $repsText)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numberPad)
-                            .disabled(!supportsReps)
-                            .accessibilityIdentifier("programSetEditorReps")
+                    if supportsReps {
+                        LabeledContent("Reps") {
+                            TextField("0", text: $repsText)
+                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.numberPad)
+                                .accessibilityIdentifier("programSetEditorReps")
+                        }
                     }
-                    LabeledContent("Weight (\(weightUnit.rawValue))") {
-                        TextField("0", text: $weightText)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.decimalPad)
-                            .disabled(!supportsWeight)
-                            .accessibilityIdentifier("programSetEditorWeight")
+                    if supportsWeight {
+                        LabeledContent("Weight (\(weightUnit.rawValue))") {
+                            TextField("0", text: $weightText)
+                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.decimalPad)
+                                .accessibilityIdentifier("programSetEditorWeight")
+                        }
                     }
-                    LabeledContent("Time") {
-                        TextField("0", text: $timeText)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numberPad)
-                            .disabled(!supportsTime)
-                            .accessibilityIdentifier("programSetEditorTime")
+                    if supportsTime {
+                        LabeledContent("Time (sec)") {
+                            TextField("0", text: $timeText)
+                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.numberPad)
+                                .accessibilityIdentifier("programSetEditorTime")
+                        }
                     }
                 }
             }
@@ -1748,9 +1783,11 @@ private struct ProgramSetEditorSheet: View {
     }
 
     private func save() {
-        guard inputsAreValid else { showsValidationError = true; return }
+        // GYM-29: Save without edits must not rewrite (and round) the set.
+        guard hasUnsavedChanges else { dismiss(); return }
+        guard inputsAreValid, let weightInKilograms else { showsValidationError = true; return }
         do {
-            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
+            try onSave(selectedType, reps, weightInKilograms, timeSeconds)
             dismiss()
         } catch {
             if let planningError = error as? ProgramPlanningError,
@@ -1759,6 +1796,18 @@ private struct ProgramSetEditorSheet: View {
             } else {
                 showsSaveError = true
             }
+        }
+    }
+}
+
+extension WorkoutSetType {
+    /// Short segment labels that fit a segmented control at large text sizes.
+    var shortTitle: String {
+        switch self {
+        case .weighted: "Weighted"
+        case .repsOnly: "Reps"
+        case .timed: "Timed"
+        case .legacyMixed: "Mixed"
         }
     }
 }
@@ -1787,8 +1836,9 @@ private struct HistoricalActualEditorSheet: View {
         self.weightUnit = weightUnit
         self.onSave = onSave
         let repsText = String(route.workoutSet.displayedReps) == "0" ? "" : String(route.workoutSet.displayedReps)
-        let displayWeight = weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)
-        let weightText = displayWeight == 0 ? "" : displayWeight.formatted(.number.precision(.fractionLength(0...2)))
+        let weightText = DecimalInputText.text(
+            for: weightUnit.displayWeight(fromCanonicalKilograms: route.workoutSet.displayedWeight)
+        )
         let timeText = String(route.workoutSet.displayedTimeSeconds) == "0" ? "" : String(route.workoutSet.displayedTimeSeconds)
         initialRepsText = repsText
         initialWeightText = weightText
@@ -1799,12 +1849,17 @@ private struct HistoricalActualEditorSheet: View {
     }
 
     private var reps: Int { Int(repsText) ?? 0 }
-    private var weight: Double { Double(weightText.replacingOccurrences(of: ",", with: ".")) ?? 0 }
     private var timeSeconds: Int { Int(timeText) ?? 0 }
+    private var weightInKilograms: Double? {
+        DecimalInputText.canonicalKilograms(
+            from: weightText, initialText: initialWeightText,
+            initialKilograms: route.workoutSet.displayedWeight, unit: weightUnit
+        )
+    }
     private var inputsAreValid: Bool {
         (repsText.isEmpty || Int(repsText) != nil)
             && (timeText.isEmpty || Int(timeText) != nil)
-            && (weightText.isEmpty || Double(weightText.replacingOccurrences(of: ",", with: ".")) != nil)
+            && weightInKilograms != nil
     }
     private var hasUnsavedChanges: Bool {
         repsText != initialRepsText || weightText != initialWeightText || timeText != initialTimeText
@@ -1824,26 +1879,29 @@ private struct HistoricalActualEditorSheet: View {
                     Text(route.workoutSet.displayedType.title)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    LabeledContent("Reps") {
-                        TextField("0", text: $repsText)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numberPad)
-                            .disabled(!supportsReps)
-                            .accessibilityIdentifier("programHistoryActualEditorReps")
+                    if supportsReps {
+                        LabeledContent("Reps") {
+                            TextField("0", text: $repsText)
+                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.numberPad)
+                                .accessibilityIdentifier("programHistoryActualEditorReps")
+                        }
                     }
-                    LabeledContent("Weight (\(weightUnit.rawValue))") {
-                        TextField("0", text: $weightText)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.decimalPad)
-                            .disabled(!supportsWeight)
-                            .accessibilityIdentifier("programHistoryActualEditorWeight")
+                    if supportsWeight {
+                        LabeledContent("Weight (\(weightUnit.rawValue))") {
+                            TextField("0", text: $weightText)
+                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.decimalPad)
+                                .accessibilityIdentifier("programHistoryActualEditorWeight")
+                        }
                     }
-                    LabeledContent("Time") {
-                        TextField("0", text: $timeText)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.numberPad)
-                            .disabled(!supportsTime)
-                            .accessibilityIdentifier("programHistoryActualEditorTime")
+                    if supportsTime {
+                        LabeledContent("Time (sec)") {
+                            TextField("0", text: $timeText)
+                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.numberPad)
+                                .accessibilityIdentifier("programHistoryActualEditorTime")
+                        }
                     }
                 }
             }
@@ -1874,9 +1932,11 @@ private struct HistoricalActualEditorSheet: View {
     }
 
     private func save() {
-        guard inputsAreValid else { showsValidationError = true; return }
+        // GYM-29: Save without edits must not rewrite (and round) the actuals.
+        guard hasUnsavedChanges else { dismiss(); return }
+        guard inputsAreValid, let weightInKilograms else { showsValidationError = true; return }
         do {
-            try onSave(reps, weightUnit.canonicalKilograms(fromDisplayWeight: weight), timeSeconds)
+            try onSave(reps, weightInKilograms, timeSeconds)
             dismiss()
         } catch {
             if let planningError = error as? ProgramPlanningError,

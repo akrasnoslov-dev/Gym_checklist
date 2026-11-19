@@ -183,7 +183,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
             )
             Task { @MainActor in
                 guard let self, self.boundUserID == userID else { return }
-                self.restarter.listenerDelivered()
+                self.restarter.listenerDelivered(isFromCache: snapshot.metadata.isFromCache)
                 guard entries.isEmpty || decoded.discardedEntryCount < entries.count else {
                     if self.hasUsableSnapshot {
                         self.recordUnavailable()
@@ -347,8 +347,11 @@ final class FirestoreListenerRestarter {
         }
     }
 
-    /// Call when a snapshot arrives, so the next failure starts from a short delay.
-    func listenerDelivered() {
+    /// Call for every snapshot. Only a server snapshot proves the listener
+    /// recovered; a cached one arrives first even when the server keeps
+    /// rejecting the listener, so it must not reset the back-off.
+    func listenerDelivered(isFromCache: Bool) {
+        guard !isFromCache else { return }
         attempt = 0
     }
 

@@ -131,7 +131,7 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
             )
             Task { @MainActor in
                 guard let self else { return }
-                self.restarter.listenerDelivered()
+                self.restarter.listenerDelivered(isFromCache: snapshot.metadata.isFromCache)
                 self.measurements = decoded.measurementsPreservingCachedEntries(self.measurements)
                 self.publish()
                 self.reconcileRestartedWrites(snapshot: snapshot, decoded: decoded)

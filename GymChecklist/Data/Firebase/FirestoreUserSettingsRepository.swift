@@ -47,7 +47,7 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
                 : nil
             Task { @MainActor in
                 guard let self else { return }
-                self.restarter.listenerDelivered()
+                self.restarter.listenerDelivered(isFromCache: snapshot.metadata.isFromCache)
                 if let observedSettings {
                     self.settings = observedSettings
                 } else if !snapshot.metadata.hasPendingWrites {

@@ -111,7 +111,9 @@ enum FirestoreLocalData {
     /// to sync. Those stay on the device so they are not lost; they upload the
     /// next time the same account signs in.
     static func clearAfterSignOut(userID: UserID) {
-        guard !PendingMutationJournalStorage.hasUnconfirmedWrites(userID: userID) else { return }
+        // The cache is shared by all accounts on this device, so another
+        // account's waiting offline changes also block clearing it.
+        guard !PendingMutationJournalStorage.hasUnconfirmedWritesForAnyAccount() else { return }
         PendingMutationJournalStorage.purge(userID: userID)
         Task { await clear() }
     }

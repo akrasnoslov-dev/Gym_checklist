@@ -450,9 +450,12 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWrites(
             userID: UserID(rawValue: "someone-else"), directoryURL: directory
         ))
+        // The Firestore cache is shared, so another account's sign-out must see these writes too.
+        XCTAssertTrue(PendingMutationJournalStorage.hasUnconfirmedWritesForAnyAccount(directoryURL: directory))
 
         journal.complete(ticket, result: .accepted)
         XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWrites(userID: user, directoryURL: directory))
+        XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWritesForAnyAccount(directoryURL: directory))
     }
 
     // GYM-29: weights are formatted without grouping and survive a no-edit round trip.

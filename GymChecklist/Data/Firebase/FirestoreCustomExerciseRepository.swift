@@ -54,7 +54,7 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
             )
             Task { @MainActor in
                 guard let self else { return }
-                self.restarter.listenerDelivered()
+                self.restarter.listenerDelivered(isFromCache: snapshot.metadata.isFromCache)
                 self.customExercises = self.sorted(
                     decoded.exercisesPreservingCachedEntries(self.customExercises)
                 )

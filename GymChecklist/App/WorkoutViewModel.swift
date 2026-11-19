@@ -606,16 +606,33 @@ final class WorkoutViewModel: ObservableObject {
         reps: Int,
         weight: Double,
         timeSeconds: Int,
-        type: WorkoutSetType? = nil
+        type: WorkoutSetType? = nil,
+        appliesTypeToExercise: Bool = false
     ) throws {
         guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
             throw ProgramPlanningError.invalidSetValues
         }
+        if appliesTypeToExercise {
+            guard let type, WorkoutSetType.editableCases.contains(type) else {
+                throw ProgramPlanningError.invalidSetValues
+            }
+        }
+        // One mutation, one write: a type change for the whole exercise and the
+        // edited values are validated and saved together, so a failed Save
+        // leaves the workout unchanged.
         try mutateExercise(exerciseID, on: workoutDate) { exercise in
             guard let setIndex = exercise.sets.firstIndex(where: { $0.id == setID }) else {
                 throw ProgramPlanningError.workoutSetNotFound(setID)
             }
             let chosenType = type ?? exercise.sets[setIndex].type
+            if appliesTypeToExercise {
+                for index in exercise.sets.indices {
+                    let set = exercise.sets[index]
+                    exercise.sets[index].editPlan(
+                        reps: set.reps, weight: set.weight, timeSeconds: set.timeSeconds, type: chosenType
+                    )
+                }
+            }
             let configuredOther = exercise.sets.first {
                 $0.id != setID && ($0.reps > 0 || $0.weight > 0 || $0.timeSeconds > 0)
             }

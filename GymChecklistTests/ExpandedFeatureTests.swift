@@ -375,6 +375,39 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(sets.map(\.type), [.timed, .timed])
     }
 
+    // PR #30 review: a type change and edited values are saved in one write,
+    // so invalid values leave every set of the exercise unchanged.
+    @MainActor
+    func testTypeChangeWithInvalidValuesLeavesExerciseUnchanged() throws {
+        let date = LocalDate(year: 2026, month: 9, day: 4)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "owner"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID()
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID, exerciseID: SystemExerciseCatalog.all[0].id, customName: nil, order: 0, isSkipped: false,
+            sets: [WorkoutSet(order: 0, reps: 8, weight: 60, type: .weighted), WorkoutSet(order: 1, reps: 8, weight: 60, type: .weighted)]
+        )]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date)
+        let before = repository.workout(on: date)
+        let setID = try XCTUnwrap(before?.exercises.first?.sets.first?.id)
+
+        XCTAssertThrowsError(try viewModel.editSet(
+            setID, in: exerciseID, on: date, reps: -1, weight: 0, timeSeconds: 0,
+            type: .repsOnly, appliesTypeToExercise: true
+        ))
+        XCTAssertEqual(repository.workout(on: date), before)
+
+        try viewModel.editSet(
+            setID, in: exerciseID, on: date, reps: 10, weight: 0, timeSeconds: 0,
+            type: .repsOnly, appliesTypeToExercise: true
+        )
+        let sets = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(sets.map(\.type), [.repsOnly, .repsOnly])
+        XCTAssertEqual(sets.map(\.weight), [0, 0])
+        XCTAssertEqual(sets.first?.reps, 10)
+    }
+
     // GYM-29: weights are formatted without grouping and survive a no-edit round trip.
     func testDecimalInputTextRoundTripsWithoutGroupingOrDrift() throws {
         let english = Locale(identifier: "en_US")

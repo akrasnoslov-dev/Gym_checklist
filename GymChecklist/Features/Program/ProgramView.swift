@@ -145,9 +145,6 @@ struct ProgramView: View {
                 weightUnit: weightUnit,
                 onSave: { type, reps, weight, timeSeconds in
                     guard let set = route.set else { return }
-                    if type != set.type {
-                        try viewModel.setExerciseType(type, for: route.exercise.id, on: route.workoutDate)
-                    }
                     try viewModel.editSet(
                         set.id,
                         in: route.exercise.id,
@@ -155,7 +152,8 @@ struct ProgramView: View {
                         reps: reps,
                         weight: weight,
                         timeSeconds: timeSeconds,
-                        type: type
+                        type: type,
+                        appliesTypeToExercise: type != set.type
                     )
                 }
             )

@@ -1840,6 +1840,8 @@ private struct ProgramSetEditorSheet: View {
             .interactiveDismissDisabled(hasUnsavedChanges)
             .task {
                 // GYM-25: the keyboard opens on the first field right away.
+                // UI tests type into fields themselves; a delayed focus change races with them.
+                guard !FirebaseBootstrap.isRunningTests() else { return }
                 try? await Task.sleep(for: .milliseconds(400))
                 // Only if the user has not already tapped a field meanwhile.
                 if focusedField == nil { focusedField = supportsReps ? .reps : .time }
@@ -2004,6 +2006,8 @@ private struct HistoricalActualEditorSheet: View {
             .interactiveDismissDisabled(hasUnsavedChanges)
             .task {
                 // GYM-25: the keyboard opens on the first field right away.
+                // UI tests type into fields themselves; a delayed focus change races with them.
+                guard !FirebaseBootstrap.isRunningTests() else { return }
                 try? await Task.sleep(for: .milliseconds(400))
                 // Only if the user has not already tapped a field meanwhile.
                 if focusedField == nil { focusedField = supportsReps ? .reps : .time }

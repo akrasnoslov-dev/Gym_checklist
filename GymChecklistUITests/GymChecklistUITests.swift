@@ -411,8 +411,9 @@ final class GymChecklistUITests: XCTestCase {
         let editor = app.navigationBars["Edit set"]
         let reps = app.textFields["programSetEditorReps"]
         XCTAssertTrue(editor.waitForExistence(timeout: 2))
-        XCTAssertTrue(reps.exists)
-        XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
+        // The compact sheet can show its bar before its form rows load.
+        XCTAssertTrue(reps.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.textFields["programSetEditorWeight"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.segmentedControls["programSetEditorType"].exists)
         reps.tap()
         reps.typeText("9")

@@ -12,6 +12,9 @@ enum GymTheme {
     static let separator = semanticColor(light: rgb(216, 216, 220), dark: rgb(69, 69, 73))
     static let borderSubtle = semanticColor(light: rgb(227, 227, 231), dark: rgb(52, 52, 56))
     static let destructive = semanticColor(light: rgb(186, 26, 26), dark: rgb(255, 180, 171))
+    /// Fill behind white swipe-action labels; `destructive` is a text color and
+    /// too light as a fill in Dark mode (GYM-26).
+    static let swipeDestructive = semanticColor(light: rgb(186, 26, 26), dark: rgb(214, 48, 49))
     static let scrim = semanticColor(
         light: UIColor.black.withAlphaComponent(0.28),
         dark: UIColor.black.withAlphaComponent(0.48)
@@ -28,7 +31,22 @@ enum GymTheme {
     static let spacing16: CGFloat = 16
     static let spacing20: CGFloat = 20
     static let spacing24: CGFloat = 24
-    static let groupRadius: CGFloat = 14
+    static let spacing32: CGFloat = 32
+
+    // GYM-27: one radius per role instead of scattered 8/9/10/20 literals.
+    /// Cards, grouped sections and list groups.
+    static let radiusCard: CGFloat = 14
+    /// Buttons, text fields and other controls.
+    static let radiusControl: CGFloat = 10
+    /// Small badges, chips and icon tiles.
+    static let radiusBadge: CGFloat = 8
+    /// Centered dialogs such as the workout-completion popup.
+    static let radiusDialog: CGFloat = 20
+    /// Horizontal page margin shared by every tab.
+    static let screenEdge: CGFloat = spacing16
+    /// Space kept free above the tab bar at the end of scrolling content.
+    static let tabBarClearance: CGFloat = spacing24
+    static let groupRadius: CGFloat = radiusCard
 
     // Compatibility aliases for existing callers.
     static let accent = accentFill
@@ -88,7 +106,7 @@ struct GymPrimaryButtonStyle: ButtonStyle {
             .padding(.horizontal, GymTheme.spacing16)
             .background(
                 GymTheme.accentFill.opacity(configuration.isPressed ? 0.82 : 1),
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                in: RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous)
             )
     }
 }
@@ -102,10 +120,10 @@ struct GymSecondaryButtonStyle: ButtonStyle {
             .padding(.horizontal, GymTheme.spacing16)
             .background(
                 GymTheme.surfaceGrouped.opacity(configuration.isPressed ? 0.82 : 1),
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                in: RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous)
                     .stroke(GymTheme.borderSubtle, lineWidth: 1)
             }
     }
@@ -117,4 +135,26 @@ extension View {
     func gymPageBackground() -> some View {
         background(GymTheme.surfaceBase.ignoresSafeArea())
     }
+}
+
+/// One sheet policy for the whole app (GYM-25): lists and full forms open at
+/// full height and are usable at once; short set editors open compact, sized
+/// to their fields, and can still be pulled up.
+extension View {
+    func gymFullSheet() -> some View {
+        presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+    }
+
+    func gymCompactSheet(height: CGFloat) -> some View {
+        presentationDetents([.height(height), .large])
+            .presentationDragIndicator(.visible)
+    }
+}
+
+enum GymSheetHeight {
+    /// Type picker plus up to two value fields.
+    static let setEditor: CGFloat = 400
+    /// Up to two value fields with a type caption.
+    static let valueEditor: CGFloat = 320
 }

@@ -81,6 +81,7 @@ struct TodayView: View {
                 .accessibilityHidden(showsCompletionPopup)
             }
             .allowsHitTesting(!showsCompletionPopup)
+            .contentMargins(.bottom, GymTheme.tabBarClearance, for: .scrollContent)
             if showsCompletionPopup {
                 TodayCompletionOverlay(content: completionContent) {
                     showsCompletionPopup = false
@@ -91,6 +92,10 @@ struct TodayView: View {
             }
         }
         .gymPageBackground()
+        // GYM-36: the completion popup is modal, so the tab bar is hidden
+        // while it is shown instead of staying active beside the scrim.
+        .toolbar(showsCompletionPopup ? .hidden : .visible, for: .tabBar)
+        .animation(.easeInOut(duration: 0.2), value: showsCompletionPopup)
         .accessibilityIdentifier("todayScreen")
         .onChange(of: currentDate) { _, _ in
             editorRoute = nil
@@ -110,8 +115,7 @@ struct TodayView: View {
                     timeSeconds: timeSeconds
                 )
             }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymCompactSheet(height: GymSheetHeight.valueEditor)
         }
         .alert(item: $mutationError) { error in
             Alert(
@@ -229,7 +233,9 @@ struct TodayView: View {
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
-                .accessibilityLabel("Exercise actions")
+                // GYM-34: VoiceOver names the exercise, and tests find the menu by ID.
+                .accessibilityLabel("Actions for \(exerciseName)")
+                .accessibilityIdentifier("todayExerciseActions-\(exercise.id.rawValue.uuidString)")
             }
             .padding(.leading, GymTheme.spacing16)
             .padding(.trailing, GymTheme.spacing8)
@@ -451,9 +457,9 @@ enum TodayMutationError: Identifiable {
     var message: String { "Check your workout before trying again." }
 }
 
-/// The approved completion artwork is packaged with the app. Selection is
-/// deterministic per workout so presentation is stable for UI tests and does
-/// not depend on a network call or the process-randomized Swift hash seed.
+/// The approved completion artwork is packaged with the app. Today shows a
+/// random variant each time; `selected(for:)` gives a stable choice per
+/// workout where a deterministic one is needed (tests).
 enum WorkoutCompletionContent: CaseIterable {
     case crushed
     case barely
@@ -497,6 +503,10 @@ private struct TodayCompletionOverlay: View {
         ZStack {
             GymTheme.scrim
                 .ignoresSafeArea()
+                // GYM-36: tapping outside the card closes it, like Done.
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onDismiss)
+                .accessibilityHidden(true)
             VStack(spacing: GymTheme.spacing16) {
                 Image(content.assetName)
                     .resizable()
@@ -514,16 +524,16 @@ private struct TodayCompletionOverlay: View {
                     .buttonStyle(GymPrimaryButtonStyle())
                     .accessibilityIdentifier("todayCompletionDismiss")
             }
-            .padding(28)
+            .padding(GymTheme.spacing24)
             .background(
                 GymTheme.surfaceGrouped,
-                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                in: RoundedRectangle(cornerRadius: GymTheme.radiusDialog, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: GymTheme.radiusDialog, style: .continuous)
                     .stroke(GymTheme.borderSubtle, lineWidth: 1)
             }
-            .padding(32)
+            .padding(GymTheme.spacing32)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("todayCompletionPopup")
             .accessibilityAddTraits(.isModal)
@@ -548,6 +558,7 @@ private struct TodaySetEditorSheet: View {
     @State private var weightText: String
     @State private var timeText: String
     @State private var showsValidationError = false
+    @FocusState private var focusedField: SetEditorField?
     @State private var showsSaveError = false
     private let initialRepsText: String
     private let initialWeightText: String
@@ -612,6 +623,7 @@ private struct TodaySetEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("todaySetEditorReps")
+                                .focused($focusedField, equals: .reps)
                         }
                     }
                     if supportsWeight {
@@ -628,6 +640,7 @@ private struct TodaySetEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("todaySetEditorTime")
+                                .focused($focusedField, equals: .time)
                         }
                     }
                 }
@@ -655,6 +668,14 @@ private struct TodaySetEditorSheet: View {
                 Text("Your values are still here. Try saving again.")
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
+            .task {
+                // GYM-25: the keyboard opens on the first field right away.
+                // UI tests type into fields themselves; a delayed focus change races with them.
+                guard !FirebaseBootstrap.isRunningTests() else { return }
+                try? await Task.sleep(for: .milliseconds(400))
+                // Only if the user has not already tapped a field meanwhile.
+                if focusedField == nil { focusedField = supportsReps ? .reps : .time }
+            }
         }
     }
 

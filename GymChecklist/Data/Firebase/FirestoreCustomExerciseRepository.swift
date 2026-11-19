@@ -7,6 +7,7 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
     let userID: UserID
     private let store: Firestore
     private var listener: ListenerRegistration?
+    private lazy var restarter = FirestoreListenerRestarter { [weak self] in self?.startListening() }
     private var observers: [UUID: @MainActor ([Exercise]) -> Void] = [:]
     private let failures = PersistenceFailureBroadcaster<CustomExercisePersistenceFailure>()
     private(set) var customExercises: [Exercise] = []
@@ -21,14 +22,20 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         pendingJournal = DurablePendingMutationJournal(
             storageKey: PendingMutationJournalStorage.key(scope: "customExercises", userID: user)
         )
+        startListening()
+    }
+
+    private func startListening() {
+        let user = userID
         listener = collection.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
             guard let snapshot else {
-                // The list keeps its last value; a load state is tracked separately (see GYM-22 audit).
+                // The list keeps its last value while the listener reconnects (GYM-37).
                 if let error {
                     FirestoreDiagnostics.shared.record(FirestoreDiagnosticEvent(
                         operation: .listen, collection: "customExercises", documentID: nil, error: error
                     ))
                 }
+                Task { @MainActor in self?.recordListenerFailure() }
                 return
             }
             let entries = snapshot.documents.map { document in
@@ -47,6 +54,7 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
             )
             Task { @MainActor in
                 guard let self else { return }
+                self.restarter.listenerDelivered(isFromCache: snapshot.metadata.isFromCache)
                 self.customExercises = self.sorted(
                     decoded.exercisesPreservingCachedEntries(self.customExercises)
                 )
@@ -57,6 +65,15 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
     }
 
     deinit { MainActor.assumeIsolated { listener?.remove() } }
+
+    /// GYM-37: the listener is dead after an error; attach a new one after a
+    /// back-off, unless the user signed out.
+    private func recordListenerFailure() {
+        listener?.remove()
+        listener = nil
+        guard Auth.auth().currentUser?.uid == userID.rawValue else { return }
+        restarter.listenerFailed()
+    }
 
     func observeCustomExercises(_ observer: @escaping @MainActor ([Exercise]) -> Void) -> CustomExerciseObservation {
         let id = UUID()

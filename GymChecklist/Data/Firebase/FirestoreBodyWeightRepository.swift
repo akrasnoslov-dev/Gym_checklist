@@ -9,6 +9,7 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
     let userID: UserID
     private let store: Firestore
     private var listener: ListenerRegistration?
+    private lazy var restarter = FirestoreListenerRestarter { [weak self] in self?.startListening() }
     private var observers: [UUID: @MainActor ([BodyWeightMeasurement]) -> Void] = [:]
     private let failures = PersistenceFailureBroadcaster<BodyWeightPersistenceFailure>()
     private(set) var measurements: [BodyWeightMeasurement] = []
@@ -94,6 +95,7 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
     /// attach a new one. Measurements already shown stay visible meanwhile.
     func restartListening() {
         guard listener == nil else { return }
+        restarter.cancel()
         startListening()
     }
 
@@ -129,6 +131,7 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
             )
             Task { @MainActor in
                 guard let self else { return }
+                self.restarter.listenerDelivered(isFromCache: snapshot.metadata.isFromCache)
                 self.measurements = decoded.measurementsPreservingCachedEntries(self.measurements)
                 self.publish()
                 self.reconcileRestartedWrites(snapshot: snapshot, decoded: decoded)
@@ -142,6 +145,8 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         listener = nil
         // A listener torn down by sign-out is expected, not a user-facing failure.
         guard Auth.auth().currentUser?.uid == userID.rawValue else { return }
+        // GYM-37: retry automatically too; the banner's Retry just goes sooner.
+        restarter.listenerFailed()
         publishFailure(.historyUnavailable)
     }
 

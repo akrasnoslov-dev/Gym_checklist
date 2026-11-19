@@ -1,6 +1,7 @@
 import FirebaseAuth
 import FirebaseFirestore
 import Foundation
+import UIKit
 
 @MainActor
 final class FirestoreWorkoutRepository: WorkoutRepository {
@@ -15,6 +16,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     private let currentUserID: () -> UserID?
     private var boundUserID: UserID?
     private var listener: ListenerRegistration?
+    private lazy var restarter = FirestoreListenerRestarter { [weak self] in self?.startListening() }
     private var observers: [UUID: @MainActor ([Workout], WorkoutLoadState) -> Void] = [:]
     private let failures = PersistenceFailureBroadcaster<WorkoutPersistenceFailure>()
     private(set) var workouts: [Workout] = []
@@ -154,6 +156,11 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                 Task { @MainActor in
                     guard let self, self.boundUserID == userID else { return }
                     self.recordUnavailable()
+                    // GYM-37: the listener is dead after an error; attach a new one later.
+                    self.listener?.remove()
+                    self.listener = nil
+                    guard Auth.auth().currentUser?.uid == userID.rawValue else { return }
+                    self.restarter.listenerFailed()
                 }
                 return
             }
@@ -176,6 +183,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
             )
             Task { @MainActor in
                 guard let self, self.boundUserID == userID else { return }
+                self.restarter.listenerDelivered(isFromCache: snapshot.metadata.isFromCache)
                 guard entries.isEmpty || decoded.discardedEntryCount < entries.count else {
                     if self.hasUsableSnapshot {
                         self.recordUnavailable()
@@ -294,4 +302,72 @@ extension FirestoreDiagnostics {
     private var handler: (() -> Void)?; init(_ handler: @escaping () -> Void) { self.handler = handler }
     func cancel() { handler?(); handler = nil }
     deinit { MainActor.assumeIsolated { cancel() } }
+}
+
+/// Re-attaches a Firestore listener after it fails (GYM-37). Firestore ends a
+/// listener on error, so without this a repository stays stale until restart.
+/// Retries back off (2, 4, 8 … 60 s) and also run when the app returns to the
+/// foreground.
+@MainActor
+final class FirestoreListenerRestarter {
+    private let restart: @MainActor () -> Void
+    private var attempt = 0
+    private var scheduled: Task<Void, Never>?
+    private var foregroundObserver: NSObjectProtocol?
+
+    init(restart: @escaping @MainActor () -> Void) {
+        self.restart = restart
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.restartNowIfWaiting() }
+        }
+    }
+
+    deinit {
+        MainActor.assumeIsolated {
+            scheduled?.cancel()
+            if let foregroundObserver { NotificationCenter.default.removeObserver(foregroundObserver) }
+        }
+    }
+
+    nonisolated static func delay(forAttempt attempt: Int) -> TimeInterval {
+        min(60, pow(2, Double(min(attempt, 6) + 1)))
+    }
+
+    /// Call when the listener reported an error and has been removed.
+    func listenerFailed() {
+        guard scheduled == nil else { return }
+        let delay = Self.delay(forAttempt: attempt)
+        attempt += 1
+        scheduled = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            self?.fire()
+        }
+    }
+
+    /// Call for every snapshot. Only a server snapshot proves the listener
+    /// recovered; a cached one arrives first even when the server keeps
+    /// rejecting the listener, so it must not reset the back-off.
+    func listenerDelivered(isFromCache: Bool) {
+        guard !isFromCache else { return }
+        attempt = 0
+    }
+
+    func cancel() {
+        scheduled?.cancel()
+        scheduled = nil
+    }
+
+    private func restartNowIfWaiting() {
+        guard scheduled != nil else { return }
+        scheduled?.cancel()
+        fire()
+    }
+
+    private func fire() {
+        scheduled = nil
+        restart()
+    }
 }

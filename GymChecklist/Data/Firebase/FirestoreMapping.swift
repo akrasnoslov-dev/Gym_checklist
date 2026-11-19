@@ -772,12 +772,16 @@ enum ProtectedMutationJournalReadResult {
 }
 
 private struct ProtectedMutationJournalFile {
+    static var defaultDirectory: URL {
+        FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("PendingMutationJournals", isDirectory: true)
+    }
+
     private let fileURL: URL
 
     init(storageKey: String, directoryURL: URL? = nil) {
-        let directory = directoryURL ?? FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("PendingMutationJournals", isDirectory: true)
+        let directory = directoryURL ?? Self.defaultDirectory
         let filename = SHA256.hash(data: Data(storageKey.utf8))
             .map { String(format: "%02x", $0) }
             .joined()
@@ -996,5 +1000,30 @@ enum SyncEquivalence {
         }
         guard let data = try? encoder.encode(value) else { return nil }
         return (data, collector.dates)
+    }
+}
+
+extension PendingMutationJournalStorage {
+    /// True while any journal still holds unconfirmed writes for the user, or
+    /// a journal exists but cannot be read yet (locked device). Journals are
+    /// removed once all their writes are confirmed (GYM-8).
+    static func hasUnconfirmedWrites(userID: UserID, directoryURL: URL? = nil) -> Bool {
+        scopes.contains { scope in
+            switch ProtectedMutationJournalFile(storageKey: key(scope: scope, userID: userID), directoryURL: directoryURL).read() {
+            case .missing: return false
+            case .data, .unavailable: return true
+            }
+        }
+    }
+
+    /// Firestore keeps one shared cache for every account that used this
+    /// device, and clearing it drops every account's queued writes. So it may
+    /// be cleared only when no account has an unconfirmed write (PR #32 review).
+    static func hasUnconfirmedWritesForAnyAccount(directoryURL: URL? = nil) -> Bool {
+        let directory = directoryURL ?? ProtectedMutationJournalFile.defaultDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil
+        ) else { return false }
+        return files.contains { $0.pathExtension == "json" }
     }
 }

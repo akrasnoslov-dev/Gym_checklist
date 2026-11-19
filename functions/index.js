@@ -26,6 +26,9 @@ exports.deleteAccount = onCall(
       throw new HttpsError("failed-precondition", "Recent authentication is required.");
     }
 
+    // GYM-8: stop the session from refreshing tokens before the data goes,
+    // so a lingering client cannot keep writing after deletion.
+    await getAuth().revokeRefreshTokens(uid);
     const database = getFirestore();
     await database.recursiveDelete(database.collection("users").doc(uid));
     await getAuth().deleteUser(uid);

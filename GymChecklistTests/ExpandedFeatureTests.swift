@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import GymChecklist
 
@@ -406,6 +407,55 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(sets.map(\.type), [.repsOnly, .repsOnly])
         XCTAssertEqual(sets.map(\.weight), [0, 0])
         XCTAssertEqual(sets.first?.reps, 10)
+    }
+
+    // GYM-37: failed listeners are re-attached with back-off or on foreground.
+    func testListenerRestartBacksOffAndCapsAtOneMinute() {
+        XCTAssertEqual((0..<8).map(FirestoreListenerRestarter.delay(forAttempt:)), [2, 4, 8, 16, 32, 60, 60, 60])
+    }
+
+    @MainActor
+    func testFailedListenerRestartsOnceWhenTheAppReturnsToForeground() async {
+        let restarted = expectation(description: "listener restarted")
+        restarted.assertForOverFulfill = true
+        var restartCount = 0
+        let restarter = FirestoreListenerRestarter {
+            restartCount += 1
+            restarted.fulfill()
+        }
+        restarter.listenerFailed()
+        restarter.listenerFailed()
+        NotificationCenter.default.post(name: UIApplication.willEnterForegroundNotification, object: nil)
+        await fulfillment(of: [restarted], timeout: 2)
+        XCTAssertEqual(restartCount, 1)
+        restarter.cancel()
+    }
+
+    // GYM-8: sign-out clears the local cache only once no offline write is waiting.
+    func testUnconfirmedWritesAreDetectedUntilTheJournalIsEmpty() {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("UnconfirmedWrites.\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let user = UserID(rawValue: "owner")
+        XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWrites(userID: user, directoryURL: directory))
+
+        var journal = DurablePendingMutationJournal<String, String>(
+            storageKey: PendingMutationJournalStorage.key(scope: "settings", userID: user),
+            directoryURL: directory
+        )
+        var tracker = ScopedDocumentMutationTracker<String, String>()
+        let ticket = tracker.begin(key: "default", baseline: .missing, attempted: .value("dark"))
+        journal.record(ticket, attempted: .value("dark"))
+        XCTAssertTrue(PendingMutationJournalStorage.hasUnconfirmedWrites(userID: user, directoryURL: directory))
+        XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWrites(
+            userID: UserID(rawValue: "someone-else"), directoryURL: directory
+        ))
+        // The Firestore cache is shared, so another account's sign-out must see these writes too.
+        XCTAssertTrue(PendingMutationJournalStorage.hasUnconfirmedWritesForAnyAccount(directoryURL: directory))
+
+        journal.complete(ticket, result: .accepted)
+        XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWrites(userID: user, directoryURL: directory))
+        XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWritesForAnyAccount(directoryURL: directory))
     }
 
     // GYM-29: weights are formatted without grouping and survive a no-edit round trip.

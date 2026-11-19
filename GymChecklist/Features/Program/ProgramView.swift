@@ -136,8 +136,7 @@ struct ProgramView: View {
                     try viewModel.addExercise(exercise, to: route.workoutDate)
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymFullSheet()
         case let .setEditor(route):
             ProgramSetEditorSheet(
                 set: route.set,
@@ -157,8 +156,7 @@ struct ProgramView: View {
                     )
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymCompactSheet(height: GymSheetHeight.setEditor)
         case let .historicalActual(route):
             HistoricalActualEditorSheet(
                 route: route,
@@ -174,8 +172,7 @@ struct ProgramView: View {
                     )
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymCompactSheet(height: GymSheetHeight.valueEditor)
         case let .copy(route):
             CopyWorkoutSheet(
                 destinationDate: route.destinationDate,
@@ -187,8 +184,7 @@ struct ProgramView: View {
                     try viewModel.copyWorkout(from: sourceDate, to: destinationDate, strategy: strategy)
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymFullSheet()
             .interactiveDismissDisabled(true)
         case let .repeatWorkout(route):
             RepeatWorkoutSheet(
@@ -201,16 +197,14 @@ struct ProgramView: View {
                     try viewModel.repeatWorkout(from: route.sourceDate, through: endDate, cadence: cadence)
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymFullSheet()
         case .reorderExercises:
             ExerciseReorderSheet(
                 exercises: orderedExercises,
                 exerciseName: viewModel.exerciseName(for:),
                 onReorder: persistOrder
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymFullSheet()
         }
     }
 
@@ -321,7 +315,6 @@ struct ProgramView: View {
                         dateButton(date)
                     }
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
             } else {
                 monthGrid
             }
@@ -379,9 +372,9 @@ struct ProgramView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 44)
             .foregroundStyle(isCurrentMonth ? Color.primary : Color.secondary)
-            .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+            .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: GymTheme.radiusBadge, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 9)
+                RoundedRectangle(cornerRadius: GymTheme.radiusBadge, style: .continuous)
                     .stroke(isSelected ? GymTheme.accentForeground : (isToday ? Color.primary.opacity(0.65) : .clear), lineWidth: isSelected ? 1.5 : 1)
             }
             .contentShape(Rectangle())
@@ -413,10 +406,10 @@ struct ProgramView: View {
             .padding(.vertical, 4)
             .background(isSelected ? GymTheme.accentSoft : Color.clear)
             .overlay {
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous)
                     .stroke(isSelected ? GymTheme.accentForeground : Color.clear, lineWidth: 2)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -429,37 +422,38 @@ struct ProgramView: View {
     @ViewBuilder
     private var selectedDateSections: some View {
         List {
-            VStack(alignment: .leading, spacing: GymTheme.spacing8) {
-                HStack(spacing: GymTheme.spacing8) {
+            // GYM-27: a compact one-line header in its own section, so the
+            // cards below get all four corners rounded.
+            Section {
+                HStack(alignment: .firstTextBaseline, spacing: GymTheme.spacing8) {
                     Text(calendarState.selectedWorkout == nil ? "Plan workout" : "Workout")
                         .font(.headline)
                         .foregroundStyle(GymTheme.textPrimary)
                         .accessibilityLabel(fullDateLabel(for: calendarState.selectedDate))
                         .accessibilityIdentifier("programSelectedDate")
-                    Spacer(minLength: 0)
                     if case let .workout(status) = calendarState.selectedDayState {
                         Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(dayStateColor(.workout(status)))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(GymTheme.surface, in: Capsule())
                             .accessibilityIdentifier("programWorkoutState")
                     }
+                    Spacer(minLength: 0)
+                    if !isHistorical && calendarState.selectedWorkout != nil {
+                        Label("Saved on device", systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(GymTheme.textSecondary)
+                            .accessibilityIdentifier("programSavedStatus")
+                    }
                 }
-                if !isHistorical && calendarState.selectedWorkout != nil {
-                    Label("Saved on device", systemImage: "checkmark.circle.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(GymTheme.accentForeground)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(GymTheme.accentSoft, in: Capsule())
-                        .accessibilityIdentifier("programSavedStatus")
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(
+                    top: GymTheme.spacing4, leading: GymTheme.spacing4,
+                    bottom: 0, trailing: GymTheme.spacing4
+                ))
             }
-            .listRowBackground(GymTheme.surfaceBase)
-            .listRowSeparator(.hidden)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .listSectionSpacing(GymTheme.spacing8)
 
         if viewModel.workoutLoadState == .loading {
             Section {
@@ -486,6 +480,7 @@ struct ProgramView: View {
 
             switch calendarState.selectedDayState {
             case .empty:
+                Section {
                 VStack(spacing: GymTheme.spacing16) {
                 Image(systemName: isHistorical ? "clock.arrow.circlepath" : "list.clipboard")
                     .font(.system(size: 28, weight: .semibold))
@@ -511,12 +506,15 @@ struct ProgramView: View {
                 }
             }
                 .frame(maxWidth: .infinity, minHeight: 280)
+                }
             case .workout:
                 Group {
                     if orderedExercises.isEmpty {
-                        Text("No exercises added yet.")
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("programEmptyWorkout")
+                        Section {
+                            Text("No exercises added yet.")
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("programEmptyWorkout")
+                        }
                     }
                     if isHistorical {
                         ForEach(orderedExercises) { exercise in
@@ -530,13 +528,17 @@ struct ProgramView: View {
                             )
                         }
 
-                        Button {
-                            activeSheet = .exercisePicker(ExercisePickerRoute(workoutDate: calendarState.selectedDate))
-                        } label: {
-                            Label("Add exercise", systemImage: "plus")
+                        Section {
+                            Button {
+                                activeSheet = .exercisePicker(ExercisePickerRoute(workoutDate: calendarState.selectedDate))
+                            } label: {
+                                Label("Add exercise", systemImage: "plus")
+                            }
+                            .buttonStyle(GymPrimaryButtonStyle())
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                            .accessibilityIdentifier("programAddExercise")
                         }
-                        .buttonStyle(GymPrimaryButtonStyle())
-                        .accessibilityIdentifier("programAddExercise")
                     }
                 }
             }
@@ -548,12 +550,14 @@ struct ProgramView: View {
         .scrollDisabled(reorderSession != nil)
         .scrollContentBackground(.hidden)
         .background(GymTheme.surfaceBase)
+        // GYM-27: keep the last button clear of the tab bar.
+        .contentMargins(.bottom, GymTheme.tabBarClearance, for: .scrollContent)
     }
 
     private func historyExerciseRow(_ exercise: WorkoutExercise) -> some View {
         let name = viewModel.exerciseName(for: exercise)
         let sets = viewModel.orderedSets(for: exercise.id, on: calendarState.selectedDate)
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: GymTheme.spacing8) {
             HStack {
                 Text(name)
                 Spacer()
@@ -682,7 +686,7 @@ struct ProgramView: View {
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(GymTheme.accentForeground)
                         .frame(width: 44, height: 44)
-                        .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 9))
+                        .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: GymTheme.radiusBadge, style: .continuous))
                         .contentShape(Rectangle())
                         .accessibilityLabel("Reorder set \(setIndex + 1)")
                         .accessibilityHint("Touch and hold, then drag up or down. Or use the Move up and Move down actions.")
@@ -722,6 +726,8 @@ struct ProgramView: View {
                         ))
                     }
                     .accessibilityLabel("Delete set \(setIndex + 1)")
+                    // GYM-26: the app-wide green tint must not recolor Delete.
+                    .tint(GymTheme.swipeDestructive)
                 }
             }
 
@@ -743,7 +749,8 @@ struct ProgramView: View {
                     .font(.headline)
                     .foregroundStyle(GymTheme.textPrimary)
                     .textCase(nil)
-                    .accessibilityIdentifier("programExercise-\(name)")
+                    // GYM-34: the same exercise can appear twice, so IDs use the row ID.
+                    .accessibilityIdentifier("programExercise-\(exercise.id.rawValue.uuidString)")
                 Spacer()
                 Text(exerciseSetType(exercise).title)
                     .font(.caption)
@@ -784,6 +791,7 @@ struct ProgramView: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Actions for \(name), exercise \(index + 1) of \(orderedExercises.count)")
+                .accessibilityIdentifier("programExerciseActions-\(exercise.id.rawValue.uuidString)")
             }
             .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
         }
@@ -1027,7 +1035,7 @@ private struct ExerciseReorderSheet: View {
                 ForEach(exercises) { exercise in
                     Text(exerciseName(exercise))
                         .accessibilityLabel("Reorder \(exerciseName(exercise))")
-                        .accessibilityIdentifier("programReorderExercise-\(exerciseName(exercise))")
+                        .accessibilityIdentifier("programReorderExercise-\(exercise.id.rawValue.uuidString)")
                 }
                 .onMove { source, destination in
                     exercises.move(fromOffsets: source, toOffset: destination)
@@ -1227,7 +1235,7 @@ private struct CopyWorkoutSheet: View {
                 Section {
                     HStack {
                         Button { moveSourceMonth(by: -1) } label: {
-                            Image(systemName: "chevron.left").frame(width: 36, height: 36)
+                            Image(systemName: "chevron.left").frame(width: 44, height: 44)
                         }
                         .accessibilityLabel("Previous source month")
                         Spacer()
@@ -1235,19 +1243,19 @@ private struct CopyWorkoutSheet: View {
                             .font(.headline)
                         Spacer()
                         Button { moveSourceMonth(by: 1) } label: {
-                            Image(systemName: "chevron.right").frame(width: 36, height: 36)
+                            Image(systemName: "chevron.right").frame(width: 44, height: 44)
                         }
                         .accessibilityLabel("Next source month")
                     }
 
                     sourceCalendar
 
-                    HStack(spacing: 12) {
+                    HStack(spacing: GymTheme.spacing12) {
                         Image(systemName: "doc.on.doc")
                             .font(.title3)
                             .frame(width: 38, height: 38)
                             .foregroundStyle(GymTheme.accentForeground)
-                            .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous))
                         VStack(alignment: .leading, spacing: 3) {
                             Text(fullDateLabel(for: selectedSourceDate))
                                 .font(.headline)
@@ -1440,9 +1448,9 @@ private struct CopyWorkoutSheet: View {
                     .font(.caption2)
                     .opacity(workout == nil ? 0 : 1)
             }
-            .frame(maxWidth: .infinity, minHeight: 40)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .foregroundStyle(isAvailable ? sourceStateColor(state) : GymTheme.textSecondary.opacity(0.45))
-            .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+            .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: GymTheme.radiusBadge, style: .continuous))
             .opacity(isCurrentMonth ? 1 : 0.45)
             .contentShape(Rectangle())
         }
@@ -1547,14 +1555,14 @@ private struct RepeatWorkoutSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: GymTheme.spacing20) {
                     GymSectionHeader(title: "Source workout")
-                    HStack(spacing: 12) {
+                    HStack(spacing: GymTheme.spacing12) {
                         Image(systemName: "arrow.triangle.2.circlepath")
                             .font(.title3)
                             .frame(width: 38, height: 38)
                             .foregroundStyle(GymTheme.accentForeground)
-                            .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous))
                         VStack(alignment: .leading, spacing: 3) {
                     Text(fullDateLabel(for: sourceDate))
                                 .font(.headline)
@@ -1595,7 +1603,7 @@ private struct RepeatWorkoutSheet: View {
                     .gymCard()
 
                     GymSectionHeader(title: "Result")
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: GymTheme.spacing8) {
                     Text(scheduleSummary)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -1706,6 +1714,7 @@ private struct ProgramSetEditorSheet: View {
     @State private var timeText: String
     @State private var selectedType: WorkoutSetType
     @State private var showsValidationError = false
+    @FocusState private var focusedField: SetEditorField?
     @State private var showsSaveError = false
     private let initialRepsText: String
     private let initialWeightText: String
@@ -1785,6 +1794,7 @@ private struct ProgramSetEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("programSetEditorReps")
+                                .focused($focusedField, equals: .reps)
                         }
                     }
                     if supportsWeight {
@@ -1801,6 +1811,7 @@ private struct ProgramSetEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("programSetEditorTime")
+                                .focused($focusedField, equals: .time)
                         }
                     }
                 }
@@ -1827,6 +1838,14 @@ private struct ProgramSetEditorSheet: View {
                 Text("Your values are still here. Try saving again.")
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
+            .task {
+                // GYM-25: the keyboard opens on the first field right away.
+                // UI tests type into fields themselves; a delayed focus change races with them.
+                guard !FirebaseBootstrap.isRunningTests() else { return }
+                try? await Task.sleep(for: .milliseconds(400))
+                // Only if the user has not already tapped a field meanwhile.
+                if focusedField == nil { focusedField = supportsReps ? .reps : .time }
+            }
         }
     }
 
@@ -1846,6 +1865,12 @@ private struct ProgramSetEditorSheet: View {
             }
         }
     }
+}
+
+/// The first value field a set editor focuses when it opens.
+enum SetEditorField: Hashable {
+    case reps
+    case time
 }
 
 extension WorkoutSetType {
@@ -1870,6 +1895,7 @@ private struct HistoricalActualEditorSheet: View {
     @State private var weightText: String
     @State private var timeText: String
     @State private var showsValidationError = false
+    @FocusState private var focusedField: SetEditorField?
     @State private var showsSaveError = false
     private let initialRepsText: String
     private let initialWeightText: String
@@ -1933,6 +1959,7 @@ private struct HistoricalActualEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("programHistoryActualEditorReps")
+                                .focused($focusedField, equals: .reps)
                         }
                     }
                     if supportsWeight {
@@ -1949,6 +1976,7 @@ private struct HistoricalActualEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("programHistoryActualEditorTime")
+                                .focused($focusedField, equals: .time)
                         }
                     }
                 }
@@ -1976,6 +2004,14 @@ private struct HistoricalActualEditorSheet: View {
                 Text("Your values are still here. Try saving again.")
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
+            .task {
+                // GYM-25: the keyboard opens on the first field right away.
+                // UI tests type into fields themselves; a delayed focus change races with them.
+                guard !FirebaseBootstrap.isRunningTests() else { return }
+                try? await Task.sleep(for: .milliseconds(400))
+                // Only if the user has not already tapped a field meanwhile.
+                if focusedField == nil { focusedField = supportsReps ? .reps : .time }
+            }
         }
     }
 

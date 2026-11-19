@@ -391,10 +391,15 @@ struct SettingsView: View {
                             isDeleteAccountConfirmationPresented = true
                         } label: {
                             HStack {
-                                Text("Delete account")
+                                Text(isDeletingAccount ? "Deleting account…" : "Delete account")
                                 Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.footnote.weight(.semibold))
+                                if isDeletingAccount {
+                                    // GYM-35: the Cloud Function can take a few seconds.
+                                    ProgressView()
+                                } else {
+                                    Image(systemName: "chevron.right")
+                                        .font(.footnote.weight(.semibold))
+                                }
                             }
                             .frame(maxWidth: .infinity, minHeight: 48)
                             .padding(.horizontal, GymTheme.spacing16)
@@ -430,7 +435,7 @@ struct SettingsView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
-            .accessibilityIdentifier("settingsPlaceholder")
+            .accessibilityIdentifier("settingsScreen")
             .alert("Delete account?", isPresented: $isDeleteAccountConfirmationPresented) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete account", role: .destructive) {
@@ -465,56 +470,20 @@ struct SettingsView: View {
                 )
             }
             .sheet(isPresented: $isAppleAccountDeletionReauthenticationPresented) {
-                NavigationStack {
-                    VStack(alignment: .leading, spacing: 20) {
-                        Text("Verify with Apple")
-                            .font(.title2.bold())
-                        Text("For security, verify the same Apple account before permanently deleting your data.")
-                            .foregroundStyle(.secondary)
-                        if let errorMessage {
-                            Label(errorMessage, systemImage: "exclamationmark.circle")
-                                .foregroundStyle(.red)
-                                .accessibilityLabel("Error: \(errorMessage)")
-                                .accessibilityIdentifier("accountDeleteVerificationError")
-                        }
-                        appleDeletionButton
-                        Spacer()
-                    }
-                    .padding()
-                    .navigationTitle("Delete account")
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") { isAppleAccountDeletionReauthenticationPresented = false }
-                        }
-                    }
+                accountDeletionVerificationSheet(
+                    provider: "Apple",
+                    onCancel: { isAppleAccountDeletionReauthenticationPresented = false }
+                ) {
+                    appleDeletionButton
                 }
-                .interactiveDismissDisabled(isDeletingAccount)
             }
             .sheet(isPresented: $isGoogleAccountDeletionReauthenticationPresented) {
-                NavigationStack {
-                    VStack(alignment: .leading, spacing: 20) {
-                        Text("Verify with Google")
-                            .font(.title2.bold())
-                        Text("For security, verify the same Google account before permanently deleting your data.")
-                            .foregroundStyle(.secondary)
-                        if let errorMessage {
-                            Label(errorMessage, systemImage: "exclamationmark.circle")
-                                .foregroundStyle(.red)
-                                .accessibilityLabel("Error: \(errorMessage)")
-                                .accessibilityIdentifier("accountDeleteVerificationError")
-                        }
-                        googleDeletionButton
-                        Spacer()
-                    }
-                    .padding()
-                    .navigationTitle("Delete account")
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") { isGoogleAccountDeletionReauthenticationPresented = false }
-                        }
-                    }
+                accountDeletionVerificationSheet(
+                    provider: "Google",
+                    onCancel: { isGoogleAccountDeletionReauthenticationPresented = false }
+                ) {
+                    googleDeletionButton
                 }
-                .interactiveDismissDisabled(isDeletingAccount)
             }
             .onChange(of: viewModel.errorMessage) { _, newValue in
                 if newValue != nil { isErrorFocused = true }
@@ -579,6 +548,52 @@ struct SettingsView: View {
         guard let weight = viewModel.currentWeightInKilograms else { return "Log your first measurement" }
         let display = viewModel.settings.weightUnit.displayWeight(fromCanonicalKilograms: weight)
         return "\(display.formatted(.number.precision(.fractionLength(0...2)))) \(viewModel.settings.weightUnit.rawValue) - \(viewModel.measurements.count) saved"
+    }
+
+    /// GYM-35: one verification sheet for Apple and Google, with the title shown
+    /// once, theme tokens, and a visible progress state while deleting.
+    private func accountDeletionVerificationSheet<VerifyButton: View>(
+        provider: String,
+        onCancel: @escaping () -> Void,
+        @ViewBuilder verifyButton: () -> VerifyButton
+    ) -> some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: GymTheme.spacing20) {
+                Text("For security, verify the same \(provider) account before permanently deleting your data.")
+                    .foregroundStyle(GymTheme.textSecondary)
+                if let errorMessage {
+                    Label(errorMessage, systemImage: "exclamationmark.circle")
+                        .foregroundStyle(GymTheme.destructive)
+                        .accessibilityLabel("Error: \(errorMessage)")
+                        .accessibilityIdentifier("accountDeleteVerificationError")
+                }
+                verifyButton()
+                if isDeletingAccount {
+                    accountDeletionProgress
+                }
+                Spacer()
+            }
+            .padding(GymTheme.spacing16)
+            .navigationTitle("Verify with \(provider)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                        .disabled(isDeletingAccount)
+                }
+            }
+        }
+        .interactiveDismissDisabled(isDeletingAccount)
+    }
+
+    private var accountDeletionProgress: some View {
+        HStack(spacing: GymTheme.spacing8) {
+            ProgressView()
+            Text("Deleting your account…")
+                .foregroundStyle(GymTheme.textSecondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("accountDeleteProgress")
     }
 
     @ViewBuilder
@@ -927,6 +942,7 @@ private struct BodyWeightHistorySheet: View {
                                 Label("Delete", systemImage: "trash")
                             }
                             .accessibilityIdentifier("bodyWeightDelete")
+                            .tint(GymTheme.swipeDestructive)
                         }
                     }
                 }

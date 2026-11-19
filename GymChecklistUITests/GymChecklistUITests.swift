@@ -212,8 +212,13 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reorder exercises"].waitForExistence(timeout: 2))
         app.buttons["Reorder exercises"].tap()
         XCTAssertTrue(app.navigationBars["Reorder exercises"].waitForExistence(timeout: 2))
-        let benchInReorder = app.descendants(matching: .any)["programReorderExercise-Bench Press"]
-        let nordicInReorder = app.descendants(matching: .any)["programReorderExercise-Nordic Hop"]
+        // GYM-34: reorder rows are identified by row ID; match the name via the label.
+        let benchInReorder = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "programReorderExercise-", "Bench Press"
+        )).firstMatch
+        let nordicInReorder = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "programReorderExercise-", "Nordic Hop"
+        )).firstMatch
         XCTAssertTrue(benchInReorder.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 5), app.debugDescription)
         // Native edit-mode List exposes a dedicated reorder control. Drag the
@@ -287,14 +292,14 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertFalse(app.buttons["programConfirmDeleteWorkout"].exists)
 
         app.tabBars.buttons["Settings"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].waitForExistence(timeout: 2))
         let appearance = app.descendants(matching: .any)["settingsAppearance"]
         XCTAssertTrue(appearance.exists)
         XCTAssertEqual(appearance.value as? String, "system")
 
         XCUIDevice.shared.press(.home)
         app.activate()
-        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].waitForExistence(timeout: 2))
 
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
@@ -1269,7 +1274,7 @@ final class RegistrationUITests: XCTestCase {
         XCTAssertTrue(app.alerts["Delete account?"].waitForExistence(timeout: 2))
         app.alerts["Delete account?"].buttons["Cancel"].tap()
 
-        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
     }
 
@@ -1300,7 +1305,7 @@ final class RegistrationUITests: XCTestCase {
         let deletionError = app.staticTexts["authLogoutError"]
         XCTAssertTrue(reveal(deletionError, in: app))
         XCTAssertEqual(deletionError.label, "Error: For security, sign in again and then retry account deletion.")
-        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
     }
 
@@ -1338,7 +1343,7 @@ final class RegistrationUITests: XCTestCase {
         verifyApple.tap()
 
         XCTAssertTrue(app.descendants(matching: .any)["accountDeleteVerificationError"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
     }
 
@@ -1527,7 +1532,7 @@ final class RegistrationUITests: XCTestCase {
         captureMVPPreview("03-Program", app: app)
 
         app.tabBars.buttons["Settings"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["settingsPlaceholder"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].waitForExistence(timeout: 5))
         captureMVPPreview("04-Settings", app: app)
         app.terminate()
 
@@ -1589,9 +1594,16 @@ final class TodayCompletionUITests: XCTestCase {
         let dismiss = app.buttons["todayCompletionDismiss"]
         XCTAssertTrue(dismiss.isHittable)
         XCTAssertFalse(benchSet.isHittable)
+        // GYM-36: the popup is modal, so the tab bar cannot be used meanwhile.
+        let programTab = app.tabBars.buttons["Program"]
+        let tabBarHidden = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false OR hittable == false"), object: programTab
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [tabBarHidden], timeout: 2), .completed)
         dismiss.tap()
         XCTAssertTrue(rowSet.waitForExistence(timeout: 2))
         XCTAssertTrue(rowSet.isHittable)
+        XCTAssertTrue(programTab.waitForExistence(timeout: 2))
     }
 
     func testLastRemainingSetShowsDismissibleCompletionPopupOncePerTransition() {

@@ -136,8 +136,7 @@ struct ProgramView: View {
                     try viewModel.addExercise(exercise, to: route.workoutDate)
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymFullSheet()
         case let .setEditor(route):
             ProgramSetEditorSheet(
                 set: route.set,
@@ -157,8 +156,7 @@ struct ProgramView: View {
                     )
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymCompactSheet(height: GymSheetHeight.setEditor)
         case let .historicalActual(route):
             HistoricalActualEditorSheet(
                 route: route,
@@ -174,8 +172,7 @@ struct ProgramView: View {
                     )
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymCompactSheet(height: GymSheetHeight.valueEditor)
         case let .copy(route):
             CopyWorkoutSheet(
                 destinationDate: route.destinationDate,
@@ -187,8 +184,7 @@ struct ProgramView: View {
                     try viewModel.copyWorkout(from: sourceDate, to: destinationDate, strategy: strategy)
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymFullSheet()
             .interactiveDismissDisabled(true)
         case let .repeatWorkout(route):
             RepeatWorkoutSheet(
@@ -201,16 +197,14 @@ struct ProgramView: View {
                     try viewModel.repeatWorkout(from: route.sourceDate, through: endDate, cadence: cadence)
                 }
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymFullSheet()
         case .reorderExercises:
             ExerciseReorderSheet(
                 exercises: orderedExercises,
                 exerciseName: viewModel.exerciseName(for:),
                 onReorder: persistOrder
             )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
+            .gymFullSheet()
         }
     }
 
@@ -321,7 +315,6 @@ struct ProgramView: View {
                         dateButton(date)
                     }
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
             } else {
                 monthGrid
             }
@@ -719,6 +712,8 @@ struct ProgramView: View {
                         ))
                     }
                     .accessibilityLabel("Delete set \(setIndex + 1)")
+                    // GYM-26: the app-wide green tint must not recolor Delete.
+                    .tint(GymTheme.swipeDestructive)
                 }
             }
 
@@ -740,7 +735,8 @@ struct ProgramView: View {
                     .font(.headline)
                     .foregroundStyle(GymTheme.textPrimary)
                     .textCase(nil)
-                    .accessibilityIdentifier("programExercise-\(name)")
+                    // GYM-34: the same exercise can appear twice, so IDs use the row ID.
+                    .accessibilityIdentifier("programExercise-\(exercise.id.rawValue.uuidString)")
                 Spacer()
                 Text(exerciseSetType(exercise).title)
                     .font(.caption)
@@ -781,6 +777,7 @@ struct ProgramView: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Actions for \(name), exercise \(index + 1) of \(orderedExercises.count)")
+                .accessibilityIdentifier("programExerciseActions-\(exercise.id.rawValue.uuidString)")
             }
             .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
         }
@@ -1024,7 +1021,7 @@ private struct ExerciseReorderSheet: View {
                 ForEach(exercises) { exercise in
                     Text(exerciseName(exercise))
                         .accessibilityLabel("Reorder \(exerciseName(exercise))")
-                        .accessibilityIdentifier("programReorderExercise-\(exerciseName(exercise))")
+                        .accessibilityIdentifier("programReorderExercise-\(exercise.id.rawValue.uuidString)")
                 }
                 .onMove { source, destination in
                     exercises.move(fromOffsets: source, toOffset: destination)
@@ -1224,7 +1221,7 @@ private struct CopyWorkoutSheet: View {
                 Section {
                     HStack {
                         Button { moveSourceMonth(by: -1) } label: {
-                            Image(systemName: "chevron.left").frame(width: 36, height: 36)
+                            Image(systemName: "chevron.left").frame(width: 44, height: 44)
                         }
                         .accessibilityLabel("Previous source month")
                         Spacer()
@@ -1232,7 +1229,7 @@ private struct CopyWorkoutSheet: View {
                             .font(.headline)
                         Spacer()
                         Button { moveSourceMonth(by: 1) } label: {
-                            Image(systemName: "chevron.right").frame(width: 36, height: 36)
+                            Image(systemName: "chevron.right").frame(width: 44, height: 44)
                         }
                         .accessibilityLabel("Next source month")
                     }
@@ -1437,7 +1434,7 @@ private struct CopyWorkoutSheet: View {
                     .font(.caption2)
                     .opacity(workout == nil ? 0 : 1)
             }
-            .frame(maxWidth: .infinity, minHeight: 40)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .foregroundStyle(isAvailable ? sourceStateColor(state) : GymTheme.textSecondary.opacity(0.45))
             .background(isSelected ? GymTheme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 8))
             .opacity(isCurrentMonth ? 1 : 0.45)
@@ -1703,6 +1700,7 @@ private struct ProgramSetEditorSheet: View {
     @State private var timeText: String
     @State private var selectedType: WorkoutSetType
     @State private var showsValidationError = false
+    @FocusState private var focusedField: SetEditorField?
     @State private var showsSaveError = false
     private let initialRepsText: String
     private let initialWeightText: String
@@ -1782,6 +1780,7 @@ private struct ProgramSetEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("programSetEditorReps")
+                                .focused($focusedField, equals: .reps)
                         }
                     }
                     if supportsWeight {
@@ -1798,6 +1797,7 @@ private struct ProgramSetEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("programSetEditorTime")
+                                .focused($focusedField, equals: .time)
                         }
                     }
                 }
@@ -1824,6 +1824,11 @@ private struct ProgramSetEditorSheet: View {
                 Text("Your values are still here. Try saving again.")
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
+            .task {
+                // GYM-25: the keyboard opens on the first field right away.
+                try? await Task.sleep(for: .milliseconds(400))
+                focusedField = supportsReps ? .reps : .time
+            }
         }
     }
 
@@ -1843,6 +1848,12 @@ private struct ProgramSetEditorSheet: View {
             }
         }
     }
+}
+
+/// The first value field a set editor focuses when it opens.
+enum SetEditorField: Hashable {
+    case reps
+    case time
 }
 
 extension WorkoutSetType {
@@ -1867,6 +1878,7 @@ private struct HistoricalActualEditorSheet: View {
     @State private var weightText: String
     @State private var timeText: String
     @State private var showsValidationError = false
+    @FocusState private var focusedField: SetEditorField?
     @State private var showsSaveError = false
     private let initialRepsText: String
     private let initialWeightText: String
@@ -1930,6 +1942,7 @@ private struct HistoricalActualEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("programHistoryActualEditorReps")
+                                .focused($focusedField, equals: .reps)
                         }
                     }
                     if supportsWeight {
@@ -1946,6 +1959,7 @@ private struct HistoricalActualEditorSheet: View {
                                 .multilineTextAlignment(.trailing)
                                 .keyboardType(.numberPad)
                                 .accessibilityIdentifier("programHistoryActualEditorTime")
+                                .focused($focusedField, equals: .time)
                         }
                     }
                 }
@@ -1973,6 +1987,11 @@ private struct HistoricalActualEditorSheet: View {
                 Text("Your values are still here. Try saving again.")
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
+            .task {
+                // GYM-25: the keyboard opens on the first field right away.
+                try? await Task.sleep(for: .milliseconds(400))
+                focusedField = supportsReps ? .reps : .time
+            }
         }
     }
 

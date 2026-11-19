@@ -4,6 +4,7 @@ enum LocalExerciseLibraryError: Error, Equatable {
     case emptyName
     case exerciseNotFound
     case duplicateName
+    case nameTooLong
 }
 
 enum LocalExerciseCreationResult: Equatable {
@@ -50,6 +51,7 @@ struct LocalExerciseLibrary {
     ) throws -> LocalExerciseCreationResult {
         let normalizedName = Self.collapsingWhitespace(in: name)
         guard !normalizedName.isEmpty else { throw LocalExerciseLibraryError.emptyName }
+        guard PersistedValueLimits.isValidExerciseText(normalizedName) else { throw LocalExerciseLibraryError.nameTooLong }
 
         if let existing = allExercises.first(where: {
             Self.searchKey(for: $0.name) == Self.searchKey(for: normalizedName)
@@ -74,6 +76,7 @@ struct LocalExerciseLibrary {
     mutating func renameCustomExercise(id: ExerciseID, to name: String) throws -> Exercise {
         let normalizedName = Self.collapsingWhitespace(in: name)
         guard !normalizedName.isEmpty else { throw LocalExerciseLibraryError.emptyName }
+        guard PersistedValueLimits.isValidExerciseText(normalizedName) else { throw LocalExerciseLibraryError.nameTooLong }
         guard let index = customExercises.firstIndex(where: { $0.id == id }) else {
             throw LocalExerciseLibraryError.exerciseNotFound
         }

@@ -179,6 +179,8 @@ struct DecodedFirestoreWorkoutSnapshot: Equatable {
     let workouts: [Workout]
     let discardedEntryCount: Int
     let discardedDocumentDates: Set<LocalDate>
+    /// GYM-39: workouts shown without the exercises or sets that failed validation.
+    var repairedDocumentDates: Set<LocalDate> = []
 
     func workoutsPreservingCachedEntries(_ cachedWorkouts: [Workout]) -> [Workout] {
         var workoutsByDate = Dictionary(uniqueKeysWithValues: workouts.map { ($0.localDate, $0) })
@@ -212,11 +214,12 @@ enum FirestoreWorkoutSnapshotDecoder {
         var workouts: [Workout] = []
         var discardedEntryCount = 0
         var discardedDocumentDates: Set<LocalDate> = []
+        var repairedDocumentDates: Set<LocalDate> = []
 
         for entry in entries {
             guard let documentDate = entry.documentDate,
                   let payload = entry.payload,
-                  let workout = try? payload.domainWorkout(userID: userID, documentDate: documentDate)
+                  let decoded = try? payload.lenientDomainWorkout(userID: userID, documentDate: documentDate)
             else {
                 discardedEntryCount += 1
                 if let documentDate = entry.documentDate {
@@ -224,14 +227,19 @@ enum FirestoreWorkoutSnapshotDecoder {
                 }
                 continue
             }
-            workouts.append(workout)
+            if decoded.droppedRecordCount > 0 {
+                repairedDocumentDates.insert(documentDate)
+            }
+            workouts.append(decoded.workout)
         }
 
-        return DecodedFirestoreWorkoutSnapshot(
+        var snapshot = DecodedFirestoreWorkoutSnapshot(
             workouts: workouts.sorted { $0.localDate < $1.localDate },
             discardedEntryCount: discardedEntryCount,
             discardedDocumentDates: discardedDocumentDates
         )
+        snapshot.repairedDocumentDates = repairedDocumentDates
+        return snapshot
     }
 }
 
@@ -320,6 +328,34 @@ struct FirestoreWorkoutPayload: Codable, Equatable {
     func domainWorkout(userID: UserID, documentDate: LocalDate) throws -> Workout {
         let exercises = try exercises.map { try $0.domainExercise() }
         return try workout.workout(userID: userID, documentDate: documentDate, exercises: exercises)
+    }
+
+    /// GYM-39: drops only the exercises and sets that fail validation, so one
+    /// corrupt record no longer hides the whole day. Rules cannot validate list
+    /// items, so this client check is the only guard. Throws only when the
+    /// workout header itself is invalid. The next save of this workout writes
+    /// it back without the dropped records.
+    func lenientDomainWorkout(
+        userID: UserID,
+        documentDate: LocalDate
+    ) throws -> (workout: Workout, droppedRecordCount: Int) {
+        var droppedRecordCount = 0
+        let exercises: [WorkoutExercise] = self.exercises.compactMap { payload in
+            let sets: [WorkoutSet] = payload.sets.compactMap { setDocument in
+                guard let set = try? setDocument.workoutSet() else {
+                    droppedRecordCount += 1
+                    return nil
+                }
+                return set
+            }
+            guard let exercise = try? payload.exercise.workoutExercise(sets: sets) else {
+                droppedRecordCount += 1
+                return nil
+            }
+            return exercise
+        }
+        let decodedWorkout = try self.workout.workout(userID: userID, documentDate: documentDate, exercises: exercises)
+        return (decodedWorkout, droppedRecordCount)
     }
 }
 

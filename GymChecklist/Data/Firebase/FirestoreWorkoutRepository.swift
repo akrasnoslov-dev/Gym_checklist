@@ -159,7 +159,10 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                 documentIDs: zip(snapshot.documents, entries).compactMap { document, entry in
                     guard entry.payload != nil else { return nil }
                     guard let date = entry.documentDate else { return document.documentID }
-                    return decoded.discardedDocumentDates.contains(date) ? document.documentID : nil
+                    // A repaired workout is shown, but its dropped records are still logged (GYM-39).
+                    let isRejected = decoded.discardedDocumentDates.contains(date)
+                        || decoded.repairedDocumentDates.contains(date)
+                    return isRejected ? document.documentID : nil
                 },
                 collection: "workouts"
             )

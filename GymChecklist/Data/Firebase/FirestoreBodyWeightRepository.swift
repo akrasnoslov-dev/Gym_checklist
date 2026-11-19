@@ -13,17 +13,20 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
     private var observers: [UUID: @MainActor ([BodyWeightMeasurement]) -> Void] = [:]
     private let failures = PersistenceFailureBroadcaster<BodyWeightPersistenceFailure>()
     private(set) var measurements: [BodyWeightMeasurement] = []
-    private var mutations = ScopedDocumentMutationTracker<BodyWeightMeasurementID, BodyWeightMeasurement>()
-    private var pendingJournal: DurablePendingMutationJournal<BodyWeightMeasurementID, BodyWeightMeasurement>?
+    private lazy var documents = OptimisticDocumentStore<BodyWeightMeasurementID, BodyWeightMeasurement>(
+        collection: bodyWeightCollectionName,
+        journalScope: "bodyWeight",
+        userID: self.userID,
+        restore: { [weak self] id, snapshot in self?.restore(snapshot, id: id) },
+        report: { [weak self] failure in self?.publishFailure(failure) }
+    )
 
     init?(store: Firestore = .firestore(), currentUserID: (() -> UserID?)? = nil) {
         let user = currentUserID?() ?? Auth.auth().currentUser.map { UserID(rawValue: $0.uid) }
         guard let user, !user.rawValue.isEmpty, !user.rawValue.contains("/") else { return nil }
         userID = user
         self.store = store
-        pendingJournal = DurablePendingMutationJournal(
-            storageKey: PendingMutationJournalStorage.key(scope: "bodyWeight", userID: user)
-        )
+        _ = documents // Loads the pending-write journal before the first snapshot.
         startListening()
     }
 
@@ -49,26 +52,14 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         }
         let payload = FirestoreBodyWeightMeasurementDocument(measurement: measurement)
         let baseline = measurements.first(where: { $0.id == measurement.id }).map { PersistedDocument.value($0) } ?? .missing
-        let ticket = mutations.begin(key: measurement.id, baseline: baseline, attempted: .value(measurement))
-        pendingJournal?.record(ticket, attempted: .value(measurement))
+        let ticket = documents.begin(key: measurement.id, baseline: baseline, attempted: .value(measurement))
         measurements.removeAll { $0.id == measurement.id }
         measurements.append(measurement)
         measurements = sorted(measurements)
         publish()
-        do {
-            try store.document(FirestoreDocumentPath.bodyWeightMeasurement(userID: userID, measurementID: measurement.id))
-                .setData(from: payload) { [weak self] error in
-                    FirestoreDiagnostics.shared.recordIfFailed(
-                        error, operation: .write, collection: bodyWeightCollectionName, documentID: payload.id
-                    )
-                    Task { @MainActor in self?.recordWriteCompletion(error, ticket: ticket) }
-                }
-        } catch {
-            FirestoreDiagnostics.shared.recordIfFailed(
-                error, operation: .write, collection: bodyWeightCollectionName, documentID: payload.id
-            )
-            recordWriteCompletion(error, ticket: ticket, publishesFailure: false)
-            throw error
+        let document = store.document(FirestoreDocumentPath.bodyWeightMeasurement(userID: userID, measurementID: measurement.id))
+        try documents.write(ticket, documentID: payload.id) { completion in
+            try document.setData(from: payload, completion: completion)
         }
     }
 
@@ -76,18 +67,12 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         guard let removedMeasurement = measurements.first(where: { $0.id == id }) else {
             throw BodyWeightRepositoryError.measurementNotFound(id)
         }
-        let ticket = mutations.begin(key: id, baseline: .value(removedMeasurement), attempted: .missing)
-        pendingJournal?.record(ticket, attempted: .missing)
+        let ticket = documents.begin(key: id, baseline: .value(removedMeasurement), attempted: .missing)
         measurements.removeAll { $0.id == id }
         publish()
-        let documentID = id.rawValue.uuidString
-        store.document(FirestoreDocumentPath.bodyWeightMeasurement(userID: userID, measurementID: id)).delete { [weak self] error in
-            FirestoreDiagnostics.shared.recordIfFailed(
-                error, operation: .delete, collection: bodyWeightCollectionName, documentID: documentID
-            )
-            Task { @MainActor [weak self] in
-                self?.recordWriteCompletion(error, ticket: ticket)
-            }
+        let document = store.document(FirestoreDocumentPath.bodyWeightMeasurement(userID: userID, measurementID: id))
+        documents.delete(ticket, documentID: id.rawValue.uuidString) { completion in
+            document.delete(completion: completion)
         }
     }
 
@@ -134,7 +119,11 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
                 self.restarter.listenerDelivered(isFromCache: snapshot.metadata.isFromCache)
                 self.measurements = decoded.measurementsPreservingCachedEntries(self.measurements)
                 self.publish()
-                self.reconcileRestartedWrites(snapshot: snapshot, decoded: decoded)
+                self.documents.reconcileRestarted(
+                    isFromCache: snapshot.metadata.isFromCache,
+                    hasPendingWrites: snapshot.metadata.hasPendingWrites,
+                    stableValues: Dictionary(uniqueKeysWithValues: decoded.measurements.map { ($0.id, $0) })
+                )
             }
         }
     }
@@ -147,32 +136,12 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         guard Auth.auth().currentUser?.uid == userID.rawValue else { return }
         // GYM-37: retry automatically too; the banner's Retry just goes sooner.
         restarter.listenerFailed()
-        publishFailure(.historyUnavailable)
+        failures.publish(.historyUnavailable)
     }
 
     private func sorted(_ values: [BodyWeightMeasurement]) -> [BodyWeightMeasurement] {
         values.sorted {
             BodyWeightMeasurement.isMoreRecent($0, than: $1)
-        }
-    }
-
-    private func recordWriteCompletion(
-        _ error: Swift.Error?,
-        ticket: ScopedDocumentMutationTicket<BodyWeightMeasurementID>,
-        publishesFailure: Bool = true
-    ) {
-        let result: ScopedDocumentMutationResult = error == nil ? .accepted : .rejected
-        pendingJournal?.complete(ticket, result: result)
-        let completion = mutations.complete(ticket, result: result)
-        guard case let .rejected(rollbackSnapshot, attempted) = completion else { return }
-        restore(rollbackSnapshot, id: ticket.key)
-        switch (rollbackSnapshot, attempted) {
-        case let (_, .value(measurement)):
-            if publishesFailure { publishFailure(.saveRejected(measurement)) }
-        case let (.value(measurement), .missing):
-            if publishesFailure { publishFailure(.deleteRejected(measurement)) }
-        default:
-            break
         }
     }
 
@@ -186,27 +155,21 @@ final class FirestoreBodyWeightRepository: BodyWeightRepository {
         publish()
     }
 
-    private func reconcileRestartedWrites(
-        snapshot: QuerySnapshot,
-        decoded: DecodedFirestoreBodyWeightSnapshot
-    ) {
-        let decodedByID = Dictionary(uniqueKeysWithValues: decoded.measurements.map { ($0.id, $0) })
-        guard !snapshot.metadata.isFromCache, !snapshot.metadata.hasPendingWrites else { return }
-        for unconfirmed in pendingJournal?.reconcileRestarted(stableValues: decodedByID) ?? [] {
-            switch (unconfirmed.attempted, unconfirmed.stable) {
-            case let (.value(measurement), _):
-                publishFailure(.saveUnconfirmedAfterRestart(measurement))
-            case let (.missing, .value(measurement)):
-                publishFailure(.deleteUnconfirmedAfterRestart(measurement))
-            default:
-                break
-            }
-        }
-    }
-
     private func publish() { observers.values.forEach { $0(measurements) } }
-    private func publishFailure(_ failure: BodyWeightPersistenceFailure) {
-        failures.publish(failure)
+
+    private func publishFailure(_ failure: OptimisticDocumentFailure<BodyWeightMeasurementID, BodyWeightMeasurement>) {
+        switch failure {
+        case let .saveRejected(measurement):
+            failures.publish(.saveRejected(measurement))
+        case let .deleteRejected(measurement):
+            failures.publish(.deleteRejected(measurement))
+        case let .saveUnconfirmedAfterRestart(measurement):
+            failures.publish(.saveUnconfirmedAfterRestart(measurement))
+        case let .deleteUnconfirmedAfterRestart(measurement):
+            failures.publish(.deleteUnconfirmedAfterRestart(measurement))
+        case .deleteRejectedWithoutLocalCopy:
+            break // Deleting a measurement that is not listed throws before any write.
+        }
     }
 }
 

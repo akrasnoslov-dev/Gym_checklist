@@ -11,17 +11,20 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
     private var observers: [UUID: @MainActor ([Exercise]) -> Void] = [:]
     private let failures = PersistenceFailureBroadcaster<CustomExercisePersistenceFailure>()
     private(set) var customExercises: [Exercise] = []
-    private var mutations = ScopedDocumentMutationTracker<ExerciseID, Exercise>()
-    private var pendingJournal: DurablePendingMutationJournal<ExerciseID, Exercise>?
+    private lazy var documents = OptimisticDocumentStore<ExerciseID, Exercise>(
+        collection: "customExercises",
+        journalScope: "customExercises",
+        userID: self.userID,
+        restore: { [weak self] id, snapshot in self?.restore(snapshot, id: id) },
+        report: { [weak self] failure in self?.publishFailure(failure) }
+    )
 
     init?(store: Firestore = .firestore(), currentUserID: (() -> UserID?)? = nil) {
         let user = currentUserID?() ?? Auth.auth().currentUser.map { UserID(rawValue: $0.uid) }
         guard let user, !user.rawValue.isEmpty, !user.rawValue.contains("/") else { return nil }
         userID = user
         self.store = store
-        pendingJournal = DurablePendingMutationJournal(
-            storageKey: PendingMutationJournalStorage.key(scope: "customExercises", userID: user)
-        )
+        _ = documents // Loads the pending-write journal before the first snapshot.
         startListening()
     }
 
@@ -59,7 +62,11 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
                     decoded.exercisesPreservingCachedEntries(self.customExercises)
                 )
                 self.publish()
-                self.reconcileRestartedWrites(snapshot: snapshot, decoded: decoded)
+                self.documents.reconcileRestarted(
+                    isFromCache: snapshot.metadata.isFromCache,
+                    hasPendingWrites: snapshot.metadata.hasPendingWrites,
+                    stableValues: Dictionary(uniqueKeysWithValues: decoded.exercises.map { ($0.id, $0) })
+                )
             }
         }
     }
@@ -95,49 +102,32 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         guard !exercise.isSystem else { throw CustomExerciseRepositoryError.systemExerciseCannotBePersisted }
         let payload = try FirestoreCustomExerciseDocument(exercise: exercise)
         let baseline = customExercises.first(where: { $0.id == exercise.id }).map { PersistedDocument.value($0) } ?? .missing
-        let ticket = mutations.begin(key: exercise.id, baseline: baseline, attempted: .value(exercise))
-        pendingJournal?.record(ticket, attempted: .value(exercise))
+        let ticket = documents.begin(key: exercise.id, baseline: baseline, attempted: .value(exercise))
         customExercises.removeAll { $0.id == exercise.id }
         customExercises.append(exercise)
         customExercises = sorted(customExercises)
         publish()
-        do {
-            try collection.document(payload.id).setData(from: payload) { [weak self] error in
-                FirestoreDiagnostics.shared.recordIfFailed(
-                    error, operation: .write, collection: "customExercises", documentID: payload.id
-                )
-                Task { @MainActor in self?.recordWriteCompletion(error, ticket: ticket) }
-            }
-        } catch {
-            FirestoreDiagnostics.shared.recordIfFailed(
-                error, operation: .write, collection: "customExercises", documentID: payload.id
-            )
-            recordWriteCompletion(error, ticket: ticket, publishesFailure: false)
-            throw error
+        let document = collection.document(payload.id)
+        try documents.write(ticket, documentID: payload.id) { completion in
+            try document.setData(from: payload, completion: completion)
         }
     }
 
     func deleteCustomExercise(id: ExerciseID) throws {
-        guard let removedExercise = customExercises.first(where: { $0.id == id }) else {
-            let ticket = mutations.begin(key: id, baseline: .missing, attempted: .missing)
-            pendingJournal?.record(ticket, attempted: .missing)
-            deleteDocument(id: id, ticket: ticket)
-            return
+        let removedExercise = customExercises.first(where: { $0.id == id })
+        let ticket = documents.begin(
+            key: id,
+            baseline: removedExercise.map { PersistedDocument.value($0) } ?? .missing,
+            attempted: .missing
+        )
+        if removedExercise != nil {
+            customExercises.removeAll { $0.id == id }
+            publish()
         }
-        let ticket = mutations.begin(key: id, baseline: .value(removedExercise), attempted: .missing)
-        pendingJournal?.record(ticket, attempted: .missing)
-        customExercises.removeAll { $0.id == id }
-        publish()
-        deleteDocument(id: id, ticket: ticket)
-    }
-
-    private func deleteDocument(id: ExerciseID, ticket: ScopedDocumentMutationTicket<ExerciseID>) {
         let documentID = id.rawValue.uuidString
-        collection.document(documentID).delete { [weak self] error in
-            FirestoreDiagnostics.shared.recordIfFailed(
-                error, operation: .delete, collection: "customExercises", documentID: documentID
-            )
-            Task { @MainActor in self?.recordWriteCompletion(error, ticket: ticket) }
+        let document = collection.document(documentID)
+        documents.delete(ticket, documentID: documentID) { completion in
+            document.delete(completion: completion)
         }
     }
 
@@ -152,28 +142,6 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         }
     }
 
-    private func recordWriteCompletion(
-        _ error: Swift.Error?,
-        ticket: ScopedDocumentMutationTicket<ExerciseID>,
-        publishesFailure: Bool = true
-    ) {
-        let result: ScopedDocumentMutationResult = error == nil ? .accepted : .rejected
-        pendingJournal?.complete(ticket, result: result)
-        let completion = mutations.complete(ticket, result: result)
-        guard case let .rejected(rollbackSnapshot, attempted) = completion else { return }
-        restore(rollbackSnapshot, id: ticket.key)
-        switch (rollbackSnapshot, attempted) {
-        case let (_, .value(exercise)):
-            if publishesFailure { publishFailure(.saveRejected(exercise)) }
-        case let (.value(exercise), .missing):
-            if publishesFailure { publishFailure(.deleteRejected(exercise)) }
-        case (.missing, .missing):
-            if publishesFailure { publishFailure(.deleteRejectedWithoutLocalCopy(ticket.key)) }
-        default:
-            break
-        }
-    }
-
     private func restore(_ snapshot: PersistedDocument<Exercise>, id: ExerciseID) {
         customExercises.removeAll { $0.id == id }
         if case let .value(exercise) = snapshot { customExercises.append(exercise) }
@@ -181,27 +149,21 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         publish()
     }
 
-    private func reconcileRestartedWrites(
-        snapshot: QuerySnapshot,
-        decoded: DecodedFirestoreCustomExerciseSnapshot
-    ) {
-        let decodedByID = Dictionary(uniqueKeysWithValues: decoded.exercises.map { ($0.id, $0) })
-        guard !snapshot.metadata.isFromCache, !snapshot.metadata.hasPendingWrites else { return }
-        for unconfirmed in pendingJournal?.reconcileRestarted(stableValues: decodedByID) ?? [] {
-            switch (unconfirmed.attempted, unconfirmed.stable) {
-            case let (.value(exercise), _):
-                publishFailure(.saveUnconfirmedAfterRestart(exercise))
-            case let (.missing, .value(exercise)):
-                publishFailure(.deleteUnconfirmedAfterRestart(exercise))
-            default:
-                break
-            }
-        }
-    }
-
     private func publish() { observers.values.forEach { $0(customExercises) } }
-    private func publishFailure(_ failure: CustomExercisePersistenceFailure) {
-        failures.publish(failure)
+
+    private func publishFailure(_ failure: OptimisticDocumentFailure<ExerciseID, Exercise>) {
+        switch failure {
+        case let .saveRejected(exercise):
+            failures.publish(.saveRejected(exercise))
+        case let .deleteRejected(exercise):
+            failures.publish(.deleteRejected(exercise))
+        case let .deleteRejectedWithoutLocalCopy(id):
+            failures.publish(.deleteRejectedWithoutLocalCopy(id))
+        case let .saveUnconfirmedAfterRestart(exercise):
+            failures.publish(.saveUnconfirmedAfterRestart(exercise))
+        case let .deleteUnconfirmedAfterRestart(exercise):
+            failures.publish(.deleteUnconfirmedAfterRestart(exercise))
+        }
     }
 }
 

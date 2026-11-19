@@ -1303,3 +1303,64 @@ private func seedRepeatableWorkout(_ repository: InMemoryWorkoutRepository, on d
     )]
     try repository.save(workout)
 }
+
+// GYM-13: the shared optimistic store that backs every Firestore repository.
+@MainActor
+final class OptimisticDocumentStoreTests: XCTestCase {
+    private struct SendFailed: Error {}
+
+    private var restored: [(String, PersistedDocument<String>)] = []
+    private var reported: [String] = []
+
+    private func makeStore() -> OptimisticDocumentStore<String, String> {
+        OptimisticDocumentStore<String, String>(
+            collection: "tests",
+            journalScope: "settings",
+            userID: nil,
+            restore: { [weak self] key, snapshot in self?.restored.append((key, snapshot)) },
+            report: { [weak self] failure in
+                switch failure {
+                case let .saveRejected(value): self?.reported.append("saveRejected:\(value)")
+                case let .deleteRejected(value): self?.reported.append("deleteRejected:\(value)")
+                case let .deleteRejectedWithoutLocalCopy(key): self?.reported.append("deleteWithoutCopy:\(key)")
+                case let .saveUnconfirmedAfterRestart(value): self?.reported.append("saveUnconfirmed:\(value)")
+                case let .deleteUnconfirmedAfterRestart(value): self?.reported.append("deleteUnconfirmed:\(value)")
+                }
+            }
+        )
+    }
+
+    func testRejectedSaveRestoresBaselineAndReportsAttemptedValue() {
+        let store = makeStore()
+        let ticket = store.begin(key: "a", baseline: .value("server"), attempted: .value("local"))
+        store.complete(ticket, error: SendFailed())
+        XCTAssertEqual(restored.map(\.0), ["a"])
+        XCTAssertEqual(restored.map(\.1), [.value("server")])
+        XCTAssertEqual(reported, ["saveRejected:local"])
+    }
+
+    func testRejectedDeleteReportsRemovedValueOrMissingLocalCopy() {
+        let store = makeStore()
+        store.complete(store.begin(key: "a", baseline: .value("kept"), attempted: .missing), error: SendFailed())
+        store.complete(store.begin(key: "b", baseline: .missing, attempted: .missing), error: SendFailed())
+        XCTAssertEqual(reported, ["deleteRejected:kept", "deleteWithoutCopy:b"])
+    }
+
+    func testAcceptedAndSupersededWritesNeitherRestoreNorReport() {
+        let store = makeStore()
+        let first = store.begin(key: "a", baseline: .value("server"), attempted: .value("first"))
+        let second = store.begin(key: "a", baseline: .value("first"), attempted: .value("second"))
+        store.complete(first, error: SendFailed())
+        store.complete(second, error: nil)
+        XCTAssertTrue(restored.isEmpty)
+        XCTAssertTrue(reported.isEmpty)
+    }
+
+    func testWriteThatThrowsBeforeSendingRollsBackWithoutReporting() {
+        let store = makeStore()
+        let ticket = store.begin(key: "a", baseline: .missing, attempted: .value("local"))
+        XCTAssertThrowsError(try store.write(ticket, documentID: "a") { _ in throw SendFailed() })
+        XCTAssertEqual(restored.map(\.1), [.missing])
+        XCTAssertTrue(reported.isEmpty)
+    }
+}

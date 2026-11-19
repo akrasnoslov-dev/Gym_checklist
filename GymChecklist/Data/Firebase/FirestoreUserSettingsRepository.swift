@@ -11,9 +11,14 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
     private var observers: [UUID: @MainActor (UserSettings) -> Void] = [:]
     private let failures = PersistenceFailureBroadcaster<UserSettingsPersistenceFailure>()
     private(set) var settings: UserSettings
-    private var mutations = ScopedDocumentMutationTracker<String, UserSettings>()
-    private var pendingJournal: DurablePendingMutationJournal<String, UserSettings>?
     private let documentKey = "default"
+    private lazy var documents = OptimisticDocumentStore<String, UserSettings>(
+        collection: "settings",
+        journalScope: "settings",
+        userID: self.userID,
+        restore: { [weak self] _, snapshot in self?.restore(snapshot) },
+        report: { [weak self] failure in self?.publishFailure(failure) }
+    )
 
     init?(store: Firestore = .firestore(), currentUserID: (() -> UserID?)? = nil) {
         let user = currentUserID?() ?? Auth.auth().currentUser.map { UserID(rawValue: $0.uid) }
@@ -21,9 +26,7 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
         userID = user
         self.store = store
         settings = UserSettings(userID: user)
-        pendingJournal = DurablePendingMutationJournal(
-            storageKey: PendingMutationJournalStorage.key(scope: "settings", userID: user)
-        )
+        _ = documents // Loads the pending-write journal before the first snapshot.
         startListening()
     }
 
@@ -54,14 +57,11 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
                     self.settings = UserSettings(userID: user)
                 }
                 self.publish()
-                if !snapshot.metadata.isFromCache, !snapshot.metadata.hasPendingWrites {
-                    let stableValues = observedSettings.map { [self.documentKey: $0] } ?? [:]
-                    for unconfirmed in self.pendingJournal?.reconcileRestarted(stableValues: stableValues) ?? [] {
-                        if case let .value(attempted) = unconfirmed.attempted {
-                            self.publishFailure(.saveUnconfirmedAfterRestart(attempted))
-                        }
-                    }
-                }
+                self.documents.reconcileRestarted(
+                    isFromCache: snapshot.metadata.isFromCache,
+                    hasPendingWrites: snapshot.metadata.hasPendingWrites,
+                    stableValues: observedSettings.map { [self.documentKey: $0] } ?? [:]
+                )
             }
         }
     }
@@ -94,27 +94,16 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
 
     func save(_ settings: UserSettings) throws {
         guard settings.userID == userID else { throw UserSettingsRepositoryError.ownerMismatch }
-        let ticket = mutations.begin(
+        let ticket = documents.begin(
             key: documentKey,
             baseline: .value(self.settings),
             attempted: .value(settings)
         )
-        pendingJournal?.record(ticket, attempted: .value(settings))
         self.settings = settings
         publish()
-        do {
-            try document.setData(from: FirestoreUserSettingsDocument(settings: settings)) { [weak self] error in
-                FirestoreDiagnostics.shared.recordIfFailed(
-                    error, operation: .write, collection: "settings", documentID: "default"
-                )
-                Task { @MainActor in self?.recordWriteCompletion(error, ticket: ticket) }
-            }
-        } catch {
-            FirestoreDiagnostics.shared.recordIfFailed(
-                error, operation: .write, collection: "settings", documentID: "default"
-            )
-            recordWriteCompletion(error, ticket: ticket, publishesFailure: false)
-            throw error
+        let document = self.document
+        try documents.write(ticket, documentID: documentKey) { completion in
+            try document.setData(from: FirestoreUserSettingsDocument(settings: settings), completion: completion)
         }
     }
 
@@ -134,26 +123,23 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
         store.document(FirestoreDocumentPath.settings(userID: userID))
     }
 
-    private func recordWriteCompletion(
-        _ error: Swift.Error?,
-        ticket: ScopedDocumentMutationTicket<String>,
-        publishesFailure: Bool = true
-    ) {
-        let result: ScopedDocumentMutationResult = error == nil ? .accepted : .rejected
-        pendingJournal?.complete(ticket, result: result)
-        let completion = mutations.complete(ticket, result: result)
-        guard case let .rejected(restore, attempted) = completion,
-              case let .value(restoredSettings) = restore,
-              case let .value(attemptedSettings) = attempted
-        else { return }
+    private func restore(_ snapshot: PersistedDocument<UserSettings>) {
+        guard case let .value(restoredSettings) = snapshot else { return }
         settings = restoredSettings
         publish()
-        if publishesFailure { publishFailure(.saveRejected(attemptedSettings)) }
     }
 
     private func publish() { observers.values.forEach { $0(settings) } }
-    private func publishFailure(_ failure: UserSettingsPersistenceFailure) {
-        failures.publish(failure)
+
+    private func publishFailure(_ failure: OptimisticDocumentFailure<String, UserSettings>) {
+        switch failure {
+        case let .saveRejected(attempted):
+            failures.publish(.saveRejected(attempted))
+        case let .saveUnconfirmedAfterRestart(attempted):
+            failures.publish(.saveUnconfirmedAfterRestart(attempted))
+        case .deleteRejected, .deleteRejectedWithoutLocalCopy, .deleteUnconfirmedAfterRestart:
+            break // Settings are never deleted.
+        }
     }
 }
 

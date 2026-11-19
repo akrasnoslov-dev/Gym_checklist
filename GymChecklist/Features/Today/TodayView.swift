@@ -671,7 +671,8 @@ private struct TodaySetEditorSheet: View {
             .task {
                 // GYM-25: the keyboard opens on the first field right away.
                 try? await Task.sleep(for: .milliseconds(400))
-                focusedField = supportsReps ? .reps : .time
+                // Only if the user has not already tapped a field meanwhile.
+                if focusedField == nil { focusedField = supportsReps ? .reps : .time }
             }
         }
     }

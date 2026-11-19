@@ -514,15 +514,11 @@ final class GymChecklistUITests: XCTestCase {
         }
         XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
         replaceChoice.buttons["Replace exercises"].tap()
-        // The full-height sheet (GYM-25) virtualizes rows; scroll the action into view.
+        // The action is pinned in the sheet's bottom inset; it can be briefly
+        // absent while the segment change re-renders, so wait instead of swiping.
         let replaceAction = replaceApp.buttons["copyWorkoutAction"]
-        for _ in 0..<4 {
-            // Frame-based: isHittable throws while a virtualized row is off screen.
-            if replaceAction.exists, !replaceAction.frame.isEmpty,
-               replaceApp.frame.insetBy(dx: 0, dy: 60).contains(replaceAction.frame) { break }
-            replaceApp.swipeUp()
-        }
-        XCTAssertTrue(replaceAction.waitForExistence(timeout: 3), replaceApp.debugDescription)
+        XCTAssertTrue(replaceAction.waitForExistence(timeout: 5), replaceApp.debugDescription)
+        XCTAssertTrue(waitForLabel(of: replaceAction, toEqual: "Replace exercises"))
         replaceAction.tap()
         let replaceAlert = replaceApp.alerts["Replace exercises?"]
         XCTAssertTrue(replaceAlert.waitForExistence(timeout: 3))

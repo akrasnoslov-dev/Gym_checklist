@@ -79,8 +79,32 @@ It reads the released `cloud.firestore` ruleset through the Firebase Rules API
 (token from `-AccessToken`, `GOOGLE_OAUTH_ACCESS_TOKEN`, or
 `gcloud auth print-access-token`) and prints PASS or the differing lines. It
 never deploys. Without a token, compare Firebase Console > Firestore > Rules
-with `firestore.rules` by hand. CI does not run it yet because it needs a
-service-account secret.
+with `firestore.rules` by hand.
+
+### CI drift check and approved deploy (GYM-38)
+
+`.github/workflows/firestore-rules-drift.yml` runs the drift check daily and
+after `firestore.rules` changes on `dev`; DRIFT turns the run red. Until it is
+configured it only prints a warning. Deploy from CI is manual: Actions >
+"Firestore rules drift" > Run workflow on `dev` with `deploy` ticked; the
+`firebase-rules-deploy` environment holds it until the user approves, then the
+drift check runs against the new release.
+
+One-time setup (Google Cloud Console of the Firebase project, no billing
+needed):
+
+1. Service account `rules-viewer` with role **Firebase Rules Viewer**
+   (`roles/firebaserules.viewer`); create a JSON key and store it as repository
+   secret `FIREBASE_RULES_VIEWER_SA_KEY`.
+2. Repository variable `FIREBASE_PROJECT_ID` = the project ID.
+3. Optional, for deploy: service account `rules-deployer` with **Firebase Rules
+   Admin** (`roles/firebaserules.admin`) and **Service Usage Consumer**
+   (`roles/serviceusage.serviceUsageConsumer`, firebase-tools checks the API); store its key as secret
+   `FIREBASE_RULES_DEPLOY_SA_KEY` in the `firebase-rules-deploy` environment
+   only, with the user as required reviewer and deployment branches limited to
+   `dev`.
+
+Keys are long-lived; rotate them if the repository's secrets may have leaked.
 
 ### Diagnosing denied writes
 

@@ -1,0 +1,93 @@
+name: Firestore rules drift
+
+# GYM-38: the deployed Firestore rules must equal firestore.rules on dev. In
+# GYM-22 they had drifted and every body-weight write was denied.
+# - drift-check: read-only comparison through the Firebase Rules API, daily and
+#   after firestore.rules changes on dev. Red on DRIFT.
+# - deploy: manual (workflow_dispatch with deploy=true), gated by the
+#   `firebase-rules-deploy` environment, which requires the user's approval.
+# One-time setup is described in docs/firestore_security.md ("CI drift check").
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  push:
+    branches: [dev]
+    paths:
+      - firestore.rules
+      - scripts/check_deployed_firestore_rules.ps1
+      - .github/workflows/firestore-rules-drift.yml
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy firestore.rules from this ref (needs approval in the firebase-rules-deploy environment)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firestore-rules-drift
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: firebase-rules-deploy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Deploy Firestore rules
+        shell: bash
+        env:
+          PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          DEPLOY_KEY: ${{ secrets.FIREBASE_RULES_DEPLOY_SA_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PROJECT_ID}" ] || [ -z "${DEPLOY_KEY}" ]; then
+            echo '::error::FIREBASE_PROJECT_ID variable or FIREBASE_RULES_DEPLOY_SA_KEY secret is not configured.'
+            exit 1
+          fi
+          KEY_FILE="${RUNNER_TEMP}/rules-deploy-key.json"
+          umask 077
+          printf '%s' "${DEPLOY_KEY}" > "${KEY_FILE}"
+          trap 'rm -f "${KEY_FILE}"' EXIT
+          GOOGLE_APPLICATION_CREDENTIALS="${KEY_FILE}" \
+            npx --yes firebase-tools@14 deploy --only firestore:rules --project "${PROJECT_ID}" --non-interactive
+
+  drift-check:
+    needs: deploy
+    # Runs on its own, or after a successful deploy.
+    if: ${{ always() && (needs.deploy.result == 'success' || needs.deploy.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Compare deployed rules with firestore.rules
+        shell: bash
+        env:
+          PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          VIEWER_KEY: ${{ secrets.FIREBASE_RULES_VIEWER_SA_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PROJECT_ID}" ] || [ -z "${VIEWER_KEY}" ]; then
+            echo '::warning::Firestore rules drift check skipped: FIREBASE_PROJECT_ID variable or FIREBASE_RULES_VIEWER_SA_KEY secret is not configured (see docs/firestore_security.md).'
+            exit 0
+          fi
+          command -v gcloud >/dev/null || { echo '::error::gcloud is not available on this runner.'; exit 1; }
+          export CLOUDSDK_CONFIG="${RUNNER_TEMP}/gcloud"
+          KEY_FILE="${RUNNER_TEMP}/rules-viewer-key.json"
+          umask 077
+          printf '%s' "${VIEWER_KEY}" > "${KEY_FILE}"
+          trap 'rm -f "${KEY_FILE}"; rm -rf "${CLOUDSDK_CONFIG}"' EXIT
+          gcloud auth activate-service-account --key-file="${KEY_FILE}" --quiet
+          GOOGLE_OAUTH_ACCESS_TOKEN="$(gcloud auth print-access-token)"
+          echo "::add-mask::${GOOGLE_OAUTH_ACCESS_TOKEN}"
+          export GOOGLE_OAUTH_ACCESS_TOKEN
+          pwsh -NoProfile -File scripts/check_deployed_firestore_rules.ps1 -ProjectId "${PROJECT_ID}"

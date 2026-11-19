@@ -514,7 +514,14 @@ final class GymChecklistUITests: XCTestCase {
         }
         XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
         replaceChoice.buttons["Replace exercises"].tap()
-        replaceApp.buttons["copyWorkoutAction"].tap()
+        // The full-height sheet (GYM-25) virtualizes rows; scroll the action into view.
+        let replaceAction = replaceApp.buttons["copyWorkoutAction"]
+        for _ in 0..<4 {
+            if replaceAction.exists && replaceAction.isHittable { break }
+            replaceApp.swipeUp()
+        }
+        XCTAssertTrue(replaceAction.waitForExistence(timeout: 3), replaceApp.debugDescription)
+        replaceAction.tap()
         let replaceAlert = replaceApp.alerts["Replace exercises?"]
         XCTAssertTrue(replaceAlert.waitForExistence(timeout: 3))
         // SwiftUI exposes a parent and child Button with the same identifier

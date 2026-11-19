@@ -80,23 +80,20 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertFalse(app.buttons["copyWorkoutAction"].isEnabled)
         app.buttons["copyWorkoutCancel"].tap()
 
+        // GYM-28: an empty workout cannot be repeated.
         app.buttons["programWorkoutActions"].tap()
-        app.buttons["programRepeatWorkout"].tap()
-        XCTAssertTrue(app.navigationBars["Repeat workout"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceDate"].exists)
-        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceSummary"].exists)
-        let repeatDuration = app.segmentedControls["repeatWorkoutDuration"]
-        let repeatCadence = app.segmentedControls["repeatWorkoutCadence"]
-        XCTAssertTrue(repeatDuration.waitForExistence(timeout: 2))
-        XCTAssertTrue(repeatCadence.exists)
-        repeatCadence.buttons["Every 2 weeks"].tap()
-        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "2 independent workouts will be created."))
-        repeatDuration.buttons["8 weeks"].tap()
-        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "4 independent workouts will be created."))
-        XCTAssertTrue(app.staticTexts["repeatWorkoutSummary"].exists)
-        XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
-        XCTAssertEqual(app.buttons["repeatWorkoutAction"].label, "Create")
-        app.buttons["repeatWorkoutCancel"].tap()
+        let emptyRepeat = app.buttons["programRepeatWorkout"]
+        XCTAssertTrue(emptyRepeat.waitForExistence(timeout: 2))
+        XCTAssertFalse(emptyRepeat.isEnabled)
+        // Tap empty list space below the menu to close it before continuing.
+        var menuClosed = false
+        for _ in 0..<3 where !menuClosed {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)).tap()
+            menuClosed = XCTWaiter().wait(for: [XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "hittable == false"), object: emptyRepeat
+            )], timeout: 2) == .completed
+        }
+        XCTAssertTrue(menuClosed, "Workout actions menu should close: \(app.debugDescription)")
 
         app.buttons["programDate-2026-08-13"].tap()
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
@@ -122,6 +119,24 @@ final class GymChecklistUITests: XCTestCase {
         let firstBenchSet = app.buttons["Edit set 1 for Bench Press"]
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
+        app.buttons["programWorkoutActions"].tap()
+        app.buttons["programRepeatWorkout"].tap()
+        XCTAssertTrue(app.navigationBars["Repeat workout"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceDate"].exists)
+        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceSummary"].exists)
+        let repeatDuration = app.segmentedControls["repeatWorkoutDuration"]
+        let repeatCadence = app.segmentedControls["repeatWorkoutCadence"]
+        XCTAssertTrue(repeatDuration.waitForExistence(timeout: 2))
+        XCTAssertTrue(repeatCadence.exists)
+        repeatCadence.buttons["2 wk"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "2 independent workouts will be created."))
+        repeatDuration.buttons["8 weeks"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "4 independent workouts will be created."))
+        XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
+        XCTAssertEqual(app.buttons["repeatWorkoutAction"].label, "Create")
+        app.buttons["repeatWorkoutCancel"].tap()
+        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 10))
         let todayDate = app.staticTexts["todayDate"]
@@ -131,11 +146,13 @@ final class GymChecklistUITests: XCTestCase {
 
         app.tabBars.buttons["Program"].tap()
         firstBenchSet.tap()
+        // GYM-24: a new set is weighted, shows the type, and only its usable fields.
         XCTAssertTrue(app.textFields["programSetEditorReps"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
-        XCTAssertTrue(app.textFields["programSetEditorTime"].exists)
-        XCTAssertFalse(app.textFields["programSetEditorWeight"].isEnabled)
-        XCTAssertFalse(app.textFields["programSetEditorTime"].isEnabled)
+        XCTAssertTrue(app.segmentedControls["programSetEditorType"].buttons["Weighted"].isSelected)
+        let benchWeight = app.textFields["programSetEditorWeight"]
+        XCTAssertTrue(benchWeight.exists)
+        XCTAssertTrue(benchWeight.isEnabled)
+        XCTAssertFalse(app.textFields["programSetEditorTime"].exists)
         app.buttons["programSetEditorSave"].tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
@@ -342,6 +359,36 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertEqual(mode.frame.midY, stableModeY, accuracy: 1)
     }
 
+    // GYM-30: a left swipe that starts on the reorder handle opens Delete
+    // instead of starting a reorder.
+    // A quick swipe that starts on the handle must not reorder sets (reorder
+    // needs a hold first), and swiping the row still reveals Delete. iOS does
+    // not start the row's swipe action from inside the handle itself.
+    func testSwipeOnSetReorderHandleDoesNotReorderAndRowSwipeOpensDelete() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let sets = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSet-"))
+        let handles = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSetDragHandle-"))
+        XCTAssertTrue(sets.element(boundBy: 1).waitForExistence(timeout: 5))
+        let orderBefore = (0..<sets.count).map { sets.element(boundBy: $0).identifier }
+
+        handles.element(boundBy: 0).swipeLeft()
+        let orderAfter = (0..<sets.count).map { sets.element(boundBy: $0).identifier }
+        XCTAssertEqual(orderAfter, orderBefore, "A swipe without a hold must not reorder sets")
+
+        sets.element(boundBy: 0).swipeLeft()
+        XCTAssertTrue(
+            app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Delete set ")).firstMatch
+                .waitForExistence(timeout: 3)
+        )
+    }
+
     func testDirtyProgramSetEditorBlocksInteractiveDismissalAndKeepsLabelsVisible() {
         let app = XCUIApplication()
         app.launchEnvironment["UITESTING"] = "1"
@@ -361,7 +408,7 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(editor.waitForExistence(timeout: 2))
         XCTAssertTrue(reps.exists)
         XCTAssertTrue(app.textFields["programSetEditorWeight"].exists)
-        XCTAssertTrue(app.textFields["programSetEditorTime"].exists)
+        XCTAssertTrue(app.segmentedControls["programSetEditorType"].exists)
         reps.tap()
         reps.typeText("9")
         editor.swipeDown()
@@ -565,11 +612,16 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm - BMI 25.0"))
         app.buttons["settingsBodyWeight"].tap()
         XCTAssertTrue(measurement.waitForExistence(timeout: 2))
-        // The visible Edit affordance is a dedicated button instead of text
-        // nested inside the row's swipe-action button.
-        let editWeight = app.buttons["bodyWeightEdit"]
-        XCTAssertTrue(editWeight.waitForExistence(timeout: 3))
-        editWeight.tap()
+        // GYM-33: the whole row is the edit button, and editing can be cancelled.
+        measurement.tap()
+        XCTAssertTrue(waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Update body weight"))
+        let cancelEdit = app.buttons["bodyWeightCancelEdit"]
+        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 2))
+        cancelEdit.tap()
+        XCTAssertTrue(waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Log body weight"))
+        XCTAssertEqual(weight.value as? String, weight.placeholderValue)
+        XCTAssertFalse(cancelEdit.exists)
+        measurement.tap()
         // Confirm this is an edit, not a second new measurement. A newly
         // inserted 80 kg row could otherwise hide a broken edit flow.
         XCTAssertTrue(
@@ -594,6 +646,13 @@ final class GymChecklistUITests: XCTestCase {
         let deleteMeasurement = app.buttons.matching(identifier: "bodyWeightDelete").firstMatch
         XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 3))
         deleteMeasurement.tap()
+        // GYM-33: deleting a measurement asks for confirmation first.
+        // SwiftUI exposes both the alert's container and its child button with
+        // this identifier, so scope the query to the alert and take the first.
+        let confirmDelete = app.alerts["Delete this measurement?"].buttons
+            .matching(identifier: "bodyWeightConfirmDelete").firstMatch
+        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 3))
+        confirmDelete.tap()
         // Keep the sheet open until the native swipe action has removed
         // the persisted measurement. Dismissing during its animation can race
         // against the data update and hide a missed deletion.

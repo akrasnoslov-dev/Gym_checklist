@@ -352,6 +352,88 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(codablePlaceholder.reps, 1)
     }
 
+    // GYM-24: the first set of a new exercise is weighted so weight can be entered.
+    @MainActor
+    func testFirstSetOfNewExerciseIsWeightedAndLaterSetsCopyTheType() throws {
+        let owner = UserID(rawValue: "owner")
+        let date = LocalDate(year: 2026, month: 9, day: 4)
+        let repository = InMemoryWorkoutRepository(userID: owner)
+        _ = repository.createEmptyWorkout(on: date, at: .distantPast)
+        let viewModel = WorkoutViewModel(
+            repository: repository, initialDate: date, currentDate: date, calendar: mondayCalendar()
+        )
+        try viewModel.addExercise(SystemExerciseCatalog.all[0], to: date)
+        let exerciseID = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.id)
+
+        try viewModel.addSet(to: exerciseID, on: date)
+        let first = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets.first)
+        XCTAssertEqual(first.type, .weighted)
+
+        try viewModel.setExerciseType(.timed, for: exerciseID, on: date)
+        try viewModel.addSet(to: exerciseID, on: date)
+        let sets = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(sets.map(\.type), [.timed, .timed])
+    }
+
+    // PR #30 review: a type change and edited values are saved in one write,
+    // so invalid values leave every set of the exercise unchanged.
+    @MainActor
+    func testTypeChangeWithInvalidValuesLeavesExerciseUnchanged() throws {
+        let date = LocalDate(year: 2026, month: 9, day: 4)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "owner"))
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let exerciseID = WorkoutExerciseID()
+        workout.exercises = [WorkoutExercise(
+            id: exerciseID, exerciseID: SystemExerciseCatalog.all[0].id, customName: nil, order: 0, isSkipped: false,
+            sets: [WorkoutSet(order: 0, reps: 8, weight: 60, type: .weighted), WorkoutSet(order: 1, reps: 8, weight: 60, type: .weighted)]
+        )]
+        try repository.save(workout)
+        let viewModel = WorkoutViewModel(repository: repository, initialDate: date, currentDate: date)
+        let before = repository.workout(on: date)
+        let setID = try XCTUnwrap(before?.exercises.first?.sets.first?.id)
+
+        XCTAssertThrowsError(try viewModel.editSet(
+            setID, in: exerciseID, on: date, reps: -1, weight: 0, timeSeconds: 0,
+            type: .repsOnly, appliesTypeToExercise: true
+        ))
+        XCTAssertEqual(repository.workout(on: date), before)
+
+        try viewModel.editSet(
+            setID, in: exerciseID, on: date, reps: 10, weight: 0, timeSeconds: 0,
+            type: .repsOnly, appliesTypeToExercise: true
+        )
+        let sets = try XCTUnwrap(repository.workout(on: date)?.exercises.first?.sets)
+        XCTAssertEqual(sets.map(\.type), [.repsOnly, .repsOnly])
+        XCTAssertEqual(sets.map(\.weight), [0, 0])
+        XCTAssertEqual(sets.first?.reps, 10)
+    }
+
+    // GYM-29: weights are formatted without grouping and survive a no-edit round trip.
+    func testDecimalInputTextRoundTripsWithoutGroupingOrDrift() throws {
+        let english = Locale(identifier: "en_US")
+        let russian = Locale(identifier: "ru_RU")
+        XCTAssertEqual(DecimalInputText.text(for: 1000, locale: english), "1000")
+        XCTAssertEqual(DecimalInputText.text(for: 1000, locale: russian), "1000")
+        XCTAssertEqual(DecimalInputText.text(for: 0), "")
+        XCTAssertEqual(DecimalInputText.value(from: DecimalInputText.text(for: 1000, locale: english)), 1000)
+        XCTAssertEqual(DecimalInputText.value(from: DecimalInputText.text(for: 1000.5, locale: russian)), 1000.5)
+        XCTAssertEqual(DecimalInputText.value(from: "1 000,5"), 1000.5)
+        XCTAssertEqual(DecimalInputText.value(from: ""), 0)
+        XCTAssertNil(DecimalInputText.value(from: "1.000,5"))
+        XCTAssertNil(DecimalInputText.value(from: "abc"))
+
+        // 20 kg shows as 44.09 lb; saving that unchanged text must keep exactly 20 kg.
+        let shown = DecimalInputText.text(for: WeightUnit.pounds.displayWeight(fromCanonicalKilograms: 20))
+        XCTAssertEqual(
+            DecimalInputText.canonicalKilograms(from: shown, initialText: shown, initialKilograms: 20, unit: .pounds),
+            20
+        )
+        let edited = try XCTUnwrap(DecimalInputText.canonicalKilograms(
+            from: "100", initialText: shown, initialKilograms: 20, unit: .pounds
+        ))
+        XCTAssertEqual(edited, WeightUnit.pounds.canonicalKilograms(fromDisplayWeight: 100), accuracy: 0.000_001)
+    }
+
     @MainActor
     func testLegacyMixedCodableCopyRepeatAndAddSetKeepRawValuesUntilAnExplicitTypeIsChosen() throws {
         let legacyID = WorkoutSetID(rawValue: UUID(uuidString: "00000000-0000-4000-8000-000000000011")!)
@@ -440,12 +522,28 @@ final class ExpandedFeatureTests: XCTestCase {
         ), "12 reps")
     }
 
+    // GYM-28: an empty workout cannot be repeated and nothing is created.
+    @MainActor
+    func testRepeatRejectsWorkoutWithoutSets() throws {
+        let source = LocalDate(year: 2026, month: 9, day: 4)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "owner"))
+        _ = repository.createEmptyWorkout(on: source, at: .distantPast)
+        let model = WorkoutViewModel(repository: repository, initialDate: source, currentDate: source)
+        XCTAssertFalse(WorkoutViewModel.hasPlannedSets(try XCTUnwrap(repository.workout(on: source))))
+        XCTAssertThrowsError(try model.repeatWorkout(
+            from: source, through: LocalDate(year: 2026, month: 10, day: 2)
+        )) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .copySourceHasNoSets(source))
+        }
+        XCTAssertEqual(repository.workouts.count, 1)
+    }
+
     @MainActor
     func testRepeatCadenceUsesTheRequestedWeekInterval() throws {
         let owner = UserID(rawValue: "owner")
         let source = LocalDate(year: 2026, month: 9, day: 4)
         let repository = InMemoryWorkoutRepository(userID: owner)
-        _ = repository.createEmptyWorkout(on: source, at: .distantPast)
+        try seedRepeatableWorkout(repository, on: source)
         let model = WorkoutViewModel(repository: repository, initialDate: source, currentDate: source)
         let result = try model.repeatWorkout(
             from: source,
@@ -1143,4 +1241,15 @@ private struct AnyCodingKeyForTests: CodingKey {
     init(_ stringValue: String) { self.stringValue = stringValue }
     init?(stringValue: String) { self.stringValue = stringValue }
     init?(intValue: Int) { return nil }
+}
+
+/// A workout with one planned set; Repeat refuses an empty source (GYM-28).
+@MainActor
+private func seedRepeatableWorkout(_ repository: InMemoryWorkoutRepository, on date: LocalDate) throws {
+    var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+    workout.exercises = [WorkoutExercise(
+        id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id, customName: nil,
+        order: 0, isSkipped: false, sets: [WorkoutSet(order: 0, reps: 8)]
+    )]
+    try repository.save(workout)
 }

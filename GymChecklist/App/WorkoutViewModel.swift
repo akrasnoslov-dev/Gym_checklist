@@ -199,7 +199,7 @@ final class WorkoutViewModel: ObservableObject {
         guard sourceDate != destinationDate else {
             throw ProgramPlanningError.copyDestinationMatchesSource(destinationDate)
         }
-        guard source.exercises.contains(where: { !$0.sets.isEmpty }) else {
+        guard Self.hasPlannedSets(source) else {
             throw ProgramPlanningError.copySourceHasNoSets(sourceDate)
         }
 
@@ -225,6 +225,10 @@ final class WorkoutViewModel: ObservableObject {
     ) throws -> WorkoutRepeatResult {
         guard let source = repository.workout(on: sourceDate) else {
             throw ProgramPlanningError.workoutNotFound(sourceDate)
+        }
+        // GYM-28: repeating a workout without sets would only create empty days.
+        guard Self.hasPlannedSets(source) else {
+            throw ProgramPlanningError.copySourceHasNoSets(sourceDate)
         }
         guard endDate > sourceDate else {
             throw ProgramPlanningError.repeatEndDateMustFollowSource(endDate)
@@ -588,7 +592,9 @@ final class WorkoutViewModel: ObservableObject {
                 reps: copiedValues?.reps ?? 0,
                 weight: copiedValues?.weight ?? 0,
                 timeSeconds: copiedValues?.timeSeconds ?? 0,
-                type: copiedValues?.type
+                // GYM-24: a first set is weighted, the most common case, so
+                // its weight field is usable without changing the type first.
+                type: copiedValues?.type ?? WorkoutSetType.defaultForNewSet
             )]
         }
     }
@@ -600,16 +606,33 @@ final class WorkoutViewModel: ObservableObject {
         reps: Int,
         weight: Double,
         timeSeconds: Int,
-        type: WorkoutSetType? = nil
+        type: WorkoutSetType? = nil,
+        appliesTypeToExercise: Bool = false
     ) throws {
         guard Self.areValidSetValues(reps: reps, weight: weight, timeSeconds: timeSeconds) else {
             throw ProgramPlanningError.invalidSetValues
         }
+        if appliesTypeToExercise {
+            guard let type, WorkoutSetType.editableCases.contains(type) else {
+                throw ProgramPlanningError.invalidSetValues
+            }
+        }
+        // One mutation, one write: a type change for the whole exercise and the
+        // edited values are validated and saved together, so a failed Save
+        // leaves the workout unchanged.
         try mutateExercise(exerciseID, on: workoutDate) { exercise in
             guard let setIndex = exercise.sets.firstIndex(where: { $0.id == setID }) else {
                 throw ProgramPlanningError.workoutSetNotFound(setID)
             }
             let chosenType = type ?? exercise.sets[setIndex].type
+            if appliesTypeToExercise {
+                for index in exercise.sets.indices {
+                    let set = exercise.sets[index]
+                    exercise.sets[index].editPlan(
+                        reps: set.reps, weight: set.weight, timeSeconds: set.timeSeconds, type: chosenType
+                    )
+                }
+            }
             let configuredOther = exercise.sets.first {
                 $0.id != setID && ($0.reps > 0 || $0.weight > 0 || $0.timeSeconds > 0)
             }
@@ -759,6 +782,11 @@ final class WorkoutViewModel: ObservableObject {
             throw error
         }
         workouts = repository.workouts
+    }
+
+    /// Copy and Repeat need at least one planned set in the source workout.
+    nonisolated static func hasPlannedSets(_ workout: Workout) -> Bool {
+        workout.exercises.contains { !$0.sets.isEmpty }
     }
 
     private static func areValidSetValues(reps: Int, weight: Double, timeSeconds: Int) -> Bool {

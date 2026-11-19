@@ -298,10 +298,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: GymTheme.spacing8) {
                         GymSectionHeader(title: "Preferences")
                         settingsGroup {
-                            HStack(spacing: GymTheme.spacing12) {
-                                Text("Appearance")
-                                    .font(.body.weight(.semibold))
-                                Spacer()
+                            PreferenceRow(title: "Appearance") {
                                 Picker(
                                     "Appearance",
                                     selection: Binding(
@@ -316,7 +313,6 @@ struct SettingsView: View {
                                     }
                                 }
                                 .pickerStyle(.segmented)
-                                .frame(width: 190)
                                 .accessibilityIdentifier("settingsAppearance")
                                 .accessibilityValue(viewModel.settings.appearance.rawValue)
                             }
@@ -324,10 +320,7 @@ struct SettingsView: View {
 
                             Divider().overlay(GymTheme.separator)
 
-                            HStack(spacing: GymTheme.spacing12) {
-                                Text("Weight unit")
-                                    .font(.body.weight(.semibold))
-                                Spacer()
+                            PreferenceRow(title: "Weight unit") {
                                 Picker(
                                     "Weight unit",
                                     selection: Binding(
@@ -342,7 +335,6 @@ struct SettingsView: View {
                                     }
                                 }
                                 .pickerStyle(.segmented)
-                                .frame(width: 112)
                                 .accessibilityIdentifier("settingsWeightUnit")
                                 .accessibilityValue(viewModel.settings.weightUnit.rawValue)
                             }
@@ -856,118 +848,167 @@ private struct BodyWeightHistorySheet: View {
     @State private var showsValidationError = false
     @State private var showsSaveError = false
     @State private var showsDeleteError = false
+    @State private var pendingDeletion: BodyWeightMeasurement?
 
     /// Only a synchronous delete error is shown here; provider rejections that
     /// arrive later go through the Settings persistence banner.
     private var deleteFailureAlertBinding: Binding<Bool> { $showsDeleteError }
+    private var deletionConfirmationBinding: Binding<Bool> {
+        Binding(get: { pendingDeletion != nil }, set: { if !$0 { pendingDeletion = nil } })
+    }
 
+    // Split into small pieces so the type checker finishes in time.
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    TextField("Weight (\(unit.rawValue))", text: $weightText)
-                        .keyboardType(.decimalPad)
-                        .accessibilityIdentifier("bodyWeightInput")
-                    DatePicker("Date", selection: $measurementDate, displayedComponents: .date)
-                        .accessibilityIdentifier("bodyWeightDate")
-                }
-
-                Section {
-                    Button(editingMeasurement == nil ? "Log body weight" : "Update body weight") {
-                        saveMeasurement()
+            measurementList
+                .navigationTitle("Body weight")
+                .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                            .fontWeight(.semibold)
+                            .foregroundStyle(GymTheme.accentForeground)
                     }
-                    .buttonStyle(GymPrimaryButtonStyle())
-                    .listRowInsets(EdgeInsets())
+                }
+                .modifier(alerts)
+        }
+    }
+
+    private var measurementList: some View {
+        List {
+            entrySection
+            actionSection
+            measurementsSection
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(GymTheme.surfaceBase)
+    }
+
+    private var entrySection: some View {
+        Section {
+            TextField("Weight (\(unit.rawValue))", text: $weightText)
+                .keyboardType(.decimalPad)
+                .accessibilityIdentifier("bodyWeightInput")
+            // GYM-33: a future date would be hidden from the current
+            // weight and BMI, so it cannot be chosen.
+            DatePicker("Date", selection: $measurementDate, in: ...Date(), displayedComponents: .date)
+                .accessibilityIdentifier("bodyWeightDate")
+        }
+    }
+
+    private var actionSection: some View {
+        Section {
+            Button(editingMeasurement == nil ? "Log body weight" : "Update body weight") {
+                saveMeasurement()
+            }
+            .buttonStyle(GymPrimaryButtonStyle())
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            .accessibilityIdentifier("bodyWeightSave")
+            if editingMeasurement != nil {
+                Button("Cancel editing", action: clearEditor)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .foregroundStyle(GymTheme.accentForeground)
                     .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("bodyWeightSave")
-                }
-
-                Section("Recent measurements") {
-                    if measurements.isEmpty {
-                        Text("No body-weight measurements yet.")
-                            .foregroundStyle(GymTheme.textSecondary)
-                    }
-
-                    ForEach(measurements) { measurement in
-                        HStack(spacing: GymTheme.spacing12) {
-                            Button {
-                                beginEditing(measurement)
-                            } label: {
-                                Text("\(unit.displayWeight(fromCanonicalKilograms: measurement.weightInKilograms).formatted(.number.precision(.fractionLength(0...2)))) \(unit.rawValue)")
-                                    .font(.body.weight(.medium))
-                                    .foregroundStyle(GymTheme.textPrimary)
-                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("bodyWeightMeasurement")
-
-                            Button {
-                                beginEditing(measurement)
-                            } label: {
-                                Text(measurementDateLabel(measurement) + " · Edit")
-                                    .foregroundStyle(GymTheme.accentForeground)
-                                    .frame(minHeight: 44)
-                            }
-                            .frame(minHeight: 44)
-                            .contentShape(Rectangle())
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("bodyWeightEdit")
-                        }
-                        .swipeActions {
-                            Button(role: .destructive) {
-                                do {
-                                    try onDelete(measurement)
-                                    if editingMeasurement?.id == measurement.id {
-                                        clearEditor()
-                                    }
-                                } catch {
-                                    showsDeleteError = true
-                                }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                            .accessibilityIdentifier("bodyWeightDelete")
-                        }
-                    }
-                }
-            }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(GymTheme.surfaceBase)
-            .navigationTitle("Body weight")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                        .fontWeight(.semibold)
-                        .foregroundStyle(GymTheme.accentForeground)
-                }
-            }
-            .alert("Enter a valid weight", isPresented: $showsValidationError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Weight must be greater than zero.")
-            }
-            .alert("Body weight wasn’t saved", isPresented: $showsSaveError) {
-                Button("Retry Save", action: saveMeasurement)
-                Button("Keep Editing", role: .cancel) {}
-            } message: {
-                Text("Your entry is still here. Try saving again.")
-            }
-            .alert("Couldn't delete measurement", isPresented: deleteFailureAlertBinding) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Try again. Your saved measurement is still available.")
+                    .accessibilityIdentifier("bodyWeightCancelEdit")
             }
         }
     }
 
+    private var measurementsSection: some View {
+        Section("Recent measurements") {
+            if measurements.isEmpty {
+                Text("No body-weight measurements yet.")
+                    .foregroundStyle(GymTheme.textSecondary)
+            }
+            ForEach(measurements) { measurement in
+                measurementRow(measurement)
+            }
+        }
+    }
+
+    /// GYM-33: the whole row is one edit button.
+    private func measurementRow(_ measurement: BodyWeightMeasurement) -> some View {
+        let isEditing = editingMeasurement?.id == measurement.id
+        let rowBackground: Color = isEditing ? GymTheme.accentForeground.opacity(0.12) : GymTheme.surfaceGrouped
+        let weight = weightLabel(measurement)
+        let date = measurementDateLabel(measurement)
+        return Button {
+            beginEditing(measurement)
+        } label: {
+            HStack(spacing: GymTheme.spacing12) {
+                Text(weight)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(GymTheme.textPrimary)
+                Spacer(minLength: GymTheme.spacing12)
+                Text(date)
+                    .foregroundStyle(GymTheme.textSecondary)
+                Image(systemName: "pencil")
+                    .foregroundStyle(GymTheme.accentForeground)
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(rowBackground)
+        .accessibilityLabel(weight)
+        .accessibilityValue(date)
+        .accessibilityHint("Edit measurement")
+        .accessibilityIdentifier("bodyWeightMeasurement")
+        .swipeActions {
+            Button(role: .destructive) {
+                pendingDeletion = measurement
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .accessibilityIdentifier("bodyWeightDelete")
+        }
+    }
+
+    private var alerts: BodyWeightSheetAlerts {
+        BodyWeightSheetAlerts(
+            showsValidationError: $showsValidationError,
+            showsSaveError: $showsSaveError,
+            showsDeleteError: deleteFailureAlertBinding,
+            showsDeletionConfirmation: deletionConfirmationBinding,
+            pendingDeletion: pendingDeletion,
+            validationMessage: "Enter a weight above zero and up to \(maximumWeightText) \(unit.rawValue), dated today or earlier.",
+            deletionMessage: { "\(weightLabel($0)) · \(measurementDateLabel($0))" },
+            onConfirmDeletion: { measurement in
+                pendingDeletion = nil
+                delete(measurement)
+            },
+            onCancelDeletion: { pendingDeletion = nil },
+            onRetrySave: saveMeasurement
+        )
+    }
+
     private func beginEditing(_ measurement: BodyWeightMeasurement) {
         editingMeasurement = measurement
-        weightText = unit.displayWeight(fromCanonicalKilograms: measurement.weightInKilograms)
-            .formatted(.number.precision(.fractionLength(0...2)))
+        weightText = DecimalInputText.text(for: unit.displayWeight(fromCanonicalKilograms: measurement.weightInKilograms))
         measurementDate = measurement.localDate.date(in: .autoupdatingCurrent) ?? measurement.measuredAt
+    }
+
+    private func weightLabel(_ measurement: BodyWeightMeasurement) -> String {
+        let text = DecimalInputText.text(for: unit.displayWeight(fromCanonicalKilograms: measurement.weightInKilograms))
+        return "\(text.isEmpty ? "0" : text) \(unit.rawValue)"
+    }
+
+    private var maximumWeightText: String {
+        DecimalInputText.text(for: unit.displayWeight(fromCanonicalKilograms: PersistedValueLimits.maximumBodyWeightKilograms))
+    }
+
+    private func delete(_ measurement: BodyWeightMeasurement) {
+        do {
+            try onDelete(measurement)
+            if editingMeasurement?.id == measurement.id {
+                clearEditor()
+            }
+        } catch {
+            showsDeleteError = true
+        }
     }
 
     private func measurementDateLabel(_ measurement: BodyWeightMeasurement) -> String {
@@ -980,16 +1021,29 @@ private struct BodyWeightHistorySheet: View {
         return date.formatted(.dateTime.month(.abbreviated).day())
     }
     private func saveMeasurement() {
-        guard let value = Double(weightText.replacingOccurrences(of: ",", with: ".")), value.isFinite, value > 0 else {
+        let existing = editingMeasurement
+        // GYM-29: an unchanged weight keeps its exact stored value instead of
+        // drifting through display rounding.
+        let initialText = existing.map {
+            DecimalInputText.text(for: unit.displayWeight(fromCanonicalKilograms: $0.weightInKilograms))
+        }
+        let kilograms: Double?
+        if let existing, weightText == initialText {
+            kilograms = existing.weightInKilograms
+        } else {
+            kilograms = DecimalInputText.value(from: weightText).map { unit.canonicalKilograms(fromDisplayWeight: $0) }
+        }
+        let localDate = LocalDate(date: measurementDate)
+        guard let kilograms, PersistedValueLimits.isValidBodyWeight(kilograms),
+              localDate <= LocalDate(date: Date()) else {
             showsValidationError = true
             return
         }
         let now = Date()
-        let existing = editingMeasurement
         let measurement = BodyWeightMeasurement(
             id: existing?.id ?? .init(), userID: userID,
-            localDate: LocalDate(date: measurementDate),
-            weightInKilograms: unit.canonicalKilograms(fromDisplayWeight: value),
+            localDate: localDate,
+            weightInKilograms: kilograms,
             measuredAt: existing?.measuredAt ?? now, updatedAt: now
         )
         do {
@@ -1009,5 +1063,73 @@ private struct BodyWeightHistorySheet: View {
         editingMeasurement = nil
         weightText = ""
         measurementDate = Date()
+    }
+}
+
+/// A settings row with a title and a segmented control. At accessibility text
+/// sizes the control moves under the title and takes the full width instead of
+/// truncating its segments (GYM-32).
+private struct PreferenceRow<Control: View>: View {
+    let title: String
+    @ViewBuilder let control: () -> Control
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                control()
+            }
+        } else {
+            HStack(spacing: GymTheme.spacing12) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                    .layoutPriority(1)
+                Spacer(minLength: GymTheme.spacing12)
+                control()
+                    .fixedSize()
+            }
+        }
+    }
+}
+
+private struct BodyWeightSheetAlerts: ViewModifier {
+    @Binding var showsValidationError: Bool
+    @Binding var showsSaveError: Bool
+    @Binding var showsDeleteError: Bool
+    @Binding var showsDeletionConfirmation: Bool
+    let pendingDeletion: BodyWeightMeasurement?
+    let validationMessage: String
+    let deletionMessage: (BodyWeightMeasurement) -> String
+    let onConfirmDeletion: (BodyWeightMeasurement) -> Void
+    let onCancelDeletion: () -> Void
+    let onRetrySave: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Enter a valid weight", isPresented: $showsValidationError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(validationMessage)
+            }
+            .alert("Delete this measurement?", isPresented: $showsDeletionConfirmation, presenting: pendingDeletion) { measurement in
+                Button("Delete", role: .destructive) { onConfirmDeletion(measurement) }
+                    .accessibilityIdentifier("bodyWeightConfirmDelete")
+                Button("Cancel", role: .cancel, action: onCancelDeletion)
+            } message: { measurement in
+                Text(deletionMessage(measurement))
+            }
+            .alert("Body weight wasn’t saved", isPresented: $showsSaveError) {
+                Button("Retry Save", action: onRetrySave)
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your entry is still here. Try saving again.")
+            }
+            .alert("Couldn't delete measurement", isPresented: $showsDeleteError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Try again. Your saved measurement is still available.")
+            }
     }
 }

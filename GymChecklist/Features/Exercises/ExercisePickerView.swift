@@ -4,6 +4,9 @@ struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var showsCustomExercise = false
+    /// GYM-31: an exercise created in the library but not yet added to the
+    /// workout. A retry adds this one instead of creating a duplicate.
+    @State private var createdCustomExercise: Exercise?
     @State private var errorMessage: String?
     @State private var editingCustomExercise: Exercise?
     @State private var pendingCustomDelete: Exercise?
@@ -149,8 +152,20 @@ struct ExercisePickerView: View {
 
             .navigationDestination(isPresented: $showsCustomExercise) {
                 CustomExerciseView(initialName: normalizedQuery) { name in
-                    let exercise = try createCustom(name)
-                    try onSelect(exercise)
+                    let normalizedName = name.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+                    let exercise: Exercise
+                    if let created = createdCustomExercise, created.name == normalizedName {
+                        exercise = created
+                    } else {
+                        exercise = try createCustom(name)
+                        createdCustomExercise = exercise
+                    }
+                    do {
+                        try onSelect(exercise)
+                    } catch {
+                        throw CustomExerciseFlowError.createdButNotAdded
+                    }
+                    createdCustomExercise = nil
                     dismiss()
                 }
             }
@@ -294,8 +309,15 @@ private struct CustomExerciseView: View {
             errorMessage = "Enter an exercise name."
         } catch LocalExerciseLibraryError.duplicateName {
             errorMessage = "An exercise with this name already exists."
+        } catch CustomExerciseFlowError.createdButNotAdded {
+            errorMessage = "Saved to your library, but not added to this workout. Try again to add it."
         } catch {
             errorMessage = "Exercise wasn’t saved. Your name is still here—try again."
         }
     }
+}
+
+/// GYM-31: distinguishes "not created" from "created but not added to the workout".
+enum CustomExerciseFlowError: Error, Equatable {
+    case createdButNotAdded
 }

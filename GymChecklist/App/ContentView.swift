@@ -381,7 +381,13 @@ private struct AuthenticatedContentView: View {
             workoutViewModel.refreshCurrentDate()
             settingsViewModel.refreshCurrentDate()
         }
-        .preferredColorScheme(settingsViewModel.preferredColorScheme)
+        // GYM-32: `preferredColorScheme(nil)` does not reliably return the
+        // window to the system theme after Light/Dark, so the window style is
+        // set directly; `.unspecified` follows the system again.
+        .onChange(of: settingsViewModel.settings.appearance, initial: true) { _, appearance in
+            WindowAppearance.apply(appearance)
+        }
+        .onDisappear { WindowAppearance.apply(.system) }
         .tint(GymTheme.accentForeground)
         .accessibilityIdentifier("authenticatedContent")
         .accessibilityValue(settingsViewModel.settings.appearance.rawValue)
@@ -496,4 +502,26 @@ private enum ActivePersistenceIssue: Identifiable {
 
 #Preview {
     ContentView()
+}
+
+/// Applies the chosen appearance to every window of the app, including the
+/// windows that present sheets (GYM-32).
+@MainActor
+enum WindowAppearance {
+    static func style(for appearance: Appearance) -> UIUserInterfaceStyle {
+        switch appearance {
+        case .system: .unspecified
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    static func apply(_ appearance: Appearance) {
+        let style = style(for: appearance)
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            for window in scene.windows where window.overrideUserInterfaceStyle != style {
+                window.overrideUserInterfaceStyle = style
+            }
+        }
+    }
 }

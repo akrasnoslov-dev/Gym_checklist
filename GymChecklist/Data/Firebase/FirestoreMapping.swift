@@ -998,3 +998,17 @@ enum SyncEquivalence {
         return (data, collector.dates)
     }
 }
+
+extension PendingMutationJournalStorage {
+    /// True while any journal still holds unconfirmed writes for the user, or
+    /// a journal exists but cannot be read yet (locked device). Journals are
+    /// removed once all their writes are confirmed (GYM-8).
+    static func hasUnconfirmedWrites(userID: UserID, directoryURL: URL? = nil) -> Bool {
+        scopes.contains { scope in
+            switch ProtectedMutationJournalFile(storageKey: key(scope: scope, userID: userID), directoryURL: directoryURL).read() {
+            case .missing: return false
+            case .data, .unavailable: return true
+            }
+        }
+    }
+}

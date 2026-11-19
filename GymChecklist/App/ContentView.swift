@@ -288,9 +288,13 @@ private struct AuthenticatedContentView: View {
         let bodyWeightRepository: BodyWeightRepository?
         if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
             let inMemoryRepository = InMemoryWorkoutRepository(userID: userID)
+#if DEBUG
+            // GYM-10: UI-test seeding exists only in Debug builds; in Release
+            // `isRunningTests()` is always false, so only MVP_DEMO reaches here.
             if !DemoMode.isEnabled, userID.rawValue == "ui-test-user" {
                 ContentView.seedTodayWorkoutForUITests(in: inMemoryRepository, on: today)
             }
+#endif
             repository = inMemoryRepository
             customExerciseRepository = DemoMode.isEnabled
                 ? InMemoryCustomExerciseRepository(userID: userID)

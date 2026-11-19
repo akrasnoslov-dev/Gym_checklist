@@ -422,8 +422,13 @@ private final class FirebaseAuthenticationService: AuthenticationService {
     }
 
     func signOut() throws {
+        let signedOutUserID = auth.currentUser.map { UserID(rawValue: $0.uid) }
         try auth.signOut()
         GIDSignIn.sharedInstance.signOut()
+        // GYM-8: don't leave this account's workouts in the on-device cache.
+        if let signedOutUserID {
+            FirestoreLocalData.clearAfterSignOut(userID: signedOutUserID)
+        }
     }
 
     func sendPasswordReset(email: String) async throws {
@@ -572,7 +577,16 @@ private final class FirebaseAuthenticationService: AuthenticationService {
 }
 
 private struct FirebaseAccountDeletionCallable {
+    /// GYM-8: offline writes are flushed first so none reach the server after
+    /// the backend deleted the user's data, and the local cache is cleared after.
+    @MainActor
     func deleteCurrentAccount() async throws {
+        _ = await FirestoreLocalData.waitForPendingWrites(timeout: 5)
+        try await callDeleteAccount()
+        await FirestoreLocalData.clear()
+    }
+
+    private func callDeleteAccount() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Functions.functions().httpsCallable("deleteAccount").call { _, error in
                 if let error {

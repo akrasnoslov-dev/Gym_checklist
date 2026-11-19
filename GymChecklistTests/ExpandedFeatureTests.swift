@@ -408,6 +408,30 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(sets.first?.reps, 10)
     }
 
+    // GYM-8: sign-out clears the local cache only once no offline write is waiting.
+    func testUnconfirmedWritesAreDetectedUntilTheJournalIsEmpty() {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("UnconfirmedWrites.\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let user = UserID(rawValue: "owner")
+        XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWrites(userID: user, directoryURL: directory))
+
+        var journal = DurablePendingMutationJournal<String, String>(
+            storageKey: PendingMutationJournalStorage.key(scope: "settings", userID: user),
+            directoryURL: directory
+        )
+        var tracker = ScopedDocumentMutationTracker<String, String>()
+        let ticket = tracker.begin(key: "default", baseline: .missing, attempted: .value("dark"))
+        journal.record(ticket, attempted: .value("dark"))
+        XCTAssertTrue(PendingMutationJournalStorage.hasUnconfirmedWrites(userID: user, directoryURL: directory))
+        XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWrites(
+            userID: UserID(rawValue: "someone-else"), directoryURL: directory
+        ))
+
+        journal.complete(ticket, result: .accepted)
+        XCTAssertFalse(PendingMutationJournalStorage.hasUnconfirmedWrites(userID: user, directoryURL: directory))
+    }
+
     // GYM-29: weights are formatted without grouping and survive a no-edit round trip.
     func testDecimalInputTextRoundTripsWithoutGroupingOrDrift() throws {
         let english = Locale(identifier: "en_US")

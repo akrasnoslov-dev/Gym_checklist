@@ -866,6 +866,7 @@ private struct BodyWeightHistorySheet: View {
     @State private var showsDeleteError = false
     @State private var pendingDeletion: BodyWeightMeasurement?
     @FocusState private var isWeightFocused: Bool
+    @State private var showsDateTakenError = false
 
     /// Only a synchronous delete error is shown here; provider rejections that
     /// arrive later go through the Settings persistence banner.
@@ -990,6 +991,7 @@ private struct BodyWeightHistorySheet: View {
     private var alerts: BodyWeightSheetAlerts {
         BodyWeightSheetAlerts(
             showsValidationError: $showsValidationError,
+            showsDateTakenError: $showsDateTakenError,
             showsSaveError: $showsSaveError,
             showsDeleteError: deleteFailureAlertBinding,
             showsDeletionConfirmation: deletionConfirmationBinding,
@@ -1062,6 +1064,10 @@ private struct BodyWeightHistorySheet: View {
         let now = Date()
         // GYM-45: one entry per day — a second Log on the same date updates it.
         let entry = BodyWeightMeasurement.dailyEntry(on: localDate, editing: existing, among: measurements)
+        guard !entry.dateTaken else {
+            showsDateTakenError = true
+            return
+        }
         let measurement = BodyWeightMeasurement(
             id: entry.base?.id ?? .init(), userID: userID,
             localDate: localDate,
@@ -1070,9 +1076,6 @@ private struct BodyWeightHistorySheet: View {
         )
         do {
             try onSave(measurement)
-            for duplicate in entry.duplicates {
-                try? onDelete(duplicate)
-            }
             isWeightFocused = false
             clearEditor()
         } catch {
@@ -1122,6 +1125,7 @@ private struct PreferenceRow<Control: View>: View {
 
 private struct BodyWeightSheetAlerts: ViewModifier {
     @Binding var showsValidationError: Bool
+    @Binding var showsDateTakenError: Bool
     @Binding var showsSaveError: Bool
     @Binding var showsDeleteError: Bool
     @Binding var showsDeletionConfirmation: Bool
@@ -1138,6 +1142,11 @@ private struct BodyWeightSheetAlerts: ViewModifier {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(validationMessage)
+            }
+            .alert("This date already has an entry", isPresented: $showsDateTakenError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Pick another date, or edit that day's entry instead.")
             }
             .alert("Delete this measurement?", isPresented: $showsDeletionConfirmation, presenting: pendingDeletion) { measurement in
                 Button("Delete", role: .destructive) { onConfirmDeletion(measurement) }

@@ -2208,15 +2208,18 @@ final class WorkoutViewModelTests: XCTestCase {
             on: LocalDate(year: 2026, month: 11, day: 17), editing: nil, among: [morning, yesterday]
         )
         XCTAssertNil(fresh.base)
-        XCTAssertTrue(fresh.duplicates.isEmpty)
+        XCTAssertFalse(fresh.dateTaken)
 
         let relog = BodyWeightMeasurement.dailyEntry(on: day, editing: nil, among: [morning, evening, yesterday])
         XCTAssertEqual(relog.base?.id, evening.id)
-        XCTAssertEqual(relog.duplicates.map(\.id), [morning.id])
+        XCTAssertFalse(relog.dateTaken)
+
+        let editInPlace = BodyWeightMeasurement.dailyEntry(on: otherDay, editing: yesterday, among: [morning, yesterday])
+        XCTAssertEqual(editInPlace.base?.id, yesterday.id)
+        XCTAssertFalse(editInPlace.dateTaken)
 
         let movedOntoDay = BodyWeightMeasurement.dailyEntry(on: day, editing: yesterday, among: [morning, yesterday])
-        XCTAssertEqual(movedOntoDay.base?.id, yesterday.id)
-        XCTAssertEqual(movedOntoDay.duplicates.map(\.id), [morning.id])
+        XCTAssertTrue(movedOntoDay.dateTaken, "Moving an entry onto a taken date must be refused, not merged by deleting")
     }
 
     func testCopyToMissingDestinationPublishesOnlyTheCompletedAggregate() throws {

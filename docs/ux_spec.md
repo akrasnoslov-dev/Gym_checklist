@@ -198,7 +198,7 @@ After successful authentication, go directly to Today. No onboarding carousel.
 ## 14. Settings
 Profile-first iOS settings pattern:
 - profile (optional sex, date of birth, height and neutral BMI presentation);
-- compact dated body-weight history with edit/delete; one entry per day (logging a date that already has one updates it, GYM-45);
+- compact dated body-weight history with edit/delete; one entry per day (logging a date that already has one updates it; moving an entry onto a taken date is refused, GYM-45);
 - Appearance and Weight unit;
 - Account and destructive actions kept separate.
 

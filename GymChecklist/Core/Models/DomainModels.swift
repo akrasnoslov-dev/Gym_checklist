@@ -152,17 +152,20 @@ struct BodyWeightMeasurement: Codable, Equatable, Identifiable, Sendable {
         return measurement.localDate.day <= date.day
     }
 
-    /// GYM-45: one body-weight entry per day. Saving on a date that already
-    /// has an entry updates that entry (`base`); any other entries left on the
-    /// same date (`duplicates`) are removed after the save.
+    /// GYM-45: one body-weight entry per day, kept with single writes only (no
+    /// save + delete pair that could half-fail). A new Log on a date that
+    /// already has an entry updates that entry (`base`). Moving an edited entry
+    /// onto a date that already has another one is refused (`dateTaken`).
     static func dailyEntry(
         on date: LocalDate,
         editing: Self?,
         among measurements: [Self]
-    ) -> (base: Self?, duplicates: [Self]) {
+    ) -> (base: Self?, dateTaken: Bool) {
         let sameDay = measurements.filter { $0.localDate == date }
-        let base = editing ?? sameDay.max { isMoreRecent($1, than: $0) }
-        return (base, sameDay.filter { $0.id != base?.id })
+        if let editing {
+            return (editing, sameDay.contains { $0.id != editing.id })
+        }
+        return (sameDay.max { isMoreRecent($1, than: $0) }, false)
     }
 }
 

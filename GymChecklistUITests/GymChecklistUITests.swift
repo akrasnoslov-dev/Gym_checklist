@@ -304,10 +304,13 @@ final class GymChecklistUITests: XCTestCase {
 
         XCUIDevice.shared.press(.home)
         app.activate()
-        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].waitForExistence(timeout: 2))
+        // Returning from the background is slow on loaded CI simulators.
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].waitForExistence(timeout: 6))
 
-        app.tabBars.buttons["Today"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
+        let todayTab = app.tabBars.buttons["Today"]
+        XCTAssertTrue(todayTab.waitForExistence(timeout: 6))
+        todayTab.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 6))
     }
 
     func testProgramSetSwipeRevealsDeleteWithoutOpeningEditor() {

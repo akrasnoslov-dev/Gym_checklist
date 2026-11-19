@@ -366,7 +366,10 @@ final class GymChecklistUITests: XCTestCase {
 
     // GYM-30: a left swipe that starts on the reorder handle opens Delete
     // instead of starting a reorder.
-    func testSwipeOnSetReorderHandleOpensDelete() {
+    // A quick swipe that starts on the handle must not reorder sets (reorder
+    // needs a hold first), and swiping the row still reveals Delete. iOS does
+    // not start the row's swipe action from inside the handle itself.
+    func testSwipeOnSetReorderHandleDoesNotReorderAndRowSwipeOpensDelete() {
         let app = XCUIApplication()
         app.launchEnvironment["UITESTING"] = "1"
         app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
@@ -374,13 +377,20 @@ final class GymChecklistUITests: XCTestCase {
         app.launch()
 
         openProgram(app)
-        let handle = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSetDragHandle-")).firstMatch
-        XCTAssertTrue(handle.waitForExistence(timeout: 5))
-        handle.swipeLeft()
+        let sets = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSet-"))
+        let handles = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSetDragHandle-"))
+        XCTAssertTrue(sets.element(boundBy: 1).waitForExistence(timeout: 5))
+        let orderBefore = (0..<sets.count).map { sets.element(boundBy: $0).identifier }
+
+        handles.element(boundBy: 0).swipeLeft()
+        let orderAfter = (0..<sets.count).map { sets.element(boundBy: $0).identifier }
+        XCTAssertEqual(orderAfter, orderBefore, "A swipe without a hold must not reorder sets")
+
+        sets.element(boundBy: 0).swipeLeft()
         XCTAssertTrue(
-            app.buttons["Delete set 1"].waitForExistence(timeout: 3),
-            "Swipe on the handle should reveal Delete: \(app.debugDescription)"
+            app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Delete set ")).firstMatch
+                .waitForExistence(timeout: 3)
         )
     }
 

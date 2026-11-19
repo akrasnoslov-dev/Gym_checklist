@@ -2198,22 +2198,72 @@ final class WorkoutViewModelTests: XCTestCase {
         XCTAssertEqual(repository.workout(on: date)?.exercises.first?.sets[1].weight, 45)
     }
 
-    func testProgramSetReorderSessionReflowsAndCancellationRestoresOriginalOrder() {
-        let exerciseID = WorkoutExerciseID()
+    // GYM-45: the native List move offsets map to the persisted set order.
+    func testProgramSetMoveOffsetsProduceExpectedOrder() {
         let ids = [WorkoutSetID(), WorkoutSetID(), WorkoutSetID()]
-        var session = ProgramSetReorderSession(
-            exerciseID: exerciseID,
-            setID: ids[0],
-            originalOrder: ids
+        XCTAssertEqual(
+            ProgramSetOrder.moved(ids, fromOffsets: IndexSet(integer: 2), toOffset: 0),
+            [ids[2], ids[0], ids[1]]
+        )
+        XCTAssertEqual(
+            ProgramSetOrder.moved(ids, fromOffsets: IndexSet(integer: 0), toOffset: 2),
+            [ids[1], ids[0], ids[2]]
+        )
+        XCTAssertEqual(
+            ProgramSetOrder.moved(ids, fromOffsets: IndexSet(integer: 0), toOffset: 3),
+            [ids[1], ids[2], ids[0]]
+        )
+    }
+
+    // GYM-45: Copy opens on the closest earlier workout, not a far-future one.
+    func testCopySourceDefaultsToClosestEarlierWorkout() {
+        let destination = LocalDate(year: 2026, month: 11, day: 19)
+        let lastWeek = LocalDate(year: 2026, month: 11, day: 12)
+        let older = LocalDate(year: 2026, month: 11, day: 5)
+        let farFuture = LocalDate(year: 2027, month: 1, day: 15)
+        XCTAssertEqual(
+            CopyWorkoutSourceDefault.date(for: destination, among: [older, farFuture, lastWeek, destination]),
+            lastWeek
+        )
+        let nextWeek = LocalDate(year: 2026, month: 11, day: 26)
+        XCTAssertEqual(CopyWorkoutSourceDefault.date(for: destination, among: [farFuture, nextWeek]), nextWeek)
+        XCTAssertEqual(CopyWorkoutSourceDefault.date(for: destination, among: [destination]), destination)
+    }
+
+    // GYM-45: one body-weight entry per day.
+    func testBodyWeightDailyEntryReusesTheSameDayEntry() {
+        let user = UserID(rawValue: "user")
+        let day = LocalDate(year: 2026, month: 11, day: 19)
+        let otherDay = LocalDate(year: 2026, month: 11, day: 18)
+        let morning = BodyWeightMeasurement(
+            userID: user, localDate: day, weightInKilograms: 80,
+            measuredAt: Date(timeIntervalSince1970: 100), updatedAt: Date(timeIntervalSince1970: 100)
+        )
+        let evening = BodyWeightMeasurement(
+            userID: user, localDate: day, weightInKilograms: 81,
+            measuredAt: Date(timeIntervalSince1970: 200), updatedAt: Date(timeIntervalSince1970: 200)
+        )
+        let yesterday = BodyWeightMeasurement(
+            userID: user, localDate: otherDay, weightInKilograms: 79,
+            measuredAt: Date(timeIntervalSince1970: 50), updatedAt: Date(timeIntervalSince1970: 50)
         )
 
-        session.update(targetSetID: ids[2])
-        XCTAssertEqual(session.provisionalOrder, [ids[1], ids[2], ids[0]])
-        XCTAssertTrue(session.hasChanged)
+        let fresh = BodyWeightMeasurement.dailyEntry(
+            on: LocalDate(year: 2026, month: 11, day: 17), editing: nil, among: [morning, yesterday]
+        )
+        XCTAssertNil(fresh.base)
+        XCTAssertFalse(fresh.dateTaken)
 
-        session.cancel()
-        XCTAssertEqual(session.provisionalOrder, ids)
-        XCTAssertFalse(session.hasChanged)
+        let relog = BodyWeightMeasurement.dailyEntry(on: day, editing: nil, among: [morning, evening, yesterday])
+        XCTAssertEqual(relog.base?.id, evening.id)
+        XCTAssertFalse(relog.dateTaken)
+
+        let editInPlace = BodyWeightMeasurement.dailyEntry(on: otherDay, editing: yesterday, among: [morning, yesterday])
+        XCTAssertEqual(editInPlace.base?.id, yesterday.id)
+        XCTAssertFalse(editInPlace.dateTaken)
+
+        let movedOntoDay = BodyWeightMeasurement.dailyEntry(on: day, editing: yesterday, among: [morning, yesterday])
+        XCTAssertTrue(movedOntoDay.dateTaken, "Moving an entry onto a taken date must be refused, not merged by deleting")
     }
 
     func testCopyToMissingDestinationPublishesOnlyTheCompletedAggregate() throws {

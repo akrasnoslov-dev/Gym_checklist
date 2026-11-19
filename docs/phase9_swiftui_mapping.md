@@ -62,7 +62,7 @@ State remains accessible by label and never by color alone.
 ### Reorder
 Exercise and set reordering are separate focused native flows:
 - Exercise actions -> Reorder exercises -> exercise-only list -> drag/move -> Done.
-- Set rows -> permanent inline drag handles in Program -> drag to reorder. Swipe left to reveal Delete with confirmation. This October 2026 device-feedback override replaces the earlier separate Reorder sets sheet.
+- Set rows -> native List reorder in Program: touch and hold a set, then drag (the handle icon is a visual cue; VoiceOver gets Move up / Move down). Swipe left to reveal Delete with confirmation. This replaces the earlier separate Reorder sets sheet and the custom handle gesture (GYM-45).
 
 Do not combine exercise ordering and set ordering into one screen.
 

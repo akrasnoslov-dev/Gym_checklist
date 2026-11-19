@@ -151,6 +151,22 @@ struct BodyWeightMeasurement: Codable, Equatable, Identifiable, Sendable {
         if measurement.localDate.month != date.month { return measurement.localDate.month < date.month }
         return measurement.localDate.day <= date.day
     }
+
+    /// GYM-45: one body-weight entry per day, kept with single writes only (no
+    /// save + delete pair that could half-fail). A new Log on a date that
+    /// already has an entry updates that entry (`base`). Moving an edited entry
+    /// onto a date that already has another one is refused (`dateTaken`).
+    static func dailyEntry(
+        on date: LocalDate,
+        editing: Self?,
+        among measurements: [Self]
+    ) -> (base: Self?, dateTaken: Bool) {
+        let sameDay = measurements.filter { $0.localDate == date }
+        if let editing {
+            return (editing, sameDay.contains { $0.id != editing.id })
+        }
+        return (sameDay.max { isMoreRecent($1, than: $0) }, false)
+    }
 }
 
 enum WorkoutSetType: String, Codable, CaseIterable, Hashable, Sendable {

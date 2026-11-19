@@ -115,7 +115,7 @@ struct TodayView: View {
                     timeSeconds: timeSeconds
                 )
             }
-            .gymCompactSheet(height: GymSheetHeight.valueEditor)
+            .gymFullSheet()
         }
         .alert(item: $mutationError) { error in
             Alert(

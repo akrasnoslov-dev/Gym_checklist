@@ -51,7 +51,7 @@ Completed must be distinguishable by more than color alone.
 
 ### Interaction
 - Tap: toggle completed/incomplete.
-- Long press: open compact edit sheet.
+- Long press: open the edit sheet (full height, GYM-44).
 - No Start Workout button.
 - No per-exercise completion screen.
 - No automatic jumping to a next exercise.
@@ -115,7 +115,7 @@ Header with previous/next week controls and a 7-day selector.
 Each date visually communicates empty/planned/partial/completed/incomplete state with the shared symbolic state vocabulary plus an accessibility label; state must not be encoded by color alone.
 
 ### Month navigation
-Program also offers a Month mode with previous/next month controls and a compact local-calendar grid. Week and Month share one selected date and the same workout-detail surface. Every date communicates state with an accessible icon/label, not color alone.
+Program also offers a Month mode with previous/next month controls and a compact local-calendar grid. The calendar scrolls with the page in both modes; only the Program title stays pinned (GYM-44). Week and Month share one selected date and the same workout-detail surface. Every date communicates state with an accessible icon/label, not color alone.
 
 ### Workout editor
 For selected date:
@@ -130,7 +130,7 @@ For selected date:
 
 Current/future Program rows use the whole set row as the edit affordance; do not repeat trailing `Edit`, `Edit plan`, or `Edit actual` labels on every row. A completed set remains visually legible and editing its plan must not overwrite its recorded actual value. Past dates use the same Program hierarchy and tapping an editable recorded result edits actual values.
 
-Exercise reorder retains its focused native list. Set reorder happens inline in Program using visible drag handles per set; no separate Reorder sets sheet or per-set ellipsis is required. Swipe left on a Program set row to expose Delete, with confirmation. A tap on the set row still edits the set.
+Exercise reorder retains its focused native list. Set reorder happens inline in Program with the native List reorder (touch and hold a set, then drag; a handle icon is the visual cue); no separate Reorder sets sheet or per-set ellipsis is required. Swipe left on a Program set row to expose Delete, with confirmation. A tap on the set row still edits the set.
 
 Do not surface history analytics here; past dates simply show actual completion/results.
 
@@ -198,7 +198,7 @@ After successful authentication, go directly to Today. No onboarding carousel.
 ## 14. Settings
 Profile-first iOS settings pattern:
 - profile (optional sex, date of birth, height and neutral BMI presentation);
-- compact dated body-weight history with edit/delete;
+- compact dated body-weight history with edit/delete; one entry per day (logging a date that already has one updates it; moving an entry onto a taken date is refused, GYM-45);
 - Appearance and Weight unit;
 - Account and destructive actions kept separate.
 

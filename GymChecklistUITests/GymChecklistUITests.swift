@@ -85,10 +85,15 @@ final class GymChecklistUITests: XCTestCase {
         let emptyRepeat = app.buttons["programRepeatWorkout"]
         XCTAssertTrue(emptyRepeat.waitForExistence(timeout: 2))
         XCTAssertFalse(emptyRepeat.isEnabled)
-        // Tap outside the menu to close it before continuing.
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)).tap()
-        let menuClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: emptyRepeat)
-        XCTAssertEqual(XCTWaiter().wait(for: [menuClosed], timeout: 3), .completed)
+        // Tap empty list space below the menu to close it before continuing.
+        var menuClosed = false
+        for _ in 0..<3 where !menuClosed {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)).tap()
+            menuClosed = XCTWaiter().wait(for: [XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "hittable == false"), object: emptyRepeat
+            )], timeout: 2) == .completed
+        }
+        XCTAssertTrue(menuClosed, "Workout actions menu should close: \(app.debugDescription)")
 
         app.buttons["programDate-2026-08-13"].tap()
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
@@ -637,7 +642,10 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 3))
         deleteMeasurement.tap()
         // GYM-33: deleting a measurement asks for confirmation first.
-        let confirmDelete = app.buttons["bodyWeightConfirmDelete"]
+        // SwiftUI exposes both the alert's container and its child button with
+        // this identifier, so scope the query to the alert and take the first.
+        let confirmDelete = app.alerts["Delete this measurement?"].buttons
+            .matching(identifier: "bodyWeightConfirmDelete").firstMatch
         XCTAssertTrue(confirmDelete.waitForExistence(timeout: 3))
         confirmDelete.tap()
         // Keep the sheet open until the native swipe action has removed

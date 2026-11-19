@@ -517,7 +517,9 @@ final class GymChecklistUITests: XCTestCase {
         // The full-height sheet (GYM-25) virtualizes rows; scroll the action into view.
         let replaceAction = replaceApp.buttons["copyWorkoutAction"]
         for _ in 0..<4 {
-            if replaceAction.exists && replaceAction.isHittable { break }
+            // Frame-based: isHittable throws while a virtualized row is off screen.
+            if replaceAction.exists, !replaceAction.frame.isEmpty,
+               replaceApp.frame.insetBy(dx: 0, dy: 60).contains(replaceAction.frame) { break }
             replaceApp.swipeUp()
         }
         XCTAssertTrue(replaceAction.waitForExistence(timeout: 3), replaceApp.debugDescription)
@@ -701,7 +703,8 @@ final class GymChecklistUITests: XCTestCase {
         // The GYM-22 regression removed the row about a second after saving.
         let vanished = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: measurement)
         XCTAssertEqual(XCTWaiter().wait(for: [vanished], timeout: 3), .timedOut, "Saved weight disappeared")
-        XCTAssertTrue(waitForLabel(of: measurement, toEqual: "80 kg"), "Row label: \(measurement.label)")
+        XCTAssertTrue(measurement.exists, "Saved weight disappeared")
+        XCTAssertEqual(measurement.label, "80 kg")
         XCTAssertFalse(app.staticTexts["No body-weight measurements yet."].exists)
 
         app.buttons["Done"].tap()
@@ -1231,7 +1234,8 @@ final class TodayInteractionUITests: XCTestCase {
             for: NSPredicate(format: "value == %@", expectedValue),
             evaluatedWith: element
         )
-        wait(for: [expectation], timeout: 2)
+        // CI simulators can take over 2 s to publish a completion state change.
+        wait(for: [expectation], timeout: 4)
     }
 
     private func replaceText(in field: XCUIElement, with value: String) {

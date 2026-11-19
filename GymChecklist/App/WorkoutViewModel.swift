@@ -18,6 +18,7 @@ enum ProgramPlanningError: Error, Equatable {
     case invalidSetOrder
     case invalidSetValues
     case inconsistentSetType
+    case tooManyExercises
 }
 
 enum WorkoutCopyStrategy: Equatable {
@@ -307,6 +308,9 @@ final class WorkoutViewModel: ObservableObject {
         case .replaceExercises:
             destination.exercises = copiedExercises
         }
+        guard destination.exercises.count <= PersistedValueLimits.maximumExercisesPerWorkout else {
+            throw ProgramPlanningError.tooManyExercises
+        }
         destination.updatedAt = timestamp
         do {
             try repository.save(destination)
@@ -371,6 +375,9 @@ final class WorkoutViewModel: ObservableObject {
         }
 
         workout.exercises = normalizedExercises(workout.exercises)
+        guard workout.exercises.count < PersistedValueLimits.maximumExercisesPerWorkout else {
+            throw ProgramPlanningError.tooManyExercises
+        }
         workout.exercises.append(WorkoutExercise(
             id: makeWorkoutExerciseID(),
             exerciseID: availableExercise.id,

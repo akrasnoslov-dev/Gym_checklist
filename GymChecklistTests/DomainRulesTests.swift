@@ -850,6 +850,50 @@ final class FirestoreMappingTests: XCTestCase {
         )
     }
 
+    // GYM-39: one corrupt set must not hide the rest of the day's workout.
+    func testSnapshotDecoderDropsOnlyTheCorruptSetAndKeepsTheWorkout() throws {
+        let goodSet = WorkoutSet(id: WorkoutSetID(), order: 0, reps: 8, weight: 60, timeSeconds: 0)
+        let badSet = WorkoutSet(id: WorkoutSetID(), order: 1, reps: 8, weight: 70, timeSeconds: 0)
+        let exercise = WorkoutExercise(
+            id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id,
+            customName: nil, order: 0, isSkipped: false, sets: [goodSet, badSet]
+        )
+        let workout = Workout(
+            id: WorkoutID(), userID: userID, localDate: date, exercises: [exercise],
+            createdAt: .distantPast, updatedAt: .distantPast
+        )
+        var json = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(FirestoreWorkoutPayload(workout: workout))
+        ) as? [String: Any])
+        var exercises = try XCTUnwrap(json["exercises"] as? [[String: Any]])
+        var sets = try XCTUnwrap(exercises[0]["sets"] as? [[String: Any]])
+        sets[1]["weight"] = -1
+        exercises[0]["sets"] = sets
+        json["exercises"] = exercises
+        let corrupt = try JSONDecoder().decode(
+            FirestoreWorkoutPayload.self, from: JSONSerialization.data(withJSONObject: json)
+        )
+
+        let decoded = FirestoreWorkoutSnapshotDecoder.decode(
+            [FirestoreWorkoutSnapshotEntry(documentDate: date, payload: corrupt)], userID: userID
+        )
+
+        XCTAssertEqual(decoded.discardedEntryCount, 0)
+        XCTAssertEqual(decoded.repairedDocumentDates, [date])
+        XCTAssertEqual(decoded.workouts.count, 1)
+        XCTAssertEqual(decoded.workouts.first?.exercises.first?.sets, [goodSet])
+    }
+
+    // GYM-39: client mirrors of the firestore.rules size limits.
+    func testExerciseTextLimitMirrorsRules() {
+        XCTAssertTrue(PersistedValueLimits.isValidExerciseText(String(repeating: "a", count: 1000)))
+        XCTAssertFalse(PersistedValueLimits.isValidExerciseText(String(repeating: "a", count: 1001)))
+        var library = LocalExerciseLibrary(userID: userID)
+        XCTAssertThrowsError(try library.createCustomExercise(name: String(repeating: "я", count: 600))) {
+            XCTAssertEqual($0 as? LocalExerciseLibraryError, .nameTooLong)
+        }
+    }
+
     func testCustomExerciseAndSettingsMappingsStayUserScoped() throws {
         let exercise = Exercise(id: ExerciseID(), name: "Cable Press", category: "Chest", isSystem: false, createdByUserID: userID)
         XCTAssertEqual(try FirestoreCustomExerciseDocument(exercise: exercise).exercise(userID: userID), exercise)

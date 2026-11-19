@@ -181,6 +181,8 @@ struct ExercisePickerView: View {
             do {
                 try onSelect(exercise)
                 dismiss()
+            } catch ProgramPlanningError.tooManyExercises {
+                errorMessage = "A workout can have up to \(PersistedValueLimits.maximumExercisesPerWorkout) exercises."
             } catch {
                 errorMessage = "Exercise could not be added. Try again."
             }
@@ -309,6 +311,8 @@ private struct CustomExerciseView: View {
             errorMessage = "Enter an exercise name."
         } catch LocalExerciseLibraryError.duplicateName {
             errorMessage = "An exercise with this name already exists."
+        } catch LocalExerciseLibraryError.nameTooLong {
+            errorMessage = "This name is too long. Shorten it and try again."
         } catch CustomExerciseFlowError.createdButNotAdded {
             errorMessage = "Saved to your library, but not added to this workout. Try again to add it."
         } catch {

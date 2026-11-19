@@ -210,6 +210,14 @@ protocol UserSettingsRepository: AnyObject {
 enum PersistedValueLimits {
     static let maximumBodyWeightKilograms = 1000.0
     static let maximumHeightCentimeters = 1000.0
+    // GYM-39: workout and custom exercise bounds from firestore.rules.
+    static let maximumExercisesPerWorkout = 200
+    static let maximumExerciseTextLength = 1000
+
+    /// Rules measure string size; UTF-8 bytes are the strictest reading of it.
+    static func isValidExerciseText(_ text: String) -> Bool {
+        text.utf8.count <= maximumExerciseTextLength
+    }
 
     static func isValidBodyWeight(_ kilograms: Double) -> Bool {
         kilograms.isFinite && kilograms > 0 && kilograms <= maximumBodyWeightKilograms

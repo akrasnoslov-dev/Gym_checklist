@@ -8,9 +8,6 @@ struct ProgramView: View {
     @State private var calendarMode: CalendarMode = .week
     @State private var activeSheet: ProgramSheetRoute?
     @State private var confirmation: ProgramConfirmation?
-    @State private var reorderSession: ProgramSetReorderSession?
-    @State private var setRowFrames: [WorkoutSetID: CGRect] = [:]
-    @GestureState private var isReorderGestureActive = false
     @State private var showsMutationError = false
 
     init(viewModel: WorkoutViewModel, weightUnit: WeightUnit) {
@@ -20,29 +17,16 @@ struct ProgramView: View {
     }
 
     var body: some View {
+        // GYM-44: only the title stays pinned; the calendar scrolls with the
+        // workout so a month view no longer leaves a tiny scroll window.
         VStack(spacing: 0) {
-            VStack(spacing: GymTheme.spacing12) {
-                programHeader
-                Picker("Program view", selection: $calendarMode) {
-                    ForEach(CalendarMode.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("programViewMode")
-                calendarHeader
-                dateSelector
-                programLegend
-            }
-            .padding(.horizontal, GymTheme.spacing16)
-            .padding(.top, GymTheme.spacing12)
-            .padding(.bottom, GymTheme.spacing8)
-            .background(GymTheme.surfaceBase)
-
-            Divider().overlay(GymTheme.separator)
+            programHeader
+                .padding(.horizontal, GymTheme.spacing16)
+                .padding(.top, GymTheme.spacing12)
+                .background(GymTheme.surfaceBase)
 
             selectedDateSections
         }
-        .coordinateSpace(name: ProgramSetListCoordinateSpace.name)
-        .onPreferenceChange(ProgramSetRowFramePreferenceKey.self) { setRowFrames = $0 }
         .gymPageBackground()
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("programScreen")
@@ -51,14 +35,7 @@ struct ProgramView: View {
         }
         .onChange(of: viewModel.selectedDate) { _, selectedDate in
             displayedMonth = selectedDate
-            cancelSetReorder()
         }
-        .onChange(of: isReorderGestureActive) { _, isActive in
-            if !isActive, reorderSession != nil {
-                cancelSetReorder()
-            }
-        }
-        .onDisappear(perform: cancelSetReorder)
         .alert(
             confirmationTitle,
             isPresented: confirmationBinding,
@@ -156,7 +133,9 @@ struct ProgramView: View {
                     )
                 }
             )
-            .gymCompactSheet(height: GymSheetHeight.setEditor)
+            // GYM-44: the editor opens straight at full height; the compact
+            // detent jumped to full height as soon as the keyboard appeared.
+            .gymFullSheet()
         case let .historicalActual(route):
             HistoricalActualEditorSheet(
                 route: route,
@@ -172,7 +151,7 @@ struct ProgramView: View {
                     )
                 }
             )
-            .gymCompactSheet(height: GymSheetHeight.valueEditor)
+            .gymFullSheet()
         case let .copy(route):
             CopyWorkoutSheet(
                 destinationDate: route.destinationDate,
@@ -287,6 +266,8 @@ struct ProgramView: View {
                 Image(systemName: "chevron.left")
                     .frame(width: 44, height: 44)
             }
+            // GYM-44: borderless, so each chevron gets its own tap inside a List row.
+            .buttonStyle(.borderless)
             .accessibilityLabel("Previous week")
             .accessibilityIdentifier("programPreviousWeek")
 
@@ -302,6 +283,7 @@ struct ProgramView: View {
                 Image(systemName: "chevron.right")
                     .frame(width: 44, height: 44)
             }
+            .buttonStyle(.borderless)
             .accessibilityLabel("Next week")
             .accessibilityIdentifier("programNextWeek")
         }
@@ -324,12 +306,14 @@ struct ProgramView: View {
     private var monthHeader: some View {
         HStack {
             Button { moveMonth(by: -1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+                .buttonStyle(.borderless)
                 .accessibilityLabel("Previous month")
                 .accessibilityIdentifier("programPreviousMonth")
             Spacer()
             Text(monthRangeLabel).font(.headline).accessibilityIdentifier("programMonthHeader")
             Spacer()
             Button { moveMonth(by: 1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
+                .buttonStyle(.borderless)
                 .accessibilityLabel("Next month")
                 .accessibilityIdentifier("programNextMonth")
         }
@@ -419,41 +403,77 @@ struct ProgramView: View {
         .accessibilityIdentifier("programDate-\(date.description)")
     }
 
+    private var dayHeader: some View {
+        HStack(alignment: .center, spacing: GymTheme.spacing12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(dayTitle(for: calendarState.selectedDate))
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(GymTheme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityLabel(fullDateLabel(for: calendarState.selectedDate))
+                    .accessibilityIdentifier("programSelectedDate")
+                if !isHistorical && calendarState.selectedWorkout != nil {
+                    Label("Saved on device", systemImage: "checkmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(GymTheme.textSecondary)
+                        .labelStyle(.titleAndIcon)
+                        .accessibilityIdentifier("programSavedStatus")
+                }
+            }
+            Spacer(minLength: 0)
+            if case let .workout(status) = calendarState.selectedDayState {
+                let color = dayStateColor(.workout(status))
+                Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(color)
+                    .padding(.horizontal, GymTheme.spacing8 + 2)
+                    .padding(.vertical, 5)
+                    .background(color.opacity(0.14), in: Capsule())
+                    .fixedSize()
+                    .accessibilityIdentifier("programWorkoutState")
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+    }
+
+    private func dayTitle(for date: LocalDate) -> String {
+        guard let value = date.date(in: calendarState.calendar) else { return date.description }
+        let locale = Locale(identifier: "en")
+        if date == calendarState.currentDate {
+            return "Today, " + value.formatted(.dateTime.month(.abbreviated).day().locale(locale))
+        }
+        return value.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().locale(locale))
+    }
+
     @ViewBuilder
     private var selectedDateSections: some View {
         List {
-            // GYM-27: a compact one-line header in its own section, so the
-            // cards below get all four corners rounded.
+            // GYM-44: the calendar is the first part of the scrolling page.
             Section {
-                HStack(alignment: .firstTextBaseline, spacing: GymTheme.spacing8) {
-                    Text(calendarState.selectedWorkout == nil ? "Plan workout" : "Workout")
-                        .font(.headline)
-                        .foregroundStyle(GymTheme.textPrimary)
-                        .accessibilityLabel(fullDateLabel(for: calendarState.selectedDate))
-                        .accessibilityIdentifier("programSelectedDate")
-                    if case let .workout(status) = calendarState.selectedDayState {
-                        Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(dayStateColor(.workout(status)))
-                            .accessibilityIdentifier("programWorkoutState")
+                VStack(spacing: GymTheme.spacing12) {
+                    Picker("Program view", selection: $calendarMode) {
+                        ForEach(CalendarMode.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
-                    Spacer(minLength: 0)
-                    if !isHistorical && calendarState.selectedWorkout != nil {
-                        Label("Saved on device", systemImage: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(GymTheme.textSecondary)
-                            .accessibilityIdentifier("programSavedStatus")
-                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("programViewMode")
+                    calendarHeader
+                    dateSelector
+                    programLegend
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(
-                    top: GymTheme.spacing4, leading: GymTheme.spacing4,
-                    bottom: 0, trailing: GymTheme.spacing4
-                ))
+                .listRowInsets(EdgeInsets(top: GymTheme.spacing8, leading: 0, bottom: GymTheme.spacing4, trailing: 0))
             }
-            .listSectionSpacing(GymTheme.spacing8)
+
+            // GYM-44: the day header reads as a title with a status badge,
+            // not as a line of equal-weight words.
+            Section {
+                dayHeader
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: GymTheme.spacing8, leading: GymTheme.spacing4, bottom: 0, trailing: GymTheme.spacing4))
+            }
 
         if viewModel.workoutLoadState == .loading {
             Section {
@@ -545,9 +565,7 @@ struct ProgramView: View {
         }
         }
         .listStyle(.insetGrouped)
-        // GYM-30: the handle gesture runs alongside the List (so row swipes still
-        // work); scrolling pauses only while a set is actually being dragged.
-        .scrollDisabled(reorderSession != nil)
+        .listSectionSpacing(GymTheme.spacing12)
         .scrollContentBackground(.hidden)
         .background(GymTheme.surfaceBase)
         // GYM-27: keep the last button clear of the tab bar.
@@ -641,121 +659,58 @@ struct ProgramView: View {
 
     private func exerciseRow(_ exercise: WorkoutExercise, index: Int) -> some View {
         let name = viewModel.exerciseName(for: exercise)
-        let sets = visibleSets(for: exercise.id)
+        let sets = viewModel.orderedSets(for: exercise.id, on: calendarState.selectedDate)
 
         return Section {
             ForEach(Array(sets.enumerated()), id: \.element.id) { setIndex, set in
-                HStack(spacing: GymTheme.spacing8) {
-                    Button {
-                        activeSheet = .setEditor(SetEditorRoute(
-                            workoutDate: calendarState.selectedDate,
-                            exercise: exercise,
-                            set: set
-                        ))
-                    } label: {
-                        HStack(spacing: GymTheme.spacing12) {
-                            Text("\(setIndex + 1)")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(GymTheme.textSecondary)
-                                .frame(width: 28, height: 28)
-                                .background(GymTheme.surfaceBase, in: Circle())
-                            Text(SetDisplayFormatter(unit: weightUnit).string(
-                                reps: set.displayedReps,
-                                weightInKilograms: set.displayedWeight,
-                                timeSeconds: set.displayedTimeSeconds,
-                                type: set.displayedType
-                            ))
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(GymTheme.textPrimary)
-                            Spacer(minLength: 0)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Edit set \(setIndex + 1) for \(name)")
-                    .accessibilityValue(SetDisplayFormatter(unit: weightUnit).string(
-                        reps: set.displayedReps,
-                        weightInKilograms: set.displayedWeight,
-                        timeSeconds: set.displayedTimeSeconds,
-                        type: set.displayedType
-                    ))
-                    .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
-
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(GymTheme.accentForeground)
-                        .frame(width: 44, height: 44)
-                        .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: GymTheme.radiusBadge, style: .continuous))
-                        .contentShape(Rectangle())
-                        .accessibilityLabel("Reorder set \(setIndex + 1)")
-                        .accessibilityHint("Touch and hold, then drag up or down. Or use the Move up and Move down actions.")
-                        .accessibilityIdentifier("programSetDragHandle-\(set.id.rawValue.uuidString)")
-                        .accessibilityAction(named: "Move up") {
-                            moveSet(set.id, by: -1, in: exercise.id, sets: sets)
-                        }
-                        .accessibilityAction(named: "Move down") {
-                            moveSet(set.id, by: 1, in: exercise.id, sets: sets)
-                        }
-                        .simultaneousGesture(reorderGesture(for: set.id, in: exercise.id, sets: sets))
-                }
-                // GYM-30: the row being dragged is lifted so the reorder is visible.
-                .scaleEffect(reorderSession?.setID == set.id ? 1.03 : 1)
-                .shadow(
-                    color: .black.opacity(reorderSession?.setID == set.id ? 0.18 : 0),
-                    radius: 8, y: 3
+                setRow(set, setIndex: setIndex, exercise: exercise, exerciseName: name, sets: sets)
+            }
+            // GYM-45: native List reordering (touch and hold, then drag). The
+            // custom handle gesture read row frames from inside the List and
+            // jumped sets to the top or ignored the drag.
+            .onMove { source, destination in
+                persistSetOrder(
+                    ProgramSetOrder.moved(sets.map(\.id), fromOffsets: source, toOffset: destination),
+                    in: exercise.id
                 )
-                .zIndex(reorderSession?.setID == set.id ? 1 : 0)
-                .sensoryFeedback(.selection, trigger: reorderSession?.setID == set.id ? reorderSession?.provisionalOrder : nil)
-                .background {
-                    GeometryReader { geometry in
-                        Color.clear.preference(
-                            key: ProgramSetRowFramePreferenceKey.self,
-                            value: [set.id: geometry.frame(in: .named(ProgramSetListCoordinateSpace.name))]
-                        )
-                    }
-                }
-                .listRowBackground(GymTheme.surfaceGrouped)
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button("Delete", systemImage: "trash", role: .destructive) {
-                        confirmation = .set(PendingSetDeletion(
-                            workoutDate: calendarState.selectedDate,
-                            exerciseID: exercise.id,
-                            setID: set.id,
-                            setNumber: setIndex + 1
-                        ))
-                    }
-                    .accessibilityLabel("Delete set \(setIndex + 1)")
-                    // GYM-26: the app-wide green tint must not recolor Delete.
-                    .tint(GymTheme.swipeDestructive)
-                }
             }
 
             Button {
                 addSet(to: exercise.id)
             } label: {
                 Label("Add set", systemImage: "plus")
-                    .font(.body.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(GymTheme.accentForeground)
-                    .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                    .padding(.horizontal, GymTheme.spacing12)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             .accessibilityLabel("Add set to \(name)")
             .accessibilityIdentifier("programAddSet-\(exercise.id.rawValue.uuidString)")
         } header: {
+            // GYM-44: name, type badge and a round actions button instead of
+            // three plain labels in a row.
             HStack(spacing: GymTheme.spacing8) {
                 Text(name)
                     .font(.headline)
                     .foregroundStyle(GymTheme.textPrimary)
+                    .lineLimit(2)
                     .textCase(nil)
                     // GYM-34: the same exercise can appear twice, so IDs use the row ID.
                     .accessibilityIdentifier("programExercise-\(exercise.id.rawValue.uuidString)")
-                Spacer()
                 Text(exerciseSetType(exercise).title)
-                    .font(.caption)
-                    .foregroundStyle(GymTheme.textSecondary)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(GymTheme.accentForeground)
+                    .padding(.horizontal, GymTheme.spacing8)
+                    .padding(.vertical, 3)
+                    .background(GymTheme.accentSoft, in: Capsule())
+                    .fixedSize()
                     .textCase(nil)
+                Spacer(minLength: 0)
                 Menu {
                     Menu("Set type", systemImage: "slider.horizontal.3") {
                         ForEach(WorkoutSetType.editableCases, id: \.self) { type in
@@ -786,14 +741,102 @@ struct ProgramView: View {
                     .accessibilityIdentifier("programExerciseDelete-\(exercise.id.rawValue.uuidString)")
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.body.weight(.semibold))
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(GymTheme.textPrimary)
+                        .frame(width: 32, height: 32)
+                        .background(GymTheme.surfaceElevated, in: Circle())
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Actions for \(name), exercise \(index + 1) of \(orderedExercises.count)")
                 .accessibilityIdentifier("programExerciseActions-\(exercise.id.rawValue.uuidString)")
             }
+            .padding(.leading, GymTheme.spacing4)
             .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
+        }
+    }
+
+    /// GYM-44: each set is its own rounded tile with a small gap, so a swipe
+    /// moves a rounded tile instead of cutting a square row out of a card, and
+    /// more sets fit on screen.
+    private func setRow(
+        _ set: WorkoutSet,
+        setIndex: Int,
+        exercise: WorkoutExercise,
+        exerciseName name: String,
+        sets: [WorkoutSet]
+    ) -> some View {
+        let value = SetDisplayFormatter(unit: weightUnit).string(
+            reps: set.displayedReps,
+            weightInKilograms: set.displayedWeight,
+            timeSeconds: set.displayedTimeSeconds,
+            type: set.displayedType
+        )
+        return HStack(spacing: GymTheme.spacing8) {
+            Button {
+                activeSheet = .setEditor(SetEditorRoute(
+                    workoutDate: calendarState.selectedDate,
+                    exercise: exercise,
+                    set: set
+                ))
+            } label: {
+                HStack(spacing: GymTheme.spacing12) {
+                    Text("\(setIndex + 1)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(GymTheme.textSecondary)
+                        .frame(width: 24, height: 24)
+                        .background(GymTheme.surfaceElevated, in: Circle())
+                    Text(value)
+                        .font(.body.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(GymTheme.textPrimary)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit set \(setIndex + 1) for \(name)")
+            .accessibilityValue(value)
+            .accessibilityIdentifier("programSet-\(exercise.id.rawValue.uuidString)-\(set.id.rawValue.uuidString)")
+
+            // A visual cue only: touch and hold anywhere on the tile to drag.
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(GymTheme.textSecondary)
+                .frame(width: 32, height: 44)
+                .contentShape(Rectangle())
+                .accessibilityLabel("Reorder set \(setIndex + 1)")
+                .accessibilityHint("Touch and hold the set, then drag up or down. Or use the Move up and Move down actions.")
+                .accessibilityIdentifier("programSetDragHandle-\(set.id.rawValue.uuidString)")
+                .accessibilityAction(named: "Move up") {
+                    moveSet(set.id, by: -1, in: exercise.id, sets: sets)
+                }
+                .accessibilityAction(named: "Move down") {
+                    moveSet(set.id, by: 1, in: exercise.id, sets: sets)
+                }
+        }
+        .padding(.leading, GymTheme.spacing12)
+        .padding(.trailing, GymTheme.spacing4)
+        .background(
+            GymTheme.surfaceGrouped,
+            in: RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous)
+        )
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 3, leading: 0, bottom: 3, trailing: 0))
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                confirmation = .set(PendingSetDeletion(
+                    workoutDate: calendarState.selectedDate,
+                    exerciseID: exercise.id,
+                    setID: set.id,
+                    setNumber: setIndex + 1
+                ))
+            }
+            .accessibilityLabel("Delete set \(setIndex + 1)")
+            // GYM-26: the app-wide green tint must not recolor Delete.
+            .tint(GymTheme.swipeDestructive)
         }
     }
 
@@ -838,16 +881,6 @@ struct ProgramView: View {
         viewModel.orderedExercises(on: calendarState.selectedDate)
     }
 
-    private func visibleSets(for exerciseID: WorkoutExerciseID) -> [WorkoutSet] {
-        let actual = viewModel.orderedSets(for: exerciseID, on: calendarState.selectedDate)
-        guard let session = reorderSession, session.exerciseID == exerciseID else { return actual }
-        let ids = session.provisionalOrder
-        guard
-              ids.count == actual.count,
-              Set(ids) == Set(actual.map(\.id)) else { return actual }
-        let byID = Dictionary(uniqueKeysWithValues: actual.map { ($0.id, $0) })
-        return ids.compactMap { byID[$0] }
-    }
     private var isHistorical: Bool { calendarState.selectedDate < viewModel.currentDate }
 
     private func dayStateColor(_ state: ProgramDayState) -> Color {
@@ -893,10 +926,11 @@ struct ProgramView: View {
     }
 
     private func exerciseSetType(_ exercise: WorkoutExercise) -> WorkoutSetType {
-        let configured = visibleSets(for: exercise.id).first {
+        let sets = viewModel.orderedSets(for: exercise.id, on: calendarState.selectedDate)
+        let configured = sets.first {
             $0.reps > 0 || $0.weight > 0 || $0.timeSeconds > 0
         }
-        return configured?.type ?? visibleSets(for: exercise.id).first?.type ?? WorkoutSetType.defaultForNewSet
+        return configured?.type ?? sets.first?.type ?? WorkoutSetType.defaultForNewSet
     }
 
     private func setExerciseType(_ type: WorkoutSetType, for exerciseID: WorkoutExerciseID) {
@@ -904,53 +938,6 @@ struct ProgramView: View {
             try viewModel.setExerciseType(type, for: exerciseID, on: calendarState.selectedDate)
         } catch {
             showsMutationError = true
-        }
-    }
-
-    private func reorderGesture(
-        for setID: WorkoutSetID,
-        in exerciseID: WorkoutExerciseID,
-        sets: [WorkoutSet]
-    ) -> some Gesture {
-        // GYM-30: a short hold before dragging leaves horizontal swipes (Delete)
-        // and vertical scrolling that start on the handle to the List.
-        LongPressGesture(minimumDuration: 0.25)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(ProgramSetListCoordinateSpace.name)))
-            .updating($isReorderGestureActive) { _, isActive, _ in
-                isActive = true
-            }
-            .onChanged { sequence in
-                guard case let .second(true, drag) = sequence else { return }
-                if reorderSession == nil {
-                    reorderSession = ProgramSetReorderSession(
-                        exerciseID: exerciseID,
-                        setID: setID,
-                        originalOrder: sets.map(\.id)
-                    )
-                }
-                guard let drag else { return }
-                guard var session = reorderSession,
-                      session.exerciseID == exerciseID,
-                      session.setID == setID else { return }
-                session.update(dragLocationY: drag.location.y, rowFrames: setRowFrames)
-                withAnimation(.easeInOut(duration: 0.16)) {
-                    reorderSession = session
-                }
-            }
-            .onEnded { _ in
-                guard let session = reorderSession,
-                      session.exerciseID == exerciseID,
-                      session.setID == setID else { return }
-                if session.hasChanged {
-                    persistSetOrder(session.provisionalOrder, in: exerciseID)
-                }
-                cancelSetReorder()
-            }
-    }
-
-    private func cancelSetReorder() {
-        withAnimation(.easeOut(duration: 0.14)) {
-            reorderSession = nil
         }
     }
 
@@ -963,51 +950,12 @@ struct ProgramView: View {
     }
 }
 
-struct ProgramSetReorderSession: Equatable {
-    let exerciseID: WorkoutExerciseID
-    let setID: WorkoutSetID
-    let originalOrder: [WorkoutSetID]
-    private(set) var provisionalOrder: [WorkoutSetID]
-
-    init(exerciseID: WorkoutExerciseID, setID: WorkoutSetID, originalOrder: [WorkoutSetID]) {
-        self.exerciseID = exerciseID
-        self.setID = setID
-        self.originalOrder = originalOrder
-        self.provisionalOrder = originalOrder
-    }
-
-    var hasChanged: Bool { provisionalOrder != originalOrder }
-
-    mutating func update(dragLocationY: CGFloat, rowFrames: [WorkoutSetID: CGRect]) {
-        guard let targetSetID = provisionalOrder.min(by: {
-            abs((rowFrames[$0]?.midY ?? .greatestFiniteMagnitude) - dragLocationY)
-                < abs((rowFrames[$1]?.midY ?? .greatestFiniteMagnitude) - dragLocationY)
-        }), rowFrames[targetSetID] != nil else { return }
-        update(targetSetID: targetSetID)
-    }
-
-    mutating func update(targetSetID: WorkoutSetID) {
-        guard targetSetID != setID,
-              let sourceIndex = provisionalOrder.firstIndex(of: setID),
-              let targetIndex = provisionalOrder.firstIndex(of: targetSetID) else { return }
-        provisionalOrder.remove(at: sourceIndex)
-        provisionalOrder.insert(setID, at: min(targetIndex, provisionalOrder.count))
-    }
-
-    mutating func cancel() {
-        provisionalOrder = originalOrder
-    }
-}
-
-private enum ProgramSetListCoordinateSpace {
-    static let name = "program-set-list"
-}
-
-private struct ProgramSetRowFramePreferenceKey: PreferenceKey {
-    static var defaultValue: [WorkoutSetID: CGRect] = [:]
-
-    static func reduce(value: inout [WorkoutSetID: CGRect], nextValue: () -> [WorkoutSetID: CGRect]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, next in next })
+/// GYM-45: maps a native List move (offsets) onto the persisted set order.
+enum ProgramSetOrder {
+    static func moved(_ ids: [WorkoutSetID], fromOffsets source: IndexSet, toOffset destination: Int) -> [WorkoutSetID] {
+        var order = ids
+        order.move(fromOffsets: source, toOffset: destination)
+        return order
     }
 }
 
@@ -1180,6 +1128,16 @@ private enum ProgramConfirmation {
     }
 }
 
+/// GYM-45: Copy opens on the workout closest before the destination (usually
+/// last week's), not on the latest planned one, which can be months ahead.
+enum CopyWorkoutSourceDefault {
+    static func date(for destination: LocalDate, among dates: [LocalDate]) -> LocalDate {
+        let candidates = dates.filter { $0 != destination }
+        if let previous = candidates.filter({ $0 < destination }).max() { return previous }
+        return candidates.filter { $0 > destination }.min() ?? destination
+    }
+}
+
 private struct CopyWorkoutSheet: View {
     private enum DestinationChoice: String, CaseIterable, Identifiable {
         case add = "Add exercises"
@@ -1220,10 +1178,10 @@ private struct CopyWorkoutSheet: View {
         self.availableWorkouts = availableWorkouts
         self.destinationState = destinationState
         self.onCopy = onCopy
-        let initialSource = availableWorkouts
-            .filter { $0.localDate != destinationDate }
-            .sorted { $0.localDate > $1.localDate }
-            .first?.localDate ?? destinationDate
+        let initialSource = CopyWorkoutSourceDefault.date(
+            for: destinationDate,
+            among: availableWorkouts.map(\.localDate)
+        )
         _selectedSourceDateValue = State(initialValue: initialSource.date(in: calendar) ?? Date())
         _sourceMonth = State(initialValue: initialSource)
         _destination = State(initialValue: destinationDate.date(in: calendar) ?? Date())
@@ -1237,7 +1195,11 @@ private struct CopyWorkoutSheet: View {
                         Button { moveSourceMonth(by: -1) } label: {
                             Image(systemName: "chevron.left").frame(width: 44, height: 44)
                         }
+                        // GYM-45: without a borderless style a Form row with two
+                        // buttons sends every tap to the row, so the month never changed.
+                        .buttonStyle(.borderless)
                         .accessibilityLabel("Previous source month")
+                        .accessibilityIdentifier("copyWorkoutPreviousMonth")
                         Spacer()
                         Text(sourceMonthLabel)
                             .font(.headline)
@@ -1245,7 +1207,9 @@ private struct CopyWorkoutSheet: View {
                         Button { moveSourceMonth(by: 1) } label: {
                             Image(systemName: "chevron.right").frame(width: 44, height: 44)
                         }
+                        .buttonStyle(.borderless)
                         .accessibilityLabel("Next source month")
+                        .accessibilityIdentifier("copyWorkoutNextMonth")
                     }
 
                     sourceCalendar

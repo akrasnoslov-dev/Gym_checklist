@@ -367,11 +367,9 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertEqual(mode.frame.midY, stableModeY, accuracy: 1)
     }
 
-    // GYM-30: a left swipe that starts on the reorder handle opens Delete
-    // instead of starting a reorder.
-    // A quick swipe that starts on the handle must not reorder sets (reorder
-    // needs a hold first), and swiping the row still reveals Delete. iOS does
-    // not start the row's swipe action from inside the handle itself.
+    // GYM-30/GYM-45: a quick swipe that starts on the reorder handle must not
+    // reorder sets (the native List reorder needs a hold first), and swiping
+    // the row reveals Delete.
     func testSwipeOnSetReorderHandleDoesNotReorderAndRowSwipeOpensDelete() {
         let app = XCUIApplication()
         app.launchEnvironment["UITESTING"] = "1"
@@ -724,6 +722,20 @@ final class GymChecklistUITests: XCTestCase {
             "Saved weight must still be listed after leaving Settings"
         )
         XCTAssertEqual(app.buttons.matching(identifier: "bodyWeightMeasurement").count, 1)
+
+        // GYM-45: Log hides the keyboard, and a second Log on the same day
+        // updates that day's entry instead of adding another one.
+        replaceText(in: weight, with: "82")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        app.buttons["bodyWeightSave"].tap()
+        let keyboardHidden = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: app.keyboards.firstMatch
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [keyboardHidden], timeout: 3), .completed, "Log must hide the keyboard")
+        let sameDayRows = app.buttons.matching(identifier: "bodyWeightMeasurement")
+        XCTAssertTrue(waitForLabel(of: sameDayRows.firstMatch, toEqual: "82 kg"))
+        XCTAssertEqual(sameDayRows.count, 1, "A second Log on the same day must update, not add")
     }
 
     func testAppearanceSelectionKeepsTodayAvailable() {

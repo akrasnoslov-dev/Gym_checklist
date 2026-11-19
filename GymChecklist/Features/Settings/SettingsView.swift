@@ -865,6 +865,7 @@ private struct BodyWeightHistorySheet: View {
     @State private var showsSaveError = false
     @State private var showsDeleteError = false
     @State private var pendingDeletion: BodyWeightMeasurement?
+    @FocusState private var isWeightFocused: Bool
 
     /// Only a synchronous delete error is shown here; provider rejections that
     /// arrive later go through the Settings persistence banner.
@@ -898,6 +899,7 @@ private struct BodyWeightHistorySheet: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.interactively)
         .background(GymTheme.surfaceBase)
     }
 
@@ -905,6 +907,7 @@ private struct BodyWeightHistorySheet: View {
         Section {
             TextField("Weight (\(unit.rawValue))", text: $weightText)
                 .keyboardType(.decimalPad)
+                .focused($isWeightFocused)
                 .accessibilityIdentifier("bodyWeightInput")
             // GYM-33: a future date would be hidden from the current
             // weight and BMI, so it cannot be chosen.
@@ -1057,14 +1060,20 @@ private struct BodyWeightHistorySheet: View {
             return
         }
         let now = Date()
+        // GYM-45: one entry per day — a second Log on the same date updates it.
+        let entry = BodyWeightMeasurement.dailyEntry(on: localDate, editing: existing, among: measurements)
         let measurement = BodyWeightMeasurement(
-            id: existing?.id ?? .init(), userID: userID,
+            id: entry.base?.id ?? .init(), userID: userID,
             localDate: localDate,
             weightInKilograms: kilograms,
-            measuredAt: existing?.measuredAt ?? now, updatedAt: now
+            measuredAt: entry.base?.measuredAt ?? now, updatedAt: now
         )
         do {
             try onSave(measurement)
+            for duplicate in entry.duplicates {
+                try? onDelete(duplicate)
+            }
+            isWeightFocused = false
             clearEditor()
         } catch {
             if let repositoryError = error as? BodyWeightRepositoryError,

@@ -137,24 +137,12 @@ extension View {
     }
 }
 
-/// One sheet policy for the whole app (GYM-25): lists and full forms open at
-/// full height and are usable at once; short set editors open compact, sized
-/// to their fields, and can still be pulled up.
+/// One sheet policy for the whole app (GYM-25, GYM-44): every sheet opens at
+/// full height and is usable at once. Compact detents were dropped because the
+/// editors' autofocused keyboard pushed them to full height a moment later.
 extension View {
     func gymFullSheet() -> some View {
         presentationDetents([.large])
             .presentationDragIndicator(.visible)
     }
-
-    func gymCompactSheet(height: CGFloat) -> some View {
-        presentationDetents([.height(height), .large])
-            .presentationDragIndicator(.visible)
-    }
-}
-
-enum GymSheetHeight {
-    /// Type picker plus up to two value fields.
-    static let setEditor: CGFloat = 400
-    /// Up to two value fields with a type caption.
-    static let valueEditor: CGFloat = 320
 }

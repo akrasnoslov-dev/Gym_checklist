@@ -106,7 +106,7 @@ struct GymPrimaryButtonStyle: ButtonStyle {
             .padding(.horizontal, GymTheme.spacing16)
             .background(
                 GymTheme.accentFill.opacity(configuration.isPressed ? 0.82 : 1),
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                in: RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous)
             )
     }
 }
@@ -120,10 +120,10 @@ struct GymSecondaryButtonStyle: ButtonStyle {
             .padding(.horizontal, GymTheme.spacing16)
             .background(
                 GymTheme.surfaceGrouped.opacity(configuration.isPressed ? 0.82 : 1),
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                in: RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous)
                     .stroke(GymTheme.borderSubtle, lineWidth: 1)
             }
     }

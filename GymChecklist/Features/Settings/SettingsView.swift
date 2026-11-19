@@ -428,9 +428,10 @@ struct SettingsView: View {
                             .accessibilityIdentifier("authLogoutError")
                     }
                 }
-                .padding(.horizontal, GymTheme.spacing16)
+                .padding(.horizontal, GymTheme.screenEdge)
                 .padding(.vertical, GymTheme.spacing20)
             }
+            .contentMargins(.bottom, GymTheme.tabBarClearance, for: .scrollContent)
             .gymPageBackground()
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)

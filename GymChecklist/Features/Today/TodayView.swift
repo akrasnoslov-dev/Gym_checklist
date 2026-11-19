@@ -81,6 +81,7 @@ struct TodayView: View {
                 .accessibilityHidden(showsCompletionPopup)
             }
             .allowsHitTesting(!showsCompletionPopup)
+            .contentMargins(.bottom, GymTheme.tabBarClearance, for: .scrollContent)
             if showsCompletionPopup {
                 TodayCompletionOverlay(content: completionContent) {
                     showsCompletionPopup = false

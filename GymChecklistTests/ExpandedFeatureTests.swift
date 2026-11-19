@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import GymChecklist
 
@@ -406,6 +407,28 @@ final class ExpandedFeatureTests: XCTestCase {
         XCTAssertEqual(sets.map(\.type), [.repsOnly, .repsOnly])
         XCTAssertEqual(sets.map(\.weight), [0, 0])
         XCTAssertEqual(sets.first?.reps, 10)
+    }
+
+    // GYM-37: failed listeners are re-attached with back-off or on foreground.
+    func testListenerRestartBacksOffAndCapsAtOneMinute() {
+        XCTAssertEqual((0..<8).map(FirestoreListenerRestarter.delay(forAttempt:)), [2, 4, 8, 16, 32, 60, 60, 60])
+    }
+
+    @MainActor
+    func testFailedListenerRestartsOnceWhenTheAppReturnsToForeground() async {
+        let restarted = expectation(description: "listener restarted")
+        restarted.assertForOverFulfill = true
+        var restartCount = 0
+        let restarter = FirestoreListenerRestarter {
+            restartCount += 1
+            restarted.fulfill()
+        }
+        restarter.listenerFailed()
+        restarter.listenerFailed()
+        NotificationCenter.default.post(name: UIApplication.willEnterForegroundNotification, object: nil)
+        await fulfillment(of: [restarted], timeout: 2)
+        XCTAssertEqual(restartCount, 1)
+        restarter.cancel()
     }
 
     // GYM-8: sign-out clears the local cache only once no offline write is waiting.

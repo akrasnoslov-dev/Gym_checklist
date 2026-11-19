@@ -7,6 +7,7 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
     let userID: UserID
     private let store: Firestore
     private var listener: ListenerRegistration?
+    private lazy var restarter = FirestoreListenerRestarter { [weak self] in self?.startListening() }
     private var observers: [UUID: @MainActor (UserSettings) -> Void] = [:]
     private let failures = PersistenceFailureBroadcaster<UserSettingsPersistenceFailure>()
     private(set) var settings: UserSettings
@@ -23,6 +24,11 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
         pendingJournal = DurablePendingMutationJournal(
             storageKey: PendingMutationJournalStorage.key(scope: "settings", userID: user)
         )
+        startListening()
+    }
+
+    private func startListening() {
+        let user = userID
         listener = document.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
             guard let snapshot else {
                 if let error {
@@ -30,6 +36,7 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
                         operation: .listen, collection: "settings", documentID: "default", error: error
                     ))
                 }
+                Task { @MainActor in self?.recordListenerFailure() }
                 return
             }
             // A missing document is the normal first-launch state, not a decode failure.
@@ -40,6 +47,7 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
                 : nil
             Task { @MainActor in
                 guard let self else { return }
+                self.restarter.listenerDelivered()
                 if let observedSettings {
                     self.settings = observedSettings
                 } else if !snapshot.metadata.hasPendingWrites {
@@ -59,6 +67,15 @@ final class FirestoreUserSettingsRepository: UserSettingsRepository {
     }
 
     deinit { MainActor.assumeIsolated { listener?.remove() } }
+
+    /// GYM-37: the listener is dead after an error; keep the last settings and
+    /// attach a new listener after a back-off, unless the user signed out.
+    private func recordListenerFailure() {
+        listener?.remove()
+        listener = nil
+        guard Auth.auth().currentUser?.uid == userID.rawValue else { return }
+        restarter.listenerFailed()
+    }
 
     func observeSettings(_ observer: @escaping @MainActor (UserSettings) -> Void) -> UserSettingsObservation {
         let id = UUID()

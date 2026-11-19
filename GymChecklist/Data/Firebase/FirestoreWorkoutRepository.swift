@@ -22,8 +22,13 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     private(set) var workouts: [Workout] = []
     private var loadState: WorkoutLoadState = .loading
     private var hasUsableSnapshot = false
-    private var mutations = ScopedDocumentMutationTracker<LocalDate, Workout>()
-    private var pendingJournal: DurablePendingMutationJournal<LocalDate, Workout>?
+    private lazy var documents = OptimisticDocumentStore<LocalDate, Workout>(
+        collection: "workouts",
+        journalScope: "workouts",
+        userID: self.boundUserID,
+        restore: { [weak self] date, snapshot in self?.restore(snapshot, on: date) },
+        report: { [weak self] failure in self?.publishFailure(failure) }
+    )
 
     var userID: UserID {
         guard let boundUserID else { preconditionFailure("Firestore repository requires an authenticated user") }
@@ -39,11 +44,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         self.store = store
         self.currentUserID = currentUserID
         self.boundUserID = validatedCurrentUserID()
-        if let userID = boundUserID {
-            pendingJournal = DurablePendingMutationJournal(
-                storageKey: PendingMutationJournalStorage.key(scope: "workouts", userID: userID)
-            )
-        }
+        _ = documents // Loads the pending-write journal before the first snapshot.
         startListening()
     }
 
@@ -71,15 +72,14 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         guard let userID = boundUserID else { preconditionFailure("Firestore repository requires an authenticated user") }
         if let existing = workout(on: date) { return .existing(existing) }
         let workout = Workout(id: WorkoutID(), userID: userID, localDate: date, exercises: [], createdAt: timestamp, updatedAt: timestamp)
-        let ticket = mutations.begin(key: date, baseline: .missing, attempted: .value(workout))
-        pendingJournal?.record(ticket, attempted: .value(workout))
+        let ticket = documents.begin(key: date, baseline: .missing, attempted: .value(workout))
         workouts.append(workout)
         markLocalSnapshotAvailable()
         publish()
         do {
             try persist(workout, ticket: ticket)
         } catch {
-            publishFailure(.saveRejected(workout))
+            failures.publish(.saveRejected(workout))
         }
         return .created(workout)
     }
@@ -89,8 +89,7 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         guard workout.userID == userID else { throw Error.ownerMismatch }
         if let existing = self.workout(on: workout.localDate), existing.id != workout.id { throw Error.duplicateDate }
         let baseline = self.workout(on: workout.localDate).map { PersistedDocument.value($0) } ?? .missing
-        let ticket = mutations.begin(key: workout.localDate, baseline: baseline, attempted: .value(workout))
-        pendingJournal?.record(ticket, attempted: .value(workout))
+        let ticket = documents.begin(key: workout.localDate, baseline: baseline, attempted: .value(workout))
         workouts.removeAll { $0.localDate == workout.localDate }
         workouts.append(workout)
         markLocalSnapshotAvailable()
@@ -101,18 +100,13 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     func deleteWorkout(on date: LocalDate) throws {
         _ = try authenticatedUserID()
         guard let removedWorkout = workout(on: date) else { throw Error.workoutNotFound }
-        let ticket = mutations.begin(key: date, baseline: .value(removedWorkout), attempted: .missing)
-        pendingJournal?.record(ticket, attempted: .missing)
+        let ticket = documents.begin(key: date, baseline: .value(removedWorkout), attempted: .missing)
         workouts.removeAll { $0.localDate == date }
         markLocalSnapshotAvailable()
         publish()
-        document(for: date).delete { [weak self] error in
-            FirestoreDiagnostics.shared.recordIfFailed(
-                error, operation: .delete, collection: "workouts", documentID: date.description
-            )
-            Task { @MainActor in
-                self?.recordWriteCompletion(error, ticket: ticket)
-            }
+        let reference = self.document(for: date)
+        documents.delete(ticket, documentID: date.description) { completion in
+            reference.delete(completion: completion)
         }
     }
 
@@ -126,21 +120,9 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     }
 
     private func persist(_ workout: Workout, ticket: ScopedDocumentMutationTicket<LocalDate>) throws {
-        do {
-            try document(for: workout.localDate).setData(from: FirestoreWorkoutPayload(workout: workout)) { [weak self] error in
-                FirestoreDiagnostics.shared.recordIfFailed(
-                    error, operation: .write, collection: "workouts", documentID: workout.localDate.description
-                )
-                Task { @MainActor in
-                    self?.recordWriteCompletion(error, ticket: ticket)
-                }
-            }
-        } catch {
-            FirestoreDiagnostics.shared.recordIfFailed(
-                error, operation: .write, collection: "workouts", documentID: workout.localDate.description
-            )
-            recordWriteCompletion(error, ticket: ticket, publishesFailure: false)
-            throw error
+        let reference = self.document(for: workout.localDate)
+        try documents.write(ticket, documentID: workout.localDate.description) { completion in
+            try reference.setData(from: FirestoreWorkoutPayload(workout: workout), completion: completion)
         }
     }
 
@@ -200,7 +182,11 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
                 self.hasUsableSnapshot = availability.hasUsableSnapshot
                 self.loadState = availability.loadState
                 self.publish()
-                self.reconcileRestartedWrites(snapshot: snapshot, decoded: decoded)
+                self.documents.reconcileRestarted(
+                    isFromCache: snapshot.metadata.isFromCache,
+                    hasPendingWrites: snapshot.metadata.hasPendingWrites,
+                    stableValues: Dictionary(uniqueKeysWithValues: decoded.workouts.map { ($0.localDate, $0) })
+                )
             }
         }
     }
@@ -208,26 +194,6 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     private func markLocalSnapshotAvailable() {
         hasUsableSnapshot = true
         loadState = .available
-    }
-
-    private func recordWriteCompletion(
-        _ error: Swift.Error?,
-        ticket: ScopedDocumentMutationTicket<LocalDate>,
-        publishesFailure: Bool = true
-    ) {
-        let result: ScopedDocumentMutationResult = error == nil ? .accepted : .rejected
-        pendingJournal?.complete(ticket, result: result)
-        let completion = mutations.complete(ticket, result: result)
-        guard case let .rejected(rollbackSnapshot, attempted) = completion else { return }
-        restore(rollbackSnapshot, on: ticket.key)
-        switch (rollbackSnapshot, attempted) {
-        case let (_, .value(workout)):
-            if publishesFailure { publishFailure(.saveRejected(workout)) }
-        case let (.value(workout), .missing):
-            if publishesFailure { publishFailure(.deleteRejected(workout)) }
-        default:
-            break
-        }
     }
 
     private func restore(_ snapshot: PersistedDocument<Workout>, on date: LocalDate) {
@@ -238,32 +204,25 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         publish()
     }
 
-    private func reconcileRestartedWrites(
-        snapshot: QuerySnapshot,
-        decoded: DecodedFirestoreWorkoutSnapshot
-    ) {
-        let decodedByDate = Dictionary(uniqueKeysWithValues: decoded.workouts.map { ($0.localDate, $0) })
-        guard !snapshot.metadata.isFromCache, !snapshot.metadata.hasPendingWrites else { return }
-        for unconfirmed in pendingJournal?.reconcileRestarted(stableValues: decodedByDate) ?? [] {
-            switch (unconfirmed.attempted, unconfirmed.stable) {
-            case let (.value(workout), _):
-                publishFailure(.saveUnconfirmedAfterRestart(workout))
-            case let (.missing, .value(workout)):
-                publishFailure(.deleteUnconfirmedAfterRestart(workout))
-            default:
-                break
-            }
-        }
-    }
-
     private func recordUnavailable() {
         loadState = .unavailable(hasUsableSnapshot: hasUsableSnapshot)
         publish()
     }
 
     private func publish() { observers.values.forEach { $0(workouts, loadState) } }
-    private func publishFailure(_ failure: WorkoutPersistenceFailure) {
-        failures.publish(failure)
+    private func publishFailure(_ failure: OptimisticDocumentFailure<LocalDate, Workout>) {
+        switch failure {
+        case let .saveRejected(workout):
+            failures.publish(.saveRejected(workout))
+        case let .deleteRejected(workout):
+            failures.publish(.deleteRejected(workout))
+        case let .saveUnconfirmedAfterRestart(workout):
+            failures.publish(.saveUnconfirmedAfterRestart(workout))
+        case let .deleteUnconfirmedAfterRestart(workout):
+            failures.publish(.deleteUnconfirmedAfterRestart(workout))
+        case .deleteRejectedWithoutLocalCopy:
+            break // Deleting a workout that is not listed throws before any write.
+        }
     }
 
     private func validatedCurrentUserID() -> UserID? {

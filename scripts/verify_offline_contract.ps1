@@ -5,7 +5,8 @@ param(
     [string]$ExerciseRepositoryPath,
     [string]$BodyWeightRepositoryPath,
     [string]$PlanPath,
-    [string]$TodayViewPath
+    [string]$TodayViewPath,
+    [string]$StorePath
 )
 
 # Windows PowerShell 5.1 does not populate $PSScriptRoot inside param defaults.
@@ -15,6 +16,7 @@ if (-not $ExerciseRepositoryPath) { $ExerciseRepositoryPath = Join-Path $PSScrip
 if (-not $BodyWeightRepositoryPath) { $BodyWeightRepositoryPath = Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\FirestoreBodyWeightRepository.swift" }
 if (-not $PlanPath) { $PlanPath = Join-Path $PSScriptRoot "..\docs\offline_test_plan.md" }
 if (-not $TodayViewPath) { $TodayViewPath = Join-Path $PSScriptRoot "..\GymChecklist\Features\Today\TodayView.swift" }
+if (-not $StorePath) { $StorePath = Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\OptimisticDocumentStore.swift" }
 
 $repository = Get-Content -Raw $RepositoryPath
 $settingsRepository = Get-Content -Raw $SettingsRepositoryPath
@@ -22,8 +24,16 @@ $exerciseRepository = Get-Content -Raw $ExerciseRepositoryPath
 $bodyWeightRepository = Get-Content -Raw $BodyWeightRepositoryPath
 $plan = Get-Content -Raw $PlanPath
 $todayView = Get-Content -Raw $TodayViewPath
+$optimisticStore = Get-Content -Raw $StorePath
 
-foreach ($fragment in @('addSnapshotListener', 'workouts.append(workout)', 'publish()', 'persist(workout, ticket: ticket)', 'ScopedDocumentMutationTracker<LocalDate, Workout>', 'DurablePendingMutationJournal<LocalDate, Workout>', 'collection("users").document(userID.rawValue).collection("workouts").document(date.description)')) {
+# GYM-13: repositories share one optimistic store for tracking, journal and rollback.
+foreach ($fragment in @('ScopedDocumentMutationTracker<Key, Value>', 'DurablePendingMutationJournal<Key, Value>', 'journal?.record(ticket', 'journal?.complete(ticket', 'reconcileRestarted(stableValues:')) {
+    if (-not $optimisticStore.Contains($fragment)) {
+        throw "Optimistic document store is missing offline contract fragment: $fragment"
+    }
+}
+
+foreach ($fragment in @('addSnapshotListener', 'workouts.append(workout)', 'publish()', 'persist(workout, ticket: ticket)', 'OptimisticDocumentStore<LocalDate, Workout>', 'collection("users").document(userID.rawValue).collection("workouts").document(date.description)')) {
     if (-not $repository.Contains($fragment)) {
         throw "Firestore workout repository is missing offline contract fragment: $fragment"
     }
@@ -61,7 +71,7 @@ foreach ($namedRepository in @(
     @{ Name = 'custom exercise'; Source = $exerciseRepository },
     @{ Name = 'body weight'; Source = $bodyWeightRepository }
 )) {
-    foreach ($fragment in @('ScopedDocumentMutationTracker<', 'DurablePendingMutationJournal<', 'observePersistenceFailures', 'addSnapshotListener(includeMetadataChanges: true)')) {
+    foreach ($fragment in @('OptimisticDocumentStore<', 'observePersistenceFailures', 'addSnapshotListener(includeMetadataChanges: true)')) {
         if (-not $namedRepository.Source.Contains($fragment)) {
             throw "Firestore $($namedRepository.Name) repository is missing rejected-write recovery fragment: $fragment"
         }
@@ -72,7 +82,7 @@ if ($settingsRepository.Contains('merge: true')) {
     throw 'Settings tracking assumes full-document writes; Firestore merge semantics would violate that contract'
 }
 
-$deleteQueueIndex = $deleteBody.IndexOf('document(for: date).delete')
+$deleteQueueIndex = $deleteBody.IndexOf('documents.delete(ticket')
 if ($deleteBody.IndexOf('workouts.removeAll') -gt $deleteBody.IndexOf('publish()') -or $deleteBody.IndexOf('publish()') -gt $deleteQueueIndex) {
     throw 'Workout deletes must publish their local snapshot before deletion is queued'
 }

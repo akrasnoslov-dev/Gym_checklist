@@ -56,6 +56,8 @@ enum BodyWeightPersistenceFailure: Equatable {
     case deleteRejected(BodyWeightMeasurement)
     case saveUnconfirmedAfterRestart(BodyWeightMeasurement)
     case deleteUnconfirmedAfterRestart(BodyWeightMeasurement)
+    /// The history listener failed; shown measurements may be stale until it reconnects.
+    case historyUnavailable
 }
 
 struct PersistenceIssue: Identifiable {
@@ -203,6 +205,17 @@ protocol UserSettingsRepository: AnyObject {
     func saveWeightUnit(_ weightUnit: WeightUnit) throws
 }
 
+/// Mirrors the bounds in firestore.rules so an out-of-range entry fails local
+/// validation instead of being rejected by the server after an optimistic save.
+enum PersistedValueLimits {
+    static let maximumBodyWeightKilograms = 1000.0
+    static let maximumHeightCentimeters = 1000.0
+
+    static func isValidBodyWeight(_ kilograms: Double) -> Bool {
+        kilograms.isFinite && kilograms > 0 && kilograms <= maximumBodyWeightKilograms
+    }
+}
+
 enum BodyWeightRepositoryError: Error, Equatable {
     case ownerMismatch
     case invalidMeasurement
@@ -225,12 +238,11 @@ protocol BodyWeightRepository: AnyObject {
         _ observer: @escaping @MainActor (BodyWeightPersistenceFailure) -> Void
     ) -> PersistenceFailureObservation
     func save(_ measurement: BodyWeightMeasurement) throws
-    /// Deletes optimistically so an offline user can continue immediately.
-    /// `onFailure` is invoked if the provider later rejects the pending delete.
-    func deleteMeasurement(
-        id: BodyWeightMeasurementID,
-        onFailure: @escaping @MainActor () -> Void
-    ) throws
+    /// Deletes optimistically so an offline user can continue immediately. A
+    /// later provider rejection restores the row and publishes `.deleteRejected`.
+    func deleteMeasurement(id: BodyWeightMeasurementID) throws
+    /// Re-attaches the history listener after `.historyUnavailable`.
+    func restartListening()
 }
 
 extension WorkoutRepository {
@@ -258,6 +270,8 @@ extension UserSettingsRepository {
 }
 
 extension BodyWeightRepository {
+    func restartListening() {}
+
     func observePersistenceFailures(
         _ observer: @escaping @MainActor (BodyWeightPersistenceFailure) -> Void
     ) -> PersistenceFailureObservation {

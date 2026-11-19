@@ -105,6 +105,9 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         markLocalSnapshotAvailable()
         publish()
         document(for: date).delete { [weak self] error in
+            FirestoreDiagnostics.shared.recordIfFailed(
+                error, operation: .delete, collection: "workouts", documentID: date.description
+            )
             Task { @MainActor in
                 self?.recordWriteCompletion(error, ticket: ticket)
             }
@@ -123,11 +126,17 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
     private func persist(_ workout: Workout, ticket: ScopedDocumentMutationTicket<LocalDate>) throws {
         do {
             try document(for: workout.localDate).setData(from: FirestoreWorkoutPayload(workout: workout)) { [weak self] error in
+                FirestoreDiagnostics.shared.recordIfFailed(
+                    error, operation: .write, collection: "workouts", documentID: workout.localDate.description
+                )
                 Task { @MainActor in
                     self?.recordWriteCompletion(error, ticket: ticket)
                 }
             }
         } catch {
+            FirestoreDiagnostics.shared.recordIfFailed(
+                error, operation: .write, collection: "workouts", documentID: workout.localDate.description
+            )
             recordWriteCompletion(error, ticket: ticket, publishesFailure: false)
             throw error
         }
@@ -137,6 +146,11 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         guard let userID = boundUserID else { return }
         listener = store.collection("users").document(userID.rawValue).collection("workouts").addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
             guard error == nil, let snapshot else {
+                if let error {
+                    FirestoreDiagnostics.shared.record(FirestoreDiagnosticEvent(
+                        operation: .listen, collection: "workouts", documentID: nil, error: error
+                    ))
+                }
                 Task { @MainActor in
                     guard let self, self.boundUserID == userID else { return }
                     self.recordUnavailable()
@@ -146,10 +160,20 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
             let entries = snapshot.documents.map { document in
                 FirestoreWorkoutSnapshotEntry(
                     documentDate: FirestoreWorkoutDocument.localDate(document.documentID),
-                    payload: try? document.data(as: FirestoreWorkoutPayload.self)
+                    payload: FirestoreDiagnostics.shared.decodeLogging(
+                        FirestoreWorkoutPayload.self, from: document, collection: "workouts"
+                    )
                 )
             }
             let decoded = FirestoreWorkoutSnapshotDecoder.decode(entries, userID: userID)
+            FirestoreDiagnostics.shared.recordDomainRejections(
+                documentIDs: zip(snapshot.documents, entries).compactMap { document, entry in
+                    guard entry.payload != nil else { return nil }
+                    guard let date = entry.documentDate else { return document.documentID }
+                    return decoded.discardedDocumentDates.contains(date) ? document.documentID : nil
+                },
+                collection: "workouts"
+            )
             Task { @MainActor in
                 guard let self, self.boundUserID == userID else { return }
                 guard entries.isEmpty || decoded.discardedEntryCount < entries.count else {
@@ -239,6 +263,31 @@ final class FirestoreWorkoutRepository: WorkoutRepository {
         return userID
     }
 
+}
+
+extension FirestoreDiagnostics {
+    /// Decodes a snapshot document, logging the decoding error instead of
+    /// discarding it silently. Returns nil when the document is unreadable.
+    func decodeLogging<T: Decodable>(_ type: T.Type, from document: DocumentSnapshot, collection: String) -> T? {
+        do {
+            return try document.data(as: type)
+        } catch {
+            record(FirestoreDiagnosticEvent(
+                operation: .decode, collection: collection, documentID: document.documentID, error: error
+            ))
+            return nil
+        }
+    }
+
+    /// Logs documents that decoded but failed domain validation.
+    func recordDomainRejections(documentIDs: [String], collection: String) {
+        for documentID in documentIDs {
+            record(FirestoreDiagnosticEvent(
+                operation: .decode, collection: collection, documentID: documentID,
+                error: FirestoreMappingError.domainValidationFailed
+            ))
+        }
+    }
 }
 
 @MainActor private final class FirestoreWorkoutObservation: WorkoutObservation {

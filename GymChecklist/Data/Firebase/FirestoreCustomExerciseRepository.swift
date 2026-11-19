@@ -21,16 +21,29 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         pendingJournal = DurablePendingMutationJournal(
             storageKey: PendingMutationJournalStorage.key(scope: "customExercises", userID: user)
         )
-        listener = collection.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, _ in
-            guard let snapshot else { return }
-            let decoded = FirestoreCustomExerciseSnapshotDecoder.decode(
-                snapshot.documents.map { document in
-                    FirestoreCustomExerciseSnapshotEntry(
-                        documentID: document.documentID,
-                        payload: try? document.data(as: FirestoreCustomExerciseDocument.self)
+        listener = collection.addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
+            guard let snapshot else {
+                // The list keeps its last value; a load state is tracked separately (see GYM-22 audit).
+                if let error {
+                    FirestoreDiagnostics.shared.record(FirestoreDiagnosticEvent(
+                        operation: .listen, collection: "customExercises", documentID: nil, error: error
+                    ))
+                }
+                return
+            }
+            let entries = snapshot.documents.map { document in
+                FirestoreCustomExerciseSnapshotEntry(
+                    documentID: document.documentID,
+                    payload: FirestoreDiagnostics.shared.decodeLogging(
+                        FirestoreCustomExerciseDocument.self, from: document, collection: "customExercises"
                     )
-                },
-                userID: user
+                )
+            }
+            let decoded = FirestoreCustomExerciseSnapshotDecoder.decode(entries, userID: user)
+            let decodedIDs = Set(decoded.exercises.map { $0.id.rawValue.uuidString })
+            FirestoreDiagnostics.shared.recordDomainRejections(
+                documentIDs: entries.filter { $0.payload != nil && !decodedIDs.contains($0.documentID) }.map(\.documentID),
+                collection: "customExercises"
             )
             Task { @MainActor in
                 guard let self else { return }
@@ -73,9 +86,15 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         publish()
         do {
             try collection.document(payload.id).setData(from: payload) { [weak self] error in
+                FirestoreDiagnostics.shared.recordIfFailed(
+                    error, operation: .write, collection: "customExercises", documentID: payload.id
+                )
                 Task { @MainActor in self?.recordWriteCompletion(error, ticket: ticket) }
             }
         } catch {
+            FirestoreDiagnostics.shared.recordIfFailed(
+                error, operation: .write, collection: "customExercises", documentID: payload.id
+            )
             recordWriteCompletion(error, ticket: ticket, publishesFailure: false)
             throw error
         }
@@ -85,16 +104,22 @@ final class FirestoreCustomExerciseRepository: CustomExerciseRepository {
         guard let removedExercise = customExercises.first(where: { $0.id == id }) else {
             let ticket = mutations.begin(key: id, baseline: .missing, attempted: .missing)
             pendingJournal?.record(ticket, attempted: .missing)
-            collection.document(id.rawValue.uuidString).delete { [weak self] error in
-                Task { @MainActor in self?.recordWriteCompletion(error, ticket: ticket) }
-            }
+            deleteDocument(id: id, ticket: ticket)
             return
         }
         let ticket = mutations.begin(key: id, baseline: .value(removedExercise), attempted: .missing)
         pendingJournal?.record(ticket, attempted: .missing)
         customExercises.removeAll { $0.id == id }
         publish()
-        collection.document(id.rawValue.uuidString).delete { [weak self] error in
+        deleteDocument(id: id, ticket: ticket)
+    }
+
+    private func deleteDocument(id: ExerciseID, ticket: ScopedDocumentMutationTicket<ExerciseID>) {
+        let documentID = id.rawValue.uuidString
+        collection.document(documentID).delete { [weak self] error in
+            FirestoreDiagnostics.shared.recordIfFailed(
+                error, operation: .delete, collection: "customExercises", documentID: documentID
+            )
             Task { @MainActor in self?.recordWriteCompletion(error, ticket: ticket) }
         }
     }

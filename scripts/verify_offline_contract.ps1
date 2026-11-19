@@ -1,12 +1,20 @@
 [CmdletBinding()]
 param(
-    [string]$RepositoryPath = (Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\FirestoreWorkoutRepository.swift"),
-    [string]$SettingsRepositoryPath = (Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\FirestoreUserSettingsRepository.swift"),
-    [string]$ExerciseRepositoryPath = (Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\FirestoreCustomExerciseRepository.swift"),
-    [string]$BodyWeightRepositoryPath = (Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\FirestoreBodyWeightRepository.swift"),
-    [string]$PlanPath = (Join-Path $PSScriptRoot "..\docs\offline_test_plan.md"),
-    [string]$TodayViewPath = (Join-Path $PSScriptRoot "..\GymChecklist\Features\Today\TodayView.swift")
+    [string]$RepositoryPath,
+    [string]$SettingsRepositoryPath,
+    [string]$ExerciseRepositoryPath,
+    [string]$BodyWeightRepositoryPath,
+    [string]$PlanPath,
+    [string]$TodayViewPath
 )
+
+# Windows PowerShell 5.1 does not populate $PSScriptRoot inside param defaults.
+if (-not $RepositoryPath) { $RepositoryPath = Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\FirestoreWorkoutRepository.swift" }
+if (-not $SettingsRepositoryPath) { $SettingsRepositoryPath = Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\FirestoreUserSettingsRepository.swift" }
+if (-not $ExerciseRepositoryPath) { $ExerciseRepositoryPath = Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\FirestoreCustomExerciseRepository.swift" }
+if (-not $BodyWeightRepositoryPath) { $BodyWeightRepositoryPath = Join-Path $PSScriptRoot "..\GymChecklist\Data\Firebase\FirestoreBodyWeightRepository.swift" }
+if (-not $PlanPath) { $PlanPath = Join-Path $PSScriptRoot "..\docs\offline_test_plan.md" }
+if (-not $TodayViewPath) { $TodayViewPath = Join-Path $PSScriptRoot "..\GymChecklist\Features\Today\TodayView.swift" }
 
 $repository = Get-Content -Raw $RepositoryPath
 $settingsRepository = Get-Content -Raw $SettingsRepositoryPath

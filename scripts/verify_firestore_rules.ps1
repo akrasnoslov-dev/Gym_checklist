@@ -1,7 +1,10 @@
 [CmdletBinding()]
 param(
-    [string]$RulesPath = (Join-Path $PSScriptRoot "..\firestore.rules")
+    [string]$RulesPath
 )
+
+# Windows PowerShell 5.1 does not populate $PSScriptRoot inside param defaults.
+if (-not $RulesPath) { $RulesPath = Join-Path $PSScriptRoot "..\firestore.rules" }
 
 $rules = Get-Content -Raw $RulesPath
 $requiredFragments = @(
@@ -12,8 +15,17 @@ $requiredFragments = @(
     'match /users/{userId}/customExercises/{exerciseId}',
     'match /users/{userId}/settings/default',
     'match /users/{userId}/bodyWeightMeasurements/{measurementId}',
-    'allow get, list, create, update, delete: if ownsUserData(userId);',
-    'allow get, create, update, delete: if ownsUserData(userId);'
+    'allow get, list, delete: if ownsUserData(userId);',
+    'allow get, delete: if ownsUserData(userId);',
+    'allow create, update: if ownsUserData(userId) && isValidWorkout(workoutDate);',
+    'allow create, update: if ownsUserData(userId) && isValidCustomExercise(exerciseId);',
+    'allow create, update: if ownsUserData(userId) && isValidSettings();',
+    'allow create, update: if ownsUserData(userId) && isValidBodyWeight(measurementId);',
+    'isLocalDate(workoutDate)',
+    'isUuid(data.id)',
+    'data.id == exerciseId',
+    'data.id == measurementId',
+    'keys().hasOnly('
 )
 
 foreach ($fragment in $requiredFragments) {
@@ -26,4 +38,9 @@ if ($rules.Contains('{document=**}') -or $rules.Contains('allow read, write: if 
     throw "Firestore rules contain a broad allow that would weaken owner isolation"
 }
 
-Write-Output "Firestore owner-isolation rule contract: PASS"
+$testPath = Join-Path $PSScriptRoot "..\firestore-tests\rules.test.js"
+if (-not (Test-Path $testPath)) {
+    throw "Firestore rules emulator tests are missing: firestore-tests/rules.test.js"
+}
+
+Write-Output "Firestore owner-isolation and write-validation rule contract: PASS"

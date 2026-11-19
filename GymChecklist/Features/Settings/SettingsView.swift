@@ -298,10 +298,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: GymTheme.spacing8) {
                         GymSectionHeader(title: "Preferences")
                         settingsGroup {
-                            HStack(spacing: GymTheme.spacing12) {
-                                Text("Appearance")
-                                    .font(.body.weight(.semibold))
-                                Spacer()
+                            PreferenceRow(title: "Appearance") {
                                 Picker(
                                     "Appearance",
                                     selection: Binding(
@@ -316,7 +313,6 @@ struct SettingsView: View {
                                     }
                                 }
                                 .pickerStyle(.segmented)
-                                .frame(width: 190)
                                 .accessibilityIdentifier("settingsAppearance")
                                 .accessibilityValue(viewModel.settings.appearance.rawValue)
                             }
@@ -324,10 +320,7 @@ struct SettingsView: View {
 
                             Divider().overlay(GymTheme.separator)
 
-                            HStack(spacing: GymTheme.spacing12) {
-                                Text("Weight unit")
-                                    .font(.body.weight(.semibold))
-                                Spacer()
+                            PreferenceRow(title: "Weight unit") {
                                 Picker(
                                     "Weight unit",
                                     selection: Binding(
@@ -342,7 +335,6 @@ struct SettingsView: View {
                                     }
                                 }
                                 .pickerStyle(.segmented)
-                                .frame(width: 112)
                                 .accessibilityIdentifier("settingsWeightUnit")
                                 .accessibilityValue(viewModel.settings.weightUnit.rawValue)
                             }
@@ -1058,5 +1050,33 @@ private struct BodyWeightHistorySheet: View {
         editingMeasurement = nil
         weightText = ""
         measurementDate = Date()
+    }
+}
+
+/// A settings row with a title and a segmented control. At accessibility text
+/// sizes the control moves under the title and takes the full width instead of
+/// truncating its segments (GYM-32).
+private struct PreferenceRow<Control: View>: View {
+    let title: String
+    @ViewBuilder let control: () -> Control
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                control()
+            }
+        } else {
+            HStack(spacing: GymTheme.spacing12) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                    .layoutPriority(1)
+                Spacer(minLength: GymTheme.spacing12)
+                control()
+                    .fixedSize()
+            }
+        }
     }
 }

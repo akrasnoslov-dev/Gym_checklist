@@ -489,12 +489,28 @@ final class ExpandedFeatureTests: XCTestCase {
         ), "12 reps")
     }
 
+    // GYM-28: an empty workout cannot be repeated and nothing is created.
+    @MainActor
+    func testRepeatRejectsWorkoutWithoutSets() throws {
+        let source = LocalDate(year: 2026, month: 9, day: 4)
+        let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "owner"))
+        _ = repository.createEmptyWorkout(on: source, at: .distantPast)
+        let model = WorkoutViewModel(repository: repository, initialDate: source, currentDate: source)
+        XCTAssertFalse(WorkoutViewModel.hasPlannedSets(try XCTUnwrap(repository.workout(on: source))))
+        XCTAssertThrowsError(try model.repeatWorkout(
+            from: source, through: LocalDate(year: 2026, month: 10, day: 2)
+        )) { error in
+            XCTAssertEqual(error as? ProgramPlanningError, .copySourceHasNoSets(source))
+        }
+        XCTAssertEqual(repository.workouts.count, 1)
+    }
+
     @MainActor
     func testRepeatCadenceUsesTheRequestedWeekInterval() throws {
         let owner = UserID(rawValue: "owner")
         let source = LocalDate(year: 2026, month: 9, day: 4)
         let repository = InMemoryWorkoutRepository(userID: owner)
-        _ = repository.createEmptyWorkout(on: source, at: .distantPast)
+        try seedRepeatableWorkout(repository, on: source)
         let model = WorkoutViewModel(repository: repository, initialDate: source, currentDate: source)
         let result = try model.repeatWorkout(
             from: source,
@@ -1192,4 +1208,15 @@ private struct AnyCodingKeyForTests: CodingKey {
     init(_ stringValue: String) { self.stringValue = stringValue }
     init?(stringValue: String) { self.stringValue = stringValue }
     init?(intValue: Int) { return nil }
+}
+
+/// A workout with one planned set; Repeat refuses an empty source (GYM-28).
+@MainActor
+private func seedRepeatableWorkout(_ repository: InMemoryWorkoutRepository, on date: LocalDate) throws {
+    var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+    workout.exercises = [WorkoutExercise(
+        id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id, customName: nil,
+        order: 0, isSkipped: false, sets: [WorkoutSet(order: 0, reps: 8)]
+    )]
+    try repository.save(workout)
 }

@@ -199,7 +199,7 @@ final class WorkoutViewModel: ObservableObject {
         guard sourceDate != destinationDate else {
             throw ProgramPlanningError.copyDestinationMatchesSource(destinationDate)
         }
-        guard source.exercises.contains(where: { !$0.sets.isEmpty }) else {
+        guard Self.hasPlannedSets(source) else {
             throw ProgramPlanningError.copySourceHasNoSets(sourceDate)
         }
 
@@ -225,6 +225,10 @@ final class WorkoutViewModel: ObservableObject {
     ) throws -> WorkoutRepeatResult {
         guard let source = repository.workout(on: sourceDate) else {
             throw ProgramPlanningError.workoutNotFound(sourceDate)
+        }
+        // GYM-28: repeating a workout without sets would only create empty days.
+        guard Self.hasPlannedSets(source) else {
+            throw ProgramPlanningError.copySourceHasNoSets(sourceDate)
         }
         guard endDate > sourceDate else {
             throw ProgramPlanningError.repeatEndDateMustFollowSource(endDate)
@@ -761,6 +765,11 @@ final class WorkoutViewModel: ObservableObject {
             throw error
         }
         workouts = repository.workouts
+    }
+
+    /// Copy and Repeat need at least one planned set in the source workout.
+    nonisolated static func hasPlannedSets(_ workout: Workout) -> Bool {
+        workout.exercises.contains { !$0.sets.isEmpty }
     }
 
     private static func areValidSetValues(reps: Int, weight: Double, timeSeconds: Int) -> Bool {

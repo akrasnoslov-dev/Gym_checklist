@@ -80,23 +80,15 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertFalse(app.buttons["copyWorkoutAction"].isEnabled)
         app.buttons["copyWorkoutCancel"].tap()
 
+        // GYM-28: an empty workout cannot be repeated.
         app.buttons["programWorkoutActions"].tap()
-        app.buttons["programRepeatWorkout"].tap()
-        XCTAssertTrue(app.navigationBars["Repeat workout"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceDate"].exists)
-        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceSummary"].exists)
-        let repeatDuration = app.segmentedControls["repeatWorkoutDuration"]
-        let repeatCadence = app.segmentedControls["repeatWorkoutCadence"]
-        XCTAssertTrue(repeatDuration.waitForExistence(timeout: 2))
-        XCTAssertTrue(repeatCadence.exists)
-        repeatCadence.buttons["Every 2 weeks"].tap()
-        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "2 independent workouts will be created."))
-        repeatDuration.buttons["8 weeks"].tap()
-        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "4 independent workouts will be created."))
-        XCTAssertTrue(app.staticTexts["repeatWorkoutSummary"].exists)
-        XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
-        XCTAssertEqual(app.buttons["repeatWorkoutAction"].label, "Create")
-        app.buttons["repeatWorkoutCancel"].tap()
+        let emptyRepeat = app.buttons["programRepeatWorkout"]
+        XCTAssertTrue(emptyRepeat.waitForExistence(timeout: 2))
+        XCTAssertFalse(emptyRepeat.isEnabled)
+        // Tap outside the menu to close it before continuing.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.05)).tap()
+        let menuClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: emptyRepeat)
+        XCTAssertEqual(XCTWaiter().wait(for: [menuClosed], timeout: 3), .completed)
 
         app.buttons["programDate-2026-08-13"].tap()
         XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
@@ -120,6 +112,24 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(addBenchSet.waitForExistence(timeout: 2))
         addBenchSet.tap()
         let firstBenchSet = app.buttons["Edit set 1 for Bench Press"]
+        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+
+        app.buttons["programWorkoutActions"].tap()
+        app.buttons["programRepeatWorkout"].tap()
+        XCTAssertTrue(app.navigationBars["Repeat workout"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceDate"].exists)
+        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceSummary"].exists)
+        let repeatDuration = app.segmentedControls["repeatWorkoutDuration"]
+        let repeatCadence = app.segmentedControls["repeatWorkoutCadence"]
+        XCTAssertTrue(repeatDuration.waitForExistence(timeout: 2))
+        XCTAssertTrue(repeatCadence.exists)
+        repeatCadence.buttons["2 wk"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "2 independent workouts will be created."))
+        repeatDuration.buttons["8 weeks"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "4 independent workouts will be created."))
+        XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
+        XCTAssertEqual(app.buttons["repeatWorkoutAction"].label, "Create")
+        app.buttons["repeatWorkoutCancel"].tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
         app.tabBars.buttons["Today"].tap()
@@ -342,6 +352,26 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["programWeekHeader"].waitForExistence(timeout: 2))
         XCTAssertTrue(mode.isHittable)
         XCTAssertEqual(mode.frame.midY, stableModeY, accuracy: 1)
+    }
+
+    // GYM-30: a left swipe that starts on the reorder handle opens Delete
+    // instead of starting a reorder.
+    func testSwipeOnSetReorderHandleOpensDelete() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let handle = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSetDragHandle-")).firstMatch
+        XCTAssertTrue(handle.waitForExistence(timeout: 5))
+        handle.swipeLeft()
+        XCTAssertTrue(
+            app.buttons["Delete set 1"].waitForExistence(timeout: 3),
+            "Swipe on the handle should reveal Delete: \(app.debugDescription)"
+        )
     }
 
     func testDirtyProgramSetEditorBlocksInteractiveDismissalAndKeepsLabelsVisible() {

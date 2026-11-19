@@ -2722,7 +2722,7 @@ final class WorkoutViewModelTests: XCTestCase {
         let sourceDate = LocalDate(year: 2026, month: 12, day: 18)
         let untilDate = LocalDate(year: 2027, month: 1, day: 14)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
-        _ = repository.createEmptyWorkout(on: sourceDate, at: .distantPast)
+        try seedRepeatableWorkout(repository, on: sourceDate)
         let viewModel = WorkoutViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
 
         let result = try viewModel.repeatWorkout(from: sourceDate, through: untilDate)
@@ -2746,7 +2746,7 @@ final class WorkoutViewModelTests: XCTestCase {
         let sourceDate = LocalDate(year: 2026, month: 8, day: 14)
         let endDate = LocalDate(year: 2026, month: 10, day: 9)
         let repository = InMemoryWorkoutRepository(userID: UserID(rawValue: "user"))
-        _ = repository.createEmptyWorkout(on: sourceDate, at: .distantPast)
+        try seedRepeatableWorkout(repository, on: sourceDate)
         let viewModel = WorkoutViewModel(repository: repository, initialDate: sourceDate, currentDate: sourceDate, calendar: mondayCalendar())
 
         let result = try viewModel.repeatWorkout(from: sourceDate, through: endDate)
@@ -3002,4 +3002,15 @@ private final class ControllableWorkoutObservation: WorkoutObservation {
     }
 
     deinit { MainActor.assumeIsolated { cancel() } }
+}
+
+/// A workout with one planned set; Repeat refuses an empty source (GYM-28).
+@MainActor
+private func seedRepeatableWorkout(_ repository: InMemoryWorkoutRepository, on date: LocalDate) throws {
+    var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+    workout.exercises = [WorkoutExercise(
+        id: WorkoutExerciseID(), exerciseID: SystemExerciseCatalog.all[0].id, customName: nil,
+        order: 0, isSkipped: false, sets: [WorkoutSet(order: 0, reps: 8)]
+    )]
+    try repository.save(workout)
 }

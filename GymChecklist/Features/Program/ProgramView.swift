@@ -95,8 +95,13 @@ struct ProgramView: View {
                         Button {
                             activeSheet = .repeatWorkout(RepeatWorkoutRoute(sourceDate: workout.localDate))
                         } label: {
-                            Label("Repeat workout", systemImage: "arrow.triangle.2.circlepath")
+                            Label(
+                                WorkoutViewModel.hasPlannedSets(workout) ? "Repeat workout" : "Repeat workout (add a set first)",
+                                systemImage: "arrow.triangle.2.circlepath"
+                            )
                         }
+                        // GYM-28: an empty workout cannot be repeated.
+                        .disabled(!WorkoutViewModel.hasPlannedSets(workout))
                         .accessibilityIdentifier("programRepeatWorkout")
                     }
 
@@ -678,11 +683,25 @@ struct ProgramView: View {
                         .frame(width: 44, height: 44)
                         .background(GymTheme.accentSoft, in: RoundedRectangle(cornerRadius: 9))
                         .contentShape(Rectangle())
-                        .accessibilityLabel("Drag set \(setIndex + 1) to reorder")
-                        .accessibilityHint("Drag up or down")
+                        .accessibilityLabel("Reorder set \(setIndex + 1)")
+                        .accessibilityHint("Touch and hold, then drag up or down. Or use the Move up and Move down actions.")
                         .accessibilityIdentifier("programSetDragHandle-\(set.id.rawValue.uuidString)")
+                        .accessibilityAction(named: "Move up") {
+                            moveSet(set.id, by: -1, in: exercise.id, sets: sets)
+                        }
+                        .accessibilityAction(named: "Move down") {
+                            moveSet(set.id, by: 1, in: exercise.id, sets: sets)
+                        }
                         .gesture(reorderGesture(for: set.id, in: exercise.id, sets: sets))
                 }
+                // GYM-30: the row being dragged is lifted so the reorder is visible.
+                .scaleEffect(reorderSession?.setID == set.id ? 1.03 : 1)
+                .shadow(
+                    color: .black.opacity(reorderSession?.setID == set.id ? 0.18 : 0),
+                    radius: 8, y: 3
+                )
+                .zIndex(reorderSession?.setID == set.id ? 1 : 0)
+                .sensoryFeedback(.selection, trigger: reorderSession?.setID == set.id ? reorderSession?.provisionalOrder : nil)
                 .background {
                     GeometryReader { geometry in
                         Color.clear.preference(
@@ -884,11 +903,15 @@ struct ProgramView: View {
         in exerciseID: WorkoutExerciseID,
         sets: [WorkoutSet]
     ) -> some Gesture {
-        DragGesture(minimumDistance: 8, coordinateSpace: .named(ProgramSetListCoordinateSpace.name))
+        // GYM-30: a short hold before dragging leaves horizontal swipes (Delete)
+        // and vertical scrolling that start on the handle to the List.
+        LongPressGesture(minimumDuration: 0.25)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(ProgramSetListCoordinateSpace.name)))
             .updating($isReorderGestureActive) { _, isActive, _ in
                 isActive = true
             }
-            .onChanged { value in
+            .onChanged { sequence in
+                guard case let .second(true, drag) = sequence else { return }
                 if reorderSession == nil {
                     reorderSession = ProgramSetReorderSession(
                         exerciseID: exerciseID,
@@ -896,10 +919,11 @@ struct ProgramView: View {
                         originalOrder: sets.map(\.id)
                     )
                 }
+                guard let drag else { return }
                 guard var session = reorderSession,
                       session.exerciseID == exerciseID,
                       session.setID == setID else { return }
-                session.update(dragLocationY: value.location.y, rowFrames: setRowFrames)
+                session.update(dragLocationY: drag.location.y, rowFrames: setRowFrames)
                 withAnimation(.easeInOut(duration: 0.16)) {
                     reorderSession = session
                 }
@@ -919,6 +943,14 @@ struct ProgramView: View {
         withAnimation(.easeOut(duration: 0.14)) {
             reorderSession = nil
         }
+    }
+
+    /// VoiceOver cannot drag, so the handle offers Move up / Move down (GYM-30).
+    private func moveSet(_ setID: WorkoutSetID, by offset: Int, in exerciseID: WorkoutExerciseID, sets: [WorkoutSet]) {
+        var order = sets.map(\.id)
+        guard let index = order.firstIndex(of: setID), order.indices.contains(index + offset) else { return }
+        order.swapAt(index, index + offset)
+        persistSetOrder(order, in: exerciseID)
     }
 }
 
@@ -973,6 +1005,7 @@ private struct ProgramSetRowFramePreferenceKey: PreferenceKey {
 private struct ExerciseReorderSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var exercises: [WorkoutExercise]
+    private let initialOrder: [WorkoutExerciseID]
     let exerciseName: (WorkoutExercise) -> String
     let onReorder: ([WorkoutExerciseID]) -> Void
 
@@ -982,6 +1015,7 @@ private struct ExerciseReorderSheet: View {
         onReorder: @escaping ([WorkoutExerciseID]) -> Void
     ) {
         _exercises = State(initialValue: exercises)
+        initialOrder = exercises.map(\.id)
         self.exerciseName = exerciseName
         self.onReorder = onReorder
     }
@@ -996,12 +1030,24 @@ private struct ExerciseReorderSheet: View {
                 }
                 .onMove { source, destination in
                     exercises.move(fromOffsets: source, toOffset: destination)
-                    onReorder(exercises.map(\.id))
                 }
             }
             .environment(\.editMode, .constant(.active))
             .navigationTitle("Reorder exercises")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: dismiss.callAsFunction) } }
+            // GYM-30: the order is saved once on Done, and Cancel discards it.
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: dismiss.callAsFunction)
+                        .accessibilityIdentifier("programReorderCancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        if exercises.map(\.id) != initialOrder { onReorder(exercises.map(\.id)) }
+                        dismiss()
+                    }
+                }
+            }
+            .interactiveDismissDisabled(exercises.map(\.id) != initialOrder)
         }
     }
 }
@@ -1525,7 +1571,8 @@ private struct RepeatWorkoutSheet: View {
                     Text("Cadence").font(.subheadline.weight(.medium))
                     Picker("Cadence", selection: $cadenceWeeks) {
                         ForEach(1...4, id: \.self) { weeks in
-                            Text(weeks == 1 ? "Every week" : "Every \(weeks) weeks").tag(weeks)
+                            // GYM-28: short labels so segments are not truncated.
+                            Text(weeks == 1 ? "Weekly" : "\(weeks) wk").tag(weeks)
                         }
                     }
                     .pickerStyle(.segmented)

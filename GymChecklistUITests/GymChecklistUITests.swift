@@ -513,6 +513,13 @@ final class GymChecklistUITests: XCTestCase {
             replaceApp.swipeUp()
         }
         XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
+        // In the full-height sheet the choice can sit under the pinned action
+        // button; a tap there would hit the button. Scroll it above the button.
+        let pinnedAction = replaceApp.buttons["copyWorkoutAction"]
+        for _ in 0..<4 {
+            guard pinnedAction.exists, replaceChoice.frame.maxY > pinnedAction.frame.minY - 8 else { break }
+            replaceApp.swipeUp()
+        }
         replaceChoice.buttons["Replace exercises"].tap()
         // The action is pinned in the sheet's bottom inset; it can be briefly
         // absent while the segment change re-renders, so wait instead of swiping.

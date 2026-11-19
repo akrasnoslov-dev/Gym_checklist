@@ -545,6 +545,9 @@ struct ProgramView: View {
         }
         }
         .listStyle(.insetGrouped)
+        // GYM-30: the handle gesture runs alongside the List (so row swipes still
+        // work); scrolling pauses only while a set is actually being dragged.
+        .scrollDisabled(reorderSession != nil)
         .scrollContentBackground(.hidden)
         .background(GymTheme.surfaceBase)
         // GYM-27: keep the last button clear of the tab bar.
@@ -694,7 +697,7 @@ struct ProgramView: View {
                         .accessibilityAction(named: "Move down") {
                             moveSet(set.id, by: 1, in: exercise.id, sets: sets)
                         }
-                        .gesture(reorderGesture(for: set.id, in: exercise.id, sets: sets))
+                        .simultaneousGesture(reorderGesture(for: set.id, in: exercise.id, sets: sets))
                 }
                 // GYM-30: the row being dragged is lifted so the reorder is visible.
                 .scaleEffect(reorderSession?.setID == set.id ? 1.03 : 1)

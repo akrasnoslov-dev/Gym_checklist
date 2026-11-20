@@ -445,6 +445,13 @@ final class GymChecklistUITests: XCTestCase {
         copySheet.swipeDown()
         XCTAssertTrue(copySheet.waitForExistence(timeout: 2), "Copy must remain open until Cancel or Copy")
         XCTAssertTrue(app.buttons["copyWorkoutSourceDate-2026-08-14"].waitForExistence(timeout: 2))
+        // GYM-45 regression: the source month arrows must change the month
+        // (a Form row used to swallow both taps).
+        app.buttons["copyWorkoutNextMonth"].tap()
+        XCTAssertTrue(app.buttons["copyWorkoutSourceDate-2026-09-15"].waitForExistence(timeout: 2), "Next month arrow did not move the source calendar")
+        XCTAssertFalse(app.buttons["copyWorkoutSourceDate-2026-08-14"].exists)
+        app.buttons["copyWorkoutPreviousMonth"].tap()
+        XCTAssertTrue(app.buttons["copyWorkoutSourceDate-2026-08-14"].waitForExistence(timeout: 2), "Previous month arrow did not return to August")
         let copy = app.buttons["copyWorkoutAction"]
         XCTAssertTrue(copy.isEnabled)
         XCTAssertEqual(copy.label, "Copy exercises")

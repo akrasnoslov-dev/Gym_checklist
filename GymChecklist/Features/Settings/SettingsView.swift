@@ -969,10 +969,17 @@ private struct BodyWeightHistorySheet: View {
                     .accessibilityHidden(true)
             }
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .padding(.horizontal, GymTheme.spacing16)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowBackground(rowBackground)
+        // GYM-49: like set rows (GYM-26/44), each measurement is its own
+        // rounded tile, so a swipe moves a rounded tile instead of squaring
+        // off the corners of a grouped card.
+        .background(rowBackground, in: RoundedRectangle(cornerRadius: GymTheme.radiusControl, style: .continuous))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 3, leading: 0, bottom: 3, trailing: 0))
         .accessibilityLabel(weight)
         .accessibilityValue(date)
         .accessibilityHint("Edit measurement")

@@ -82,6 +82,14 @@ struct ProgramView: View {
                         .accessibilityIdentifier("programRepeatWorkout")
                     }
 
+                    // GYM-48: moved here from each exercise's menu.
+                    if !isHistorical && workout.exercises.count > 1 {
+                        Button("Reorder exercises", systemImage: "arrow.up.arrow.down") {
+                            activeSheet = .reorderExercises
+                        }
+                        .accessibilityIdentifier("programReorderExercises")
+                    }
+
                     Divider()
                     Button("Delete workout", systemImage: "trash", role: .destructive) {
                         confirmation = .workout(workout.localDate)
@@ -243,6 +251,10 @@ struct ProgramView: View {
                 legendItem("Incomplete", symbol: "exclamationmark.circle", color: GymTheme.destructive)
             }
             .font(.caption2)
+            // GYM-47: the scroll view clipped the first icon at its edges,
+            // so "Empty" showed only part of its circle.
+            .padding(.horizontal, GymTheme.spacing4)
+            .padding(.vertical, 2)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Workout status legend")
@@ -423,18 +435,26 @@ struct ProgramView: View {
             }
             Spacer(minLength: 0)
             if case let .workout(status) = calendarState.selectedDayState {
+                // GYM-47: a List row turned the Label into a tall icon-only
+                // capsule. An explicit icon + word keeps a one-line badge.
                 let color = dayStateColor(.workout(status))
-                Label(statusLabel(status), systemImage: ProgramDayState.workout(status).systemImage ?? "circle")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(color)
-                    .padding(.horizontal, GymTheme.spacing8 + 2)
-                    .padding(.vertical, 5)
-                    .background(color.opacity(0.14), in: Capsule())
-                    .fixedSize()
-                    .accessibilityIdentifier("programWorkoutState")
+                HStack(spacing: GymTheme.spacing4) {
+                    Image(systemName: ProgramDayState.workout(status).systemImage ?? "circle")
+                        .imageScale(.small)
+                        .accessibilityHidden(true)
+                    Text(statusLabel(status))
+                        .lineLimit(1)
+                        .accessibilityIdentifier("programWorkoutState")
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(color)
+                .padding(.horizontal, GymTheme.spacing8 + 2)
+                .frame(height: 26)
+                .background(color.opacity(0.14), in: Capsule())
+                .fixedSize()
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func dayTitle(for date: LocalDate) -> String {
@@ -702,36 +722,20 @@ struct ProgramView: View {
                     .textCase(nil)
                     // GYM-34: the same exercise can appear twice, so IDs use the row ID.
                     .accessibilityIdentifier("programExercise-\(exercise.id.rawValue.uuidString)")
-                Text(exerciseSetType(exercise).title)
-                    .font(.caption2.weight(.semibold))
+                // GYM-47: the set type is an icon; the text stays for VoiceOver.
+                Image(systemName: exerciseSetType(exercise).systemImage)
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(GymTheme.accentForeground)
-                    .padding(.horizontal, GymTheme.spacing8)
-                    .padding(.vertical, 3)
-                    .background(GymTheme.accentSoft, in: Capsule())
-                    .fixedSize()
-                    .textCase(nil)
+                    .frame(width: 26, height: 26)
+                    .background(GymTheme.accentSoft, in: Circle())
+                    .accessibilityLabel("Set type: \(exerciseSetType(exercise).title)")
+                    .accessibilityIdentifier("programExerciseType-\(exercise.id.rawValue.uuidString)")
                 Spacer(minLength: 0)
+                // GYM-48: the set type is changed in the set editor (it applies
+                // to every set of the exercise) and exercises are reordered from
+                // the workout menu, so this menu only deletes the exercise.
                 Menu {
-                    Menu("Set type", systemImage: "slider.horizontal.3") {
-                        ForEach(WorkoutSetType.editableCases, id: \.self) { type in
-                            Button {
-                                setExerciseType(type, for: exercise.id)
-                            } label: {
-                                if exerciseSetType(exercise) == type {
-                                    Label(type.title, systemImage: "checkmark")
-                                } else {
-                                    Text(type.title)
-                                }
-                            }
-                        }
-                    }
-                    if orderedExercises.count > 1 {
-                        Button("Reorder exercises", systemImage: "arrow.up.arrow.down") {
-                            activeSheet = .reorderExercises
-                        }
-                        .accessibilityIdentifier("programReorderExercises")
-                    }
-                    Button("Delete", role: .destructive) {
+                    Button("Delete exercise", systemImage: "trash", role: .destructive) {
                         confirmation = .exercise(PendingExerciseDeletion(
                             workoutDate: calendarState.selectedDate,
                             id: exercise.id,
@@ -751,7 +755,8 @@ struct ProgramView: View {
                 .accessibilityLabel("Actions for \(name), exercise \(index + 1) of \(orderedExercises.count)")
                 .accessibilityIdentifier("programExerciseActions-\(exercise.id.rawValue.uuidString)")
             }
-            .padding(.leading, GymTheme.spacing4)
+            // GYM-47: the name starts at the same edge as the set tiles.
+            .listRowInsets(EdgeInsets(top: GymTheme.spacing8, leading: 0, bottom: GymTheme.spacing4, trailing: 0))
             .accessibilityIdentifier("programExerciseRow-\(exercise.id.rawValue.uuidString)")
         }
     }
@@ -931,14 +936,6 @@ struct ProgramView: View {
             $0.reps > 0 || $0.weight > 0 || $0.timeSeconds > 0
         }
         return configured?.type ?? sets.first?.type ?? WorkoutSetType.defaultForNewSet
-    }
-
-    private func setExerciseType(_ type: WorkoutSetType, for exerciseID: WorkoutExerciseID) {
-        do {
-            try viewModel.setExerciseType(type, for: exerciseID, on: calendarState.selectedDate)
-        } catch {
-            showsMutationError = true
-        }
     }
 
     /// VoiceOver cannot drag, so the handle offers Move up / Move down (GYM-30).
@@ -1249,10 +1246,14 @@ private struct CopyWorkoutSheet: View {
                         .datePickerStyle(.compact)
                         .accessibilityIdentifier("copyWorkoutDestination")
 
-                    Text(destinationSummary)
-                        .font(.subheadline)
-                        .foregroundStyle(destinationMessage == nil ? GymTheme.textSecondary : GymTheme.destructive)
-                        .accessibilityIdentifier("copyWorkoutDestinationMessage")
+                    // GYM-49: no explanatory line for a new or empty
+                    // destination; only errors and an existing plan are shown.
+                    if let destinationSummary {
+                        Text(destinationSummary)
+                            .font(.subheadline)
+                            .foregroundStyle(destinationMessage == nil ? GymTheme.textSecondary : GymTheme.destructive)
+                            .accessibilityIdentifier("copyWorkoutDestinationMessage")
+                    }
 
                     if case .populated = currentDestinationState, destinationMessage == nil {
                         Picker("Existing workout", selection: $destinationChoice) {
@@ -1268,6 +1269,10 @@ private struct CopyWorkoutSheet: View {
                 }
 
             }
+            // GYM-49: the form scrolls only when it does not fit, and the
+            // sections sit closer so Destination clears the pinned button.
+            .listSectionSpacing(GymTheme.spacing12)
+            .scrollBounceBehavior(.basedOnSize)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 Button {
                     requestCopy()
@@ -1351,13 +1356,11 @@ private struct CopyWorkoutSheet: View {
         return nil
     }
 
-    private var destinationSummary: String {
+    private var destinationSummary: String? {
         if let destinationMessage { return destinationMessage }
         switch currentDestinationState {
-        case .missing:
-            return "A new independent planned workout will be created."
-        case .empty:
-            return "The empty workout will receive an independent plan copy."
+        case .missing, .empty:
+            return nil
         case let .populated(exerciseCount, setCount):
             return "Existing: \(exerciseCount) \(exerciseCount == 1 ? "exercise" : "exercises") · \(setCount) \(setCount == 1 ? "set" : "sets")."
         }
@@ -1566,19 +1569,22 @@ private struct RepeatWorkoutSheet: View {
                     }
                     .gymCard()
 
-                    GymSectionHeader(title: "Result")
-                    VStack(alignment: .leading, spacing: GymTheme.spacing8) {
-                    Text(scheduleSummary)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("repeatWorkoutSummary")
-                    ForEach(occupiedDates, id: \.self) { date in
-                        Text("Skip existing workout: \(fullDateLabel(for: date))")
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("repeatWorkoutSkip-\(date.description)")
+                    // GYM-49: no separate Result card. The count is on the button;
+                    // only skipped or impossible dates get a short note.
+                    if let scheduleNote {
+                        VStack(alignment: .leading, spacing: GymTheme.spacing4) {
+                            Text(scheduleNote)
+                                .accessibilityIdentifier("repeatWorkoutSummary")
+                            ForEach(occupiedDates, id: \.self) { date in
+                                Text("Skip existing workout: \(fullDateLabel(for: date))")
+                                    .accessibilityIdentifier("repeatWorkoutSkip-\(date.description)")
+                            }
+                        }
+                        .font(.footnote)
+                        .foregroundStyle(GymTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, GymTheme.spacing4)
                     }
-                    }
-                    .gymCard()
 
                     Button {
                         do {
@@ -1588,7 +1594,7 @@ private struct RepeatWorkoutSheet: View {
                             showsRepeatError = true
                         }
                     } label: {
-                        Text("Create")
+                        Text(createActionTitle)
                             .frame(maxWidth: .infinity, minHeight: 48)
                     }
                     .buttonStyle(GymPrimaryButtonStyle())
@@ -1644,7 +1650,8 @@ private struct RepeatWorkoutSheet: View {
         candidateDates.filter { isDestinationOccupied($0) }
     }
 
-    private var scheduleSummary: String {
+    /// Shown only when some dates are skipped or nothing can be created.
+    private var scheduleNote: String? {
         guard !candidateDates.isEmpty else {
             return "Choose an end date that includes at least one repetition."
         }
@@ -1653,9 +1660,15 @@ private struct RepeatWorkoutSheet: View {
             return "Every selected week already has a workout. Nothing will be replaced."
         }
         if occupiedCount > 0 {
-            return "\(availableDates.count) \(availableDates.count == 1 ? "workout" : "workouts") will be created. \(occupiedCount) occupied \(occupiedCount == 1 ? "week" : "weeks") will be skipped."
+            return "\(occupiedCount) occupied \(occupiedCount == 1 ? "week" : "weeks") will be skipped."
         }
-        return "\(availableDates.count) independent \(availableDates.count == 1 ? "workout" : "workouts") will be created."
+        return nil
+    }
+
+    private var createActionTitle: String {
+        let count = availableDates.count
+        guard count > 0 else { return "Create" }
+        return "Create \(count) \(count == 1 ? "workout" : "workouts")"
     }
 
     private func fullDateLabel(for date: LocalDate) -> String {
@@ -1845,6 +1858,16 @@ extension WorkoutSetType {
         case .repsOnly: "Reps"
         case .timed: "Timed"
         case .legacyMixed: "Mixed"
+        }
+    }
+
+    /// GYM-47: the exercise header shows the type as an icon, not a text chip.
+    var systemImage: String {
+        switch self {
+        case .weighted: "dumbbell.fill"
+        case .repsOnly: "repeat"
+        case .timed: "stopwatch"
+        case .legacyMixed: "square.stack"
         }
     }
 }

@@ -129,11 +129,12 @@ final class GymChecklistUITests: XCTestCase {
         XCTAssertTrue(repeatDuration.waitForExistence(timeout: 2))
         XCTAssertTrue(repeatCadence.exists)
         repeatCadence.buttons["2 wk"].tap()
-        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "2 independent workouts will be created."))
+        // GYM-49: no Result card; the count is on the button.
+        XCTAssertTrue(waitForLabel(of: app.buttons["repeatWorkoutAction"], toEqual: "Create 2 workouts"))
         repeatDuration.buttons["8 weeks"].tap()
-        XCTAssertTrue(waitForLabel(of: app.staticTexts["repeatWorkoutSummary"], toEqual: "4 independent workouts will be created."))
+        XCTAssertTrue(waitForLabel(of: app.buttons["repeatWorkoutAction"], toEqual: "Create 4 workouts"))
+        XCTAssertFalse(app.staticTexts["repeatWorkoutSummary"].exists)
         XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
-        XCTAssertEqual(app.buttons["repeatWorkoutAction"].label, "Create")
         app.buttons["repeatWorkoutCancel"].tap()
         XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
 
@@ -213,9 +214,16 @@ final class GymChecklistUITests: XCTestCase {
         let benchName = app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch
         let nordicName = app.staticTexts.matching(NSPredicate(format: "label == %@", "Nordic Hop")).firstMatch
         XCTAssertLessThan(benchName.frame.minY, nordicName.frame.minY)
+        // GYM-48: the exercise menu only deletes; reorder lives in the workout menu.
         app.buttons["Actions for Nordic Hop, exercise 2 of 2"].tap()
-        XCTAssertTrue(app.buttons["Reorder exercises"].waitForExistence(timeout: 2))
-        app.buttons["Reorder exercises"].tap()
+        XCTAssertTrue(app.buttons["Delete exercise"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["Reorder exercises"].exists)
+        XCTAssertFalse(app.buttons["Set type"].exists)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+        XCTAssertTrue(app.buttons["Delete exercise"].waitForNonExistence(timeout: 2))
+        app.buttons["programWorkoutActions"].tap()
+        XCTAssertTrue(app.buttons["programReorderExercises"].waitForExistence(timeout: 2))
+        app.buttons["programReorderExercises"].tap()
         XCTAssertTrue(app.navigationBars["Reorder exercises"].waitForExistence(timeout: 2))
         // GYM-34: reorder rows are identified by row ID; match the name via the label.
         let benchInReorder = app.descendants(matching: .any).matching(NSPredicate(
@@ -267,7 +275,7 @@ final class GymChecklistUITests: XCTestCase {
         let reorderedBenchActions = app.buttons["Actions for Bench Press, exercise 2 of 2"]
         XCTAssertTrue(reorderedBenchActions.waitForExistence(timeout: 2))
         reorderedBenchActions.tap()
-        app.buttons["Delete"].tap()
+        app.buttons["Delete exercise"].tap()
         let deleteExerciseAlert = app.alerts["Delete Bench Press?"]
         XCTAssertTrue(deleteExerciseAlert.waitForExistence(timeout: 3))
         // SwiftUI exposes both a native container and its child as buttons.

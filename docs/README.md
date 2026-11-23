@@ -15,7 +15,8 @@ Read `AGENTS.md` first. Do not preload this directory.
 | Phase 4 UI/UX decisions for the final candidate | `ui_research_phase4.md` |
 | Durable Phase 5 implementation design constraints | `ui_ux_design_rules.md` |
 | Firebase, sign-in, security, offline and deletion setup | matching topical document |
-| Physical-iPhone acceptance | `mvp_acceptance_checklist.md` and `mvp_external_acceptance_handoff.md` |
+| Physical-iPhone acceptance (MVP accepted 2026-11-23) | `mvp_acceptance_checklist.md` |
+| Historical MVP acceptance records | `archive/` |
 | Deferred paid release work | `release/` |
 | Approved current brand assets | `brand/README.md` |
 

@@ -25,7 +25,7 @@ final class SettingsViewModel: ObservableObject {
         currentDate: LocalDate? = nil
     ) {
         self.repository = repository
-        self.currentDate = currentDate ?? LocalDate(date: Date(), calendar: .autoupdatingCurrent)
+        self.currentDate = currentDate ?? LocalDate(date: Date(), calendar: .gymLocal)
         let resolvedBodyWeightRepository = bodyWeightRepository ?? InMemoryBodyWeightRepository(userID: repository.userID)
         self.bodyWeightRepository = resolvedBodyWeightRepository
         settings = repository.settings
@@ -89,7 +89,7 @@ final class SettingsViewModel: ObservableObject {
     /// Called when the app becomes active or receives a significant time
     /// change so local-date BMI applicability never remains stuck yesterday.
     func refreshCurrentDate(_ date: LocalDate? = nil) {
-        let refreshed = date ?? LocalDate(date: Date(), calendar: .autoupdatingCurrent)
+        let refreshed = date ?? LocalDate(date: Date(), calendar: .gymLocal)
         guard refreshed != currentDate else { return }
         currentDate = refreshed
     }
@@ -533,7 +533,7 @@ struct SettingsView: View {
 
     private var profileSummary: String {
         var values: [String] = []
-        if let age = viewModel.settings.profile.age(on: LocalDate(date: Date()), calendar: .autoupdatingCurrent) {
+        if let age = viewModel.settings.profile.age(on: LocalDate(date: Date()), calendar: .gymLocal) {
             values.append("Age \(age)")
         }
         if let height = viewModel.settings.profile.heightCentimeters {
@@ -722,7 +722,7 @@ private struct ProfileEditorSheet: View {
         self.profile = profile
         self.onSave = onSave
         _sex = State(initialValue: profile.sex)
-        _dateOfBirth = State(initialValue: profile.dateOfBirth?.date(in: .autoupdatingCurrent) ?? Date())
+        _dateOfBirth = State(initialValue: profile.dateOfBirth?.date(in: .gymLocal) ?? Date())
         _hasDateOfBirth = State(initialValue: profile.dateOfBirth != nil)
         _heightText = State(initialValue: profile.heightCentimeters.map { $0.formatted(.number.precision(.fractionLength(0...1))) } ?? "")
     }
@@ -1017,7 +1017,7 @@ private struct BodyWeightHistorySheet: View {
     private func beginEditing(_ measurement: BodyWeightMeasurement) {
         editingMeasurement = measurement
         weightText = DecimalInputText.text(for: unit.displayWeight(fromCanonicalKilograms: measurement.weightInKilograms))
-        measurementDate = measurement.localDate.date(in: .autoupdatingCurrent) ?? measurement.measuredAt
+        measurementDate = measurement.localDate.date(in: .gymLocal) ?? measurement.measuredAt
     }
 
     private func weightLabel(_ measurement: BodyWeightMeasurement) -> String {
@@ -1041,10 +1041,10 @@ private struct BodyWeightHistorySheet: View {
     }
 
     private func measurementDateLabel(_ measurement: BodyWeightMeasurement) -> String {
-        guard let date = measurement.localDate.date(in: .autoupdatingCurrent) else {
+        guard let date = measurement.localDate.date(in: .gymLocal) else {
             return measurement.localDate.description
         }
-        if Calendar.autoupdatingCurrent.isDateInToday(date) {
+        if Calendar.gymLocal.isDateInToday(date) {
             return "Today"
         }
         return date.formatted(.dateTime.month(.abbreviated).day())

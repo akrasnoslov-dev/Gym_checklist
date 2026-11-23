@@ -1363,4 +1363,33 @@ final class OptimisticDocumentStoreTests: XCTestCase {
         XCTAssertEqual(restored.map(\.1), [.missing])
         XCTAssertTrue(reported.isEmpty)
     }
+
+    // GYM-50 review: a Hebrew, Buddhist or Japanese system calendar must not
+    // crash LocalDate (Hebrew month 13) or shift the stored year.
+    func testLocalDateUsesGregorianDatesWhateverTheSystemCalendar() throws {
+        let timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Moscow"))
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = timeZone
+        let instant = try XCTUnwrap(gregorian.date(from: DateComponents(year: 2026, month: 9, day: 1, hour: 12)))
+
+        for identifier in [Calendar.Identifier.hebrew, .buddhist, .japanese, .islamicUmmAlQura] {
+            var system = Calendar(identifier: identifier)
+            system.timeZone = timeZone
+            let date = LocalDate(date: instant, calendar: system)
+            XCTAssertEqual(date, LocalDate(year: 2026, month: 9, day: 1), "\(identifier)")
+            let roundTrip = try XCTUnwrap(date.date(in: system))
+            XCTAssertEqual(LocalDate(date: roundTrip, calendar: gregorian), date, "\(identifier)")
+            XCTAssertEqual(date.adding(weeks: 1, calendar: system), LocalDate(year: 2026, month: 9, day: 8), "\(identifier)")
+            XCTAssertEqual(date.adding(months: 1, calendar: system), LocalDate(year: 2026, month: 10, day: 1), "\(identifier)")
+        }
+    }
+
+    func testProgramWeekIsMondayToSundayWithANonGregorianSystemCalendar() {
+        var hebrew = Calendar(identifier: .hebrew)
+        hebrew.timeZone = TimeZone(secondsFromGMT: 3 * 3600)!
+        let state = ProgramCalendarState(selectedDate: LocalDate(year: 2026, month: 9, day: 3), calendar: hebrew)
+        XCTAssertEqual(state.weekDates.first, LocalDate(year: 2026, month: 8, day: 31))
+        XCTAssertEqual(state.weekDates.last, LocalDate(year: 2026, month: 9, day: 6))
+        XCTAssertEqual(state.calendar.identifier, .gregorian)
+    }
 }

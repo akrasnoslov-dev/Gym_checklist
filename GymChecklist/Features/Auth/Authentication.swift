@@ -583,6 +583,12 @@ private struct FirebaseAccountDeletionCallable {
     func deleteCurrentAccount() async throws {
         _ = await FirestoreLocalData.waitForPendingWrites(timeout: 5)
         try await callDeleteAccount()
+        // GYM-50 review: drop the locally persisted Firebase/Google session
+        // too, so a restart cannot reopen the deleted account before Firebase
+        // notices the user is gone. The backend deletion already succeeded,
+        // so a local sign-out failure must not report the deletion as failed.
+        try? Auth.auth().signOut()
+        GIDSignIn.sharedInstance.signOut()
         await FirestoreLocalData.clear()
     }
 

@@ -34,12 +34,12 @@ struct ProgramCalendarState {
     init(
         selectedDate: LocalDate,
         currentDate: LocalDate? = nil,
-        calendar: Calendar = .autoupdatingCurrent,
+        calendar: Calendar = .gymLocal,
         workouts: [Workout] = []
     ) {
         self.selectedDate = selectedDate
         self.currentDate = currentDate ?? selectedDate
-        var displayCalendar = calendar
+        var displayCalendar = calendar.gregorianEquivalent
         displayCalendar.firstWeekday = 2
         displayCalendar.minimumDaysInFirstWeek = 4
         self.calendar = displayCalendar

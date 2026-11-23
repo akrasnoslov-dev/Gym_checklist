@@ -171,13 +171,33 @@ final class GymChecklistUITests: XCTestCase {
         let secondSetDragHandle = setDragHandles.element(boundBy: 1)
         XCTAssertTrue(firstSetDragHandle.waitForExistence(timeout: 5))
         XCTAssertTrue(secondSetDragHandle.waitForExistence(timeout: 5))
-        secondSetDragHandle.press(forDuration: 1.0, thenDragTo: firstSetDragHandle)
         let reorderedFirstStableBenchSet = app.buttons[firstStableBenchSetIdentifier]
         let reorderedSecondStableBenchSet = app.buttons[secondStableBenchSetIdentifier]
         let didReorder = NSPredicate { _, _ in
             reorderedSecondStableBenchSet.frame.minY < reorderedFirstStableBenchSet.frame.minY
         }
-        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: didReorder, object: nil)], timeout: 5), .completed)
+        // GYM-45 made set reordering the native List drag (touch and hold the
+        // tile, then drag), so drop into the upper part of the first tile
+        // slowly and hold, like the exercise reorder test below. Synthesized
+        // long-press drags are occasionally dropped by the simulator before
+        // onMove starts, so retry the gesture; the assertion stays strict.
+        var setReorderResult = XCTWaiter.Result.timedOut
+        for _ in 0..<3 {
+            let dropPoint = firstSetDragHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+            secondSetDragHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(
+                    forDuration: 1.5,
+                    thenDragTo: dropPoint,
+                    withVelocity: .slow,
+                    thenHoldForDuration: 0.5
+                )
+            setReorderResult = XCTWaiter.wait(
+                for: [XCTNSPredicateExpectation(predicate: didReorder, object: nil)],
+                timeout: 5
+            )
+            if setReorderResult == .completed { break }
+        }
+        XCTAssertEqual(setReorderResult, .completed, app.debugDescription)
         app.tabBars.buttons["Today"].tap()
         app.tabBars.buttons["Program"].tap()
         XCTAssertLessThan(

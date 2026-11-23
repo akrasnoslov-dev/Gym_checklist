@@ -91,7 +91,7 @@ The clickable HTML design prototype opens without a build: open `design/prototyp
 
 ## Project status
 
-The MVP flow is implemented. The Phase 9 visual redesign is merged into `dev` and awaits acceptance on a physical iPhone. The account-deletion Cloud Function source is complete but not deployed, and the app is not yet on the App Store or TestFlight. The exact checkpoint is in [`docs/progress.md`](docs/progress.md).
+The MVP stage is complete: the functional MVP was accepted on a physical iPhone on 2026-11-23. The account-deletion Cloud Function source is complete but not deployed, and the app is not yet on the App Store or TestFlight; distribution is the next stage. The exact checkpoint is in [`docs/progress.md`](docs/progress.md).
 
 ## Repository layout
 

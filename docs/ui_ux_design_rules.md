@@ -1,7 +1,7 @@
 # Gym Checklist — UI/UX Design Rules
 
-**Status:** active design constraints for Phase 5 and later SwiftUI implementation.  
-**Derived from:** product/UX specs, Phase 2 current-app audit, and Phase 4 UI/UX research.  
+**Status:** active design constraints for Phase 5 and later SwiftUI implementation.\
+**Derived from:** product/UX specs, Phase 2 current-app audit, and Phase 4 UI/UX research.\
 **Approval boundary:** these rules constrain design; they do not make a Phase 5 candidate approved. User approval is still required before implementation.
 
 ## 1. Product invariant

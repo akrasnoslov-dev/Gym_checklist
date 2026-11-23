@@ -1,8 +1,8 @@
 # Gym Checklist — Phase 4 UI/UX Design Research
 
-**Status:** complete and current as of 2026-09-18.  
-**Purpose:** direct input to Phase 5 final UI/UX design.  
-**Baseline:** Phase 2 current-app inventory + real runtime screenshots.  
+**Status:** complete and current as of 2026-09-18.\
+**Purpose:** direct input to Phase 5 final UI/UX design.\
+**Baseline:** Phase 2 current-app inventory + real runtime screenshots.\
 **Not an implementation change:** this document does not modify product behavior or production SwiftUI.
 
 ## 1. Research scope

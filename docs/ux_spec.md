@@ -1,0 +1,222 @@
+# Gym Checklist — UX Specification
+
+## 1. UX objective
+The workout experience should feel like a checklist, not a fitness dashboard.
+
+Primary mental model:
+
+```text
+I already know my program. Show me today's work and let me tick it off.
+```
+
+## 2. Design direction
+- One minimalist design system.
+- System / Light / Dark appearances.
+- English only for MVP.
+- Native iOS interaction patterns where practical.
+- High information clarity with low visual density.
+- Current brand direction uses the approved lime/green-to-mint Gym Checklist mark and wordmark. Purple is not part of the approved visual direction; color remains secondary to hierarchy and readability.
+- Canonical brand assets live in `docs/brand/`; the app icon is wired through `GymChecklist/Assets.xcassets/AppIcon.appiconset`.
+
+### Reference mockup status
+`today-program-mockup.png` is a non-authoritative visual reference. If it conflicts with this specification, this specification wins. In particular, any `Delete set` action shown in the Today long-press editor is obsolete: set deletion belongs to Program editing only and must not be exposed as a Today long-press action unless explicitly approved later.
+
+### Current UI/UX design rules
+`docs/ui_research_phase4.md` and `docs/ui_ux_design_rules.md` are the current UI/UX handoff for the final redesign candidate. They define visual hierarchy, native iOS patterns, semantic tokens, Light/Dark direction, accessibility limits and explicit “do not do” rules. They do not change product behavior in this specification. The approved Phase 5 HTML/CSS prototype becomes the visual implementation reference only after an explicit design freeze.
+
+## 3. Today — highest priority screen
+### Content hierarchy
+1. `Today`
+2. Local date
+3. Exercise name
+4. One row per set
+5. Bottom navigation
+
+Avoid secondary metrics and explanatory copy while a workout exists.
+
+### Set row
+One row is one tappable completion target.
+
+Examples:
+- `8 reps × 85 kg`
+- `10 reps × 26 kg`
+- `10 reps`
+- `45 sec`
+
+Set row states:
+- incomplete
+- completed
+
+Completed must be distinguishable by more than color alone.
+
+### Interaction
+- Tap: toggle completed/incomplete.
+- Long press: open the edit sheet (full height, GYM-44).
+- No Start Workout button.
+- No per-exercise completion screen.
+- No automatic jumping to a next exercise.
+- Preserve scroll position after set interaction.
+
+### Exercise actions
+Secondary action for Skip Exercise should be available without cluttering every set row. Preferred candidates for final UI review:
+- long press on exercise header,
+- discreet overflow menu.
+
+Skipped exercise is removed from active Today. A low-prominence restore action must remain available.
+
+## 4. Long-press set editor
+Prefer a bottom sheet.
+
+Keep all three labels visible so entered values never replace field identity; disable controls that do not apply to the exercise's selected set type:
+- Reps
+- Weight (kg/lb)
+- Time
+
+Actions:
+- Save
+- Cancel
+- destructive set deletion only when editing Program, not as a primary Today action unless later explicitly approved.
+
+The editor should return directly to the same Today position.
+
+## 5. Workout completion
+Triggered only when the whole day's workout is complete.
+
+Use an overlay/modal, not navigation.
+Contents:
+- small illustration/animation,
+- short encouraging/meme-like line,
+- one dismiss action.
+
+Tone examples:
+- `You crushed it!`
+- `Gym survived. Barely.`
+- `Another one done.`
+- `Look at you actually sticking to the plan.`
+
+Do not show statistics in the completion popup for MVP.
+
+## 6. Today empty states
+### No program yet
+- Illustration may be used.
+- `No workout planned yet.`
+- `Create workout`
+
+### Rest day
+- `Rest day.`
+- `See you tomorrow.`
+- `View program`
+
+## 7. Program
+Program is allowed to be denser than Today because it is an editing/planning surface.
+
+### Week navigation
+Header with previous/next week controls and a 7-day selector.
+Each date visually communicates empty/planned/partial/completed/incomplete state with the shared symbolic state vocabulary plus an accessibility label; state must not be encoded by color alone.
+
+### Month navigation
+Program also offers a Month mode with previous/next month controls and a compact local-calendar grid. The calendar scrolls with the page in both modes; only the Program title stays pinned (GYM-44). Week and Month share one selected date and the same workout-detail surface. Every date communicates state with an accessible icon/label, not color alone.
+
+### Workout editor
+For selected date:
+- exercise sections,
+- ordered set rows,
+- add set,
+- add exercise,
+- edit/remove/reorder,
+- copy workout,
+- repeat every 1–4 weeks,
+- delete workout.
+
+Current/future Program rows use the whole set row as the edit affordance; do not repeat trailing `Edit`, `Edit plan`, or `Edit actual` labels on every row. A completed set remains visually legible and editing its plan must not overwrite its recorded actual value. Past dates use the same Program hierarchy and tapping an editable recorded result edits actual values.
+
+Exercise reorder retains its focused native list. Set reorder happens inline in Program with the native List reorder (touch and hold a set, then drag; a handle icon is the visual cue); no separate Reorder sets sheet or per-set ellipsis is required. Swipe left on a Program set row to expose Delete, with confirmation. A tap on the set row still edits the set.
+
+Do not surface history analytics here; past dates simply show actual completion/results.
+
+## 8. Exercise picker
+- Search at top.
+- Common/system exercises listed below.
+- `Add custom exercise` visible but secondary.
+- User-owned custom exercises offer Rename and Delete in the picker. Existing workout records keep their exercise-name fallback after deletion.
+- A richer system catalog, muscle-group filtering, alphabetical sorting, and per-exercise illustrations are deferred to a separate feature PR. No exercise images/videos in the current MVP.
+
+## 9. Custom exercise
+Minimum field:
+- Exercise name
+
+Optional category may be included for organization if it does not create unnecessary setup friction.
+
+## 10. Copy workout
+Compact sheet/flow:
+- source calendar with Program status symbols and disabled dates where no source workout exists,
+- source date/workout summary with exercise and set counts,
+- destination date selector,
+- Copy action; for a populated destination, explicit Add exercises and Replace exercises choices.
+
+Users may copy historical or future workouts into a different historical, current, or future date; source is selectable only among existing workouts. On an empty current/future date, `Create workout` immediately creates a blank workout. Copying is available only from an existing workout's `⋯` actions menu, not from Create. An existing empty workout is a valid destination and receives the copied plan. For a populated destination, Add preserves its exercises/results and appends independent copies; Replace requires a destructive confirmation that states the existing exercises and recorded results will be removed. Never silently replace an occupied destination.
+
+Do not copy completion state.
+
+### Physical-device corrective feedback (October 2026)
+- Program set rows use one handle-scoped reorder gesture with provisional list order, while native row swipe actions own deletion. Do not combine manual row offsets with `onDrag`/`onDrop`, or expose the swipe-delete background while dragging. A cancelled drag restores the original order; persistence occurs only when a completed drag changed the order.
+- After a workout is deleted, its confirmation must dismiss once; anchor destructive confirmation to a stable Program view, clear pending state before removing the source workout.
+- Program's title/calendar remain outside the dynamic workout list so date and Week/Month changes do not move or clip the header.
+- Program sheets and destructive confirmations are routed from one stable presentation owner to prevent overlapping or orphaned presentation state.
+- Empty historical placeholder workouts with no scheduled sets remain Planned, not Incomplete.
+- The Week/Month date symbols and the status legend share one semantic color and symbol vocabulary.
+- Avoid repeating the selected calendar date visually in the workout detail header; preserve it for accessibility.
+- Planning auto-saves. Show clear "Saved on device" feedback and distinguish local persistence from offline/cloud sync where available.
+- Show empty numeric inputs as placeholders rather than pre-filled zeroes; saving an intentionally empty value still uses domain zero.
+- Once the first set has configured nonzero plan values, its type constrains other newly configured sets within that exercise. Preserve pre-existing mixed/legacy workouts and completed actual data.
+- Confirmation dialogs should be presented by the nearest stable screen-level owner while clearly naming the initiating action and target; do not attach destructive confirmation lifecycle to rows or menus that disappear during the mutation.
+- Completion feedback uses multiple distinct whimsical illustrations and changes on repeat celebrations.
+
+## 11. Repeat workout
+Compact sheet:
+- configurable cadence of every 1–4 weeks,
+- end choice: 4 weeks / 8 weeks / Until date.
+
+Generated dates become independent workouts.
+
+## 12. History
+History is reached by navigating Program to past dates.
+Past workout displays completed, incomplete, and skipped sets and current actual values.
+Actual values can be edited.
+
+## 13. Authentication
+Keep minimal:
+- Sign in
+- Sign up
+- Continue with Google
+- Forgot password
+
+Email/password labels, placeholders and entered values follow standard leading-aligned native iOS form layout.
+
+After successful authentication, go directly to Today. No onboarding carousel.
+
+## 14. Settings
+Profile-first iOS settings pattern:
+- profile (optional sex, date of birth, height and neutral BMI presentation);
+- compact dated body-weight history with edit/delete; one entry per day (logging a date that already has one updates it; moving an entry onto a taken date is refused, GYM-45);
+- Appearance and Weight unit;
+- Account and destructive actions kept separate.
+
+## 15. Accessibility
+- Minimum practical touch targets.
+- VoiceOver labels for set state and actions.
+- Dynamic Type where layout permits.
+- Completion state not color-only.
+- Sufficient contrast in both themes.
+- Destructive Program changes require a native confirmation; body-weight history uses the standard destructive swipe affordance and preserves the row when deletion fails.
+
+## 16. UX review checklist
+Before accepting any Today change, answer:
+1. Does it reduce or preserve the number of taps?
+2. Does it add visual information that is unnecessary during the workout?
+3. Can the user still complete any set in any order?
+4. Does the screen remain understandable at a glance?
+5. Does offline state remain non-blocking?
+6. Is the secondary action hidden until needed?
+
+If a proposed feature fails these checks, keep it outside Today or outside MVP.

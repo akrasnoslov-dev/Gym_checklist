@@ -1,0 +1,1760 @@
+import XCTest
+
+final class GymChecklistUITests: XCTestCase {
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    func testAppLaunchesOnTodayAndNavigatesAllTabs() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-08-14"
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Program"].tap()
+        let weekHeader = app.staticTexts["programWeekHeader"]
+        XCTAssertTrue(weekHeader.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["programDate-2026-08-14"].exists)
+        XCTAssertTrue(app.staticTexts["programEmptyState"].exists)
+        XCTAssertTrue(app.buttons["programCreateWorkout"].exists)
+
+        let nextWeek = app.buttons["programNextWeek"]
+        let previousWeek = app.buttons["programPreviousWeek"]
+        XCTAssertTrue(nextWeek.isHittable)
+        XCTAssertTrue(previousWeek.isHittable)
+        nextWeek.tap()
+        XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: weekHeader, toEqual: "Aug 17 - Aug 23"))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, August 21, 2026"))
+        XCTAssertTrue(app.staticTexts["programEmptyState"].exists)
+        let previousWeekAfterNext = app.buttons["programPreviousWeek"]
+        XCTAssertTrue(previousWeekAfterNext.waitForExistence(timeout: 2))
+        previousWeekAfterNext.tap()
+        XCTAssertTrue(app.buttons["programDate-2026-08-14"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programWeekHeader"], toEqual: "Aug 10 - Aug 16"))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, August 14, 2026"))
+
+        app.buttons["programCreateWorkout"].tap()
+        XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
+        XCTAssertFalse(app.buttons["programCreateWorkout"].exists)
+        XCTAssertFalse(app.buttons["programCopyExistingWorkout"].exists)
+
+        // Navigate away only after the selected date has dynamic workout content.
+        // This guards the List subtree refresh used by week navigation.
+        let nextWeekAfterCreatingWorkout = app.buttons["programNextWeek"]
+        XCTAssertTrue(nextWeekAfterCreatingWorkout.waitForExistence(timeout: 2))
+        nextWeekAfterCreatingWorkout.tap()
+        XCTAssertTrue(app.buttons["programDate-2026-08-21"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, August 21, 2026"))
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["programCreateWorkout"].exists)
+
+        // Reacquire this control because changing weeks intentionally recreates
+        // the Program content subtree.
+        let previousWeekAfterEmptyWeek = app.buttons["programPreviousWeek"]
+        XCTAssertTrue(previousWeekAfterEmptyWeek.waitForExistence(timeout: 2))
+        previousWeekAfterEmptyWeek.tap()
+        XCTAssertTrue(app.buttons["programDate-2026-08-14"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, August 14, 2026"))
+        XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["programEmptyWorkout"].exists)
+
+        app.buttons["programWorkoutActions"].tap()
+        app.buttons["programCopyWorkout"].tap()
+        XCTAssertTrue(app.navigationBars["Copy workout"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["copyWorkoutSourceDate"].exists)
+        XCTAssertTrue(app.staticTexts["copyWorkoutSummary"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["copyWorkoutSourcePicker"].exists)
+        let destinationPicker = app.descendants(matching: .any)["copyWorkoutDestination"]
+        for _ in 0..<3 {
+            if destinationPicker.exists { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(destinationPicker.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["copyWorkoutAction"].exists)
+        XCTAssertEqual(app.buttons["copyWorkoutAction"].label, "Copy exercises")
+        XCTAssertFalse(app.buttons["copyWorkoutAction"].isEnabled)
+        app.buttons["copyWorkoutCancel"].tap()
+
+        // GYM-28: an empty workout cannot be repeated.
+        app.buttons["programWorkoutActions"].tap()
+        let emptyRepeat = app.buttons["programRepeatWorkout"]
+        XCTAssertTrue(emptyRepeat.waitForExistence(timeout: 2))
+        XCTAssertFalse(emptyRepeat.isEnabled)
+        // Tap empty list space below the menu to close it before continuing.
+        var menuClosed = false
+        for _ in 0..<3 where !menuClosed {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)).tap()
+            menuClosed = XCTWaiter().wait(for: [XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "hittable == false"), object: emptyRepeat
+            )], timeout: 2) == .completed
+        }
+        XCTAssertTrue(menuClosed, "Workout actions menu should close: \(app.debugDescription)")
+
+        app.buttons["programDate-2026-08-13"].tap()
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Thursday, August 13, 2026"))
+        app.buttons["programDate-2026-08-14"].tap()
+        XCTAssertTrue(app.staticTexts["programWorkoutState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, August 14, 2026"))
+
+        app.buttons["programAddExercise"].tap()
+        let search = app.searchFields["Search exercises"]
+        XCTAssertTrue(search.waitForExistence(timeout: 2))
+        search.tap()
+        XCTAssertTrue(app.keyboards.element.waitForExistence(timeout: 2))
+        search.typeText("bench")
+        let bench = app.buttons["exercisePickerResult-00000000-0000-4000-8000-000000000001"]
+        XCTAssertTrue(bench.waitForExistence(timeout: 2))
+        bench.tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch.waitForExistence(timeout: 2))
+
+        let addBenchSet = app.buttons["Add set to Bench Press"]
+        XCTAssertTrue(addBenchSet.waitForExistence(timeout: 2))
+        addBenchSet.tap()
+        let firstBenchSet = app.buttons["Edit set 1 for Bench Press"]
+        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+
+        app.buttons["programWorkoutActions"].tap()
+        app.buttons["programRepeatWorkout"].tap()
+        XCTAssertTrue(app.navigationBars["Repeat workout"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceDate"].exists)
+        XCTAssertTrue(app.staticTexts["repeatWorkoutSourceSummary"].exists)
+        let repeatDuration = app.segmentedControls["repeatWorkoutDuration"]
+        let repeatCadence = app.segmentedControls["repeatWorkoutCadence"]
+        XCTAssertTrue(repeatDuration.waitForExistence(timeout: 2))
+        XCTAssertTrue(repeatCadence.exists)
+        repeatCadence.buttons["2 wk"].tap()
+        // GYM-49: no Result card; the count is on the button.
+        XCTAssertTrue(waitForLabel(of: app.buttons["repeatWorkoutAction"], toEqual: "Create 2 workouts"))
+        repeatDuration.buttons["8 weeks"].tap()
+        XCTAssertTrue(waitForLabel(of: app.buttons["repeatWorkoutAction"], toEqual: "Create 4 workouts"))
+        XCTAssertFalse(app.staticTexts["repeatWorkoutSummary"].exists)
+        XCTAssertTrue(app.buttons["repeatWorkoutAction"].isEnabled)
+        app.buttons["repeatWorkoutCancel"].tap()
+        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 10))
+        let todayDate = app.staticTexts["todayDate"]
+        XCTAssertTrue(todayDate.waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(waitForLabel(of: todayDate, toEqual: "Friday, August 14"))
+        XCTAssertFalse(app.buttons["Start Workout"].exists)
+
+        app.tabBars.buttons["Program"].tap()
+        firstBenchSet.tap()
+        // GYM-24: a new set is weighted, shows the type, and only its usable fields.
+        XCTAssertTrue(app.textFields["programSetEditorReps"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.segmentedControls["programSetEditorType"].buttons["Weighted"].isSelected)
+        let benchWeight = app.textFields["programSetEditorWeight"]
+        XCTAssertTrue(benchWeight.exists)
+        XCTAssertTrue(benchWeight.isEnabled)
+        XCTAssertFalse(app.textFields["programSetEditorTime"].exists)
+        app.buttons["programSetEditorSave"].tap()
+        XCTAssertTrue(firstBenchSet.waitForExistence(timeout: 2))
+
+        addBenchSet.tap()
+        let stableBenchSets = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSet-"))
+        let firstStableBenchSet = stableBenchSets.element(boundBy: 0)
+        let secondStableBenchSet = stableBenchSets.element(boundBy: 1)
+        XCTAssertTrue(firstStableBenchSet.waitForExistence(timeout: 2))
+        XCTAssertTrue(secondStableBenchSet.waitForExistence(timeout: 2))
+        let firstStableBenchSetIdentifier = firstStableBenchSet.identifier
+        let secondStableBenchSetIdentifier = secondStableBenchSet.identifier
+        let setDragHandles = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSetDragHandle-"))
+        let firstSetDragHandle = setDragHandles.element(boundBy: 0)
+        let secondSetDragHandle = setDragHandles.element(boundBy: 1)
+        XCTAssertTrue(firstSetDragHandle.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondSetDragHandle.waitForExistence(timeout: 5))
+        let reorderedFirstStableBenchSet = app.buttons[firstStableBenchSetIdentifier]
+        let reorderedSecondStableBenchSet = app.buttons[secondStableBenchSetIdentifier]
+        let didReorder = NSPredicate { _, _ in
+            reorderedSecondStableBenchSet.frame.minY < reorderedFirstStableBenchSet.frame.minY
+        }
+        // GYM-45 made set reordering the native List drag (touch and hold the
+        // tile, then drag), so drop into the upper part of the first tile
+        // slowly and hold, like the exercise reorder test below. Synthesized
+        // long-press drags are occasionally dropped by the simulator before
+        // onMove starts, so retry the gesture; the assertion stays strict.
+        var setReorderResult = XCTWaiter.Result.timedOut
+        for _ in 0..<3 {
+            let dropPoint = firstSetDragHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+            secondSetDragHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(
+                    forDuration: 1.5,
+                    thenDragTo: dropPoint,
+                    withVelocity: .slow,
+                    thenHoldForDuration: 0.5
+                )
+            setReorderResult = XCTWaiter.wait(
+                for: [XCTNSPredicateExpectation(predicate: didReorder, object: nil)],
+                timeout: 5
+            )
+            if setReorderResult == .completed { break }
+        }
+        XCTAssertEqual(setReorderResult, .completed, app.debugDescription)
+        app.tabBars.buttons["Today"].tap()
+        app.tabBars.buttons["Program"].tap()
+        XCTAssertLessThan(
+            app.buttons[secondStableBenchSetIdentifier].frame.minY,
+            app.buttons[firstStableBenchSetIdentifier].frame.minY
+        )
+
+        let setCountBeforeDelete = stableBenchSets.count
+        let setToDelete = stableBenchSets.element(boundBy: 0)
+        setToDelete.swipeLeft()
+        let deleteSet = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Delete set ")
+        ).firstMatch
+        XCTAssertTrue(deleteSet.waitForExistence(timeout: 2))
+        deleteSet.tap()
+        let confirmSetDeletion = app.buttons.matching(identifier: "programConfirmDeleteSet").firstMatch
+        XCTAssertTrue(confirmSetDeletion.waitForExistence(timeout: 2))
+        confirmSetDeletion.tap()
+        XCTAssertEqual(stableBenchSets.count, setCountBeforeDelete - 1)
+        XCTAssertFalse(app.alerts["Delete this set?"].waitForExistence(timeout: 1))
+
+        app.buttons["programAddExercise"].tap()
+        let customSearch = app.searchFields["Search exercises"]
+        XCTAssertTrue(customSearch.waitForExistence(timeout: 2))
+        customSearch.tap()
+        customSearch.typeText("Nordic Hop")
+        XCTAssertTrue(app.buttons["exercisePickerAddCustom"].waitForExistence(timeout: 2))
+        app.buttons["exercisePickerAddCustom"].tap()
+        XCTAssertTrue(app.textFields["customExerciseName"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.textFields["customExerciseName"].value as? String, "Nordic Hop")
+        app.buttons["customExerciseSave"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", "Nordic Hop")).firstMatch.waitForExistence(timeout: 2))
+
+        let benchName = app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch
+        let nordicName = app.staticTexts.matching(NSPredicate(format: "label == %@", "Nordic Hop")).firstMatch
+        XCTAssertLessThan(benchName.frame.minY, nordicName.frame.minY)
+        // GYM-48: the exercise menu only deletes; reorder lives in the workout menu.
+        app.buttons["Actions for Nordic Hop, exercise 2 of 2"].tap()
+        XCTAssertTrue(app.buttons["Delete exercise"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["Reorder exercises"].exists)
+        XCTAssertFalse(app.buttons["Set type"].exists)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+        XCTAssertTrue(app.buttons["Delete exercise"].waitForNonExistence(timeout: 2))
+        app.buttons["programWorkoutActions"].tap()
+        XCTAssertTrue(app.buttons["programReorderExercises"].waitForExistence(timeout: 2))
+        app.buttons["programReorderExercises"].tap()
+        XCTAssertTrue(app.navigationBars["Reorder exercises"].waitForExistence(timeout: 2))
+        // GYM-34: reorder rows are identified by row ID; match the name via the label.
+        let benchInReorder = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "programReorderExercise-", "Bench Press"
+        )).firstMatch
+        let nordicInReorder = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "programReorderExercise-", "Nordic Hop"
+        )).firstMatch
+        XCTAssertTrue(benchInReorder.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(nordicInReorder.waitForExistence(timeout: 5), app.debugDescription)
+        // Native edit-mode List exposes a dedicated reorder control. Drag the
+        // control itself past the first row's top edge (not the text/cell).
+        let nordicHandle = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Reorder Nordic Hop")
+        ).firstMatch
+        let benchHandle = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Reorder Bench Press")
+        ).firstMatch
+        XCTAssertTrue(nordicHandle.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(benchHandle.exists, app.debugDescription)
+        // Keep the drop inside the first row. Dragging above its top edge
+        // leaves the List and can cancel native onMove on Xcode 26.
+        let reordered = NSPredicate { _, _ in
+            nordicInReorder.exists && benchInReorder.exists
+                && nordicInReorder.frame.minY < benchInReorder.frame.minY
+        }
+        // Synthesized long-press drags on the native reorder control are
+        // occasionally dropped by the simulator before onMove starts. Retry
+        // the gesture itself; the reordered-state assertion stays strict.
+        var reorderResult = XCTWaiter.Result.timedOut
+        for _ in 0..<3 {
+            let dropPoint = benchHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            nordicHandle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(
+                    forDuration: 1.5,
+                    thenDragTo: dropPoint,
+                    withVelocity: .slow,
+                    thenHoldForDuration: 0.5
+                )
+            reorderResult = XCTWaiter.wait(
+                for: [XCTNSPredicateExpectation(predicate: reordered, object: nil)],
+                timeout: 5
+            )
+            if reorderResult == .completed { break }
+        }
+        XCTAssertEqual(reorderResult, .completed, app.debugDescription)
+        app.buttons["Done"].tap()
+
+        let reorderedBenchActions = app.buttons["Actions for Bench Press, exercise 2 of 2"]
+        XCTAssertTrue(reorderedBenchActions.waitForExistence(timeout: 2))
+        reorderedBenchActions.tap()
+        app.buttons["Delete exercise"].tap()
+        let deleteExerciseAlert = app.alerts["Delete Bench Press?"]
+        XCTAssertTrue(deleteExerciseAlert.waitForExistence(timeout: 3))
+        // SwiftUI exposes both a native container and its child as buttons.
+        // The identifier scoped to this alert avoids ambiguous "Delete" matches.
+        let confirmExerciseDeletion = deleteExerciseAlert.buttons
+            .matching(identifier: "programConfirmDeleteExercise").firstMatch
+        XCTAssertTrue(confirmExerciseDeletion.waitForExistence(timeout: 3))
+        confirmExerciseDeletion.tap()
+        XCTAssertFalse(deleteExerciseAlert.waitForExistence(timeout: 3))
+        XCTAssertFalse(benchName.waitForExistence(timeout: 2))
+        app.buttons["programDate-2026-08-13"].tap()
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+        app.buttons["programDate-2026-08-14"].tap()
+        XCTAssertTrue(nordicName.waitForExistence(timeout: 2))
+        XCTAssertFalse(benchName.exists)
+
+        app.buttons["programWorkoutActions"].tap()
+        app.buttons["programDeleteWorkout"].tap()
+        let confirmWorkoutDeletion = app.buttons
+            .matching(identifier: "programConfirmDeleteWorkout")
+            .firstMatch
+        XCTAssertTrue(confirmWorkoutDeletion.waitForExistence(timeout: 2))
+        confirmWorkoutDeletion.tap()
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 3))
+        // The destructive alert must not reappear after its originating Menu is removed.
+        XCTAssertFalse(app.alerts["Delete this workout?"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["programConfirmDeleteWorkout"].exists)
+
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].waitForExistence(timeout: 2))
+        let appearance = app.descendants(matching: .any)["settingsAppearance"]
+        XCTAssertTrue(appearance.exists)
+        XCTAssertEqual(appearance.value as? String, "system")
+
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        // Returning from the background is slow on loaded CI simulators.
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].waitForExistence(timeout: 6))
+
+        let todayTab = app.tabBars.buttons["Today"]
+        XCTAssertTrue(todayTab.waitForExistence(timeout: 6))
+        todayTab.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 6))
+    }
+
+    func testProgramSetSwipeRevealsDeleteWithoutOpeningEditor() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let set = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(reveal(set, in: app))
+        set.swipeLeft()
+        let delete = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Delete set ")
+        ).firstMatch
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.navigationBars["Edit set"].exists)
+        delete.tap()
+        XCTAssertTrue(app.buttons["programConfirmDeleteSet"].waitForExistence(timeout: 3))
+    }
+
+    func testProgramHeaderAndCalendarStayStableAcrossDateAndModeChanges() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let mode = app.segmentedControls["programViewMode"]
+        let weekHeader = app.staticTexts["programWeekHeader"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 2))
+        XCTAssertTrue(weekHeader.exists)
+        let stableModeY = mode.frame.midY
+        let stableWeekY = weekHeader.frame.midY
+
+        app.buttons["programDate-2026-08-13"].tap()
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 2))
+        XCTAssertTrue(mode.isHittable)
+        XCTAssertTrue(app.frame.intersects(weekHeader.frame))
+        XCTAssertEqual(mode.frame.midY, stableModeY, accuracy: 1)
+        XCTAssertEqual(weekHeader.frame.midY, stableWeekY, accuracy: 1)
+
+        mode.buttons["Month"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["programMonthGrid"].waitForExistence(timeout: 2))
+        XCTAssertTrue(mode.isHittable)
+        XCTAssertEqual(mode.frame.midY, stableModeY, accuracy: 1)
+        mode.buttons["Week"].tap()
+        XCTAssertTrue(app.staticTexts["programWeekHeader"].waitForExistence(timeout: 2))
+        XCTAssertTrue(mode.isHittable)
+        XCTAssertEqual(mode.frame.midY, stableModeY, accuracy: 1)
+    }
+
+    // GYM-30/GYM-45: a quick swipe that starts on the reorder handle must not
+    // reorder sets (the native List reorder needs a hold first), and swiping
+    // the row reveals Delete.
+    func testSwipeOnSetReorderHandleDoesNotReorderAndRowSwipeOpensDelete() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let sets = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSet-"))
+        let handles = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "programSetDragHandle-"))
+        XCTAssertTrue(sets.element(boundBy: 1).waitForExistence(timeout: 5))
+        let orderBefore = (0..<sets.count).map { sets.element(boundBy: $0).identifier }
+
+        handles.element(boundBy: 0).swipeLeft()
+        let orderAfter = (0..<sets.count).map { sets.element(boundBy: $0).identifier }
+        XCTAssertEqual(orderAfter, orderBefore, "A swipe without a hold must not reorder sets")
+
+        sets.element(boundBy: 0).swipeLeft()
+        XCTAssertTrue(
+            app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Delete set ")).firstMatch
+                .waitForExistence(timeout: 3)
+        )
+    }
+
+    func testDirtyProgramSetEditorBlocksInteractiveDismissalAndKeepsLabelsVisible() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let set = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(set.waitForExistence(timeout: 2))
+        set.tap()
+
+        let editor = app.navigationBars["Edit set"]
+        let reps = app.textFields["programSetEditorReps"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 2))
+        // The compact sheet can show its bar before its form rows load.
+        XCTAssertTrue(reps.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.textFields["programSetEditorWeight"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.segmentedControls["programSetEditorType"].exists)
+        reps.tap()
+        reps.typeText("9")
+        editor.swipeDown()
+        XCTAssertTrue(editor.waitForExistence(timeout: 1))
+        app.buttons["Cancel"].tap()
+    }
+
+    func testCreateEmptyWorkoutThenCopyExistingWorkoutIntoIt() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        app.buttons["programDate-2026-08-15"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Saturday, August 15, 2026"), app.debugDescription)
+        XCTAssertTrue(app.staticTexts["programEmptyState"].waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(app.buttons["programCreateWorkout"].waitForExistence(timeout: 5), app.debugDescription)
+        app.buttons["programCreateWorkout"].tap()
+        XCTAssertTrue(app.staticTexts["programEmptyWorkout"].waitForExistence(timeout: 2))
+
+        app.buttons["programWorkoutActions"].tap()
+        app.buttons["programCopyWorkout"].tap()
+        let copySheet = app.navigationBars["Copy workout"]
+        XCTAssertTrue(copySheet.waitForExistence(timeout: 2))
+        copySheet.swipeDown()
+        XCTAssertTrue(copySheet.waitForExistence(timeout: 2), "Copy must remain open until Cancel or Copy")
+        XCTAssertTrue(app.buttons["copyWorkoutSourceDate-2026-08-14"].waitForExistence(timeout: 2))
+        // GYM-45 regression: the source month arrows must change the month
+        // (a Form row used to swallow both taps).
+        app.buttons["copyWorkoutNextMonth"].tap()
+        XCTAssertTrue(app.buttons["copyWorkoutSourceDate-2026-09-15"].waitForExistence(timeout: 2), "Next month arrow did not move the source calendar")
+        XCTAssertFalse(app.buttons["copyWorkoutSourceDate-2026-08-14"].exists)
+        app.buttons["copyWorkoutPreviousMonth"].tap()
+        XCTAssertTrue(app.buttons["copyWorkoutSourceDate-2026-08-14"].waitForExistence(timeout: 2), "Previous month arrow did not return to August")
+        let copy = app.buttons["copyWorkoutAction"]
+        XCTAssertTrue(copy.isEnabled)
+        XCTAssertEqual(copy.label, "Copy exercises")
+        copy.tap()
+
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: copySheet
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [dismissed], timeout: 5),
+            .completed,
+            "Copy sheet remained visible after Copy: \(app.debugDescription)"
+        )
+        XCTAssertTrue(
+            app.staticTexts.matching(NSPredicate(format: "label == %@", "Bench Press")).firstMatch.waitForExistence(timeout: 5),
+            "Copied workout was not visible after dismissal: \(app.debugDescription)"
+        )
+    }
+
+    func testCopyIntoPopulatedWorkoutOffersAddAndConfirmedReplace() {
+        let addApp = XCUIApplication()
+        addApp.launchEnvironment["UITESTING"] = "1"
+        addApp.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        addApp.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        addApp.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        addApp.launch()
+
+        openProgram(addApp)
+        // List virtualizes off-screen rows; its accessibility-element count
+        // is not a reliable measure of the workout's exercise count.
+        addApp.buttons["programWorkoutActions"].tap()
+        addApp.buttons["programCopyWorkout"].tap()
+        let choice = addApp.segmentedControls["copyWorkoutDestinationChoice"]
+        for _ in 0..<3 {
+            if choice.exists { break }
+            addApp.swipeUp()
+        }
+        XCTAssertTrue(choice.waitForExistence(timeout: 3))
+        XCTAssertTrue(choice.buttons["Add exercises"].isSelected)
+        XCTAssertEqual(addApp.buttons["copyWorkoutAction"].label, "Add exercises")
+        addApp.buttons["copyWorkoutAction"].tap()
+        // The seeded workout has 3 exercises; the source has 2.
+        // Verify the appended fifth exercise through its accessible index.
+        let appendedFifth = addApp.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "exercise 5 of 5")
+        ).firstMatch
+        for _ in 0..<8 {
+            if appendedFifth.exists { break }
+            addApp.swipeUp()
+        }
+        XCTAssertTrue(appendedFifth.waitForExistence(timeout: 5), addApp.debugDescription)
+        addApp.terminate()
+
+        let replaceApp = XCUIApplication()
+        replaceApp.launchEnvironment["UITESTING"] = "1"
+        replaceApp.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        replaceApp.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        replaceApp.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        replaceApp.launch()
+
+        openProgram(replaceApp)
+        replaceApp.buttons["programWorkoutActions"].tap()
+        replaceApp.buttons["programCopyWorkout"].tap()
+        let replaceChoice = replaceApp.segmentedControls["copyWorkoutDestinationChoice"]
+        for _ in 0..<3 {
+            if replaceChoice.exists { break }
+            replaceApp.swipeUp()
+        }
+        XCTAssertTrue(replaceChoice.waitForExistence(timeout: 3))
+        // In the full-height sheet the choice can sit under the pinned action
+        // button; a tap there would hit the button. Scroll it above the button.
+        let pinnedAction = replaceApp.buttons["copyWorkoutAction"]
+        for _ in 0..<4 {
+            guard pinnedAction.exists, replaceChoice.frame.maxY > pinnedAction.frame.minY - 8 else { break }
+            replaceApp.swipeUp()
+        }
+        replaceChoice.buttons["Replace exercises"].tap()
+        // The action is pinned in the sheet's bottom inset; it can be briefly
+        // absent while the segment change re-renders, so wait instead of swiping.
+        let replaceAction = replaceApp.buttons["copyWorkoutAction"]
+        XCTAssertTrue(replaceAction.waitForExistence(timeout: 5), replaceApp.debugDescription)
+        XCTAssertTrue(waitForLabel(of: replaceAction, toEqual: "Replace exercises"))
+        replaceAction.tap()
+        let replaceAlert = replaceApp.alerts["Replace exercises?"]
+        XCTAssertTrue(replaceAlert.waitForExistence(timeout: 3))
+        // SwiftUI exposes a parent and child Button with the same identifier
+        // for this native alert on Xcode 26. Tap the first match in the alert.
+        let confirmReplace = replaceAlert.buttons
+            .matching(identifier: "copyWorkoutConfirmReplace").firstMatch
+        XCTAssertTrue(confirmReplace.waitForExistence(timeout: 3))
+        confirmReplace.tap()
+        XCTAssertFalse(replaceAlert.waitForExistence(timeout: 3))
+        XCTAssertFalse(replaceApp.navigationBars["Copy workout"].waitForExistence(timeout: 5))
+        let replacedExercise = replaceApp.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "exercise 2 of 2")
+        ).firstMatch
+        XCTAssertTrue(reveal(replacedExercise, in: replaceApp), replaceApp.debugDescription)
+    }
+
+    func testWholeWeightInputsShowNoTrailingDecimal() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        let todaySet = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "todaySet-")
+        ).firstMatch
+        XCTAssertTrue(todaySet.waitForExistence(timeout: 5))
+        todaySet.press(forDuration: 0.8)
+        let todayWeight = app.textFields["todaySetEditorWeight"]
+        XCTAssertTrue(todayWeight.waitForExistence(timeout: 3))
+        XCTAssertEqual(todayWeight.value as? String, "60")
+        app.buttons["todaySetEditorCancel"].tap()
+
+        openProgram(app)
+        let programSet = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(reveal(programSet, in: app))
+        programSet.tap()
+        let programWeight = app.textFields["programSetEditorWeight"]
+        XCTAssertTrue(programWeight.waitForExistence(timeout: 3))
+        XCTAssertEqual(programWeight.value as? String, "60")
+    }
+
+    func testProgramMonthUsesMondayFirstHeadersAndPreservesSelectionWhenReturningToWeek() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-09-04"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-09-04"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        openProgram(app)
+        let mode = app.segmentedControls["programViewMode"]
+        XCTAssertTrue(mode.waitForExistence(timeout: 5))
+        mode.buttons["Month"].tap()
+        XCTAssertTrue(app.staticTexts["programMonthHeader"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.staticTexts["programMonthWeekday-0"].label, "M")
+        XCTAssertEqual(app.staticTexts["programMonthWeekday-6"].label, "S")
+        let selectedDate = app.buttons["programMonthDate-2026-09-04"]
+        XCTAssertTrue(selectedDate.waitForExistence(timeout: 2))
+        XCTAssertTrue((selectedDate.value as? String)?.contains("today") == true)
+        XCTAssertTrue((selectedDate.value as? String)?.contains("Planned") == true)
+        app.buttons["programPreviousMonth"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programMonthHeader"], toEqual: "August 2026"))
+        app.buttons["programNextMonth"].tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programMonthHeader"], toEqual: "September 2026"))
+        selectedDate.tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Friday, September 4, 2026"))
+        let outsideMonthDate = app.buttons["programMonthDate-2026-08-31"]
+        XCTAssertTrue(outsideMonthDate.exists)
+        outsideMonthDate.tap()
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Monday, August 31, 2026"))
+        mode.buttons["Week"].tap()
+        XCTAssertTrue(app.buttons["programDate-2026-08-31"].waitForExistence(timeout: 2))
+        XCTAssertTrue(waitForLabel(of: app.staticTexts["programSelectedDate"], toEqual: "Monday, August 31, 2026"))
+    }
+
+    func testSettingsProfileAndBodyWeightUpdateBMI() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-09-04"
+        app.launch()
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settingsProfile"].tap()
+        XCTAssertTrue(app.textFields["profileHeight"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["profileSex"].exists)
+        replaceText(in: app.textFields["profileHeight"], with: "180")
+        app.buttons["profileSave"].tap()
+
+        app.buttons["settingsBodyWeight"].tap()
+        let weight = app.textFields["bodyWeightInput"]
+        XCTAssertTrue(weight.waitForExistence(timeout: 2))
+        replaceText(in: weight, with: "81")
+        app.buttons["bodyWeightSave"].tap()
+        let measurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
+        XCTAssertTrue(measurement.waitForExistence(timeout: 2))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(waitForValue(app.buttons["settingsProfile"], "180 cm - BMI 25.0"))
+        app.buttons["settingsBodyWeight"].tap()
+        XCTAssertTrue(measurement.waitForExistence(timeout: 2))
+        // GYM-33: the whole row is the edit button, and editing can be cancelled.
+        measurement.tap()
+        XCTAssertTrue(waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Update body weight"))
+        let cancelEdit = app.buttons["bodyWeightCancelEdit"]
+        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 2))
+        cancelEdit.tap()
+        XCTAssertTrue(waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Log body weight"))
+        XCTAssertEqual(weight.value as? String, weight.placeholderValue)
+        XCTAssertFalse(cancelEdit.exists)
+        measurement.tap()
+        // Confirm this is an edit, not a second new measurement. A newly
+        // inserted 80 kg row could otherwise hide a broken edit flow.
+        XCTAssertTrue(
+            waitForLabel(of: app.buttons["bodyWeightSave"], toEqual: "Update body weight"),
+            "Tapping Edit must enter update mode; actual label: \(app.buttons["bodyWeightSave"].label), input: \(String(describing: weight.value))"
+        )
+        XCTAssertEqual(weight.value as? String, "81")
+        replaceText(in: weight, with: "80")
+        XCTAssertEqual(weight.value as? String, "80")
+        app.buttons["bodyWeightSave"].tap()
+        let measurementRows = app.buttons.matching(identifier: "bodyWeightMeasurement")
+        let updatedMeasurement = measurementRows.firstMatch
+        XCTAssertTrue(updatedMeasurement.waitForExistence(timeout: 5))
+        XCTAssertEqual(measurementRows.count, 1, "Editing must update the existing row, not add another")
+        // After the row became an explicit Button, its text is exposed as the
+        // button's accessibility label, not a separate staticText element.
+        XCTAssertTrue(
+            waitForLabel(of: updatedMeasurement, toEqual: "80 kg"),
+            "Updated row should display 80 kg; actual label: \(updatedMeasurement.label)"
+        )
+        updatedMeasurement.swipeLeft()
+        let deleteMeasurement = app.buttons.matching(identifier: "bodyWeightDelete").firstMatch
+        XCTAssertTrue(deleteMeasurement.waitForExistence(timeout: 3))
+        deleteMeasurement.tap()
+        // GYM-33: deleting a measurement asks for confirmation first.
+        // SwiftUI exposes both the alert's container and its child button with
+        // this identifier, so scope the query to the alert and take the first.
+        let confirmDelete = app.alerts["Delete this measurement?"].buttons
+            .matching(identifier: "bodyWeightConfirmDelete").firstMatch
+        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 3))
+        confirmDelete.tap()
+        // Keep the sheet open until the native swipe action has removed
+        // the persisted measurement. Dismissing during its animation can race
+        // against the data update and hide a missed deletion.
+        XCTAssertTrue(
+            app.staticTexts["No body-weight measurements yet."].waitForExistence(timeout: 8),
+            "Delete did not empty the measurement history: \(app.debugDescription)"
+        )
+        XCTAssertFalse(app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch.exists)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(
+            waitForValue(app.buttons["settingsProfile"], "180 cm"),
+            "Profile BMI should clear when its last weight is deleted: \(String(describing: app.buttons["settingsProfile"].value))"
+        )
+        XCTAssertTrue(waitForValue(app.buttons["settingsBodyWeight"], "Log your first measurement"))
+    }
+
+    // GYM-22: a logged weight must stay in history instead of appearing and
+    // then vanishing behind a "wasn't saved" banner.
+    func testLoggedBodyWeightRemainsAfterSaving() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-09-04"
+        app.launch()
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settingsBodyWeight"].tap()
+        let weight = app.textFields["bodyWeightInput"]
+        XCTAssertTrue(weight.waitForExistence(timeout: 2))
+        replaceText(in: weight, with: "80")
+        app.buttons["bodyWeightSave"].tap()
+
+        let measurement = app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch
+        XCTAssertTrue(measurement.waitForExistence(timeout: 2))
+        // The GYM-22 regression removed the row about a second after saving.
+        let vanished = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: measurement)
+        XCTAssertEqual(XCTWaiter().wait(for: [vanished], timeout: 3), .timedOut, "Saved weight disappeared")
+        XCTAssertTrue(measurement.exists, "Saved weight disappeared")
+        XCTAssertEqual(measurement.label, "80 kg")
+        XCTAssertFalse(app.staticTexts["No body-weight measurements yet."].exists)
+
+        app.buttons["Done"].tap()
+        XCTAssertFalse(app.descendants(matching: .any)["persistenceRecoveryBanner"].exists)
+        app.tabBars.buttons["Today"].tap()
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settingsBodyWeight"].tap()
+        XCTAssertTrue(
+            app.buttons.matching(identifier: "bodyWeightMeasurement").firstMatch.waitForExistence(timeout: 2),
+            "Saved weight must still be listed after leaving Settings"
+        )
+        XCTAssertEqual(app.buttons.matching(identifier: "bodyWeightMeasurement").count, 1)
+
+        // GYM-45: Log hides the keyboard, and a second Log on the same day
+        // updates that day's entry instead of adding another one.
+        replaceText(in: weight, with: "82")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        app.buttons["bodyWeightSave"].tap()
+        let keyboardHidden = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: app.keyboards.firstMatch
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [keyboardHidden], timeout: 3), .completed, "Log must hide the keyboard")
+        let sameDayRows = app.buttons.matching(identifier: "bodyWeightMeasurement")
+        XCTAssertTrue(waitForLabel(of: sameDayRows.firstMatch, toEqual: "82 kg"))
+        XCTAssertEqual(sameDayRows.count, 1, "A second Log on the same day must update, not add")
+    }
+
+    func testAppearanceSelectionKeepsTodayAvailable() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        app.tabBars.buttons["Settings"].tap()
+        let appearance = app.descendants(matching: .any)["settingsAppearance"]
+        XCTAssertTrue(appearance.waitForExistence(timeout: 2))
+        app.buttons["settingsAppearanceDark"].tap()
+        XCTAssertEqual(appearance.value as? String, "dark")
+        XCTAssertEqual(app.descendants(matching: .any)["authenticatedContent"].value as? String, "dark")
+
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 2))
+        app.tabBars.buttons["Program"].tap()
+        let programSet = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "programSet-")
+        ).firstMatch
+        XCTAssertTrue(programSet.waitForExistence(timeout: 2))
+        programSet.tap()
+        XCTAssertTrue(app.navigationBars["Edit set"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.descendants(matching: .any)["authenticatedContent"].value as? String, "dark")
+        app.buttons["Cancel"].tap()
+
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(selectAppearance("system", buttonIdentifier: "settingsAppearanceSystem", in: app, picker: appearance))
+    }
+
+    func testWeightUnitUpdatesTodayAndProgramWithoutChangingStoredWorkout() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["8 reps × 60 kg"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Settings"].tap()
+        let weightUnit = app.descendants(matching: .any)["settingsWeightUnit"]
+        XCTAssertTrue(weightUnit.waitForExistence(timeout: 2))
+        XCTAssertEqual(weightUnit.value as? String, "kg")
+        XCTAssertTrue(app.staticTexts["settingsAccountSummary"].exists)
+        app.buttons["settingsWeightUnitLb"].tap()
+        XCTAssertEqual(weightUnit.value as? String, "lb")
+
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.staticTexts["8 reps × 132.28 lb"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Program"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["programScreen"].waitForExistence(timeout: 5))
+        let programSet = app.buttons.matching(
+            NSPredicate(format: "value == %@", "8 reps × 132.28 lb")
+        ).firstMatch
+        XCTAssertTrue(reveal(programSet, in: app))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["settingsWeightUnitKg"].tap()
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.staticTexts["8 reps × 60 kg"].waitForExistence(timeout: 5))
+    }
+
+    func testProgramShowsReadOnlyHistoryWithActualIncompleteAndSkippedStates() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-08-07"
+        app.launch()
+
+        openProgram(app)
+        let historyDate = app.buttons["programDate-2026-08-07"]
+        XCTAssertTrue(historyDate.waitForExistence(timeout: 5))
+        historyDate.tap()
+
+        let completedSet = app.buttons["programHistorySet-90000000-0000-4000-8000-000000000401"]
+        XCTAssertTrue(reveal(completedSet, in: app))
+        XCTAssertEqual(completedSet.value as? String, "Completed, actual 7 reps × 65 kg")
+        let incompleteSet = app.descendants(matching: .any)["programHistorySet-90000000-0000-4000-8000-000000000402"]
+        XCTAssertTrue(reveal(incompleteSet, in: app))
+        XCTAssertEqual(incompleteSet.value as? String, "Incomplete, planned 12 reps")
+        XCTAssertTrue(reveal(
+            app.descendants(matching: .any)["programHistoryExerciseSkipped-90000000-0000-4000-8000-000000000005"],
+            in: app
+        ))
+        XCTAssertFalse(app.buttons["programAddExercise"].exists)
+        XCTAssertFalse(app.buttons["programDeleteWorkout"].exists)
+        XCTAssertFalse(app.buttons["programEditExercises"].exists)
+        XCTAssertFalse(app.buttons["programCopyWorkout"].exists)
+        XCTAssertFalse(app.buttons["programRepeatWorkout"].exists)
+    }
+
+    func testProgramEditsCompletedHistoricalActualAndRetainsItAfterReopen() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-08-07"
+        app.launch()
+
+        openProgram(app)
+        let historyDate = app.buttons["programDate-2026-08-07"]
+        XCTAssertTrue(historyDate.waitForExistence(timeout: 5))
+        historyDate.tap()
+        let completedSet = app.buttons["programHistorySet-90000000-0000-4000-8000-000000000401"]
+        XCTAssertTrue(reveal(completedSet, in: app))
+        XCTAssertFalse(app.buttons["programHistorySet-90000000-0000-4000-8000-000000000402"].exists)
+
+        completedSet.tap()
+        XCTAssertTrue(app.navigationBars["Edit actual"].waitForExistence(timeout: 2))
+        let repsField = app.textFields["programHistoryActualEditorReps"]
+        replaceText(in: repsField, with: "9")
+        XCTAssertEqual(repsField.value as? String, "9")
+        app.buttons["programHistoryActualEditorSave"].tap()
+        XCTAssertFalse(app.navigationBars["Edit actual"].waitForExistence(timeout: 2), app.debugDescription)
+        // Verify the visible result, independently of the cached accessibility value.
+        let resultText = app.staticTexts["Completed · Actual: 9 reps × 65 kg"]
+        let updatedCompletedSet = app.buttons["programHistorySet-90000000-0000-4000-8000-000000000401"]
+        print("HISTORICAL_ACTUAL_DIAGNOSTIC: rowExists=\(updatedCompletedSet.exists), value=\(String(describing: updatedCompletedSet.value)), visibleResult=\(resultText.exists)")
+        XCTAssertTrue(resultText.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(waitForValue(updatedCompletedSet, "Completed, actual 9 reps × 65 kg"), "Accessibility result differs from visible row: \(String(describing: updatedCompletedSet.value))")
+
+        XCTAssertTrue(revealProgramDate(historyDate, in: app))
+        app.buttons["programDate-2026-08-06"].tap()
+        XCTAssertTrue(revealProgramDate(historyDate, in: app))
+        app.buttons["programDate-2026-08-07"].tap()
+        XCTAssertTrue(reveal(completedSet, in: app))
+        XCTAssertTrue(waitForValue(completedSet, "Completed, actual 9 reps × 65 kg"))
+    }
+
+    func testEmptyWorkoutTodayStateOffersProgramNavigation() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launch()
+
+        app.tabBars.buttons["Program"].tap()
+        app.buttons["programCreateWorkout"].tap()
+        app.tabBars.buttons["Today"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayEmptyWorkoutState"].waitForExistence(timeout: 2))
+        app.buttons["todayEmptyWorkoutViewProgram"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["programScreen"].exists)
+    }
+
+    func testProgramDoesNotOfferCreationForPastEmptyDate() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_HISTORY_WORKOUT"] = "1"
+        app.launchEnvironment["UITEST_INITIAL_SELECTED_DATE"] = "2026-08-06"
+        app.launch()
+
+        openProgram(app)
+        let pastDate = app.buttons["programDate-2026-08-06"]
+        XCTAssertTrue(pastDate.waitForExistence(timeout: 5))
+        pastDate.tap()
+
+        XCTAssertTrue(reveal(app.descendants(matching: .any)["programEmptyState"], in: app))
+        XCTAssertFalse(app.buttons["programCreateWorkout"].exists)
+    }
+
+    private func replaceText(in field: XCUIElement, with value: String) {
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        if let existing = field.value as? String, !existing.isEmpty, existing != value {
+            selectEntireFieldValue(in: field)
+        }
+        field.typeText(value)
+        // iOS's editing menu can fail to expose a selection on its first
+        // attempt. Retry through the native selection action, not a blind
+        // backspace (whose caret can be before trailing-aligned digits).
+        if field.value as? String != value {
+            selectEntireFieldValue(in: field)
+            field.typeText(value)
+        }
+        XCTAssertEqual(field.value as? String, value, "Numeric field must replace the previous value")
+    }
+
+    private func selectEntireFieldValue(in field: XCUIElement) {
+        field.press(forDuration: 1.1)
+        let app = XCUIApplication()
+        for selectAll in [app.menuItems["Select All"], app.buttons["Select All"]] {
+            if selectAll.waitForExistence(timeout: 0.5) {
+                selectAll.tap()
+                return
+            }
+        }
+        // iOS also offers whole-token selection with a triple tap.
+        field.tap(withNumberOfTaps: 3, numberOfTouches: 1)
+    }
+
+    private func openProgram(_ app: XCUIApplication) {
+        app.tabBars.buttons["Program"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["programScreen"].waitForExistence(timeout: 5))
+    }
+
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication, maximumSwipes: Int = 3) -> Bool {
+        for attempt in 0...maximumSwipes {
+            if element.waitForExistence(timeout: 1) { return true }
+            if attempt < maximumSwipes { app.swipeUp() }
+        }
+        return false
+    }
+
+    private func revealProgramDate(_ date: XCUIElement, in app: XCUIApplication) -> Bool {
+        for attempt in 0...3 {
+            if date.isHittable { return true }
+            if attempt < 3 { app.swipeDown() }
+        }
+        return false
+    }
+
+    private func waitForValue(_ element: XCUIElement, _ expectedValue: String) -> Bool {
+        let expectation = expectation(
+            for: NSPredicate(format: "value == %@", expectedValue),
+            evaluatedWith: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func waitForLabel(of element: XCUIElement, toEqual expectedLabel: String) -> Bool {
+        let expectation = expectation(
+            for: NSPredicate(format: "label == %@", expectedLabel),
+            evaluatedWith: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+
+    private func selectAppearance(
+        _ expectedValue: String,
+        buttonIdentifier: String,
+        in app: XCUIApplication,
+        picker: XCUIElement
+    ) -> Bool {
+        let button = app.buttons[buttonIdentifier]
+        for _ in 0..<2 {
+            if picker.value as? String == expectedValue { return true }
+            button.tap()
+            if waitForValue(picker, expectedValue) { return true }
+        }
+        return picker.value as? String == expectedValue
+    }
+}
+
+final class TodayInteractionUITests: XCTestCase {
+    private let benchPress = "todayExercise-90000000-0000-4000-8000-000000000001"
+    private let barbellRow = "todayExercise-90000000-0000-4000-8000-000000000002"
+    private let firstBenchSet = "todaySet-90000000-0000-4000-8000-000000000101"
+    private let secondBenchSet = "todaySet-90000000-0000-4000-8000-000000000102"
+    private let rowSet = "todaySet-90000000-0000-4000-8000-000000000201"
+    private let lowerSetIdentifier = "todaySet-90000000-0000-4000-8000-000000000316"
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    func testTodayCompletesAndUndoesSetWithoutLeavingTheScreen() {
+        let app = launchSeededToday()
+        let set = app.buttons[firstBenchSet]
+
+        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["8 reps × 60 kg"].exists)
+        assert(set, hasValue: "Incomplete")
+
+        set.tap()
+        assert(set, hasValue: "Completed")
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
+        XCTAssertFalse(app.alerts.element.exists)
+
+        set.tap()
+        assert(set, hasValue: "Incomplete")
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
+    }
+
+    func testTodayFailedSaveShowsRetryMessageAndAllowsSafeRetry() {
+        let app = launchSeededToday(environment: ["UITEST_FAIL_NEXT_TODAY_SAVE": "1"])
+        let set = app.buttons[firstBenchSet]
+
+        set.tap()
+        XCTAssertTrue(app.alerts["Couldn't confirm this change"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Check your workout before trying again."].exists)
+        assert(set, hasValue: "Incomplete")
+
+        app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
+        set.tap()
+        assert(set, hasValue: "Completed")
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
+    }
+
+    func testTodayFailedSkipKeepsExerciseVisibleForManualRetry() {
+        let app = launchSeededToday(environment: ["UITEST_FAIL_NEXT_TODAY_SAVE": "1"])
+        let header = app.staticTexts[benchPress]
+
+        header.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        XCTAssertTrue(app.alerts["Couldn't confirm this change"].waitForExistence(timeout: 2))
+        XCTAssertTrue(header.exists)
+
+        app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
+        header.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        XCTAssertFalse(header.waitForExistence(timeout: 2))
+    }
+
+    func testTodayFailedRestoreKeepsSkippedExerciseAvailableForManualRetry() {
+        let app = launchSeededToday(environment: ["UITEST_FAIL_TODAY_SAVE_AFTER": "1"])
+        let header = app.staticTexts[benchPress]
+
+        header.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        let restoreMenu = app.buttons["todayRestoreSkippedExercises"]
+        XCTAssertTrue(restoreMenu.waitForExistence(timeout: 2))
+        restoreMenu.tap()
+        app.buttons["todayRestore-90000000-0000-4000-8000-000000000001"].tap()
+        XCTAssertTrue(app.alerts["Couldn't confirm this change"].waitForExistence(timeout: 2))
+        XCTAssertFalse(header.exists)
+
+        app.alerts["Couldn't confirm this change"].buttons["OK"].tap()
+        restoreMenu.tap()
+        app.buttons["todayRestore-90000000-0000-4000-8000-000000000001"].tap()
+        XCTAssertTrue(header.waitForExistence(timeout: 2))
+    }
+
+    func testTodaySetUsesStableIdentifierAndAccessibleCompletionState() {
+        let app = launchSeededToday()
+        let exercise = app.staticTexts[benchPress]
+        let set = app.buttons[firstBenchSet]
+
+        XCTAssertTrue(exercise.waitForExistence(timeout: 5))
+        XCTAssertEqual(exercise.label, "Bench Press, 2 sets")
+        XCTAssertTrue(set.waitForExistence(timeout: 2))
+        XCTAssertEqual(set.label, "Bench Press, set 1: 8 reps × 60 kg")
+        assert(set, hasValue: "Incomplete")
+        XCTAssertGreaterThanOrEqual(set.frame.height, 44)
+
+        set.tap()
+        assert(set, hasValue: "Completed")
+    }
+
+    func testTodaySetRemainsUsableAtAccessibilityTextSize() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+
+        let set = app.buttons[firstBenchSet]
+        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        XCTAssertTrue(set.isHittable)
+        XCTAssertGreaterThanOrEqual(set.frame.height, 44)
+        set.tap()
+        assert(set, hasValue: "Completed")
+    }
+
+    func testProgramDateCommunicatesFullDateStateAndSelection() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launch()
+
+        app.tabBars.buttons["Program"].tap()
+        let date = app.buttons["programDate-2026-08-14"]
+        XCTAssertTrue(date.waitForExistence(timeout: 2))
+        XCTAssertEqual(date.label, "Friday, August 14, 2026")
+        assert(date, hasValue: "Empty")
+        XCTAssertTrue(date.isSelected)
+    }
+
+    func testTodayCompletesSetsInArbitraryExerciseAndSetOrder() {
+        let app = launchSeededToday()
+        let first = app.buttons[firstBenchSet]
+        let second = app.buttons[secondBenchSet]
+        let row = app.buttons[rowSet]
+
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        assert(first, hasValue: "Incomplete")
+        assert(second, hasValue: "Incomplete")
+
+        row.tap()
+        assert(row, hasValue: "Completed")
+        assert(first, hasValue: "Incomplete")
+        assert(second, hasValue: "Incomplete")
+
+        second.tap()
+        assert(second, hasValue: "Completed")
+        assert(first, hasValue: "Incomplete")
+    }
+
+    func testTodayKeepsLowerSetVisibleAfterCompletion() {
+        let app = launchSeededToday()
+        let lowerSet = app.buttons[lowerSetIdentifier]
+
+        for _ in 0..<6 where !lowerSet.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(lowerSet.isHittable)
+
+        lowerSet.tap()
+        assert(lowerSet, hasValue: "Completed")
+        XCTAssertTrue(lowerSet.isHittable)
+    }
+
+    func testTodayLongPressOpensEditorWithoutCompletingTheSet() {
+        let app = launchSeededToday()
+        let set = app.buttons[firstBenchSet]
+
+        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        set.press(forDuration: 1)
+        XCTAssertTrue(app.navigationBars["Edit set"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.textFields["todaySetEditorReps"].exists)
+        assert(set, hasValue: "Incomplete")
+
+        app.buttons["todaySetEditorCancel"].tap()
+        assert(set, hasValue: "Incomplete")
+        XCTAssertTrue(app.staticTexts["8 reps × 60 kg"].exists)
+    }
+
+    func testTodayLongPressEditsPlanThenActualWithoutLeavingToday() {
+        let app = launchSeededToday()
+        let set = app.buttons[firstBenchSet]
+
+        set.press(forDuration: 1)
+        replaceText(in: app.textFields["todaySetEditorReps"], with: "6")
+        app.buttons["todaySetEditorSave"].tap()
+        XCTAssertTrue(app.buttons[firstBenchSet].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons[firstBenchSet].label.contains("6 reps × 60 kg"))
+        assert(set, hasValue: "Incomplete")
+
+        set.tap()
+        assert(set, hasValue: "Completed")
+        set.press(forDuration: 1)
+        XCTAssertTrue(app.navigationBars["Edit actual"].waitForExistence(timeout: 2))
+        replaceText(in: app.textFields["todaySetEditorReps"], with: "7")
+        app.buttons["todaySetEditorSave"].tap()
+        XCTAssertTrue(app.staticTexts["7 reps × 60 kg"].waitForExistence(timeout: 2))
+        assert(set, hasValue: "Completed")
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
+    }
+
+    func testTodayEditorFailedSaveKeepsDraftOpenForManualRetry() {
+        let app = launchSeededToday(environment: ["UITEST_FAIL_NEXT_TODAY_SAVE": "1"])
+        let set = app.buttons[firstBenchSet]
+
+        set.press(forDuration: 1)
+        replaceText(in: app.textFields["todaySetEditorReps"], with: "6")
+        app.buttons["todaySetEditorSave"].tap()
+        XCTAssertTrue(app.alerts["Couldn't confirm this change"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.navigationBars["Edit set"].exists)
+        XCTAssertTrue(app.textFields["todaySetEditorReps"].exists)
+
+        app.alerts["Couldn't confirm this change"].buttons["Keep Editing"].tap()
+        app.buttons["todaySetEditorSave"].tap()
+        XCTAssertTrue(app.buttons[firstBenchSet].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons[firstBenchSet].label.contains("6 reps × 60 kg"))
+        assert(set, hasValue: "Incomplete")
+    }
+
+    func testTodaySkipsExerciseWithoutRemovingRemainingWork() {
+        let app = launchSeededToday()
+        let benchPressHeader = app.staticTexts[benchPress]
+
+        XCTAssertTrue(benchPressHeader.waitForExistence(timeout: 5))
+        benchPressHeader.press(forDuration: 1)
+        let skip = app.buttons["Skip exercise"]
+        XCTAssertTrue(skip.waitForExistence(timeout: 2))
+        skip.tap()
+
+        XCTAssertFalse(benchPressHeader.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts[barbellRow].exists)
+        XCTAssertTrue(app.buttons[rowSet].exists)
+        assert(app.buttons[rowSet], hasValue: "Incomplete")
+    }
+
+    func testTodayRestoresSkippedExerciseWithItsOriginalCompletionState() {
+        let app = launchSeededToday()
+        let benchPressHeader = app.staticTexts[benchPress]
+        let benchSet = app.buttons[firstBenchSet]
+
+        benchSet.tap()
+        assert(benchSet, hasValue: "Completed")
+        benchPressHeader.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        XCTAssertFalse(benchPressHeader.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons[rowSet].exists)
+
+        let restoreMenu = app.buttons["todayRestoreSkippedExercises"]
+        XCTAssertTrue(restoreMenu.waitForExistence(timeout: 2))
+        restoreMenu.tap()
+        let restoreBench = app.buttons["todayRestore-90000000-0000-4000-8000-000000000001"]
+        XCTAssertTrue(restoreBench.waitForExistence(timeout: 2))
+        restoreBench.tap()
+
+        XCTAssertTrue(benchPressHeader.waitForExistence(timeout: 2))
+        assert(benchSet, hasValue: "Completed")
+        XCTAssertTrue(app.buttons[rowSet].exists)
+        XCTAssertFalse(app.buttons["todayRestoreSkippedExercises"].exists)
+    }
+
+    private func launchSeededToday(environment: [String: String] = [:]) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        environment.forEach { app.launchEnvironment[$0.key] = $0.value }
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func assert(_ element: XCUIElement, hasValue expectedValue: String) {
+        let expectation = expectation(
+            for: NSPredicate(format: "value == %@", expectedValue),
+            evaluatedWith: element
+        )
+        // CI simulators can take over 2 s to publish a completion state change.
+        wait(for: [expectation], timeout: 4)
+    }
+
+    private func replaceText(in field: XCUIElement, with value: String) {
+        field.doubleTap()
+        field.typeText(value)
+    }
+}
+
+final class TodayEmptyStateUITests: XCTestCase {
+    func testNoProgramStateOpensProgramForToday() {
+        let app = launchToday()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayNoProgramState"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No workout planned yet."].exists)
+        XCTAssertTrue(app.buttons["todayCreateWorkout"].exists)
+        XCTAssertTrue(app.buttons["Create workout"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["todayRestDayState"].exists)
+
+        app.buttons["todayCreateWorkout"].tap()
+        assertProgramIsFocusedOnToday(in: app)
+    }
+
+    func testRestDayStateOpensProgramForToday() {
+        let app = launchToday(environment: ["UITEST_SEED_REST_DAY_PROGRAM": "1"])
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayRestDayState"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Rest day."].exists)
+        XCTAssertTrue(app.staticTexts["Your program exists; no workout is scheduled today. See you tomorrow."].exists)
+        XCTAssertTrue(app.buttons["todayViewProgram"].exists)
+        XCTAssertTrue(app.buttons["View program"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["todayNoProgramState"].exists)
+
+        app.buttons["todayViewProgram"].tap()
+        assertProgramIsFocusedOnToday(in: app)
+    }
+
+    private func launchToday(environment: [String: String] = [:]) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        environment.forEach { app.launchEnvironment[$0.key] = $0.value }
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func assertProgramIsFocusedOnToday(in app: XCUIApplication) {
+        XCTAssertTrue(app.descendants(matching: .any)["programScreen"].waitForExistence(timeout: 2))
+        let selectedDate = app.staticTexts["programSelectedDate"]
+        XCTAssertTrue(selectedDate.exists)
+        XCTAssertEqual(selectedDate.label, "Friday, August 14, 2026")
+        XCTAssertTrue(app.staticTexts["programEmptyState"].exists)
+    }
+}
+
+final class RegistrationUITests: XCTestCase {
+    func testAccountDeletionCancellationKeepsTheUserSignedIn() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        XCTAssertTrue(app.alerts["Delete account?"].waitForExistence(timeout: 2))
+        app.alerts["Delete account?"].buttons["Cancel"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testConfirmedAccountDeletionRoutesToAuthScreen() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+    }
+
+    func testAccountDeletionReauthenticationRequirementKeepsTheSession() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_ERROR"] = "recentAuthentication"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+
+        let deletionError = app.staticTexts["authLogoutError"]
+        XCTAssertTrue(reveal(deletionError, in: app))
+        XCTAssertEqual(deletionError.label, "Error: For security, sign in again and then retry account deletion.")
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testAppleAccountDeletionVerifiesBeforeRoutingToAuthScreen() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_PROVIDER"] = "apple"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+        let verifyApple = app.buttons["accountDeleteVerifyApple"]
+        XCTAssertTrue(verifyApple.waitForExistence(timeout: 5))
+        verifyApple.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 8))
+        XCTAssertFalse(verifyApple.exists)
+    }
+
+    func testAppleAccountDeletionVerificationFailureKeepsTheSession() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_PROVIDER"] = "apple"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_ERROR"] = "recentAuthentication"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+        let verifyApple = app.buttons["accountDeleteVerifyApple"]
+        XCTAssertTrue(verifyApple.waitForExistence(timeout: 5))
+        verifyApple.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["accountDeleteVerificationError"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testGoogleAccountDeletionVerifiesBeforeRoutingToAuthScreen() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_ACCOUNT_DELETION_PROVIDER"] = "google"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["accountDelete"].tap()
+        app.alerts["Delete account?"].buttons["Delete account"].tap()
+        let verifyGoogle = app.buttons["accountDeleteVerifyGoogle"]
+        XCTAssertTrue(verifyGoogle.waitForExistence(timeout: 5))
+        verifyGoogle.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+        XCTAssertFalse(verifyGoogle.exists)
+    }
+
+    func testAppleSignInRoutesToToday() {
+        let app = launchRegistration()
+
+        app.buttons["authSignInWithApple"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+    }
+
+    func testGoogleSignInRoutesToToday() {
+        let app = launchRegistration()
+
+        app.buttons["authSignInWithGoogle"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+    }
+
+    func testPasswordResetShowsNeutralConfirmationWithoutSigningIn() {
+        let app = launchRegistration()
+        app.buttons["authShowSignIn"].tap()
+        app.buttons["authForgotPassword"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authPasswordResetScreen"].waitForExistence(timeout: 2))
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.buttons["authSendReset"].tap()
+        XCTAssertTrue(app.staticTexts["If an account matches this email, we’ll send reset instructions."].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["authPasswordResetScreen"].exists)
+        app.buttons["authBackToSignIn"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authSignInScreen"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authResetMessage"].exists)
+    }
+
+    func testLogoutThenSignInDoesNotShowPriorUsersWorkout() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayExercise-90000000-0000-4000-8000-000000000001"].waitForExistence(timeout: 8))
+
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["authLogout"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+        app.buttons["authShowSignIn"].tap()
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.buttons["authSignIn"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayNoProgramState"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Bench Press"].exists)
+    }
+
+    func testSignInAndLogoutReturnToAuthScreen() {
+        let app = launchRegistration()
+
+        app.buttons["authShowSignIn"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authSignInScreen"].waitForExistence(timeout: 2))
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.buttons["authSignIn"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["authLogout"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+    }
+
+    func testRegistrationScreenShowsInvalidEmailInline() {
+        let app = launchRegistration()
+
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("not-an-email")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.secureTextFields["authConfirmPassword"].tap()
+        app.secureTextFields["authConfirmPassword"].typeText("password")
+        app.buttons["authRegister"].tap()
+
+        let error = app.staticTexts["authRegistrationError"]
+        XCTAssertTrue(error.waitForExistence(timeout: 5))
+        XCTAssertEqual(error.label, "Error: Enter a valid email address.")
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testRegistrationControlsRemainUsableAtAccessibilityTextSize() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_AUTH_MODE"] = "registration"
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+
+        let email = app.textFields["authEmail"]
+        let password = app.secureTextFields["authPassword"]
+        let confirmation = app.secureTextFields["authConfirmPassword"]
+        let submit = app.buttons["authRegister"]
+        XCTAssertTrue(email.waitForExistence(timeout: 5))
+        XCTAssertTrue(password.isHittable)
+        XCTAssertTrue(confirmation.isHittable)
+        for _ in 0..<3 where !submit.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(submit.isHittable)
+        XCTAssertGreaterThanOrEqual(submit.frame.height, 44)
+    }
+
+    func testRegistrationScreenShowsPasswordMismatchInline() {
+        let app = launchRegistration()
+
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.secureTextFields["authConfirmPassword"].tap()
+        app.secureTextFields["authConfirmPassword"].typeText("different")
+        app.buttons["authRegister"].tap()
+
+        let error = app.staticTexts["authRegistrationError"]
+        XCTAssertTrue(error.waitForExistence(timeout: 5))
+        XCTAssertEqual(error.label, "Error: Passwords do not match.")
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testSuccessfulRegistrationRoutesDirectlyToTodayEmptyState() {
+        let app = launchRegistration()
+
+        app.textFields["authEmail"].tap()
+        app.textFields["authEmail"].typeText("member@example.com")
+        app.secureTextFields["authPassword"].tap()
+        app.secureTextFields["authPassword"].typeText("password")
+        app.secureTextFields["authConfirmPassword"].tap()
+        app.secureTextFields["authConfirmPassword"].typeText("password")
+        app.buttons["authRegister"].tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No workout planned yet."].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["authRegistrationScreen"].exists)
+    }
+
+    func testCaptureMVPPreviewScreens() {
+        let registrationApp = XCUIApplication()
+        registrationApp.launchEnvironment["UITESTING"] = "1"
+        registrationApp.launchEnvironment["UITEST_AUTH_MODE"] = "registration"
+        registrationApp.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        registrationApp.launch()
+        XCTAssertTrue(
+            registrationApp.descendants(matching: .any)["authRegistrationScreen"]
+                .waitForExistence(timeout: 5)
+        )
+        captureMVPPreview("01-Auth", app: registrationApp)
+        registrationApp.terminate()
+
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_TODAY_WORKOUT"] = "1"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        captureMVPPreview("02-Today", app: app)
+
+        app.tabBars.buttons["Program"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["programScreen"].waitForExistence(timeout: 5))
+        captureMVPPreview("03-Program", app: app)
+
+        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settingsScreen"].waitForExistence(timeout: 5))
+        captureMVPPreview("04-Settings", app: app)
+        app.terminate()
+
+        let completionApp = XCUIApplication()
+        completionApp.launchEnvironment["UITESTING"] = "1"
+        completionApp.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        completionApp.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
+        completionApp.launch()
+        XCTAssertTrue(
+            completionApp.descendants(matching: .any)["todayScreen"]
+                .waitForExistence(timeout: 5)
+        )
+        completionApp.buttons["todaySet-90000000-0000-4000-8000-000000000101"].tap()
+        completionApp.buttons["todaySet-90000000-0000-4000-8000-000000000201"].tap()
+        XCTAssertTrue(
+            completionApp.buttons["todayCompletionDismiss"]
+                .waitForExistence(timeout: 2)
+        )
+        captureMVPPreview("05-Completion", app: completionApp)
+    }
+
+    private func captureMVPPreview(_ name: String, app: XCUIApplication) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    private func launchRegistration() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_AUTH_MODE"] = "registration"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["authRegistrationScreen"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication, maximumSwipes: Int = 3) -> Bool {
+        for attempt in 0...maximumSwipes {
+            if element.waitForExistence(timeout: 1) { return true }
+            if attempt < maximumSwipes { app.swipeUp() }
+        }
+        return false
+    }
+}
+
+final class TodayCompletionUITests: XCTestCase {
+    func testCompletingEveryRequiredSetShowsDismissibleCompletionPopup() {
+        let app = launchCompletionWorkout()
+        let benchSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000101"]
+        let rowSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000201"]
+
+        benchSet.tap()
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
+        rowSet.tap()
+        XCTAssertTrue(app.buttons["todayCompletionDismiss"].waitForExistence(timeout: 2))
+        XCTAssertFalse(rowSet.exists)
+        let dismiss = app.buttons["todayCompletionDismiss"]
+        XCTAssertTrue(dismiss.isHittable)
+        XCTAssertFalse(benchSet.isHittable)
+        // GYM-36: the popup is modal, so the tab bar cannot be used meanwhile.
+        let programTab = app.tabBars.buttons["Program"]
+        let tabBarHidden = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false OR hittable == false"), object: programTab
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [tabBarHidden], timeout: 2), .completed)
+        dismiss.tap()
+        XCTAssertTrue(rowSet.waitForExistence(timeout: 2))
+        XCTAssertTrue(rowSet.isHittable)
+        XCTAssertTrue(programTab.waitForExistence(timeout: 2))
+    }
+
+    func testLastRemainingSetShowsDismissibleCompletionPopupOncePerTransition() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
+        app.launch()
+
+        let benchPress = app.staticTexts["todayExercise-90000000-0000-4000-8000-000000000001"]
+        let rowSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000201"]
+        XCTAssertTrue(benchPress.waitForExistence(timeout: 5))
+        benchPress.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+        XCTAssertTrue(rowSet.waitForExistence(timeout: 2))
+
+        rowSet.tap()
+        let completionPopup = app.buttons["todayCompletionDismiss"]
+        XCTAssertTrue(completionPopup.waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            ["You crushed it!", "Gym survived. Barely.", "Another one done."].contains {
+                app.staticTexts[$0].exists
+            }
+        )
+        XCTAssertTrue(app.buttons["Done"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
+        app.buttons["todayCompletionDismiss"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].exists)
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
+
+        rowSet.tap()
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
+        rowSet.tap()
+        XCTAssertTrue(app.buttons["todayCompletionDismiss"].waitForExistence(timeout: 2))
+    }
+
+    func testSkippingLastRemainingExerciseShowsCompletionPopup() {
+        let app = launchCompletionWorkout()
+        let benchSet = app.buttons["todaySet-90000000-0000-4000-8000-000000000101"]
+        let row = app.staticTexts["todayExercise-90000000-0000-4000-8000-000000000002"]
+
+        benchSet.tap()
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
+        row.press(forDuration: 1)
+        app.buttons["Skip exercise"].tap()
+
+        XCTAssertTrue(app.buttons["todayCompletionDismiss"].waitForExistence(timeout: 2))
+    }
+
+    func testCompletedWorkoutDoesNotShowCompletionPopupOnLaunch() {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
+        app.launchEnvironment["UITEST_SEED_COMPLETED_WORKOUT"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["todayCompletionDismiss"].exists)
+    }
+
+    private func launchCompletionWorkout() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["UITESTING"] = "1"
+        app.launchEnvironment["UITEST_REFERENCE_DATE"] = "2026-08-14"
+        app.launchEnvironment["UITEST_SEED_COMPLETION_WORKOUT"] = "1"
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["todayScreen"].waitForExistence(timeout: 5))
+        return app
+    }
+}

@@ -1,0 +1,125 @@
+rules_version = '2';
+
+// Owner isolation plus write-schema validation. Schemas mirror the payloads in
+// GymChecklist/Data/Firebase/FirestoreMapping.swift and are exercised with the
+// client's exact shapes by firestore-tests/rules.test.js (GYM-9, GYM-22).
+//
+// Client encoding facts these rules rely on:
+// - IDs are Swift `UUID.uuidString` (uppercase, 36 chars); lowercase is accepted too.
+// - `Date` fields are encoded by Firestore.Encoder as Timestamps.
+// - Synthesized Codable omits nil optionals (custom exercise `category`, set fields);
+//   settings encode nil profile fields as explicit nulls.
+// - Every client write is a full-document `setData` (no merge), so
+//   `request.resource.data` is exactly the client payload.
+// Firestore rules cannot loop over list elements, so nested exercise/set
+// entries are bounded by size only; the app decoder rejects malformed entries.
+//
+// Deploy from the repository only (see docs/architecture.md, "Firestore rules
+// deployment"): `firebase deploy --only firestore:rules --project <project-id>`.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function ownsUserData(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isUuid(value) {
+      return value is string
+        && value.matches('^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$');
+    }
+
+    function isLocalDate(value) {
+      return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    // Absent or explicit null are both accepted for optional fields.
+    function optionalOf(data, key, kind) {
+      return !(key in data) || data[key] == null
+        || (kind == 'string' && data[key] is string)
+        || (kind == 'number' && data[key] is number);
+    }
+
+    function isValidWorkout(workoutDate) {
+      let data = incoming();
+      let workout = data.workout;
+      return isLocalDate(workoutDate)
+        && data.keys().hasOnly(['workout', 'exercises'])
+        && data.keys().hasAll(['workout', 'exercises'])
+        && workout is map
+        && workout.keys().hasOnly(['id', 'localDate', 'createdAt', 'updatedAt'])
+        && workout.keys().hasAll(['id', 'localDate', 'createdAt', 'updatedAt'])
+        && isUuid(workout.id)
+        && workout.localDate == workoutDate
+        && workout.createdAt is timestamp
+        && workout.updatedAt is timestamp
+        && data.exercises is list
+        && data.exercises.size() <= 200;
+    }
+
+    // Name/category caps only bound document size; the app has no shorter limit.
+    function isValidCustomExercise(exerciseId) {
+      let data = incoming();
+      return data.keys().hasOnly(['id', 'name', 'category'])
+        && data.keys().hasAll(['id', 'name'])
+        && data.id == exerciseId
+        && isUuid(data.id)
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 1000
+        && optionalOf(data, 'category', 'string')
+        && (!('category' in data) || data.category == null || data.category.size() <= 1000);
+    }
+
+    // The client always writes all five fields; a subset stays valid so older
+    // documents and partial writes are not locked out.
+    function isValidSettings() {
+      let data = incoming();
+      return data.keys().hasOnly(['appearance', 'weightUnit', 'sex', 'dateOfBirth', 'heightCentimeters'])
+        && (!('appearance' in data) || data.appearance in ['system', 'light', 'dark'])
+        && (!('weightUnit' in data) || data.weightUnit in ['kg', 'lb'])
+        && (!('sex' in data) || data.sex == null || data.sex in ['female', 'male', 'preferNotToSay'])
+        && (!('dateOfBirth' in data) || data.dateOfBirth == null || isLocalDate(data.dateOfBirth))
+        && optionalOf(data, 'heightCentimeters', 'number')
+        && (!('heightCentimeters' in data) || data.heightCentimeters == null
+          || (data.heightCentimeters > 0 && data.heightCentimeters <= 1000));
+    }
+
+    // Bounds match PersistedValueLimits in the app.
+    function isValidBodyWeight(measurementId) {
+      let data = incoming();
+      return data.keys().hasOnly(['id', 'localDate', 'weightInKilograms', 'measuredAt', 'updatedAt'])
+        && data.keys().hasAll(['id', 'localDate', 'weightInKilograms', 'measuredAt', 'updatedAt'])
+        && data.id == measurementId
+        && isUuid(data.id)
+        && isLocalDate(data.localDate)
+        && data.weightInKilograms is number
+        && data.weightInKilograms > 0
+        && data.weightInKilograms <= 1000
+        && data.measuredAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId}/workouts/{workoutDate} {
+      allow get, list, delete: if ownsUserData(userId);
+      allow create, update: if ownsUserData(userId) && isValidWorkout(workoutDate);
+    }
+
+    match /users/{userId}/customExercises/{exerciseId} {
+      allow get, list, delete: if ownsUserData(userId);
+      allow create, update: if ownsUserData(userId) && isValidCustomExercise(exerciseId);
+    }
+
+    match /users/{userId}/settings/default {
+      allow get, delete: if ownsUserData(userId);
+      allow create, update: if ownsUserData(userId) && isValidSettings();
+    }
+
+    match /users/{userId}/bodyWeightMeasurements/{measurementId} {
+      allow get, list, delete: if ownsUserData(userId);
+      allow create, update: if ownsUserData(userId) && isValidBodyWeight(measurementId);
+    }
+  }
+}

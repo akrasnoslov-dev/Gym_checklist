@@ -1,0 +1,531 @@
+import Foundation
+import SwiftUI
+import UIKit
+
+@MainActor
+struct ContentView: View {
+    @StateObject private var authenticationViewModel: AuthenticationViewModel
+
+    init() {
+        _authenticationViewModel = StateObject(
+            wrappedValue: AuthenticationViewModel(
+                service: AuthenticationServiceFactory.makeDefault(),
+                analytics: AnalyticsTrackerFactory.makeDefault()
+            )
+        )
+    }
+
+    var body: some View {
+        Group {
+            if authenticationViewModel.isResolving {
+                ProgressView()
+            } else if let user = authenticationViewModel.currentUser {
+                AuthenticatedContentView(
+                    userID: user.id,
+                    accountEmail: user.email,
+                    onLogout: authenticationViewModel.signOut,
+                    onDeleteAccount: authenticationViewModel.deleteAccount,
+                    requiresAppleTokenRevocationForAccountDeletion: authenticationViewModel.requiresAppleTokenRevocationForAccountDeletion,
+                    requiresGoogleReauthenticationForAccountDeletion: authenticationViewModel.requiresGoogleReauthenticationForAccountDeletion,
+                    onDeleteAccountWithAppleReauthentication: authenticationViewModel.deleteAccountWithAppleReauthentication,
+                    onDeleteAccountWithGoogleReauthentication: authenticationViewModel.deleteAccountWithGoogleReauthentication,
+                    onAppleAccountDeletionVerificationFailure: authenticationViewModel.handleAppleAccountDeletionVerificationFailure,
+                    authenticationError: authenticationViewModel.errorMessage
+                )
+                    .id(user.id.rawValue)
+            } else {
+                RegistrationView(viewModel: authenticationViewModel)
+            }
+        }
+    }
+
+    fileprivate static func testDate(named environmentKey: String) -> LocalDate? {
+        guard let raw = ProcessInfo.processInfo.environment[environmentKey] else { return nil }
+        let values = raw.split(separator: "-").compactMap { Int($0) }
+        guard values.count == 3, (1...12).contains(values[1]), (1...31).contains(values[2]) else { return nil }
+        return LocalDate(year: values[0], month: values[1], day: values[2])
+    }
+
+    fileprivate static var testReferenceDate: LocalDate? {
+#if DEBUG || MVP_DEMO
+        return testDate(named: "UITEST_REFERENCE_DATE")
+#else
+        return nil
+#endif
+    }
+
+    fileprivate static var testInitialSelectedDate: LocalDate? {
+#if DEBUG
+        guard FirebaseBootstrap.isRunningTests() else { return nil }
+        return testDate(named: "UITEST_INITIAL_SELECTED_DATE")
+#else
+        nil
+#endif
+    }
+
+    fileprivate static func localCurrentDate(calendar: Calendar) -> LocalDate {
+        testReferenceDate ?? LocalDate(date: Date(), calendar: calendar)
+    }
+
+    fileprivate static func seedTodayWorkoutForUITests(
+        in repository: InMemoryWorkoutRepository,
+        on date: LocalDate
+    ) {
+        if ProcessInfo.processInfo.environment["UITEST_SEED_HISTORY_WORKOUT"] == "1" {
+            seedHistoryWorkoutForUITests(in: repository, currentDate: date)
+            if ProcessInfo.processInfo.environment["UITEST_SEED_TODAY_WORKOUT"] != "1" {
+                return
+            }
+        }
+        if ProcessInfo.processInfo.environment["UITEST_SEED_COMPLETION_WORKOUT"] == "1" {
+            seedCompletionWorkoutForUITests(in: repository, on: date)
+            return
+        }
+        guard ProcessInfo.processInfo.environment["UITEST_SEED_TODAY_WORKOUT"] == "1" else {
+            seedRestDayProgramForUITests(in: repository, on: date)
+            return
+        }
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        let longWorkoutSets = (0..<16).map { index in
+            let suffix = String(format: "%012d", 301 + index)
+            guard let id = UUID(uuidString: "90000000-0000-4000-8000-\(suffix)") else {
+                preconditionFailure("Invalid UI-test workout set identifier")
+            }
+            return WorkoutSet(
+                id: WorkoutSetID(rawValue: id),
+                order: index,
+                reps: 10,
+                weight: 20,
+                timeSeconds: 0
+            )
+        }
+        workout.exercises = [
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000001")!),
+                exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil,
+                order: 0,
+                isSkipped: false,
+                sets: [
+                    WorkoutSet(id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000101")!), order: 0, reps: 8, weight: 60, timeSeconds: 0),
+                    WorkoutSet(id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000102")!), order: 1, reps: 10, weight: 65, timeSeconds: 0)
+                ]
+            ),
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000002")!),
+                exerciseID: SystemExerciseCatalog.all[6].id,
+                customName: nil,
+                order: 1,
+                isSkipped: false,
+                sets: [WorkoutSet(id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000201")!), order: 0, reps: 12, weight: 0, timeSeconds: 0)]
+            ),
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000003")!),
+                exerciseID: SystemExerciseCatalog.all[14].id,
+                customName: nil,
+                order: 2,
+                isSkipped: false,
+                sets: longWorkoutSets
+            )
+        ]
+        if ProcessInfo.processInfo.environment["UITEST_SEED_COMPLETED_WORKOUT"] == "1" {
+            for exerciseIndex in workout.exercises.indices {
+                for setIndex in workout.exercises[exerciseIndex].sets.indices {
+                    workout.exercises[exerciseIndex].sets[setIndex].complete(at: .distantPast)
+                }
+            }
+        }
+        do {
+            try repository.save(workout)
+        } catch {
+            preconditionFailure("Could not seed the UI-test workout: \(error)")
+        }
+    }
+
+    fileprivate static func seedRestDayProgramForUITests(
+        in repository: InMemoryWorkoutRepository,
+        on currentDate: LocalDate
+    ) {
+        guard ProcessInfo.processInfo.environment["UITEST_SEED_REST_DAY_PROGRAM"] == "1" else { return }
+        let programDate = LocalDate(year: 2026, month: 8, day: 15)
+        precondition(currentDate == LocalDate(year: 2026, month: 8, day: 14), "Rest-day UI test requires its fixed reference date")
+        _ = repository.createEmptyWorkout(on: programDate, at: .distantPast)
+    }
+
+    fileprivate static func seedCompletionWorkoutForUITests(
+        in repository: InMemoryWorkoutRepository,
+        on date: LocalDate
+    ) {
+        var workout = repository.createEmptyWorkout(on: date, at: .distantPast).workout
+        workout.exercises = [
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000001")!),
+                exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil,
+                order: 0,
+                isSkipped: false,
+                sets: [WorkoutSet(id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000101")!), order: 0, reps: 8, weight: 60, timeSeconds: 0)]
+            ),
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000002")!),
+                exerciseID: SystemExerciseCatalog.all[6].id,
+                customName: nil,
+                order: 1,
+                isSkipped: false,
+                sets: [WorkoutSet(id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000201")!), order: 0, reps: 12, weight: 0, timeSeconds: 0)]
+            )
+        ]
+        do {
+            try repository.save(workout)
+        } catch {
+            preconditionFailure("Could not seed the UI-test completion workout: \(error)")
+        }
+    }
+
+    fileprivate static func seedHistoryWorkoutForUITests(
+        in repository: InMemoryWorkoutRepository,
+        currentDate: LocalDate
+    ) {
+        precondition(currentDate == LocalDate(year: 2026, month: 8, day: 14), "History UI test requires its fixed reference date")
+        let historyDate = LocalDate(year: 2026, month: 8, day: 7)
+        var workout = repository.createEmptyWorkout(on: historyDate, at: .distantPast).workout
+        var completedSet = WorkoutSet(
+            id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000401")!),
+            order: 0,
+            reps: 8,
+            weight: 60,
+            timeSeconds: 0
+        )
+        completedSet.complete(at: .distantPast)
+        completedSet.editActual(reps: 7, weight: 65, timeSeconds: 0)
+        workout.exercises = [
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000004")!),
+                exerciseID: SystemExerciseCatalog.all[0].id,
+                customName: nil,
+                order: 0,
+                isSkipped: false,
+                sets: [
+                    completedSet,
+                    WorkoutSet(
+                        id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000402")!),
+                        order: 1,
+                        reps: 12,
+                        weight: 0,
+                        timeSeconds: 0
+                    )
+                ]
+            ),
+            WorkoutExercise(
+                id: WorkoutExerciseID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000005")!),
+                exerciseID: SystemExerciseCatalog.all[6].id,
+                customName: nil,
+                order: 1,
+                isSkipped: true,
+                sets: [WorkoutSet(
+                    id: WorkoutSetID(rawValue: UUID(uuidString: "90000000-0000-4000-8000-000000000403")!),
+                    order: 0,
+                    reps: 10,
+                    weight: 20,
+                    timeSeconds: 0
+                )]
+            )
+        ]
+        do {
+            try repository.save(workout)
+        } catch {
+            preconditionFailure("Could not seed the UI-test history workout: \(error)")
+        }
+    }
+}
+
+@MainActor
+private struct AuthenticatedContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var selectedTab = AppTab.today
+    @State private var activePersistenceIssue: ActivePersistenceIssue? = nil
+    @AccessibilityFocusState private var isPersistenceIssueFocused: Bool
+    @StateObject private var workoutViewModel: WorkoutViewModel
+    @StateObject private var settingsViewModel: SettingsViewModel
+    private let accountEmail: String?
+    private let onLogout: () -> Void
+    private let onDeleteAccount: () async -> Bool
+    private let requiresAppleTokenRevocationForAccountDeletion: Bool
+    private let requiresGoogleReauthenticationForAccountDeletion: Bool
+    private let onDeleteAccountWithAppleReauthentication: (String, String, String) async -> Bool
+    private let onDeleteAccountWithGoogleReauthentication: () async -> Bool
+    private let onAppleAccountDeletionVerificationFailure: () -> Void
+    private let authenticationError: String?
+
+    init(
+        userID: UserID,
+        accountEmail: String?,
+        onLogout: @escaping () -> Void,
+        onDeleteAccount: @escaping () async -> Bool,
+        requiresAppleTokenRevocationForAccountDeletion: Bool,
+        requiresGoogleReauthenticationForAccountDeletion: Bool,
+        onDeleteAccountWithAppleReauthentication: @escaping (String, String, String) async -> Bool,
+        onDeleteAccountWithGoogleReauthentication: @escaping () async -> Bool,
+        onAppleAccountDeletionVerificationFailure: @escaping () -> Void,
+        authenticationError: String?
+    ) {
+        self.onLogout = onLogout
+        self.accountEmail = accountEmail
+        self.onDeleteAccount = onDeleteAccount
+        self.requiresAppleTokenRevocationForAccountDeletion = requiresAppleTokenRevocationForAccountDeletion
+        self.requiresGoogleReauthenticationForAccountDeletion = requiresGoogleReauthenticationForAccountDeletion
+        self.onDeleteAccountWithAppleReauthentication = onDeleteAccountWithAppleReauthentication
+        self.onDeleteAccountWithGoogleReauthentication = onDeleteAccountWithGoogleReauthentication
+        self.onAppleAccountDeletionVerificationFailure = onAppleAccountDeletionVerificationFailure
+        self.authenticationError = authenticationError
+        let calendar = Calendar.gymLocal
+        let currentDateProvider = { ContentView.localCurrentDate(calendar: calendar) }
+        let today = currentDateProvider()
+        let initialSelectedDate = ContentView.testInitialSelectedDate ?? today
+        let repository: WorkoutRepository
+        let customExerciseRepository: CustomExerciseRepository?
+        let settingsRepository: UserSettingsRepository?
+        let bodyWeightRepository: BodyWeightRepository?
+        if DemoMode.isEnabled || FirebaseBootstrap.isRunningTests() {
+            let inMemoryRepository = InMemoryWorkoutRepository(userID: userID)
+#if DEBUG
+            // GYM-10: UI-test seeding exists only in Debug builds; in Release
+            // `isRunningTests()` is always false, so only MVP_DEMO reaches here.
+            if !DemoMode.isEnabled, userID.rawValue == "ui-test-user" {
+                ContentView.seedTodayWorkoutForUITests(in: inMemoryRepository, on: today)
+            }
+#endif
+            repository = inMemoryRepository
+            customExerciseRepository = DemoMode.isEnabled
+                ? InMemoryCustomExerciseRepository(userID: userID)
+                : nil
+            settingsRepository = InMemoryUserSettingsRepository(userID: userID)
+            bodyWeightRepository = InMemoryBodyWeightRepository(userID: userID)
+        } else {
+            repository = FirestoreWorkoutRepository(currentUserID: { userID })
+            customExerciseRepository = FirestoreCustomExerciseRepository(currentUserID: { userID })
+            settingsRepository = FirestoreUserSettingsRepository(currentUserID: { userID })
+            bodyWeightRepository = FirestoreBodyWeightRepository(currentUserID: { userID })
+        }
+#if DEBUG
+        if let inMemoryRepository = repository as? InMemoryWorkoutRepository {
+            if ProcessInfo.processInfo.environment["UITEST_FAIL_NEXT_TODAY_SAVE"] == "1" {
+                inMemoryRepository.armNextSaveFailureForTesting()
+            }
+            if let rawFailureDelay = ProcessInfo.processInfo.environment["UITEST_FAIL_TODAY_SAVE_AFTER"],
+               let failureDelay = Int(rawFailureDelay), failureDelay >= 0 {
+                inMemoryRepository.armSaveFailureForTesting(afterSuccessfulSaves: failureDelay)
+            }
+        }
+#endif
+        _workoutViewModel = StateObject(wrappedValue: WorkoutViewModel(
+            repository: repository,
+            initialDate: initialSelectedDate,
+            currentDate: today,
+            calendar: calendar,
+            customExerciseRepository: customExerciseRepository,
+            analytics: AnalyticsTrackerFactory.makeDefault(),
+            currentDateProvider: currentDateProvider,
+        ))
+        guard let settingsRepository, let bodyWeightRepository else {
+            preconditionFailure("Authenticated content requires user settings and body-weight repositories")
+        }
+        _settingsViewModel = StateObject(wrappedValue: SettingsViewModel(
+            repository: settingsRepository,
+            bodyWeightRepository: bodyWeightRepository
+        ))
+    }
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            TodayView(
+                viewModel: workoutViewModel,
+                currentDate: workoutViewModel.currentDate,
+                calendar: workoutViewModel.calendar,
+                weightUnit: settingsViewModel.settings.weightUnit,
+                onOpenProgram: openProgramForToday
+            )
+                .tabItem {
+                    Label("Today", systemImage: "checkmark.circle")
+                }
+                .tag(AppTab.today)
+
+            ProgramView(
+                viewModel: workoutViewModel,
+                weightUnit: settingsViewModel.settings.weightUnit
+            )
+                .tabItem {
+                    Label("Program", systemImage: "calendar")
+                }
+                .tag(AppTab.program)
+
+            SettingsView(
+                viewModel: settingsViewModel,
+                accountEmail: accountEmail,
+                onLogout: onLogout,
+                onDeleteAccount: onDeleteAccount,
+                requiresAppleTokenRevocationForAccountDeletion: requiresAppleTokenRevocationForAccountDeletion,
+                requiresGoogleReauthenticationForAccountDeletion: requiresGoogleReauthenticationForAccountDeletion,
+                onDeleteAccountWithAppleReauthentication: onDeleteAccountWithAppleReauthentication,
+                onDeleteAccountWithGoogleReauthentication: onDeleteAccountWithGoogleReauthentication,
+                onAppleAccountDeletionVerificationFailure: onAppleAccountDeletionVerificationFailure,
+                errorMessage: authenticationError
+            )
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape")
+                }
+            .tag(AppTab.settings)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            workoutViewModel.refreshCurrentDate()
+            settingsViewModel.refreshCurrentDate()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            workoutViewModel.refreshCurrentDate()
+            settingsViewModel.refreshCurrentDate()
+        }
+        // GYM-32: `preferredColorScheme(nil)` does not reliably return the
+        // window to the system theme after Light/Dark, so the window style is
+        // set directly; `.unspecified` follows the system again.
+        .onChange(of: settingsViewModel.settings.appearance, initial: true) { _, appearance in
+            WindowAppearance.apply(appearance)
+        }
+        .onDisappear { WindowAppearance.apply(.system) }
+        .tint(GymTheme.accentForeground)
+        .accessibilityIdentifier("authenticatedContent")
+        .accessibilityValue(settingsViewModel.settings.appearance.rawValue)
+        .onAppear { presentNextPersistenceIssueIfNeeded() }
+        .onChange(of: workoutViewModel.persistenceIssue?.id) { _, _ in
+            presentNextPersistenceIssueIfNeeded()
+        }
+        .onChange(of: settingsViewModel.persistenceIssue?.id) { _, _ in
+            presentNextPersistenceIssueIfNeeded()
+        }
+        .onChange(of: activePersistenceIssue?.id) { _, newValue in
+            isPersistenceIssueFocused = newValue != nil
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let issue = activePersistenceIssue {
+                persistenceIssueBanner(issue)
+            }
+        }
+    }
+
+    private func persistenceIssueBanner(_ issue: ActivePersistenceIssue) -> some View {
+        VStack(alignment: .leading, spacing: GymTheme.spacing8) {
+            Label(issue.presentation.title, systemImage: "exclamationmark.triangle.fill")
+                .font(.headline)
+                .foregroundStyle(GymTheme.textPrimary)
+                .accessibilityLabel("\(issue.presentation.title). \(issue.presentation.message)")
+                .accessibilityFocused($isPersistenceIssueFocused)
+            Text(issue.presentation.message)
+                .font(.subheadline)
+                .foregroundStyle(GymTheme.textSecondary)
+                .accessibilityHidden(true)
+            HStack(spacing: GymTheme.spacing12) {
+                Button(issue.presentation.secondaryTitle) {
+                    dismissPersistenceIssue(issue)
+                    activePersistenceIssue = nil
+                    presentNextPersistenceIssueAfterDismissal()
+                }
+                .buttonStyle(.bordered)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                Spacer(minLength: 0)
+                Button(issue.presentation.retryTitle) {
+                    switch issue {
+                    case .workout:
+                        workoutViewModel.retryPersistenceIssue()
+                    case .settings:
+                        settingsViewModel.retryPersistenceIssue()
+                    }
+                    activePersistenceIssue = nil
+                    presentNextPersistenceIssueAfterDismissal()
+                }
+                .buttonStyle(.borderedProminent)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+        }
+        .padding(.horizontal, GymTheme.spacing16)
+        .padding(.vertical, GymTheme.spacing12)
+        .background(GymTheme.surface)
+        .overlay(alignment: .bottom) { Divider() }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("persistenceRecoveryBanner")
+    }
+
+    private func presentNextPersistenceIssueIfNeeded() {
+        guard activePersistenceIssue == nil else { return }
+        if let issue = workoutViewModel.persistenceIssue {
+            activePersistenceIssue = .workout(issue)
+        } else if let issue = settingsViewModel.persistenceIssue {
+            activePersistenceIssue = .settings(issue)
+        }
+    }
+
+    private func presentNextPersistenceIssueAfterDismissal() {
+        Task { @MainActor in presentNextPersistenceIssueIfNeeded() }
+    }
+
+    private func dismissPersistenceIssue(_ issue: ActivePersistenceIssue) {
+        switch issue {
+        case .workout:
+            workoutViewModel.dismissPersistenceIssue()
+        case .settings:
+            settingsViewModel.dismissPersistenceIssue()
+        }
+    }
+
+    private func openProgramForToday() {
+        workoutViewModel.select(workoutViewModel.currentDate)
+        selectedTab = .program
+    }
+}
+
+
+private enum AppTab: String {
+    case today
+    case program
+    case settings
+}
+
+private enum ActivePersistenceIssue: Identifiable {
+    case workout(PersistenceIssue)
+    case settings(PersistenceIssue)
+
+    var id: UUID { presentation.id }
+
+    var presentation: PersistenceIssue {
+        switch self {
+        case let .workout(issue), let .settings(issue): issue
+        }
+    }
+}
+
+#Preview {
+    ContentView()
+}
+
+/// Applies the chosen appearance to every window of the app, including the
+/// windows that present sheets (GYM-32).
+@MainActor
+enum WindowAppearance {
+    static func style(for appearance: Appearance) -> UIUserInterfaceStyle {
+        switch appearance {
+        case .system: .unspecified
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    static func apply(_ appearance: Appearance) {
+        let style = style(for: appearance)
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            for window in scene.windows where window.overrideUserInterfaceStyle != style {
+                window.overrideUserInterfaceStyle = style
+            }
+        }
+    }
+}

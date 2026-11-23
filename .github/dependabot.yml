@@ -1,0 +1,55 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "dev"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/functions"
+    schedule:
+      interval: "weekly"
+    target-branch: "dev"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/design/prototype"
+    schedule:
+      interval: "monthly"
+    target-branch: "dev"
+    open-pull-requests-limit: 5
+    groups:
+      prototype-dev:
+        dependency-type: "development"
+
+  # Only the direct pins (firebase-ios-sdk, GoogleSignIn-iOS) are bumped here.
+  # Transitive packages are resolved by those SDKs' version ranges; bumping them
+  # alone breaks the Package.resolved drift check in CI. Any SwiftPM update still
+  # needs Package.resolved regenerated on macOS before it can go green.
+  - package-ecosystem: "swift"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    target-branch: "dev"
+    open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: "github.com/google/abseil-cpp-binary"
+      - dependency-name: "github.com/google/app-check"
+      - dependency-name: "github.com/openid/appauth-ios"
+      - dependency-name: "github.com/googleads/google-ads-on-device-conversion-ios-sdk"
+      - dependency-name: "github.com/google/googleappmeasurement"
+      - dependency-name: "github.com/google/googledatatransport"
+      - dependency-name: "github.com/google/googleutilities"
+      - dependency-name: "github.com/google/grpc-binary"
+      - dependency-name: "github.com/google/gtm-session-fetcher"
+      - dependency-name: "github.com/google/gtmappauth"
+      - dependency-name: "github.com/google/interop-ios-for-google-sdks"
+      - dependency-name: "github.com/firebase/leveldb"
+      - dependency-name: "github.com/firebase/nanopb"
+      - dependency-name: "github.com/google/promises"
+    groups:
+      google-sdks:
+        patterns:
+          - "*"

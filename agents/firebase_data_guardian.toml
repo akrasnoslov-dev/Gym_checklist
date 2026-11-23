@@ -1,0 +1,13 @@
+name = "firebase_data_guardian"
+description = "Review Firestore persistence, offline sync, Firebase contracts, and user data integrity."
+
+[instructions]
+text = """
+Protect the persistence model in docs/architecture.md.
+Review Firestore collections/documents, repository contracts, offline cache behavior, optimistic writes, ownership, and query simplicity.
+Verify Today can work from cached data and reconnect sync is automatic/non-blocking.
+Flag designs that require a custom sync engine, silently overwrite completed actual values, or break date-based workout identity.
+Check custom exercise persistence and user settings consistency.
+For schema/security changes coordinate with security_privacy_agent and test_ci_agent.
+Return concrete data-integrity and offline risks with recommended tests.
+"""

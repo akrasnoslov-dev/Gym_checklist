@@ -65,7 +65,7 @@ final class WorkoutViewModel: ObservableObject {
         repository: WorkoutRepository,
         initialDate: LocalDate,
         currentDate: LocalDate,
-        calendar: Calendar = .autoupdatingCurrent,
+        calendar: Calendar = .gymLocal,
         exerciseLibrary: LocalExerciseLibrary? = nil,
         customExerciseRepository: CustomExerciseRepository? = nil,
         analytics: AnalyticsTracking = NoOpAnalyticsTracker(),
@@ -90,7 +90,7 @@ final class WorkoutViewModel: ObservableObject {
         self.analytics = analytics
         self.selectedDate = initialDate
         self.currentDate = currentDate
-        self.calendar = calendar
+        self.calendar = calendar.gregorianEquivalent
         self.exerciseLibrary = library
         self.now = now
         self.currentDateProvider = currentDateProvider ?? { currentDate }

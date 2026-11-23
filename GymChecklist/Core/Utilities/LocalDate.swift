@@ -16,8 +16,11 @@ struct LocalDate: Codable, Hashable, Comparable, Sendable, CustomStringConvertib
         self.day = day
     }
 
-    init(date: Date, calendar: Calendar = .autoupdatingCurrent) {
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
+    /// Stored dates are Gregorian civil dates. A Hebrew, Buddhist or Japanese
+    /// system calendar would otherwise produce month 13 (a crash) or a
+    /// different year, so every conversion goes through `gregorianEquivalent`.
+    init(date: Date, calendar: Calendar = .gymLocal) {
+        let components = calendar.gregorianEquivalent.dateComponents([.year, .month, .day], from: date)
         guard let year = components.year, let month = components.month, let day = components.day else {
             preconditionFailure("Calendar could not produce date components")
         }
@@ -51,29 +54,54 @@ struct LocalDate: Codable, Hashable, Comparable, Sendable, CustomStringConvertib
 
     static var today: LocalDate { LocalDate(date: Date()) }
 
-    func date(in calendar: Calendar = .autoupdatingCurrent) -> Date? {
-        calendar.date(from: DateComponents(year: year, month: month, day: day))
+    func date(in calendar: Calendar = .gymLocal) -> Date? {
+        calendar.gregorianEquivalent.date(from: DateComponents(year: year, month: month, day: day))
     }
 
-    func adding(days: Int, calendar: Calendar = .autoupdatingCurrent) -> LocalDate? {
-        guard let date = date(in: calendar), let result = calendar.date(byAdding: .day, value: days, to: date) else { return nil }
-        return LocalDate(date: result, calendar: calendar)
+    func adding(days: Int, calendar: Calendar = .gymLocal) -> LocalDate? {
+        let gregorian = calendar.gregorianEquivalent
+        guard let date = date(in: gregorian), let result = gregorian.date(byAdding: .day, value: days, to: date) else { return nil }
+        return LocalDate(date: result, calendar: gregorian)
     }
 
-    func adding(weeks: Int, calendar: Calendar = .autoupdatingCurrent) -> LocalDate? {
+    func adding(weeks: Int, calendar: Calendar = .gymLocal) -> LocalDate? {
         adding(days: weeks * 7, calendar: calendar)
     }
 
-    func adding(months: Int, calendar: Calendar = .autoupdatingCurrent) -> LocalDate? {
-        guard let date = date(in: calendar),
-              let result = calendar.date(byAdding: .month, value: months, to: date)
+    func adding(months: Int, calendar: Calendar = .gymLocal) -> LocalDate? {
+        let gregorian = calendar.gregorianEquivalent
+        guard let date = date(in: gregorian),
+              let result = gregorian.date(byAdding: .month, value: months, to: date)
         else { return nil }
-        return LocalDate(date: result, calendar: calendar)
+        return LocalDate(date: result, calendar: gregorian)
     }
 
     var description: String { String(format: "%04d-%02d-%02d", year, month, day) }
 
     static func < (lhs: LocalDate, rhs: LocalDate) -> Bool {
         (lhs.year, lhs.month, lhs.day) < (rhs.year, rhs.month, rhs.day)
+    }
+}
+
+extension Calendar {
+    /// The app's calendar: Gregorian in the device's current time zone and
+    /// locale, whatever calendar the user selected in iOS Settings.
+    static var gymLocal: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        calendar.locale = .autoupdatingCurrent
+        return calendar
+    }
+
+    /// This calendar with the Gregorian system but the same time zone, locale
+    /// and week settings, so dates and week ranges keep their meaning.
+    var gregorianEquivalent: Calendar {
+        guard identifier != .gregorian else { return self }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        calendar.locale = locale
+        calendar.firstWeekday = firstWeekday
+        calendar.minimumDaysInFirstWeek = minimumDaysInFirstWeek
+        return calendar
     }
 }

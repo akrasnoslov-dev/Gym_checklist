@@ -278,7 +278,7 @@ private struct AuthenticatedContentView: View {
         self.onDeleteAccountWithGoogleReauthentication = onDeleteAccountWithGoogleReauthentication
         self.onAppleAccountDeletionVerificationFailure = onAppleAccountDeletionVerificationFailure
         self.authenticationError = authenticationError
-        let calendar = Calendar.autoupdatingCurrent
+        let calendar = Calendar.gymLocal
         let currentDateProvider = { ContentView.localCurrentDate(calendar: calendar) }
         let today = currentDateProvider()
         let initialSelectedDate = ContentView.testInitialSelectedDate ?? today

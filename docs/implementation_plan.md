@@ -26,7 +26,7 @@ Continuity rule: `docs/progress.md` holds only the current state and next step; 
 
 The current user goal is to verify the originally approved MVP **before paying for distribution or cloud billing**.
 
-The user accepted the functional MVP on 2026-11-23, so this override is now historical. Its deferral list (paid Apple distribution, billing, `functions:deleteAccount` deployment) still applies until the user decides on the next stage; `dev -> main` is tracked in GYM-50.
+The user accepted the functional MVP on 2026-11-23, so this override is now historical. Its deferral list (paid Apple distribution, billing, `functions:deleteAccount` deployment) still applies until the user decides on the next stage; `dev -> main` was done in GYM-50 (tag `mvp-1.0`).
 
 Until the user explicitly accepts the functional MVP:
 - use only zero-cost development and validation paths;

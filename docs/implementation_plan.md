@@ -5,7 +5,7 @@
 > The user approved the following as current scope: profile (sex/date of birth/height), neutral BMI, a compact
 > owner-scoped body-weight history, explicit set execution types, configurable 1–4-week repeat cadence, Program
 > Month view, and the ACC-01 through ACC-09 visual/interaction findings recorded in
-> `docs/mvp_iphone_acceptance_findings_2026-09-04.md`. These replace stale weekly-only, no-body-measurement, and
+> `docs/archive/mvp_iphone_acceptance_findings_2026-09-04.md`. These replace stale weekly-only, no-body-measurement, and
 > no-set-type statements in older task bodies. They remain subject to offline, owner-isolation, and zero-cost
 > acceptance constraints.
 

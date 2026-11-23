@@ -4,7 +4,11 @@ This checklist defines the **current pre-payment functional acceptance**. It is 
 
 Current rule: verify everything that can be implemented and proven at zero cost before the user decides whether to pay for Apple distribution. Use Firebase Spark only; do not attach billing or upgrade to Blaze without explicit approval.
 
-## Current blocker status
+## Result
+
+**Accepted 2026-11-23.** After six iPhone review rounds (the last one is Linear GYM-46), the user accepted the functional MVP on the preview IPA built from `dev` `cd0beed`. The sections below are kept as the historical acceptance record.
+
+## Current blocker status (historical)
 
 - Program week/date navigation remains regression-covered. Approved source `e17cb8173a6373059729226453c568e976954d33` was checked out and asserted by green authoritative macOS candidate run `33991955146`; its focused regression and candidate-full suite passed.
 - Physical-iPhone and live Spark confirmation remain required; do not treat simulator CI as that evidence.

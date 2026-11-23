@@ -15,7 +15,7 @@ When implementing a task, read the full task body and the relevant canonical Pro
 
 Status legend: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`. Pending qualifiers such as `IN PROGRESS (PENDING CI)`, `IN PROGRESS (PENDING LIVE)`, and `IN PROGRESS (PENDING EXTERNAL)` are allowed and are not equivalent to `DONE`.
 
-The detailed historical task headers below predate the green exact-candidate gate. For current status, use `docs/progress.md`: implementation/hardening is complete for this candidate, while live Spark and physical-iPhone evidence remain open.
+**MVP accepted (2026-11-23).** The user accepted the functional MVP on a physical iPhone (`dev` `cd0beed`, Linear GYM-46). The detailed task headers below are historical and were not individually re-marked; treat every MVP milestone (M0–M9) as done. Paid distribution and billing items stay deferred to the next stage. For the current checkpoint, use `docs/progress.md`.
 
 Task completion rule: a task may be marked `DONE` only when all listed acceptance criteria and verification steps pass, or when an explicitly documented environment limitation prevents only non-authoritative local verification and authoritative CI passes instead.
 
@@ -25,6 +25,8 @@ Continuity rule: `docs/progress.md` holds only the current state and next step; 
 ## Current pre-payment functional-acceptance override
 
 The current user goal is to verify the originally approved MVP **before paying for distribution or cloud billing**.
+
+The user accepted the functional MVP on 2026-11-23, so this override is now historical. Its deferral list (paid Apple distribution, billing, `functions:deleteAccount` deployment) still applies until the user decides on the next stage; `dev -> main` is tracked in GYM-50.
 
 Until the user explicitly accepts the functional MVP:
 - use only zero-cost development and validation paths;

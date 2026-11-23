@@ -2,14 +2,13 @@
 
 History lives in `git log` and Linear (team GYM). This file holds only the current state and the next step (≤ 40 lines).
 
-## Current state (2026-11-19)
+## Current state (2026-11-23)
 
-- MVP flow is implemented on `dev`. Not on TestFlight/App Store; paid Apple distribution and Firebase billing remain deferred until explicitly approved.
-- PR #10 (persistence reliability) is merged into `dev` (`f8f3491`). The user ran iPhone review №4 on that build; findings are Linear GYM-21 and its sub-issues.
-- Known production blocker: the Firestore rules deployed to "GymChecklist Dev" lack the `bodyWeightMeasurements` match, so body-weight writes are rejected (GYM-22).
-- PR #26 (GYM-22 + GYM-9 + GYM-12, in review): Firestore failure diagnostics (os_log + Crashlytics), validated rules tested on the emulator with the client's exact payloads, body-weight listener errors surfaced, rules deploy/drift procedure in `docs/firestore_security.md`.
-- Data-layer audit follow-ups: GYM-13, GYM-37, GYM-38, GYM-39, GYM-40.
-- Other work runs as separate PRs into `dev`.
+- **MVP stage complete.** The user accepted the functional MVP on 2026-11-23 after iPhone check №6 (GYM-46) on the preview IPA built from `dev` `cd0beed` (run 44751569183).
+- All MVP and audit issues in Linear (team GYM) are Done or Canceled; nothing in the MVP backlog stays open.
+- Live Firestore rules match `dev` (daily drift check `firestore-rules-drift.yml` is green).
+- `main` still holds only the init commit; the accepted MVP lives on `dev`.
+- Deferred to the next stage (each needs an explicit user decision): Apple Developer Program, TestFlight/App Store, paid signing, Blaze billing, `functions:deleteAccount` deployment, live Sign in with Apple.
 
 ## Gate
 
@@ -17,8 +16,8 @@ Green required CI on the exact PR head SHA + the relevant checklist. No gate-rec
 
 ## Next step
 
-1. Merge PR #26 into `dev` (user approval), then deploy `firestore.rules` from `dev` with explicit user approval and run `scripts/check_deployed_firestore_rules.ps1`.
-2. Preview IPA from `dev`; user checks on iPhone that body weight saves and survives a restart.
-3. GYM-25 / GYM-26 / GYM-27: design-consistency fixes from iPhone review №4.
+1. GYM-50: full iOS CI on the `dev` head, then `dev -> main` (explicit user approval required) and tag `mvp-1.0`.
+2. GYM-51: delete merged branches, settle dependabot branches, archive stale MVP-acceptance docs.
+3. Plan the next stage (distribution or new features) with the user.
 
 `dev -> main` only with explicit user approval.
